@@ -83,9 +83,11 @@ Com o GitHub e o Supabase prontos, unimos tudo na plataforma de hospedagem:
 3. Na lista à esquerda ("Import Git Repository"), localize o repositório da Ponte (`SEU_REPOSITORIO`) que você subiu e clique em **"Import"**.
 4. Configure o Projeto: a Vercel identificará o Framework Preset como *Next.js*.
 5. **Configuração Crucial: Environment Variables (Variáveis de Ambiente)**:
-   Abra a sanfona "Environment Variables" *antes* de clicar em Deploy e adicione as 2 chaves do Supabase exatamente com a nomenclatura que inseri no nosso script `src/lib/supabase.ts`:
+   Abra a sanfona "Environment Variables" *antes* de clicar em Deploy e adicione as 4 chaves (referentes ao Supabase e Disparo de E-mails):
    - Nome: `NEXT_PUBLIC_SUPABASE_URL` | Valor: *[Cole a URL do Supabase]* | Clicar em "Add"
    - Nome: `SUPABASE_SERVICE_ROLE_KEY` | Valor: *[Cole a anon key ou service_key do Supabase]* | Clicar em "Add"
+   - Nome: `EMAIL_USER` | Valor: `diretoria.ponte.projetos@gmail.com` | Clicar em "Add"
+   - Nome: `EMAIL_PASS` | Valor: *[Cole a Senha de Aplicativo (16 dígitos) do Gmail]* | Clicar em "Add"
    
 6. Clique no botão azul definitivo: **"Deploy"**.
 

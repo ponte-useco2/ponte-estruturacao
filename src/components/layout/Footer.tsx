@@ -43,6 +43,11 @@ export function Footer() {
                                     WhatsApp
                                 </a>
                             </li>
+                            <li>
+                                <a href="https://instagram.com/ponteconsultoria1" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                                    Instagram
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>
