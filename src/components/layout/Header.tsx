@@ -16,7 +16,10 @@ export function Header() {
                     <Link href="/#servicos" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Serviços</Link>
                     <Link href="/#metodo" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Como trabalhamos</Link>
                     <Link href="/#experiencia" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Experiência e setores</Link>
-                    <Link href="/finep-subvencao" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">FINEP Subvenção</Link>
+                    <div className="flex items-center gap-4">
+                        <Link href="/consultoria-finep" className="text-sm font-bold text-emerald-600 hover:text-emerald-800 transition-colors">Consultoria FINEP</Link>
+                        <Link href="/finep-subvencao" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">FINEP Subvenção</Link>
+                    </div>
                 </nav>
                 <div className="flex items-center gap-4">
                     <Link href="#diagnostico">
