@@ -19,6 +19,7 @@ export function Header() {
                     <div className="flex items-center gap-4">
                         <Link href="/consultoria-finep" className="text-sm font-bold text-emerald-600 hover:text-emerald-800 transition-colors">Consultoria FINEP</Link>
                         <Link href="/finep-subvencao" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">FINEP Subvenção</Link>
+                        <Link href="/reurb" className="text-sm font-bold text-teal-600 hover:text-teal-800 transition-colors">REURB · Municípios</Link>
                     </div>
                 </nav>
                 <div className="flex items-center gap-4">
