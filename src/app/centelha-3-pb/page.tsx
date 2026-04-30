@@ -745,12 +745,20 @@ export default function CentelhaPage() {
                   ))}
                 </ul>
 
-                <Link
-                  href="#diagnostico-centelha"
-                  className="mt-auto inline-flex h-14 items-center justify-center rounded-xl bg-emerald-600 px-6 text-base font-semibold text-white shadow-md transition-all hover:bg-emerald-700"
-                >
-                  Solicitar Pré-Diagnóstico
-                </Link>
+                <div className="mt-auto space-y-3">
+                  <Link
+                    href="/centelha-3-pb/checkout"
+                    className="inline-flex w-full h-14 items-center justify-center rounded-xl bg-emerald-600 px-6 text-base font-semibold text-white shadow-md transition-all hover:bg-emerald-700"
+                  >
+                    Comprar agora — R$ 2.700
+                  </Link>
+                  <Link
+                    href="#diagnostico-centelha"
+                    className="inline-flex w-full h-12 items-center justify-center text-sm text-slate-600 hover:text-emerald-700 underline transition-colors"
+                  >
+                    Quero conversar antes — pré-diagnóstico gratuito
+                  </Link>
+                </div>
               </FadeIn>
 
               {/* Etapa 2 */}
@@ -924,20 +932,6 @@ export default function CentelhaPage() {
               Serviço independente de consultoria estratégica.{" "}
               <strong className="text-slate-700">
                 Não há vínculo institucional
-              </strong>{" "}
-              com FAPESQ, Finep, CNPq, Fundação CERTI ou Programa Centelha. A
-              contratação não garante aprovação. A aprovação depende
-              exclusivamente das regras do edital, da avaliação da banca e da
-              conformidade documental do proponente.
-            </p>
-          </div>
-        </Section>
-      </main>
-
-      <Footer />
-    </div>
-  );
-}
               </strong>{" "}
               com FAPESQ, Finep, CNPq, Fundação CERTI ou Programa Centelha. A
               contratação não garante aprovação. A aprovação depende
