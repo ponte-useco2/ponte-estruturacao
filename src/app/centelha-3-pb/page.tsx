@@ -3,6 +3,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Section } from "@/components/ui/Section";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { FormularioCentelha } from "@/components/ui/FormularioCentelha";
+import { StickyCheckoutCTA } from "@/components/ui/StickyCheckoutCTA";
 import {
   ArrowRight,
   ChevronRight,
@@ -303,7 +304,7 @@ export default function CentelhaPage() {
 
       <Header />
 
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-40 sm:pb-32">
         {/* ======================= HERO ======================= */}
         <Section
           id="hero"
@@ -942,7 +943,12 @@ export default function CentelhaPage() {
         </Section>
       </main>
 
+      <StickyCheckoutCTA />
       <Footer />
+    </div>
+  );
+}
+Footer />
     </div>
   );
 }

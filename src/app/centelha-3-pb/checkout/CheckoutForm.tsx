@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2,
   Tag,
@@ -31,10 +31,39 @@ type CupomState =
 
 export function CheckoutForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [codigoInput, setCodigoInput] = useState("");
   const [cupomState, setCupomState] = useState<CupomState>({ status: "idle" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const cupomPreaplicadoRef = useRef(false);
+
+  // Pré-aplica cupom via query param (?cupom=XXX) — vindo da StickyCheckoutCTA
+  useEffect(() => {
+    if (cupomPreaplicadoRef.current) return;
+    const cupomParam = searchParams.get("cupom");
+    if (!cupomParam) return;
+    cupomPreaplicadoRef.current = true;
+
+    const codigo = cupomParam.trim().toUpperCase();
+
+    // Todos os setStates dentro do callback async — evita warning
+    // react-hooks/set-state-in-effect (setState direto no body do effect)
+    validateCupom(codigo).then((result) => {
+      setCodigoInput(codigo);
+      if (result.ok) {
+        setCupomState({ status: "valid", cupom: result.cupom });
+      } else {
+        const reason =
+          result.reason === "exhausted"
+            ? "Esse código já foi usado todas as vezes permitidas."
+            : result.reason === "inactive"
+              ? "Esse código não está mais ativo."
+              : "Código não encontrado.";
+        setCupomState({ status: "invalid", reason });
+      }
+    });
+  }, [searchParams]);
 
   const valorAtualCentavos =
     cupomState.status === "valid"
@@ -350,6 +379,12 @@ export function CheckoutForm() {
           Política de Privacidade
         </a>
         . A Etapa 1 é uma contratação privada, sem vínculo com recursos
+        públicos do edital.
+      </p>
+    </form>
+  );
+}
+atação privada, sem vínculo com recursos
         públicos do edital.
       </p>
     </form>
