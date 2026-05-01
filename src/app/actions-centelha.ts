@@ -1,10 +1,15 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { sendEmail } from "@/lib/email";
+import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
 import {
   centelhaEdital,
   getPrazoEditalLabel,
 } from "@/config/centelha-edital";
+
+const ADMIN_EMAIL =
+  process.env.EMAIL_USER || "diretoria.ponte.projetos@gmail.com";
 
 /**
  * Server action para registrar leads da landing /centelha-3-pb.
@@ -77,6 +82,43 @@ export async function submitCentelhaLead(formData: FormData) {
     if (error) {
       console.error("Erro ao salvar lead Centelha no Supabase:", error);
       return { success: false, error: error.message };
+    }
+
+    // Notifica admin imediatamente (não bloqueia em caso de falha)
+    try {
+      const { subject, html, text } = renderAdminNotificationEmail({
+        formLabel: `${centelhaEdital.edition.label} — Pré-diagnóstico`,
+        nome,
+        email,
+        whatsapp,
+        campos: [
+          { label: "Nome", value: nome },
+          { label: "Email", value: email },
+          { label: "WhatsApp", value: whatsapp },
+          { label: "Município", value: municipio ? `${municipio}/PB` : "" },
+          { label: "CNPJ status", value: cnpj_status },
+          { label: "Nome do projeto", value: nome_projeto },
+          { label: "Área da solução", value: area_solucao },
+          { label: "Estágio", value: estagio },
+          { label: "Problema", value: problema },
+          { label: "Link/Pitch", value: link_pitch },
+          { label: "Participou Centelha 1/2", value: participou_antes },
+          { label: "Deseja análise", value: deseja_analise },
+        ],
+      });
+      await sendEmail({
+        to: ADMIN_EMAIL,
+        subject,
+        html,
+        text,
+        fromName: "Ponte — Notificação de Lead",
+      });
+    } catch (notifyErr) {
+      console.error(
+        "[submitCentelhaLead] Falha ao notificar admin:",
+        notifyErr
+      );
+      // não retorna erro pro usuário — lead já foi salvo
     }
 
     return { success: true };
