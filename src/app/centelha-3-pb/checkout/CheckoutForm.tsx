@@ -384,9 +384,3 @@ export function CheckoutForm() {
     </form>
   );
 }
-atação privada, sem vínculo com recursos
-        públicos do edital.
-      </p>
-    </form>
-  );
-}

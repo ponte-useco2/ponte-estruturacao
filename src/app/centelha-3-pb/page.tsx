@@ -948,7 +948,3 @@ export default function CentelhaPage() {
     </div>
   );
 }
-Footer />
-    </div>
-  );
-}

@@ -12,6 +12,10 @@ import {
  * Reusa a tabela `leads` existente. O `tipo_org` e os textos derivados saem
  * do config em `src/config/centelha-edital.ts` — quando vier o Centelha 4
  * PB ou houver postergação de prazo, basta editar lá.
+ *
+ * Após salvar o lead, agenda envio automático de email para 1 hora depois
+ * (campo email_pos_form_send_at). O endpoint /api/cron/send-pending-emails
+ * processa esses agendamentos via cron-job.org.
  */
 export async function submitCentelhaLead(formData: FormData) {
   const supabase = createServerSupabaseClient();
@@ -29,7 +33,7 @@ export async function submitCentelhaLead(formData: FormData) {
   const participou_antes = (formData.get("participou_antes") as string) || "";
   const deseja_analise = (formData.get("deseja_analise") as string) || "Sim";
 
-  // Tag identificadora derivada da config (mantém compat com [CENTELHA-3PB])
+  // Tag identificadora derivada da config
   const editionTag = `[${centelhaEdital.edition.label
     .toUpperCase()
     .replace(/\s+/g, "-")}]`;
@@ -49,6 +53,9 @@ export async function submitCentelhaLead(formData: FormData) {
     .filter(Boolean)
     .join(" | ");
 
+  // Agenda envio do email automático para 1 hora depois (parecer "humano")
+  const sendAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
   const leadData = {
     nome,
     email,
@@ -61,6 +68,7 @@ export async function submitCentelhaLead(formData: FormData) {
     objetivo: `Estruturação de proposta para ${centelhaEdital.edition.label}`,
     prazo_edital: getPrazoEditalLabel(),
     demanda_resumo: demandaConsolidada,
+    email_pos_form_send_at: sendAt,
   };
 
   try {

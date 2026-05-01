@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Section } from "@/components/ui/Section";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { CheckoutForm } from "./CheckoutForm";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
   description:
     "Contratação direta da Etapa 1 do programa de estruturação de propostas Centelha 3 PB. Pagamento via Pix ou Cartão.",
   robots: {
-    index: false, // não indexar página de checkout
+    index: false,
     follow: false,
   },
 };
@@ -49,7 +50,16 @@ export default function CheckoutPage() {
             </FadeIn>
 
             <FadeIn direction="up" delay={0.15}>
-              <CheckoutForm />
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-16 text-slate-500 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Carregando checkout...
+                  </div>
+                }
+              >
+                <CheckoutForm />
+              </Suspense>
             </FadeIn>
           </div>
         </Section>
