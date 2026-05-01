@@ -13,7 +13,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Ponte | Estruturação de Projetos",
   description: "Transformamos projetos complexos em propostas financiáveis, aprováveis e executáveis.",
   openGraph: {
