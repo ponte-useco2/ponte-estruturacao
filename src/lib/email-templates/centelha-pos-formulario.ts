@@ -18,6 +18,8 @@ interface CentelhaPosFormularioInput {
   estagio?: string | null;
   /** Cupom de afiliado padrão a aplicar no checkout (default: WS) */
   cupom?: string;
+  /** Tracking de afiliado (ex: "marcio") — propagado pra URL do checkout */
+  ref?: string | null;
 }
 
 const PONTE_WHATSAPP = "5583996428315";
@@ -38,7 +40,12 @@ export function renderCentelhaPosFormularioEmail(
   input: CentelhaPosFormularioInput
 ) {
   const cupom = input.cupom ?? "WS";
-  const checkoutUrl = `${CHECKOUT_URL_BASE}?cupom=${encodeURIComponent(cupom)}`;
+  const refSuffix = input.ref
+    ? `&ref=${encodeURIComponent(input.ref)}`
+    : "";
+  const checkoutUrl = `${CHECKOUT_URL_BASE}?cupom=${encodeURIComponent(
+    cupom
+  )}${refSuffix}`;
 
   const primeiroNome =
     input.nome.trim().split(/\s+/)[0] || "tudo certo";

@@ -97,6 +97,8 @@ async function handleCronRequest(req: NextRequest) {
         lead.organizacao ||
         null;
       const area = extractField(lead.demanda_resumo, "Área");
+      // Tracking de afiliado — propaga ref pro link do checkout no email
+      const ref = extractField(lead.demanda_resumo, "Ref");
 
       const { subject, html, text } = renderCentelhaPosFormularioEmail({
         nome: lead.nome,
@@ -104,6 +106,7 @@ async function handleCronRequest(req: NextRequest) {
         area,
         estagio: lead.estagio_proj,
         cupom: "WS",
+        ref,
       });
 
       const sendResult = await sendEmail({
