@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { extractRefFromForm } from "@/lib/tracking";
 import {
   centavosToReais,
   createCustomer,
@@ -109,6 +110,7 @@ export async function criarCobrancaCentelha(
   const cpf = ((formData.get("cpf") as string) || "").replace(/\D/g, "");
   const municipio = ((formData.get("municipio") as string) || "").trim();
   const nomeProjeto = ((formData.get("nome_projeto") as string) || "").trim();
+  const ref = extractRefFromForm(formData);
   const codigoCupomRaw = ((formData.get("codigo_cupom") as string) || "")
     .trim()
     .toUpperCase();
@@ -250,6 +252,7 @@ export async function criarCobrancaCentelha(
     `CPF: ${cpf}`,
     nomeProjeto && `Projeto: ${nomeProjeto}`,
     afiliadoNome && `Indicado por: ${afiliadoNome}`,
+    ref && `Ref: ${ref}`,
     `Valor: ${formatBRL(valorCentavos)}`,
     `Asaas Payment ID: ${paymentId}`,
     `Asaas Customer ID: ${asaasCustomerId}`,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Send,
   Loader2,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { PoliticaPrivacidadeCentelha } from "@/components/ui/PoliticaPrivacidadeCentelha";
 import { submitCentelhaLead } from "@/app/actions-centelha";
+import { getTrackingRefFromUrlAndStore } from "@/lib/tracking";
 
 type Step1Data = {
   nome: string;
@@ -41,6 +42,12 @@ export function FormularioCentelha() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [trackingRef, setTrackingRef] = useState<string | null>(null);
+
+  // Captura ?ref= ou ?utm_source= da URL e persiste em sessionStorage (24h)
+  useEffect(() => {
+    setTrackingRef(getTrackingRefFromUrlAndStore());
+  }, []);
 
   const scrollToFormTop = () => {
     document
@@ -227,6 +234,10 @@ export function FormularioCentelha() {
           <input type="hidden" name="whatsapp" value={step1Data.whatsapp} />
           <input type="hidden" name="municipio" value={step1Data.municipio} />
           <input type="hidden" name="deseja_analise" value="Sim" />
+          {/* Tracking de afiliado (ex: ?ref=marcio) */}
+          {trackingRef && (
+            <input type="hidden" name="ref" value={trackingRef} />
+          )}
 
           {errorMsg && (
             <div

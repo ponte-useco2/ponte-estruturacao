@@ -22,6 +22,7 @@ import {
   formatBRL,
   descricaoCupom,
 } from "@/config/centelha-cupons";
+import { getTrackingRefFromUrlAndStore } from "@/lib/tracking";
 
 type CupomState =
   | { status: "idle" }
@@ -36,7 +37,13 @@ export function CheckoutForm() {
   const [cupomState, setCupomState] = useState<CupomState>({ status: "idle" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [trackingRef, setTrackingRef] = useState<string | null>(null);
   const cupomPreaplicadoRef = useRef(false);
+
+  // Captura ?ref= e persiste em sessionStorage (ou resgata de visita anterior)
+  useEffect(() => {
+    setTrackingRef(getTrackingRefFromUrlAndStore());
+  }, []);
 
   // Pré-aplica cupom via query param (?cupom=XXX) — vindo da StickyCheckoutCTA
   useEffect(() => {
@@ -126,6 +133,11 @@ export function CheckoutForm() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
+      {/* Tracking de afiliado (ex: ?ref=marcio) */}
+      {trackingRef && (
+        <input type="hidden" name="ref" value={trackingRef} />
+      )}
+
       {/* CARD DO VALOR */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8">
         <div className="flex items-start justify-between gap-4 flex-wrap">

@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
+import { extractRefFromForm } from "@/lib/tracking";
 import {
   centelhaEdital,
   getPrazoEditalLabel,
@@ -38,6 +39,9 @@ export async function submitCentelhaLead(formData: FormData) {
   const participou_antes = (formData.get("participou_antes") as string) || "";
   const deseja_analise = (formData.get("deseja_analise") as string) || "Sim";
 
+  // Tracking de afiliado via ?ref= (ex: marcio, gayoso) — opcional
+  const ref = extractRefFromForm(formData);
+
   // Tag identificadora derivada da config
   const editionTag = `[${centelhaEdital.edition.label
     .toUpperCase()
@@ -54,6 +58,7 @@ export async function submitCentelhaLead(formData: FormData) {
     link_pitch && `Link: ${link_pitch}`,
     participou_antes && `Centelha 1/2: ${participou_antes}`,
     deseja_analise && `Análise: ${deseja_analise}`,
+    ref && `Ref: ${ref}`,
   ]
     .filter(Boolean)
     .join(" | ");
@@ -104,6 +109,7 @@ export async function submitCentelhaLead(formData: FormData) {
           { label: "Link/Pitch", value: link_pitch },
           { label: "Participou Centelha 1/2", value: participou_antes },
           { label: "Deseja análise", value: deseja_analise },
+          { label: "Indicado por (Ref)", value: ref },
         ],
       });
       await sendEmail({
