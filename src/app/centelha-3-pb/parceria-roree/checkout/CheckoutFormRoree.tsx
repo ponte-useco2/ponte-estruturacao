@@ -10,19 +10,13 @@ import {
   CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { criarCobrancaRoree } from "@/app/actions-checkout-roree";
 import {
-  criarCobrancaRoree,
   VALOR_FASE_ROREE,
   LABEL_FASE_ROREE,
+  formatBRL,
   type FaseRoree,
-} from "@/app/actions-checkout-roree";
-
-function formatBRL(centavos: number): string {
-  return (centavos / 100).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
+} from "@/config/centelha-roree";
 
 function maskCpf(value: string): string {
   const d = value.replace(/\D/g, "").slice(0, 11);

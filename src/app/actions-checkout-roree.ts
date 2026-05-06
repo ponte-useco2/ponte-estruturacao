@@ -8,6 +8,12 @@ import {
   dueDateInDays,
   findCustomerByCpfCnpj,
 } from "@/lib/asaas";
+import {
+  VALOR_FASE_ROREE,
+  LABEL_FASE_ROREE,
+  formatBRL,
+  type FaseRoree,
+} from "@/config/centelha-roree";
 
 /**
  * Cobranças do funil PARCERIA ROREE.
@@ -22,31 +28,12 @@ import {
  * Não usa cupons. Preço fixo por fase.
  */
 
-export type FaseRoree = 1 | 2;
-
-export const VALOR_FASE_ROREE: Record<FaseRoree, number> = {
-  1: 50000,   // R$ 500,00 em centavos
-  2: 100000,  // R$ 1.000,00 em centavos
-};
-
-export const LABEL_FASE_ROREE: Record<FaseRoree, string> = {
-  1: "Fase 1 — Diagnóstico Estratégico",
-  2: "Fase 2 — Estruturação Técnica",
-};
-
-export interface CriarCobrancaRoreeResult {
+interface CriarCobrancaRoreeResult {
   success: boolean;
   invoiceUrl?: string;
   paymentId?: string;
   valorCentavos?: number;
   error?: string;
-}
-
-function formatBRL(centavos: number): string {
-  return (centavos / 100).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
 }
 
 export async function criarCobrancaRoree(
