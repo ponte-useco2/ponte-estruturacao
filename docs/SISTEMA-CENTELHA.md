@@ -4,7 +4,15 @@
 > automação de email construído para a landing `/centelha-3-pb` em
 > `ponteprojetos.com.br`.
 >
-> Criado em maio de 2026. Atualize esta doc sempre que mudar arquitetura.
+> Criado em maio de 2026. Atualizado em 26/05/2026 (reorganização de pastas).
+> Atualize esta doc sempre que mudar arquitetura.
+
+> **📂 Localização atual do projeto no disco:**
+> `C:\Users\jonat\Site-Ponte\Ponte_Estruturacao\`
+>
+> (até 26/05/2026 ficava em `C:\Users\jonat\Ponte_Estruturacao\`. Foi movido
+> para dentro de `Site-Ponte\` junto com docs jurídicos e projetos paralelos.
+> Veja `C:\Users\jonat\Site-Ponte\README.md` para o mapa completo.)
 
 ---
 
@@ -83,9 +91,11 @@
 | Rota | Tipo | Descrição |
 |------|------|-----------|
 | `/` | Estática | Home (formulário de diagnóstico geral) |
-| `/centelha-3-pb` | Estática | Landing do produto Centelha 3 PB |
+| `/centelha-3-pb` | Estática | Landing do produto Centelha 3 PB (R$ 2.700 com cupons) |
 | `/centelha-3-pb/checkout` | Estática + Suspense | Pagamento via Asaas |
 | `/centelha-3-pb/obrigado` | Estática | Confirmação pós-pagamento |
+| `/centelha-3-pb/parceria-roree` | Estática (noindex) | Sub-funil parceria ROREE (R$ 500 + R$ 1.000 + R$ 10k×2) |
+| `/centelha-3-pb/parceria-roree/checkout` | Estática + Suspense | Checkout Fase 1 (R$ 500) ou Fase 2 (R$ 1.000) |
 | `/reurb` | Estática | Landing REURB para municípios |
 | `/consultoria-finep` | Estática | FINEP |
 | `/finep-subvencao` | Estática | FINEP variante |
@@ -454,7 +464,7 @@ ou se houver leads pendentes:
 ### Build local
 
 ```powershell
-cd C:\Users\jonat\Ponte_Estruturacao
+cd C:\Users\jonat\Site-Ponte\Ponte_Estruturacao
 Remove-Item -Recurse -Force .next, .turbo -ErrorAction SilentlyContinue
 npm run build
 ```
@@ -626,15 +636,49 @@ Tinha um `package.json` solto (resíduo de teste com Firecrawl/Playwright) na pa
 - [ ] Monitorar consumo de cupons sociais (10 vagas total) à medida que o pessoal indicar
 - [ ] Acompanhar entrega de emails admin nas primeiras semanas (verificar caixa de entrada do `diretoria@`)
 - [ ] Conferir histórico do cron-job.org pra garantir 200 OK em todas execuções
+- [ ] Acompanhar primeiros leads do funil ROREE (`tipo_org = "Centelha 3 PB - ROREE"`)
+
+### Bloco 3 — Filtro com IA (pendente)
+
+Implementar endpoint `/api/ai/pre-diagnostico` para o funil ROREE:
+
+- [ ] Endpoint server que recebe dados do formulário ROREE
+- [ ] Critérios duros (binários, descartam antes da IA): estado=PB, ME/EPP/MEI, equipe ≥3, faturamento ≤R$ 4,8M
+- [ ] Chamada ao Claude API (Anthropic) com prompt estruturado avaliando: aderência ao edital, grau de inovação, mercado, viabilidade, impacto socioeconômico
+- [ ] Output: `aprovado` / `pede-info` / `rejeitado` com motivo
+- [ ] Email automático específico para cada output
+- [ ] Nova env var: `ANTHROPIC_API_KEY`
+- [ ] Update no `actions-roree.ts` pra disparar o filtro após insert do lead
+
+
+### Débitos técnicos (auditoria de 26/05/2026 — score 6.2/10)
+
+**Críticos (resolver nas próximas 2 semanas):**
+
+- [ ] **`npm audit fix`** — 6 CVEs (3 high: next 16.1.6→16.2.6, flatted, picomatch + 3 moderate: nodemailer 8.0.3→8.0.7, brace-expansion)
+- [ ] **Rate limiting nos formulários públicos** (sem proteção contra spam hoje)
+- [ ] **Validação Zod nas 7 server actions** (sem lib de validação hoje)
+- [ ] **Sentry/observabilidade** (37 `console.*` perdidos hoje)
+
+**Importantes (próximo mês):**
+
+- [ ] **Refatorar 4 formulários duplicados** (Centelha, Roree, FINEP, Municipios) num componente genérico — economiza ~1.500 LOC
+- [ ] **Quebrar `reurb/page.tsx`** (1.175 linhas!) em sub-componentes
+- [ ] **Headers de segurança no `next.config.ts`** (CSP, HSTS, X-Frame, etc.)
+- [ ] **Design tokens semânticos no Tailwind** + auditoria de contraste WCAG
+
+**Estratégicos (próximo trimestre):**
+
+- [ ] **Vitest** + 10 testes unitários nos `lib/` (asaas mockado, email-templates, tracking)
+- [ ] **CAPTCHA invisível (Cloudflare Turnstile)** + `/admin/leads` autenticado
 
 ### Possíveis melhorias futuras
 
 - [ ] **Query de alerta semanal:** "cupons sociais com ≥1 uso ou esgotados nos últimos 7 dias"
-- [ ] **Dashboard de leads:** página interna `/admin/leads` (com auth) pra visualizar em vez de SQL
 - [ ] **Notificação no WhatsApp:** integrar com WhatsApp Business API pra avisar lead chegado direto no zap (em vez de só email)
 - [ ] **Campanha de remarketing:** quem preencheu o form mas não pagou em 7 dias → email de follow-up
 - [ ] **Painel de afiliados:** página onde cada parceiro vê quantos leads já vieram do cupom dele
-- [ ] **Domínio próprio em vez de subpasta:** se o produto crescer, considerar `centelhapb.com.br` (decidiu manter subpasta agora por SEO/legal)
+- [ ] **Domínio próprio em vez de subpasta:** se o produto crescer, considerar `centelhapb.com.br`
 
 ---
 
@@ -657,7 +701,68 @@ Foram enviadas mensagens de divulgação no WhatsApp para:
 | Pablo Forlan | PABLO (90% off) | Enviada com valor correto (R$ 135k) |
 | Emerson (Luzero) | LUZERO + RESULT | Enviada com valor correto (R$ 135k) |
 | Grupo DESCARBONIZAÇÃO (Isa, Pedro, Paulo Gayoso) | GAYOSO + ISABELLE | Enviada com valor correto (R$ 135k) |
-| Fabrício Marcíli | RESULT + FABRICIO | ⚠️ Enviada com valor antigo (60-200k) — corrigida em mensagem subsequente |
-| Instituto Result (+55 83 9871-5797) | RESULT + FABRICIO | ⚠️ Mesma situação — corrigida |
+| Fabrício Marcíli | RESULT + FABRICIO | Enviada com valor antigo (60-200k) — corrigida em mensagem subsequente |
+| Instituto Result (+55 83 9871-5797) | RESULT + FABRICIO | Mesma situação — corrigida |
 
 Status do WhatsApp também foi postado em 3 versões (A direta, B provocativa, C amigável).
+
+## Apêndice C — Funil paralelo: Parceria PONTE × ROREE
+
+Sub-funil criado em 26/05/2026 para clientes captados pela **ROREE Consultoria e Gestão Empresarial LTDA** (CNPJ 42.355.855/0001-85, sócio único Pedro Henrique Tolentino de Melo Nogueira). Coexiste com o funil principal — quem chega por `/centelha-3-pb` paga R$ 2.700; quem chega por `/centelha-3-pb/parceria-roree` entra no modelo de risco compartilhado.
+
+### Modelo financeiro
+
+| Etapa | Cliente paga | Pra quem | Quando |
+|-------|--------------|----------|--------|
+| Fase 1 — Diagnóstico estratégico | R$ 500 | ROREE | Na contratação |
+| Fase 2 — Estruturação técnica | R$ 1.000 | ROREE | Após Fase 1 entregue |
+| Pós-aprovação — Dev de sistemas | R$ 10.000 mín. | ROREE (NF própria) | Após FAPESQ liberar recursos |
+| Pós-aprovação — Gestão + prestação de contas | R$ 10.000 mín. | PONTE (NF própria) | Após FAPESQ liberar recursos |
+
+Da divisão pré-aprovação: ROREE recebe e repassa 50% à PONTE via NF em até 5 dias úteis. Pós-aprovação: cada empresa cobra o cliente diretamente com NF própria, saindo do orçamento aprovado da subvenção.
+
+### Limites operacionais
+
+- **Capacidade:** até 10 clientes por ciclo de edital
+- **Filtro automático (planejado):** Bloco 3 implementará IA + critérios duros
+  - Critérios duros (binários): estado=PB, ME/EPP/MEI, equipe ≥3, faturamento ≤R$ 4,8M
+  - Score qualitativo via Claude API
+
+### Estrutura técnica
+
+| Arquivo | Função |
+|---------|--------|
+| `src/app/centelha-3-pb/parceria-roree/page.tsx` | Landing (noindex, distribuída por link direto) |
+| `src/components/ui/FormularioRoree.tsx` | Form de pré-diagnóstico (etapa única) |
+| `src/app/actions-roree.ts` | Server action `submitRoreeLead` |
+| `src/app/centelha-3-pb/parceria-roree/checkout/page.tsx` | Server component checkout |
+| `src/app/centelha-3-pb/parceria-roree/checkout/CheckoutFormRoree.tsx` | Client form, toggle Fase 1/Fase 2 |
+| `src/app/actions-checkout-roree.ts` | Server action `criarCobrancaRoree` |
+| `src/config/centelha-roree.ts` | Constantes (VALOR_FASE_ROREE, LABEL_FASE_ROREE, formatBRL, FaseRoree) |
+
+### Separação no banco
+
+Todos os leads do funil ROREE têm `tipo_org = "Centelha 3 PB - ROREE"` (diferente do funil principal que usa `"Centelha 3 PB"`).
+
+Query para listar leads ROREE:
+
+```sql
+SELECT * FROM public.leads
+WHERE tipo_org = 'Centelha 3 PB - ROREE'
+ORDER BY created_at DESC;
+```
+
+### Documentos jurídicos
+
+Minutas em `C:\Users\jonat\Site-Ponte\`:
+
+- **Termo de Cooperação PONTE × ROREE** (B2B) — formaliza a parceria, escopos, divisão 50/50, vigência por ciclo de edital
+- **Contrato Cliente × ROREE** — template B2C com PONTE como subcontratada
+
+Ambos são MINUTAS — revisar com advogado antes de assinar. Campos entre `[colchetes]` devem ser preenchidos (nomes, CPFs, datas).
+
+### Pendência crítica: Bloco 3 (Filtro IA)
+
+Sem o filtro IA, o modelo ROREE é frágil: receita real só vem se projeto for aprovado pela FAPESQ. Estimativa de taxa de aprovação histórica do Centelha é 20-25% — se atingirmos ≥40% via filtro rigoroso, modelo é viável; abaixo disso, prejuízo. Por isso o filtro é fundamental.
+
+Ver detalhes em **15. Pendências e próximos passos → Bloco 3**.
