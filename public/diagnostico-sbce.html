@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trilha PONTE de Decisão Legítima — Sua empresa está no jogo?</title>
+<style>
+  :root{
+    --navy:#11302B; --navy2:#0B201C; --teal:#1C7293; --green:#2E7D52;
+    --amber:#C77D11; --red:#B23A30; --plum:#6D4C7D; --slate:#46607A;
+    --ink:#1B2B27; --mute:#5C6B66; --line:#D9E0DD; --bg:#F4F6F5; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5}
+  .wrap{max-width:920px;margin:0 auto;padding:0 18px 80px}
+  header{background:var(--navy);color:#fff;padding:34px 0 30px;position:relative;overflow:hidden}
+  header .wrap{position:relative;z-index:2}
+  header .blob{position:absolute;border-radius:50%;background:#13403A;opacity:.9}
+  .kicker{font-size:12px;letter-spacing:2px;font-weight:bold;color:#9FC2B8;text-transform:uppercase}
+  h1{font-family:Cambria,Georgia,serif;font-size:30px;margin:8px 0 6px;line-height:1.15}
+  header p.sub{color:#CFE0DB;font-size:15px;max-width:660px}
+  .law{margin-top:18px;background:#13403A;border-radius:10px;padding:12px 16px;font-size:13.5px;color:#EAF1EE}
+  .law b{color:var(--amber)}
+  .intro{background:var(--card);border-radius:12px;padding:18px 22px;margin:22px 0 6px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  .intro p{font-size:13.5px;color:var(--mute)}
+  .stepbar{margin:18px 0 6px}
+  .steptop{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mute);margin-bottom:6px}
+  .steptop b{color:var(--navy)}
+  .steptrack{height:10px;background:#e4e8e6;border-radius:6px;overflow:hidden}
+  .stepfill{height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:6px;transition:width .3s}
+  .segs{display:flex;gap:6px;margin-top:8px}
+  .seg{flex:1;height:6px;border-radius:4px;background:#dfe4e2}
+  .seg.on{background:var(--green)}
+  .seg.cur{background:var(--amber)}
+  .fasehead{margin:18px 0 6px}
+  .fasetag{display:inline-block;background:var(--navy);color:#fff;font-size:11px;font-weight:bold;letter-spacing:1px;padding:3px 12px;border-radius:20px;text-transform:uppercase}
+  .fasehead h2{font-family:Cambria,serif;font-size:23px;color:var(--navy);margin:8px 0 2px}
+  .fasehead p{font-size:14px;color:var(--mute)}
+  .casa{background:var(--card);border-radius:12px;padding:18px 20px;margin:14px 0;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .casa .top{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+  .num{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Cambria,serif;font-weight:bold;font-size:18px;color:#fff;background:var(--teal)}
+  .casa h3{font-size:16px;color:var(--ink)}
+  .casa .dim{font-size:11px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--mute);margin-left:auto;text-align:right}
+  .qwrap{position:relative;padding-right:30px;margin:6px 0 12px}
+  .qwrap .q{font-size:13.5px;color:var(--mute);margin:0}
+  .optwrap{position:relative;margin:7px 0}
+  .opts label{display:flex;align-items:flex-start;gap:10px;padding:9px 34px 9px 12px;border:1px solid var(--line);border-radius:8px;margin:0;cursor:pointer;font-size:13.5px;transition:.12s}
+  .opts label:hover{border-color:var(--teal);background:#f3f8f8}
+  .opts input{margin-top:3px}
+  .opts label.sel{border-color:var(--green);background:#eef7f1}
+  .hbtn{position:absolute;width:21px;height:21px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--teal);font-size:12px;font-weight:bold;line-height:19px;text-align:center;cursor:pointer;padding:0}
+  .hbtn:hover{border-color:var(--teal)}
+  .hbtn.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+  .qwrap>.hbtn{top:-1px;right:0}
+  .optwrap>.hbtn{top:9px;right:9px;z-index:2}
+  .hp{display:none;margin:6px 0 2px;background:#f1f7f7;border:1px solid #d6e6e6;border-radius:7px;padding:9px 12px;font-size:12px;color:var(--ink);line-height:1.45}
+  .hp.show{display:block}
+  .casa7{outline:2px solid var(--amber);outline-offset:2px}
+  .casa7 .badge{display:inline-block;background:var(--amber);color:#2A1C04;font-size:10.5px;font-weight:bold;padding:2px 8px;border-radius:20px;margin-left:8px}
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px}
+  button{font-family:Arial,sans-serif;cursor:pointer;border:none;border-radius:30px}
+  button.prim{background:var(--navy);color:#fff;padding:13px 28px;font-size:15px;font-weight:bold;box-shadow:0 4px 14px rgba(17,48,43,.22)}
+  button.prim:hover{filter:brightness(1.08)}
+  button.ghost{background:transparent;color:var(--mute);padding:13px 18px;font-size:14px;font-weight:bold}
+  button.ghost:hover{color:var(--navy)}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  .warn{display:none;color:var(--red);font-size:13px;margin-top:10px;font-weight:bold;text-align:center}
+  #result{display:none;margin-top:18px}
+  .scorecard{background:var(--navy);color:#fff;border-radius:14px;padding:26px;text-align:center;position:relative;overflow:hidden}
+  .scorecard .big{font-family:Cambria,serif;font-size:64px;font-weight:bold;line-height:1}
+  .scorecard .of{font-size:16px;color:#9FC2B8}
+  .badge-cls{display:inline-block;margin-top:12px;padding:8px 20px;border-radius:30px;font-size:16px;font-weight:bold}
+  .dims{background:var(--card);border-radius:12px;padding:20px 22px;margin-top:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .dims h3{font-family:Cambria,serif;font-size:18px;color:var(--navy);margin-bottom:14px}
+  .dimrow{margin:11px 0}
+  .dimrow .dl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+  .dimrow .dl .v{font-weight:bold}
+  .track{height:13px;background:#eceeed;border-radius:7px;overflow:hidden}
+  .fill{height:100%;border-radius:7px}
+  .next{background:#EAF1EE;border-radius:12px;padding:20px 22px;margin-top:14px}
+  .next h3{font-family:Cambria,serif;font-size:18px;color:var(--navy);margin-bottom:8px}
+  .next p{font-size:14px}
+  .ladder{margin-top:14px}
+  .ladder h3{font-family:Cambria,serif;font-size:16px;color:var(--navy);margin-bottom:8px}
+  .lrow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:9px;margin:6px 0;background:var(--card);border:1px solid var(--line)}
+  .lrow .ln{font-size:12px;font-weight:bold;color:var(--mute);flex:0 0 64px}
+  .lrow .lt{font-size:13.5px;color:var(--mute)}
+  .lrow.rec{background:#eef7f1;border:1.5px solid var(--green)}
+  .lrow.rec .ln{color:var(--green)}
+  .lrow.rec .lt{color:var(--ink);font-weight:bold}
+  .lrow.rec .tag{margin-left:auto;background:var(--green);color:#fff;font-size:10.5px;font-weight:bold;padding:2px 10px;border-radius:20px}
+  .moat{background:#fff7ec;border:1px solid #f0d9b3;border-radius:12px;padding:18px 20px;margin-top:14px}
+  .moat h3{font-size:15px;color:var(--amber);margin-bottom:6px}
+  .moat p{font-size:13.5px;color:#5c4708}
+  .convert{background:var(--navy);color:#fff;border-radius:14px;padding:24px;margin-top:16px}
+  .convert h3{font-family:Cambria,serif;font-size:21px;margin-bottom:8px;color:#fff}
+  .convert p{font-size:14px;color:#CFE0DB}
+  .convert .amb{color:var(--amber);font-weight:bold}
+  .cbtns{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  .cform{display:none;margin-top:14px;background:#0E2925;border-radius:10px;padding:16px}
+  .field{margin:9px 0}
+  .field label{display:block;font-size:12px;color:#9FC2B8;margin-bottom:3px}
+  .field input,.field select{width:100%;padding:9px 11px;border-radius:7px;border:1px solid #1C5048;background:#0B201C;color:#fff;font-family:Arial;font-size:13.5px}
+  .consent{display:flex;gap:9px;align-items:flex-start;margin:14px 0 2px;font-size:12.5px;color:#CFE0DB;cursor:pointer}
+  .consent input{margin-top:3px}
+  .lgpd{font-size:11px;color:#7FA298;margin-top:4px}
+  button.decline{background:transparent;color:#9FC2B8;font-size:13px;font-weight:bold;padding:10px 6px}
+  button.decline:hover{color:#fff}
+  .thanks{display:none;margin-top:12px;background:#13403A;border-radius:8px;padding:12px 14px;font-size:13px;color:#EAF1EE}
+  .thanks.err{background:#3A1714;color:#FFE9E6}
+  footer{text-align:center;color:var(--mute);font-size:12px;margin-top:26px;font-style:italic}
+</style>
+</head>
+<body>
+<header>
+  <div class="blob" style="width:280px;height:280px;top:-120px;right:-60px"></div>
+  <div class="blob" style="width:160px;height:160px;bottom:-90px;right:140px;background:#0B201C"></div>
+  <div class="wrap">
+    <div class="kicker">Ponte Estruturação de Projetos · Nível 0</div>
+    <h1>Trilha PONTE de Decisão Legítima</h1>
+    <p class="sub">Um jogo executivo para transformar obrigação, risco e impacto em decisões empresariais verificáveis. Quatro fases, doze casas, um Índice de Decisão Legítima ao final.</p>
+    <div class="law"><b>A lei do método:</b> não construir primeiro; provar onde há disposição real de pagamento. Esta autoavaliação não acusa — ela conduz, fase por fase.</div>
+  </div>
+</header>
+<div class="wrap">
+  <div class="intro" id="intro">
+    <p>Você avança uma fase por vez. Em cada casa, escolha a opção mais honesta sobre a sua empresa. <b>Em dúvida, toque no “?” ao lado de cada pergunta e de cada resposta para ver uma explicação.</b> Suas respostas não são enviadas nem armazenadas — o cálculo roda no seu navegador.</p>
+  </div>
+  <div id="game">
+    <div class="stepbar">
+      <div class="steptop"><span id="progTxt">0 de 12 casas</span><b id="faseTxt">Fase 1 de 4</b></div>
+      <div class="steptrack"><div class="stepfill" id="progFill" style="width:0%"></div></div>
+      <div class="segs" id="segs"></div>
+    </div>
+    <div id="quiz"></div>
+    <div class="warn" id="warn">Responda as 3 casas desta fase para avançar.</div>
+    <div class="nav" id="nav"></div>
+  </div>
+  <div id="result">
+    <div class="scorecard">
+      <div class="blob" style="width:200px;height:200px;top:-90px;right:-50px;position:absolute;border-radius:50%;background:#13403A"></div>
+      <div style="position:relative;z-index:2">
+        <div class="of">Índice PONTE de Decisão Legítima</div>
+        <div class="big" id="scoreNum">0</div>
+        <div class="of">de 100</div>
+        <div class="badge-cls" id="clsBadge"></div>
+      </div>
+    </div>
+    <div class="dims"><h3>Suas seis dimensões</h3><div id="dimBars"></div></div>
+    <div class="next"><h3>Seu próximo movimento legítimo</h3><p id="nextStep"></p></div>
+    <div class="ladder"><h3>A escada da Trilha — onde você entra agora</h3><div id="ladderBox"></div></div>
+    <div class="moat"><h3>A casa que mais importa — e que quase ninguém responde bem</h3><p id="moatMsg"></p></div>
+    <div class="convert" id="convert">
+      <h3>Sua maior lacuna agora tem nome.</h3>
+      <p>Você acabou de construir um retrato defensável da sua prontidão. Deixar a maior lacuna aberta é o risco que se materializa quando o relato começa, <span class="amb">em 2027</span> — e a multa pode chegar a <span class="amb">3–4% do faturamento</span>.</p>
+      <div class="cbtns">
+        <button class="prim" style="background:var(--amber);color:#2A1C04" onclick="abrirForm()">Quero aprofundar meu diagnóstico</button>
+        <button class="decline" onclick="recusar()">Agora não — quero só guardar meu resultado</button>
+      </div>
+      <div class="cform" id="cform">
+        <div class="field"><label>Nome</label><input id="fNome" type="text" autocomplete="name"></div>
+        <div class="field"><label>Empresa</label><input id="fEmp" type="text" autocomplete="organization"></div>
+        <div class="field"><label>E-mail corporativo</label><input id="fMail" type="email" autocomplete="email"></div>
+        <div class="field"><label>Setor</label><select id="fSetor"><option value="">Selecione…</option><option>Cimento</option><option>Papel e celulose</option><option>Ferro e aço</option><option>Alumínio</option><option>Petróleo e gás / refino</option><option>Transporte aéreo</option><option>Química</option><option>Mineração</option><option>Outro</option></select></div>
+        <div class="field"><label>Porte</label><select id="fPorte"><option value="">Selecione…</option><option>Grande</option><option>Média</option><option>Pequena</option></select></div>
+        <label class="consent"><input type="checkbox" id="fConsent"><span>Quero receber meu diagnóstico por e-mail e, se fizer sentido, conversar com a Ponte sobre o próximo passo.</span></label>
+        <div class="lgpd">Usamos seus dados apenas para isso. Você pode pedir a exclusão a qualquer momento.</div>
+        <div class="cbtns"><button class="prim" onclick="enviar()">Receber meu diagnóstico</button></div>
+        <div class="thanks" id="thanks"></div>
+      </div>
+    </div>
+    <footer>Protótipo de planejamento (v0) — a Trilha PONTE é hipótese a validar. Este simulador é a cunha digital de Nível 0, não o produto final.</footer>
+  </div>
+</div>
+<script>
+const DIMS={
+  reg:{nome:"Clareza regulatória",cor:"#1C7293",max:0},
+  mat:{nome:"Materialidade econômica",cor:"#2E7D52",max:0},
+  ev:{nome:"Rastreabilidade de evidências",cor:"#C77D11",max:0},
+  gov:{nome:"Governança decisória",cor:"#46607A",max:0},
+  bem:{nome:"Impacto / bem comum",cor:"#6D4C7D",max:0},
+  exec:{nome:"Prontidão de execução",cor:"#11302B",max:0}
+};
+const CASAS=[
+ {n:1,nome:"Você está no jogo?",dim:"reg",max:6.67,
+  q:"Sua empresa pode ser afetada por uma obrigação regulatória, ambiental, social, territorial ou reputacional?",
+  qh:"Ponto de partida da trilha: testa se você reconhece que sua operação tem exposição a alguma obrigação ou risco externo. Só avança quem admite que o tema toca o negócio — não quem nega sem ter checado.",
+  o:[["Reconhecemos a exposição (custo, licença, contrato, crédito ou reputação)",1,"Você já enxerga que o tema pode mexer com dinheiro, licença de operar, contratos, acesso a crédito ou imagem. É a postura de quem está no jogo."],
+     ["Tratamos como “assunto de ESG”, separado do negócio",0.5,"O tema existe, mas vive numa caixa à parte (relatório, marketing), sem conversar com as decisões de negócio. Consciência parcial."],
+     ["“Isso não é conosco” — sem evidência",0,"A empresa descarta o tema sem ter verificado se há exposição. O maior risco: negar sem evidência."]]},
+ {n:2,nome:"Qual problema isto realmente é?",dim:"reg",max:6.67,
+  q:"Você aceita reenquadrar o problema além da categoria óbvia (ex.: de “inventário” para “prova auditável”)?",
+  qh:"Percepção 360°: ver o problema além do rótulo aparente. No SBCE, o erro comum é tratar como “inventário de carbono”; o certo é “infraestrutura de prova auditável”. Ver a categoria certa muda toda a solução.",
+  o:[["Sim — distinguimos obrigação, oportunidade, risco e impacto",1,"Você separa as quatro camadas do tema e não o reduz a uma só. É a leitura madura."],
+     ["Ainda tratamos como modismo, marketing ou exigência isolada",0.5,"O tema é visto como tendência passageira ou caixinha a marcar, não como questão estrutural."],
+     ["Resolveríamos com um fornecedor genérico, sem entender a causa",0,"A tentação de comprar uma solução pronta antes de entender o problema real — costuma resolver a categoria errada."]]},
+ {n:3,nome:"O que é fato, não desejo?",dim:"reg",max:6.66,
+  q:"Existe uma verdade dura (lei, contrato, licença, dado, auditoria) que nenhuma narrativa flexibiliza?",
+  qh:"Núcleo inegociável: o fato objetivo que não muda com discurso — uma lei, um contrato, uma licença, um dado, uma obrigação de auditoria. Quem decide sobre fato, e não sobre desejo, erra menos.",
+  o:[["Sim — temos documento, norma, contrato ou dado objetivo",1,"Você consegue apontar a fonte dura que sustenta o tema. Base sólida para decidir."],
+     ["Temos percepção, mas não documento",0.5,"Há uma intuição correta, mas falta o documento que a comprova. Risco de decidir sobre opinião."],
+     ["Confundimos narrativa institucional com evidência",0,"A empresa toma o discurso oficial como se fosse prova. Autoengano comum."]]},
+ {n:4,nome:"Isso muda decisão de negócio?",dim:"mat",max:20,
+  q:"Quando foi a última vez que esse tema entrou numa decisão de orçamento, contrato ou crédito de vocês?",
+  qh:"Materialidade: o tema só importa de verdade quando muda uma decisão econômica concreta. Perguntamos pelo passado real (não pela intenção) porque comportamento diz mais que boa vontade.",
+  o:[["Nos últimos 12 meses, com decisão concreta",1,"O tema já alterou uma decisão real e recente. Sinal forte de materialidade."],
+     ["Há mais de um ano, ou só em discussão",0.5,"Houve impacto, mas distante no tempo, ou ainda no campo da conversa, sem decisão."],
+     ["Nunca entrou numa decisão econômica",0,"O tema nunca mudou nada concreto — pode ser importante no discurso, mas ainda não é material."]]},
+ {n:5,nome:"Você consegue provar?",dim:"ev",max:20,
+  q:"Se um auditor pedisse hoje a fonte de um número do seu inventário, em quanto tempo você a encontraria?",
+  qh:"O coração do método: a dor real não está em calcular o número, está em provar o número. Mede a rastreabilidade — se cada dado tem fonte, documento e responsável. Usamos o teste do auditor porque é o que acontece numa verificação.",
+  o:[["Em minutos — cada número tem fonte e responsável",1,"Rastreabilidade madura: a evidência está organizada e ligada a cada dado. Pronto para auditoria."],
+     ["Em dias — os dados existem, mas dispersos",0.5,"Os dados existem, mas espalhados em planilhas, e-mails e PDFs. Reconstruir dá trabalho e gera risco."],
+     ["Não saberia dizer / não temos lastro",0,"Há afirmações sem documento que as sustente. O ponto mais frágil numa verificação."]]},
+ {n:6,nome:"Quem sente, quem paga, quem veta?",dim:"gov",max:15,
+  q:"Você mapeou patrocinador, dono do orçamento, dono do dado, jurídico, financeiro e o veto técnico?",
+  qh:"Toda solução morre quando ignora o comitê de decisão. Testa se você sabe quem sente a dor, quem tem o orçamento, quem detém o dado e quem pode vetar. Sem esse mapa, a proposta vai para a pessoa errada.",
+  o:[["Sim — o comitê de decisão está mapeado",1,"Você sabe quem patrocina, quem paga e quem pode barrar. Caminho claro para decidir."],
+     ["Uma área gosta, mas não decide",0.5,"Há entusiasmo numa área (ex.: ESG), mas ela não controla orçamento nem decisão. Dor sem poder."],
+     ["A proposta foi para quem não tem poder",0,"O tema está sendo conduzido por quem não consegue transformá-lo em decisão ou verba."]]},
+ {n:7,nome:"Quem paga o custo invisível da sua decisão?",dim:"bem",max:15,
+  q:"Você consegue citar uma decisão concreta dos últimos 12 meses que mudou por causa do impacto sobre terceiros?",
+  qh:"A casa mais importante. Aqui o bem comum entra não como sermão, mas como custo sistêmico não contabilizado: quem absorve o impacto das suas decisões (comunidade, recurso natural, custo público). Transformar isso em critério é o que separa legitimidade de mera conformidade.",
+  o:[["Sim — temos um exemplo concreto",1,"Sua empresa já mudou uma decisão real por causa do impacto sobre terceiros. Legitimidade na prática."],
+     ["Reconhecemos o impacto, mas não mudamos decisão",0.5,"Você enxerga o impacto, mas ele ainda não vira critério de decisão. Falta a ponte entre consciência e ação."],
+     ["Nunca medimos o impacto sobre terceiros",0,"O custo invisível das decisões nunca foi medido — o ponto cego que separa conformidade de legitimidade."]]},
+ {n:8,nome:"Qual jogada o linear não faria?",dim:"exec",max:2,
+  q:"Você tem uma tese contraintuitiva falsificável — e sabe como testá-la?",
+  qh:"Tese contraintuitiva: o movimento que o pensamento óbvio não faria, e que pode ser testado (falsificado). No SBCE, a jogada foi não começar vendendo software, e sim diagnóstico. Boa tese é não-óbvia E testável.",
+  o:[["Sim — jogada não-óbvia e testável",1,"Você tem uma aposta que foge do consenso e sabe como provar se ela é verdadeira."],
+     ["Tese interessante, mas não testável",0.5,"A ideia é boa, mas não há como verificar se funciona — fica no campo da opinião."],
+     ["Queremos construir primeiro e aprender depois",0,"A tentação de partir para a obra antes de testar a hipótese. Caro e arriscado."]]},
+ {n:9,nome:"Qual é a cunha?",dim:"exec",max:2,
+  q:"Há uma oferta pequena, clara e comprável que abre a conversa sem acionar todos os vetos?",
+  qh:"A cunha é a menor oferta capaz de comprar uma conversa séria sem acionar todos os vetos (TI, compras, jurídico). No SBCE, é o Diagnóstico por planta — pequeno, claro e comprável — que abre a porta para o Plano de Monitoramento.",
+  o:[["Sim — existe uma oferta-cunha",1,"Você tem um primeiro passo pequeno e comprável que destrava a relação. Porta de entrada definida."],
+     ["A oferta é grande, abstrata ou cara demais para o 1º passo",0.5,"A primeira oferta exige decisão grande demais — afasta em vez de abrir."],
+     ["Tentamos vender transformação completa antes de confiança",0,"Vender o projeto inteiro antes de conquistar a primeira confiança costuma travar tudo."]]},
+ {n:10,nome:"Alguém paga agora?",dim:"exec",max:2,
+  q:"Existe verba aprovada ou dono nomeado para o tema neste exercício?",
+  qh:"A lei E do método: evidência antes da obra. O único juiz da urgência real é o dinheiro — verba aprovada, carta de intenção, dono nomeado. Interesse intelectual (“achei interessante”) não é demanda. Esta casa separa método de opinião.",
+  o:[["Sim — há verba ou dono nomeado",1,"Existe compromisso real: orçamento aprovado ou um responsável com nome. Demanda verdadeira."],
+     ["Em discussão, sem definição",0.5,"O tema está na pauta, mas ninguém comprometeu verba nem assumiu a responsabilidade ainda."],
+     ["Não há verba nem dono",0,"Há interesse, talvez elogio, mas nenhum compromisso concreto. Ainda não é demanda."]]},
+ {n:11,nome:"Como isso vira rotina?",dim:"exec",max:2,
+  q:"Há responsáveis, calendário, evidências e indicadores que integram risco, impacto e decisão?",
+  qh:"Aqui o projeto sai da consultoria e vira operação. Testa se existe governança: responsáveis, calendário, evidências organizadas e indicadores. Sem isso, o melhor relatório vira peça de gaveta.",
+  o:[["Sim — há governança operacional",1,"O tema virou rotina com dono, prazo e indicadores. Operação legítima e sustentável."],
+     ["Há um relatório bonito, mas sem dono",0.5,"Existe um documento bem feito, mas ninguém o opera no dia a dia. Risco de virar peça de gaveta."],
+     ["Terceirizamos a consciência e voltamos ao modo antigo",0,"Contratou-se alguém para “cuidar disso” e a empresa voltou a operar como antes. A consciência não se internalizou."]]},
+ {n:12,nome:"O que merece ser construído?",dim:"exec",max:2,
+  q:"O workflow foi observado, o comprador pagou e a recorrência apareceu — antes de falar em software?",
+  qh:"A última casa governa a decisão de construir. Só se justifica investir em software depois que o fluxo real foi observado, o cliente pagou e a recorrência apareceu. Construir por entusiasmo técnico, antes disso, é o erro que o método existe para evitar.",
+  o:[["Sim — recorrência valida a construção",1,"O uso real se repetiu e o cliente pagou — agora a automação cria valor de verdade. Hora de construir."],
+     ["O serviço é bom, mas sem repetição suficiente",0.5,"O serviço funciona, mas ainda não há repetição que justifique investir em produto."],
+     ["Queremos construir por entusiasmo técnico",0,"A vontade de construir vem da empolgação com a tecnologia, não da evidência de demanda. O alerta máximo da casa 12."]]}
+];
+const FASES=[
+ {nome:"Consciência",sub:"Você está no jogo e entende qual é o problema?",casas:[1,2,3]},
+ {nome:"Materialidade & Prova",sub:"Isso muda decisão de negócio — e você consegue provar?",casas:[4,5,6]},
+ {nome:"Legitimidade & Tese",sub:"Quem absorve o custo invisível, e qual a jogada legítima?",casas:[7,8,9]},
+ {nome:"Compromisso & Construção",sub:"Alguém paga agora, e o que merece ser construído?",casas:[10,11,12]}
+];
+CASAS.forEach(c=>DIMS[c.dim].max+=c.max);
+const byN={}; CASAS.forEach(c=>byN[c.n]=c);
+const ans={};
+let f=0;
+let last={total:0,cls:"",weak:""};
+const quiz=document.getElementById("quiz");
+function val(id){ return document.getElementById(id).value.trim(); }
+function toggleHelp(btn){ const hp=btn.parentNode.querySelector(".hp"); const open=hp.classList.toggle("show"); btn.classList.toggle("on",open); btn.textContent=open?"×":"?"; }
+function casaHTML(c){
+  const opts=c.o.map(o=>{
+    const sel=(ans[c.n]===o[1])?" sel":"";
+    const chk=(ans[c.n]===o[1])?" checked":"";
+    return '<div class="optwrap">'+
+      '<label class="opt'+sel+'" onclick="pick('+c.n+','+o[1]+',this)"><input type="radio" name="c'+c.n+'"'+chk+'><span>'+o[0]+'</span></label>'+
+      '<button type="button" class="hbtn" onclick="toggleHelp(this)" aria-label="Explicação da resposta">?</button>'+
+      '<div class="hp">'+o[2]+'</div></div>';
+  }).join("");
+  return '<div class="casa'+(c.n===7?' casa7':'')+'"><div class="top">'+
+    '<div class="num" style="background:'+DIMS[c.dim].cor+'">'+c.n+'</div>'+
+    '<h3>'+c.nome+(c.n===7?'<span class="badge">a casa que importa</span>':'')+'</h3>'+
+    '<div class="dim">'+DIMS[c.dim].nome+'</div></div>'+
+    '<div class="qwrap"><div class="q">'+c.q+'</div><button type="button" class="hbtn" onclick="toggleHelp(this)" aria-label="Explicação da pergunta">?</button><div class="hp">'+c.qh+'</div></div>'+
+    '<div class="opts">'+opts+'</div></div>';
+}
+function faseDone(i){ return FASES[i].casas.every(n=>ans[n]!==undefined); }
+function answered(){ return Object.keys(ans).length; }
+function updateProgress(){
+  const a=answered();
+  document.getElementById("progTxt").textContent=a+" de 12 casas";
+  document.getElementById("faseTxt").textContent="Fase "+(f+1)+" de 4";
+  document.getElementById("progFill").style.width=(a/12*100)+"%";
+  let segs="";
+  for(let i=0;i<4;i++){ const cls=faseDone(i)?"on":(i===f?"cur":""); segs+='<div class="seg '+cls+'"></div>'; }
+  document.getElementById("segs").innerHTML=segs;
+}
+function renderNav(){
+  let html='<button class="ghost" onclick="prev()" '+(f===0?'disabled':'')+'>← Voltar</button>';
+  if(f<3) html+='<button class="prim" onclick="next()">Próxima fase →</button>';
+  else html+='<button class="prim" onclick="calcular()">Calcular meu Índice de Decisão Legítima</button>';
+  document.getElementById("nav").innerHTML=html;
+}
+function renderFase(){
+  const fa=FASES[f];
+  let html='<div class="fasehead"><div class="fasetag">Fase '+(f+1)+' de 4 · '+fa.nome+'</div><h2>'+fa.nome+'</h2><p>'+fa.sub+'</p></div>';
+  html+=fa.casas.map(n=>casaHTML(byN[n])).join("");
+  quiz.innerHTML=html;
+  document.getElementById("warn").style.display="none";
+  updateProgress(); renderNav();
+  document.getElementById("intro").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function pick(n,v,lbl){
+  ans[n]=v;
+  lbl.closest(".opts").querySelectorAll("label.opt").forEach(l=>l.classList.remove("sel"));
+  lbl.classList.add("sel"); lbl.querySelector("input").checked=true;
+  document.getElementById("warn").style.display="none";
+  updateProgress();
+}
+function next(){ if(!faseDone(f)){ document.getElementById("warn").style.display="block"; return; } if(f<3){ f++; renderFase(); } }
+function prev(){ if(f>0){ f--; renderFase(); } }
+function band(s){
+  if(s<=25)return["Fora do jogo","#B23A30"];
+  if(s<=45)return["Consciência inicial","#C77D11"];
+  if(s<=65)return["Risco mapeado","#1C7293"];
+  if(s<=80)return["Pronto para plano","#2E7D52"];
+  return["Operação legítima auditável","#11302B"];
+}
+function recLevel(s){ return s<=25?0:s<=45?1:s<=65?2:s<=80?3:4; }
+function nextStep(s){
+  const t=["<b>Nível 0 — Jogo aberto.</b> Comece pela sensibilização: entenda se e como o tema afeta seu negócio. Ainda não compre diagnóstico — primeiro reconheça a exposição.",
+   "<b>Nível 1 — Pré-Diagnóstico.</b> Há consciência inicial, mas falta lastro. Um pré-diagnóstico de baixo ticket leva você pelas casas 1 a 5 e revela exposição, maturidade de evidência e lacunas — sem o custo de um diagnóstico completo.",
+   "<b>Nível 2 — Diagnóstico especializado.</b> O risco está mapeado; agora vale profundidade. Um diagnóstico por planta entrega relatório defensável, matriz de evidência e plano de decisão.",
+   "<b>Nível 3 — Plano de operação legítima.</b> Você está pronto para transformar diagnóstico em rotina: responsáveis, calendário, evidências e indicadores.",
+   "<b>Nível 4 — Núcleo tecnológico.</b> Operação legítima e auditável: workflow observado, recorrência e evidência mostram onde a automação cria valor. Só agora se fala em ferramenta ou SaaS."];
+  return t[recLevel(s)];
+}
+function renderLadder(s){
+  const niveis=[["Nível 0","Jogo aberto — sensibilização"],["Nível 1","Pré-diagnóstico de risco e legitimidade"],["Nível 2","Diagnóstico especializado por planta"],["Nível 3","Plano de operação legítima"],["Nível 4","Núcleo tecnológico / SaaS"]];
+  const rec=recLevel(s); let html="";
+  niveis.forEach((nv,i)=>{ const r=(i===rec);
+    html+='<div class="lrow'+(r?' rec':'')+'"><div class="ln">'+nv[0]+'</div><div class="lt">'+nv[1]+'</div>'+(r?'<div class="tag">você entra aqui</div>':'')+'</div>';
+  });
+  document.getElementById("ladderBox").innerHTML=html;
+}
+function abrirForm(){ document.getElementById("cform").style.display="block"; document.getElementById("fNome").focus(); }
+function recusar(){ document.getElementById("cform").style.display="none"; }
+function enviar(){
+  const th=document.getElementById("thanks");
+  const nome=val("fNome"), emp=val("fEmp"), mail=val("fMail"), setor=val("fSetor"), porte=val("fPorte"), consent=document.getElementById("fConsent").checked;
+  if(!nome||!emp||!mail){ th.className="thanks err"; th.style.display="block"; th.textContent="Preencha nome, empresa e e-mail para continuar."; return; }
+  const subj="Diagnóstico SBCE — Índice "+last.total+"/100 ("+last.cls+")";
+  const linhas=["Olá, equipe Ponte.","Fiz a autoavaliação da Trilha PONTE e gostaria de aprofundar meu diagnóstico.","",
+    "Índice de Decisão Legítima: "+last.total+"/100 ("+last.cls+")","Dimensão mais fraca: "+last.weak,"",
+    "Nome: "+nome,"Empresa: "+emp,"E-mail: "+mail,"Setor: "+(setor||"—"),"Porte: "+(porte||"—"),
+    "Consentimento de contato: "+(consent?"Sim":"Não")];
+  const href="mailto:diretoria.ponte.projetos@gmail.com?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(linhas.join("\n"));
+  window.location.href=href;
+  th.className="thanks"; th.style.display="block";
+  th.innerHTML="Abrimos seu e-mail com o diagnóstico já preenchido — é só enviar. Se o e-mail não abrir, escreva para <b>diretoria.ponte.projetos@gmail.com</b>.";
+}
+function calcular(){
+  if(answered()<12){ const w=document.getElementById("warn"); w.style.display="block"; w.textContent="Responda as 3 casas desta fase para concluir."; return; }
+  const dimScore={reg:0,mat:0,ev:0,gov:0,bem:0,exec:0};
+  CASAS.forEach(c=>{dimScore[c.dim]+=ans[c.n]*c.max;});
+  let total=0; Object.values(dimScore).forEach(v=>total+=v); total=Math.round(total);
+  document.getElementById("scoreNum").textContent=total;
+  const b2=band(total);
+  const b=document.getElementById("clsBadge"); b.textContent=b2[0]; b.style.background=b2[1]; b.style.color="#fff";
+  let bars="", weak="", wmin=2;
+  for(const k in DIMS){ const d=DIMS[k], v=dimScore[k], pct=Math.round(v/d.max*100);
+    if(v/d.max<wmin){ wmin=v/d.max; weak=d.nome; }
+    bars+='<div class="dimrow"><div class="dl"><span>'+d.nome+'</span><span class="v">'+Math.round(v)+' / '+Math.round(d.max)+'</span></div>'+
+      '<div class="track"><div class="fill" style="width:'+pct+'%;background:'+d.cor+'"></div></div></div>'; }
+  document.getElementById("dimBars").innerHTML=bars;
+  document.getElementById("nextStep").innerHTML=nextStep(total);
+  renderLadder(total);
+  last={total:total, cls:b2[0], weak:weak};
+  const bemPct=dimScore.bem/DIMS.bem.max; let moat;
+  if(bemPct>=0.8) moat="Você trata o <b>custo invisível</b> da sua operação como critério de decisão — não como marketing. É isso que separa uma empresa que cumpre regra de uma que opera com legitimidade.";
+  else if(bemPct>=0.4) moat="Você reconhece o impacto da sua operação, mas ainda não o mede. A casa 7 — <b>“quem paga o custo invisível da sua decisão?”</b> — é onde a maioria trava. Transformar externalidade em critério mensurável é o que faz a decisão virar legítima, e não apenas conforme.";
+  else moat="A casa 7 — <b>“quem paga o custo invisível da sua decisão?”</b> — é a que você menos respondeu bem, e a mais importante. Sem ela, há apenas conformidade. Com ela, há legitimidade.";
+  document.getElementById("moatMsg").innerHTML=moat;
+  document.getElementById("game").style.display="none";
+  document.getElementById("intro").style.display="none";
+  document.getElementById("result").style.display="block";
+  document.getElementById("result").scrollIntoView({behavior:"smooth"});
+}
+renderFase();
+</script>
+</body>
+</html>
