@@ -83,6 +83,15 @@ interface Payload {
 
 // ============================ HELPERS ==============================
 
+/**
+ * Consulta pública de programas do Transferegov (Acesso Livre, sessão guest).
+ * O sistema legado não tem URL única por programa (POST + sessão), então o
+ * melhor fluxo possível é: copiar o código pro clipboard + abrir a consulta —
+ * o usuário cola no campo "Código do Programa" e clica Consultar.
+ */
+const TRANSFEREGOV_CONSULTA_URL =
+  "https://discricionarias.transferegov.sistema.gov.br/voluntarias/ForwardAction.do?modulo=programa&path=/ConsultarPrograma/ConsultarPrograma.do&Usr=guest&Pwd=guest";
+
 /** Parse manual de YYYY-MM-DD. Evita shift de fuso (new Date("YYYY-MM-DD") interpreta como UTC). */
 function parseISODate(iso: string): { d: number; m: number; y: number } | null {
   if (!iso) return null;
@@ -658,6 +667,48 @@ function Secao({
   );
 }
 
+/**
+ * Link "Consultar no Transferegov": copia o código pro clipboard e abre a
+ * consulta pública em nova aba. O sistema legado não suporta deep link por
+ * programa, então o usuário cola o código no campo e clica Consultar.
+ */
+function LinkTransferegov({ codigo }: { codigo: string }) {
+  const [copiado, setCopiado] = useState(false);
+
+  const abrir = async () => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 3000);
+    } catch {
+      // clipboard bloqueado — segue sem copiar
+    }
+    window.open(TRANSFEREGOV_CONSULTA_URL, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <button
+      onClick={abrir}
+      title={`Abre a consulta pública do Transferegov e copia o código ${codigo} — cole no campo "Código do Programa" e clique Consultar`}
+      aria-label={`Consultar programa ${codigo} no Transferegov (código será copiado)`}
+      style={{
+        background: "none",
+        border: "none",
+        padding: 0,
+        font: "inherit",
+        fontSize: 11.5,
+        color: copiado ? "var(--op-verde)" : "var(--op-soft)",
+        textDecoration: "underline",
+        cursor: "pointer",
+        display: "inline-block",
+        marginTop: 4,
+      }}
+    >
+      {copiado ? "código copiado — cole lá ✓" : "Consultar no Transferegov ↗"}
+    </button>
+  );
+}
+
 function OportunidadeRow({ o }: { o: Oportunidade }) {
   const meta = [
     o.codigos.length > 1 ? `${o.codigos.length} códigos` : o.codigos[0],
@@ -686,6 +737,7 @@ function OportunidadeRow({ o }: { o: Oportunidade }) {
         <span className="op-prog-meta op-prog-meta-extra">
           Canal: {o.canal === "proposta" ? "Proposta" : "Emenda"} · {o.propostas_recebidas} propostas recebidas
         </span>
+        <LinkTransferegov codigo={o.codigos[0]} />
       </td>
       <td className="op-orgao" data-lbl="Órgão">
         {o.orgao}
