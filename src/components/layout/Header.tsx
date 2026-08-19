@@ -20,6 +20,7 @@ export function Header() {
                         <Link href="/reurb" className="text-sm font-bold text-teal-600 hover:text-teal-800 transition-colors">REURB</Link>
                         <Link href="/centelha-3-pb" className="text-sm font-bold text-amber-600 hover:text-amber-800 transition-colors">Centelha 3 PB</Link>
                         <Link href="/trilha-do-estado" className="text-sm font-bold text-slate-900 hover:text-slate-600 transition-colors">Trilha do Estado</Link>
+                        <Link href="/oportunidades" className="text-sm font-bold text-orange-700 hover:text-orange-900 transition-colors">Oportunidades</Link>
                     </div>
                 </nav>
                 <div className="flex items-center gap-4">

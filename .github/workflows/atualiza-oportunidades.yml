@@ -1,0 +1,90 @@
+# Atualiza public/dados/oportunidades.json com dados do Transferegov.
+#
+# Roda 2x/dia (10:30 e 17:00 Fortaleza) + manual via workflow_dispatch.
+# Só commita (e portanto só dispara deploy Vercel) se o JSON mudou.
+#
+# Fluxo:
+#   radar.py     — baixa ~215MB de CSV do repositorio.dados.gov.br, processa
+#                  com DuckDB, compara com estado anterior → saida/achados.json
+#   publicar.py  — converte achados no contrato público v1.0 → oportunidades.json
+#   validação    — jsonschema contra docs/oportunidades.schema.json
+#   commit       — JSON novo + estado.json (para detecção de novas/encerradas)
+#
+# Falha do job = email automático do GitHub pro dono do repo.
+# O site continua servindo o último JSON válido (estático) — nada quebra.
+
+name: Atualiza oportunidades (Transferegov)
+
+on:
+  schedule:
+    - cron: "30 13 * * *"   # 13:30 UTC = 10:30 Fortaleza
+    - cron: "0 20 * * *"    # 20:00 UTC = 17:00 Fortaleza
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atualiza-oportunidades
+  cancel-in-progress: false
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install duckdb jsonschema
+
+      - name: Rodar radar (baixa e processa origem)
+        run: |
+          python3 scripts/radar.py \
+            --uf PB \
+            --saida saida \
+            --estado scripts/pipeline-estado/estado.json \
+            --cache .cache_radar
+
+      - name: Publicar contrato v1.0
+        run: |
+          python3 scripts/publicar.py \
+            --entrada saida/achados.json \
+            --saida public/dados/oportunidades.json
+
+      - name: Validar contra o schema (bloqueia payload inválido)
+        run: |
+          python3 - << 'EOF'
+          import json, jsonschema, sys
+          schema = json.load(open("docs/oportunidades.schema.json"))
+          payload = json.load(open("public/dados/oportunidades.json"))
+          try:
+              jsonschema.validate(payload, schema)
+          except jsonschema.ValidationError as e:
+              print(f"::error::Payload viola o contrato: {e.message}")
+              sys.exit(1)
+          n = len(payload.get("oportunidades", []))
+          print(f"Schema OK — {n} oportunidades, defasada={payload['origem']['defasada']}")
+          EOF
+
+      - name: Atualizar estado do pipeline
+        run: cp saida/estado.json scripts/pipeline-estado/estado.json
+
+      - name: Commit se mudou
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/dados/oportunidades.json scripts/pipeline-estado/estado.json
+          if git diff --staged --quiet; then
+            echo "Sem mudança na origem — nada a commitar."
+          else
+            git commit -m "chore(dados): atualiza oportunidades $(date -u +%F' '%H:%M) UTC"
+            git push
+          fi

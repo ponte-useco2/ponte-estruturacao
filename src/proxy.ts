@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Middleware — protege rotas privadas do site.
+ * Proxy (ex-middleware, convenção Next 16) — protege rotas privadas do site.
  *
  * Hoje protege apenas:
  *   /conecta-impact-go  (dashboard operacional privado)
@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
  *   - Se não tem cookie → redireciona pra /conecta-impact-go/login
  *   - A página /conecta-impact-go/login é sempre acessível (permite login)
  */
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Só cuidamos de /conecta-impact-go/*
