@@ -1,37 +1,36 @@
-# Atualiza public/dados/oportunidades.json com dados do Transferegov.
+# Sincroniza public/dados/oportunidades.json a partir do repositório que
+# processa os dados: diretoriajnconsulting-dotcom/jn-portal-oportunidades.
 #
-# Roda 2x/dia (10:30 e 17:00 Fortaleza) + manual via workflow_dispatch.
-# Só commita (e portanto só dispara deploy Vercel) se o JSON mudou.
+# Divisão de responsabilidade:
+#   jn-portal  → baixa 215 MB da origem, processa com DuckDB, publica o contrato
+#   este repo  → copia 60 KB e deixa a Vercel servir do CDN
 #
-# Fluxo:
-#   radar.py     — baixa ~215MB de CSV do repositorio.dados.gov.br, processa
-#                  com DuckDB, compara com estado anterior → saida/achados.json
-#   publicar.py  — converte achados no contrato público v1.0 → oportunidades.json
-#   validação    — jsonschema contra docs/oportunidades.schema.json
-#   commit       — JSON novo + estado.json (para detecção de novas/encerradas)
+# Não duplicamos o processamento. Um lugar só faz o trabalho pesado; aqui só
+# consumimos o resultado já validado contra o schema.
 #
-# Falha do job = email automático do GitHub pro dono do repo.
-# O site continua servindo o último JSON válido (estático) — nada quebra.
+# Roda depois do pipeline de lá (12:30 UTC), com folga para ele terminar.
 
-name: Atualiza oportunidades (Transferegov)
+name: Sincroniza oportunidades
 
 on:
   schedule:
-    - cron: "30 13 * * *"   # 13:30 UTC = 10:30 Fortaleza
-    - cron: "0 20 * * *"    # 20:00 UTC = 17:00 Fortaleza
+    - cron: "15 14 * * *" # 14:15 UTC = 11:15 Fortaleza (jn-portal roda 12:30 UTC)
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
 concurrency:
-  group: atualiza-oportunidades
+  group: sync-oportunidades
   cancel-in-progress: false
 
+env:
+  FONTE: https://raw.githubusercontent.com/diretoriajnconsulting-dotcom/jn-portal-oportunidades/main/public/data/oportunidades.json
+
 jobs:
-  atualizar:
+  sincronizar:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -42,49 +41,50 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Instalar dependências
-        run: pip install duckdb jsonschema
+      - run: pip install jsonschema
 
-      - name: Rodar radar (baixa e processa origem)
+      - name: Baixar o contrato publicado
         run: |
-          python3 scripts/radar.py \
-            --uf PB \
-            --saida saida \
-            --estado scripts/pipeline-estado/estado.json \
-            --cache .cache_radar
+          curl -fsSL "$FONTE" -o /tmp/oportunidades.json
+          echo "Baixados $(wc -c < /tmp/oportunidades.json) bytes"
 
-      - name: Publicar contrato v1.0
+      - name: Validar antes de aceitar
         run: |
-          python3 scripts/publicar.py \
-            --entrada saida/achados.json \
-            --saida public/dados/oportunidades.json
+          python - <<'EOF'
+          import json, sys, jsonschema
+          schema  = json.load(open("docs/oportunidades.schema.json"))
+          payload = json.load(open("/tmp/oportunidades.json"))
 
-      - name: Validar contra o schema (bloqueia payload inválido)
-        run: |
-          python3 - << 'EOF'
-          import json, jsonschema, sys
-          schema = json.load(open("docs/oportunidades.schema.json"))
-          payload = json.load(open("public/dados/oportunidades.json"))
+          # Major incompatível = o front recusaria renderizar. Falha aqui, antes
+          # de publicar, para não trocar um dado bom por um que quebra a página.
+          major = str(payload.get("versao", "")).split(".")[0]
+          if major != "1":
+              print(f"::error::Contrato major {major} incompatível com o front (espera 1.x)")
+              sys.exit(1)
+
           try:
               jsonschema.validate(payload, schema)
           except jsonschema.ValidationError as e:
               print(f"::error::Payload viola o contrato: {e.message}")
               sys.exit(1)
-          n = len(payload.get("oportunidades", []))
-          print(f"Schema OK — {n} oportunidades, defasada={payload['origem']['defasada']}")
+
+          print(f"OK — {len(payload['oportunidades'])} oportunidades, "
+                f"UF={payload['uf']}, defasada={payload['origem']['defasada']}")
           EOF
 
-      - name: Atualizar estado do pipeline
-        run: cp saida/estado.json scripts/pipeline-estado/estado.json
+      - name: Publicar
+        run: |
+          mkdir -p public/dados
+          cp /tmp/oportunidades.json public/dados/oportunidades.json
 
       - name: Commit se mudou
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/dados/oportunidades.json scripts/pipeline-estado/estado.json
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/dados/oportunidades.json
           if git diff --staged --quiet; then
-            echo "Sem mudança na origem — nada a commitar."
+            echo "Dado idêntico ao publicado — nada a fazer."
           else
-            git commit -m "chore(dados): atualiza oportunidades $(date -u +%F' '%H:%M) UTC"
+            git commit -m "chore(dados): sincroniza oportunidades $(date -u +%F) [skip ci]"
             git push
           fi

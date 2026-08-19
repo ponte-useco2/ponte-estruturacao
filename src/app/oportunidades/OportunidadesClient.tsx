@@ -636,6 +636,12 @@ export function OportunidadesClient({
   const opsNovas = opsFiltradas.filter((o) => o.nova);
   const opsAderentes = opsFiltradas.filter((o) => o.aderente);
 
+  // Totais sem filtro — distinguem "seção vazia por natureza" (some inteira)
+  // de "seção esvaziada pelo filtro" (mantém título). Spec §7.
+  const totalUrgentes = payload.oportunidades.filter((o) => o.urgente).length;
+  const totalNovas = payload.oportunidades.filter((o) => o.nova).length;
+  const totalAderentes = payload.oportunidades.filter((o) => o.aderente).length;
+
   const propsFiltradas = payload.propostas_recentes.filter((p) => {
     if (filtroNatureza.length && !filtroNatureza.includes(p.natureza)) return false;
     if (buscaNorm) {
@@ -870,14 +876,33 @@ export function OportunidadesClient({
 
           {!zeroGlobal && (
             <>
-              <Secao titulo="Fecham em até 15 dias" ops={opsUrgentes} temFiltro={temFiltro} termo={busca} />
-              <Secao titulo="Novas desde a última rodada" ops={opsNovas} temFiltro={temFiltro} termo={busca} />
-              <Secao titulo="Aderentes à carteira" ops={opsAderentes} temFiltro={temFiltro} termo={busca} />
+              <Secao
+                titulo="Fecham em até 15 dias"
+                ops={opsUrgentes}
+                temFiltro={temFiltro}
+                termo={busca}
+                totalSemFiltro={totalUrgentes}
+              />
+              <Secao
+                titulo="Novas desde a última rodada"
+                ops={opsNovas}
+                temFiltro={temFiltro}
+                termo={busca}
+                totalSemFiltro={totalNovas}
+              />
+              <Secao
+                titulo="Aderentes à carteira"
+                ops={opsAderentes}
+                temFiltro={temFiltro}
+                termo={busca}
+                totalSemFiltro={totalAderentes}
+              />
               <Secao
                 titulo="Todas as janelas abertas"
                 ops={opsFiltradas}
                 temFiltro={temFiltro}
                 termo={busca}
+                totalSemFiltro={payload.oportunidades.length}
                 headerExtra={
                   <div className="op-seg" role="group" aria-label="Filtrar por canal">
                     <button
@@ -904,7 +929,11 @@ export function OportunidadesClient({
                   </div>
                 }
               />
-              <SecaoPropostas propostas={propsFiltradas} temFiltro={temFiltro} />
+              <SecaoPropostas
+                propostas={propsFiltradas}
+                temFiltro={temFiltro}
+                totalSemFiltro={payload.propostas_recentes.length}
+              />
               <SecaoEncerradas encerradas={payload.encerradas} />
             </>
           )}
@@ -955,13 +984,19 @@ function Secao({
   temFiltro,
   headerExtra,
   termo = "",
+  totalSemFiltro,
 }: {
   titulo: string;
   ops: Oportunidade[];
   temFiltro: boolean;
   headerExtra?: React.ReactNode;
   termo?: string;
+  /** Quantos itens a seção teria sem nenhum filtro. Distingue "vazia por
+   *  natureza" (some inteira) de "vazia por filtro" (mantém o título). */
+  totalSemFiltro: number;
 }) {
+  // Vazia por natureza — nunca teve conteúdo. Some, mesmo com filtro ativo.
+  if (totalSemFiltro === 0) return null;
   if (ops.length === 0 && !temFiltro) return null;
   return (
     <section className="op-secao">
@@ -1104,10 +1139,13 @@ function OportunidadeRow({ o, termo = "" }: { o: Oportunidade; termo?: string })
 function SecaoPropostas({
   propostas,
   temFiltro,
+  totalSemFiltro,
 }: {
   propostas: PropostaRecente[];
   temFiltro: boolean;
+  totalSemFiltro: number;
 }) {
+  if (totalSemFiltro === 0) return null; // vazia por natureza — some
   if (propostas.length === 0 && !temFiltro) return null;
   return (
     <section className="op-secao">
