@@ -1,7 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
 
-// Revalida o cache a cada 1 hora automaticamente
 export const revalidate = 3600;
 
 interface Oportunidade {
