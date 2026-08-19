@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Infraestrutura privada de formação de projetos de impacto que conecta problemas, capacidades, instituições e capital mobilizável com governança, execução e evidência." name="description"/>
+<meta content="#0e1715" name="theme-color"/>
+<meta content="PONTE Projetos — Formação de Projetos de Impacto" property="og:title"/>
+<meta content="Problemas, capacidades, instituições e capital mobilizável conectados em projetos financiáveis, executáveis e demonstráveis por evidências." property="og:description"/>
+<meta content="website" property="og:type"/>
+<title>PONTE Projetos — Infraestrutura de Formação de Projetos de Impacto</title>
+<script data-js-marker="true">document.documentElement.classList.add('js');</script><style>
+:root {
+  --bg: #f7f8f5;
+  --surface: #ffffff;
+  --surface-2: #eef2ed;
+  --text: #13201d;
+  --muted: #576561;
+  --border: #d4ded9;
+  --brand: #0f2d26;
+  --brand-2: #1e5446;
+  --brand-soft: #dbe8e2;
+  --social: #6b5394;
+  --economic: #85581e;
+  --environmental: #2d6b54;
+  --danger: #8a4b42;
+  --dark: #0a1412;
+  --dark-surface: #11211e;
+  --white: #ffffff;
+  --shadow: 0 18px 48px rgba(15, 45, 38, 0.08);
+  --shadow-lg: 0 30px 80px rgba(6, 25, 20, 0.16);
+  --r-sm: 0.5rem;
+  --r-md: 0.85rem;
+  --r-lg: 1.25rem;
+  --r-xl: 1.75rem;
+  --s1: 0.5rem;
+  --s2: 0.75rem;
+  --s3: 1rem;
+  --s4: 1.5rem;
+  --s5: 2rem;
+  --s6: 3rem;
+  --s7: 4.5rem;
+  --s8: 6.5rem;
+  --max: 1160px;
+  --header: 74px;
+  --font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --display: 'Space Grotesk', Georgia, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header) + 1rem); }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+body.modal-open { overflow: hidden; }
+a { color: inherit; text-decoration: none; }
+button, input { font: inherit; }
+button { color: inherit; cursor: pointer; }
+.skip-link { position: fixed; top: -100px; left: 0.5rem; z-index: 9999; background: var(--text); color: #fff; padding: 0.7rem 1rem; border-radius: 0.5rem; }
+.skip-link:focus, .skip-link:focus-visible { top: 0.5rem; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+h1, h2, h3, p { margin-top: 0; }
+h1, h2 { font-family: var(--display); letter-spacing: -0.035em; line-height: 1.1; }
+h1 { font-size: clamp(2.6rem, 5.5vw, 5.2rem); font-weight: 700; }
+h2 { font-size: clamp(2.1rem, 4vw, 3.8rem); font-weight: 700; }
+h3 { font-family: var(--display); font-size: clamp(1.2rem, 1.8vw, 1.55rem); line-height: 1.3; }
+p { color: var(--muted); }
+ul { padding-left: 1.2rem; }
+::selection { background: var(--brand-soft); }
+:focus-visible { outline: 3px solid var(--brand-2); outline-offset: 3px; }
+
+.container { width: min(var(--max), calc(100% - 2rem)); margin-inline: auto; }
+.section { padding: var(--s8) 0; position: relative; scroll-margin-top: var(--header); }
+.section-soft { background: var(--surface-2); }
+.section-dark { background: var(--dark); color: var(--white); }
+.section-dark p { color: #b5c7c1; }
+.section-heading { max-width: 820px; margin-bottom: var(--s6); }
+.section-heading.centered { text-align: center; margin-inline: auto; }
+.section-heading > p:last-child { font-size: 1.1rem; }
+.kicker, .eyebrow { font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 800; color: var(--brand-2); }
+.section-dark .kicker { color: #7db5a2; }
+.hero-grid, .graph-layout, .participation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(2rem, 4vw, 4.5rem); align-items: center; }
+.footer-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 3rem; }
+
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; min-height: 46px; padding: 0.75rem 1.25rem; border-radius: var(--r-sm); border: 1px solid transparent; font-weight: 700; text-decoration: none; cursor: pointer; transition: 0.2s ease; }
+.button-primary { background: var(--brand); color: #fff; }
+.button-primary:hover { background: #071c17; transform: translateY(-1px); }
+.site-header { position: sticky; top: 0; z-index: 100; background: rgba(247, 248, 245, 0.92); backdrop-filter: blur(16px); border-bottom: 1px solid transparent; transition: 0.2s; }
+.site-header.scrolled { border-color: var(--border); box-shadow: 0 8px 30px rgba(15, 35, 30, 0.04); }
+.header-inner { height: var(--header); display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; }
+.brand { display: flex; align-items: center; gap: 0.7rem; text-decoration: none; white-space: nowrap; }
+.brand-mark { display: grid; place-items: center; width: 34px; height: 34px; background: var(--brand); color: #fff; border-radius: var(--r-sm); font-family: var(--display); font-size: 1.15rem; font-weight: 700; }
+.brand-name { font-size: 0.95rem; font-weight: 700; }
+.main-nav { display: flex; align-items: center; gap: 0.25rem; }
+.main-nav a { font-size: 0.8125rem; font-weight: 600; text-decoration: none; padding: 0.5rem 0.65rem; border-radius: var(--r-sm); color: #43504c; }
+.main-nav a:hover, .main-nav a[aria-current="true"] { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+.main-nav .nav-cta { background: var(--brand); color: #fff; margin-left: 0.3rem; }
+.menu-toggle { display: none; border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm); padding: 0.45rem 0.7rem; }
+.demo-notice { display: flex; gap: 0.8rem; align-items: center; border: 1px solid #28473e; background: #0f241f; padding: 0.75rem 1rem; border-radius: var(--r-sm); margin-bottom: 2rem; font-size: 0.82rem; }
+.demo-notice strong { color: #fff; }
+.demo-notice span { color: #a9beba; }
+.status-badge, .project-code, .axis-tags span { display: inline-flex; padding: 0.35rem 0.55rem; border-radius: var(--r-sm); font-size: 0.72rem; font-weight: 700; font-family: var(--mono); letter-spacing: 0.04em; }
+.status-badge { background: #1f4238; color: #cae0d8; }
+.project-code { background: #e0ece5; color: var(--brand); margin-right: 0.5rem; }
+.axis-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.9rem; }
+.axis-tags span:nth-child(1) { background: #dcece5; color: #2b654f; }
+.axis-tags span:nth-child(2) { background: #f0e6d8; color: var(--economic); }
+.axis-tags span:nth-child(3) { background: #ebe5f4; color: var(--social); }
+.progress { height: 8px; background: #1c3b33; border-radius: 999px; overflow: hidden; }
+.progress span { display: block; height: 100%; width: 60%; background: #7ab39c; transition: width 1s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.modal[hidden], .toast[hidden] { display: none; }
+.modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(3, 12, 10, 0.75); backdrop-filter: blur(6px); }
+.modal-dialog { position: relative; z-index: 1; width: min(680px, 100%); max-height: min(88vh, 780px); overflow: auto; background: #fff; border-radius: var(--r-lg); padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow-lg); }
+.modal-close { position: absolute; right: 1rem; top: 1rem; border: 0; background: #eef2ed; border-radius: var(--r-sm); width: 34px; height: 34px; font-size: 1.3rem; cursor: pointer; }
+.modal-kicker { color: var(--brand-2); font-size: 0.76rem; font-weight: 800; font-family: var(--mono); letter-spacing: 0.08em; }
+.modal-details { display: grid; gap: 0.85rem; }
+.modal-details div { padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: var(--r-sm); }
+.modal-details dt { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--brand); letter-spacing: 0.04em; }
+.modal-details dd { margin: 0.25rem 0 0; color: #4e5a56; font-size: 0.875rem; }
+.disclaimer { font-size: 0.78rem; background: #f1f4f1; padding: 0.85rem 1rem; border-radius: var(--r-sm); color: #576561; }
+.toast { position: fixed; right: 1rem; bottom: 1rem; z-index: 1200; width: min(420px, calc(100% - 2rem)); background: var(--text); color: #fff; padding: 1rem 1.1rem; border-radius: var(--r-sm); box-shadow: var(--shadow-lg); font-size: 0.875rem; }
+
+/* HERO */
+.hero { min-height: calc(100vh - var(--header)); display: grid; align-items: center; overflow: hidden; }
+.hero-copy { position: relative; z-index: 2; }
+.hero .eyebrow span { color: var(--muted); margin: 0 0.25rem; }
+.hero-lead { font-size: clamp(1.05rem, 1.8vw, 1.25rem); max-width: 680px; margin-bottom: 1rem; }
+.hero-definition { max-width: 680px; font-size: 0.95rem; border-left: 3px solid var(--brand-2); padding-left: 1rem; margin-bottom: 1.8rem; background: rgba(223, 236, 230, 0.25); padding-block: 0.4rem; }
+.hero-definition strong { color: var(--brand); }
+.convergence-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 2rem; box-shadow: var(--shadow); min-height: 580px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.convergence-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; position: relative; z-index: 2; }
+.source-node { border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.85rem; text-align: center; background: #fbfcfa; }
+.source-node strong { display: block; font-size: 0.78rem; letter-spacing: 0.06em; font-family: var(--mono); }
+.source-node span { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 0.2rem; }
+.convergence-lines { width: 100%; height: 145px; }
+.convergence-lines path, .market-connectors path { fill: none; stroke: #7da391; stroke-width: 2; stroke-dasharray: 6 6; }
+.ponte-node { margin: -0.4rem auto 0; background: var(--brand); color: #fff; border-radius: var(--r-lg); width: 220px; padding: 1.25rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 16px 40px rgba(15, 45, 38, 0.22); position: relative; z-index: 2; border: 1px solid #235446; }
+.ponte-node span { font-family: var(--display); font-size: 1.5rem; font-weight: 700; }
+.ponte-node strong { font-size: 0.75rem; letter-spacing: 0.12em; font-family: var(--mono); color: #a9cdc1; }
+.ponte-node small { max-width: 180px; color: #d0e4dc; margin-top: 0.35rem; font-size: 0.75rem; line-height: 1.3; }
+.flow-arrow { text-align: center; font-size: 1.6rem; color: #8ca39b; line-height: 1.2; }
+.result-node { text-align: center; border-top: 1px solid var(--border); padding-top: 0.85rem; }
+.result-node span, .result-node small { display: block; font-size: 0.74rem; color: var(--muted); }
+.result-node strong { display: block; font-size: 1.1rem; color: var(--brand); font-family: var(--display); }
+
+/* SEÇÃO 2: INVERSÃO */
+.comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.method-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: clamp(1.5rem, 3vw, 2.2rem); }
+.method-panel.structured { border-color: #9dbbaf; box-shadow: var(--shadow); }
+.panel-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); font-family: var(--mono); }
+.structured .panel-label { color: var(--brand-2); }
+.method-steps { list-style: none; padding: 0; counter-reset: step; margin: var(--s3) 0; }
+.method-steps li { position: relative; padding: 0.85rem 0 0.85rem 2.8rem; border-bottom: 1px solid var(--border); counter-increment: step; font-size: 0.875rem; }
+.method-steps li:before { content: counter(step); position: absolute; left: 0; top: 0.85rem; width: 1.8rem; height: 1.8rem; display: grid; place-items: center; border-radius: var(--r-sm); background: #eff2ee; font-size: 0.75rem; font-weight: 800; font-family: var(--mono); }
+.structured .method-steps li:before { background: var(--brand-soft); color: var(--brand); }
+.method-steps span { display: block; color: var(--muted); font-size: 0.82rem; }
+.method-outcome { margin-top: 1.2rem; padding: 1rem; border-radius: var(--r-sm); background: #f3f4f1; }
+.structured .method-outcome { background: #e3ede7; }
+.method-outcome small { display: block; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; margin-bottom: 0.25rem; font-family: var(--mono); }
+.method-outcome strong { display: block; margin-bottom: 0.25rem; font-size: 0.95rem; }
+.method-outcome p { font-size: 0.85rem; margin-bottom: 0; }
+.inversion-thesis { text-align: center; max-width: 820px; margin: 1.8rem auto 0; color: var(--text); font-size: 0.95rem; }
+
+/* SEÇÃO 3: OS TRÊS MERCADOS */
+.impact-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; margin-bottom: 2rem; }
+.impact-strip div { background: var(--surface); padding: 1rem; }
+.impact-strip strong, .impact-strip span { display: block; }
+.impact-strip strong { font-size: 0.88rem; }
+.impact-strip div:nth-child(1) strong { color: var(--social); }
+.impact-strip div:nth-child(2) strong { color: var(--economic); }
+.impact-strip div:nth-child(3) strong { color: var(--environmental); }
+.impact-strip span { font-size: 0.78rem; color: var(--muted); }
+
+.markets-system { position: relative; min-height: 640px; }
+.market { position: absolute; width: 32%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.35rem; box-shadow: var(--shadow); z-index: 2; }
+.market-capital { left: 0; top: 0; }
+.market-problems { right: 0; top: 0; }
+.market-capabilities { left: 34%; bottom: 0; }
+.market-index { font-size: 0.72rem; color: var(--brand-2); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--mono); }
+.market h3 { margin: 0.4rem 0 0.6rem 0; font-size: 1.2rem; }
+.market p, .market li { font-size: 0.84rem; }
+.market ul { margin-bottom: 0; padding-left: 1.1rem; }
+.market-hub { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 220px; border-radius: var(--r-lg); background: var(--brand); color: #fff; padding: 1.5rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 3; box-shadow: var(--shadow-lg); border: 1px solid #235446; }
+.market-hub span { font-size: 0.66rem; letter-spacing: 0.12em; color: #a7c7ba; font-family: var(--mono); }
+.market-hub strong { font-family: var(--display); font-size: 1.8rem; font-weight: 700; margin: 2px 0; }
+.market-hub p { color: #c6ddd4; font-size: 0.78rem; max-width: 170px; margin-bottom: 0; line-height: 1.3; }
+.market-connectors { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+.system-clarification { margin-top: 2rem; padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); text-align: center; max-width: 860px; margin-inline: auto; font-size: 0.9rem; color: var(--text); }
+.system-clarification strong { color: var(--brand); }
+
+/* SEÇÃO 4: PJF */
+.project-card { background: #fff; color: var(--text); border-radius: var(--r-xl); overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
+.project-card p { color: var(--muted); }
+.project-header { padding: clamp(1.5rem, 4vw, 2.5rem); border-bottom: 1px solid var(--border); }
+.project-header h3 { font-size: clamp(1.5rem, 2.5vw, 2.2rem); max-width: 900px; margin: 0.75rem 0 0.35rem; }
+.unit-definition { background: #eef4f1; border-left: 3px solid var(--brand-2); padding: 0.85rem 1rem; font-size: 0.88rem; margin: 1.25rem 0 0 0; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.unit-definition strong { color: var(--brand); }
+.project-facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); }
+.project-facts > div { background: #fff; padding: 1.25rem 1.5rem; }
+.project-facts span { font-size: 0.72rem; color: var(--brand-2); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--mono); }
+.project-facts p { margin: 0.35rem 0 0; font-size: 0.875rem; }
+.coalition-block { padding: clamp(1.5rem, 4vw, 2.5rem); background: #0e241f; color: #fff; }
+.coalition-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 0.85rem; }
+.coalition-heading span { display: block; font-size: 0.7rem; letter-spacing: 0.1em; color: #9eb9ae; font-family: var(--mono); }
+.coalition-heading strong { display: block; font-size: 1.15rem; }
+.coalition-number { font-family: var(--mono); font-size: 2rem; font-weight: 700; color: #cae3da; }
+.capacity-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin-top: 1.2rem; }
+.capacity { min-height: 105px; border: 1px solid #2d4e44; background: #132e27; border-radius: var(--r-sm); padding: 0.75rem; text-align: left; color: #fff; }
+.capacity b, .capacity small { display: block; }
+.capacity b { font-size: 0.8125rem; margin-top: 0.2rem; }
+.capacity small { color: #a7bdb4; font-size: 0.72rem; margin-top: 0.2rem; }
+.capacity > span { display: block; font-family: var(--mono); font-size: 0.75rem; }
+.capacity.confirmed > span { color: #87c7ab; font-weight: 700; }
+.capacity.open { cursor: pointer; border-style: dashed; border-color: #558776; background: #17382f; }
+.capacity.open:hover { background: #1f473c; border-color: #87c7ab; }
+.open-count { color: #b9cdc5 !important; margin: 1rem 0 0; font-size: 0.82rem; }
+
+/* 3 MICROCASOS MULTIDIMENSIONAIS */
+.microcases-strip { margin-top: 2.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.5rem; }
+.microcases-strip h4 { font-family: var(--display); font-size: 1.1rem; margin-bottom: 1rem; color: var(--brand); text-align: center; }
+.microcases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.microcase-card { padding: 1rem; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); font-size: 0.82rem; }
+.microcase-tag { font-size: 0.7rem; font-weight: 800; font-family: var(--mono); text-transform: uppercase; margin-bottom: 0.35rem; display: block; }
+.microcase-card.social .microcase-tag { color: var(--social); }
+.microcase-card.economic .microcase-tag { color: var(--economic); }
+.microcase-card.environmental .microcase-tag { color: var(--environmental); }
+.microcase-card strong { display: block; font-size: 0.875rem; margin-bottom: 0.35rem; color: var(--text); }
+.microcase-card p { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-bottom: 0; line-height: 1.4; }
+.microcases-conclusion { text-align: center; font-size: 0.85rem; font-weight: 700; color: var(--brand-2); margin-top: 1rem; }
+
+/* SEÇÃO 5: AMBIENTES & CICLO COMPLETO */
+.environment-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.environment { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.35rem; min-height: 260px; }
+.environment > span { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: #768c83; display: block; margin-bottom: 0.25rem; }
+.environment h3 { color: var(--brand); letter-spacing: 0.02em; font-size: 1.15rem; margin-bottom: 0.4rem; }
+.environment strong { display: block; margin-bottom: 0.35rem; font-size: 0.875rem; }
+.environment p { font-size: 0.82rem; }
+
+.evidence-flow { margin-top: 2.5rem; padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); background: #fff; }
+.evidence-flow h3 { text-align: center; font-size: 1.1rem; margin-bottom: 1.5rem; color: var(--brand); }
+.evidence-flow ol { display: grid; grid-template-columns: repeat(7, 1fr); list-style: none; padding: 0; margin: 0; counter-reset: flow; }
+.evidence-flow li { position: relative; text-align: center; font-size: 0.7rem; font-weight: 800; font-family: var(--mono); letter-spacing: 0.04em; padding-top: 2.6rem; }
+.evidence-flow li:before { counter-increment: flow; content: counter(flow); position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1.8rem; height: 1.8rem; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font-size: 0.75rem; }
+.evidence-flow li:not(:last-child):after { content: "→"; position: absolute; right: -0.4rem; top: 0.2rem; color: #8ba198; font-size: 0.9rem; }
+.evidence-flow-guide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.78rem; text-align: center; }
+.evidence-flow-guide div { background: var(--surface-2); padding: 0.5rem; border-radius: var(--r-sm); }
+.evidence-flow-guide strong { color: var(--brand); display: block; }
+
+/* SEÇÃO 6: GRAFO */
+.graph-shell { background: #fff; border: 1px solid var(--border); border-radius: var(--r-xl); padding: 1rem; box-shadow: var(--shadow); }
+.knowledge-graph { display: block; width: 100%; height: auto; }
+.graph-edge { stroke: #c2d1cb; stroke-width: 2; }
+.graph-edge.active { stroke: var(--brand-2); stroke-width: 3.5; }
+.graph-node { cursor: pointer; }
+.graph-node circle { fill: #f8faf7; stroke: #8da49a; stroke-width: 2; transition: 0.2s; }
+.graph-node text { font: 700 12px var(--font); fill: var(--text); pointer-events: none; }
+.graph-node:hover circle, .graph-node:focus circle, .graph-node.active circle { fill: var(--brand); stroke: var(--brand); }
+.graph-node:hover text, .graph-node:focus text, .graph-node.active text { fill: #fff; }
+.graph-detail { margin: 1.5rem 0; padding: 1.15rem; background: #fff; border: 1px solid var(--border); border-radius: var(--r-md); }
+.graph-detail span, .future-note span { display: block; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; font-family: var(--mono); color: var(--brand-2); }
+.graph-detail strong { display: block; margin: 0.35rem 0; font-size: 0.95rem; }
+.graph-detail p { font-size: 0.85rem; margin: 0; }
+.future-note { border-left: 3px solid var(--brand-2); padding-left: 1rem; background: rgba(223, 236, 230, 0.25); padding-block: 0.5rem; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.future-note p { font-size: 0.85rem; margin-top: 0.25rem; }
+
+/* SEÇÃO 7: AMBIÇÃO */
+.ambition { background-color: #081412; background-image: linear-gradient(145deg, #0e211c, #06110f); color: #fff; text-align: center; }
+.ambition .kicker { color: #85b8a6; }
+.ambition h2 { max-width: 960px; margin-inline: auto; font-size: clamp(2.1rem, 4vw, 3.6rem); }
+.ambition h2 em { font-family: var(--display); font-weight: 600; color: #a9cfc1; font-style: normal; }
+.ambition-pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-top: 2.5rem; }
+.ambition-pillars span { border: 1px solid #23473d; border-radius: var(--r-sm); padding: 0.85rem; color: #cfe0d9; font-size: 0.85rem; font-weight: 600; background: rgba(18, 45, 38, 0.4); }
+
+/* SEÇÃO 8: PARTICIPAÇÃO */
+.persona-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.25rem; }
+.persona-tabs button { border: 1px solid var(--border); background: #fff; border-radius: var(--r-sm); padding: 0.6rem 0.85rem; font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.persona-tabs button[aria-selected="true"] { background: var(--brand); color: #fff; border-color: var(--brand); }
+.persona-panel { background: #fff; border: 1px solid var(--border); border-radius: var(--r-xl); padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow); }
+.persona-panel > span { font-size: 0.72rem; color: var(--brand-2); font-weight: 800; font-family: var(--mono); letter-spacing: 0.08em; display: block; margin-bottom: 0.35rem; }
+
+/* FOOTER */
+.site-footer { background: #071210; color: #a9bbb5; padding: 3rem 0; font-size: 0.82rem; }
+.site-footer strong { font-family: var(--display); font-size: 1.35rem; color: #fff; }
+.site-footer p { color: #8fa59e; font-size: 0.85rem; margin-top: 0.25rem; }
+.site-footer small { color: #6a8079; display: block; margin-top: 0.5rem; }
+
+/* RESPONSIVIDADE */
+@media (max-width: 1050px) {
+  .main-nav { position: absolute; left: 1rem; right: 1rem; top: calc(var(--header) - 0.2rem); display: none; flex-direction: column; align-items: stretch; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.75rem; box-shadow: var(--shadow-lg); }
+  .main-nav.open { display: flex; }
+  .main-nav a { padding: 0.7rem; }
+  .menu-toggle { display: block; }
+  .main-nav .nav-cta { margin: 0; }
+  .hero-grid, .graph-layout, .participation-grid { grid-template-columns: 1fr; }
+  .hero { min-height: auto; }
+  .convergence-card { min-height: 540px; }
+  .environment-grid { grid-template-columns: repeat(2, 1fr); }
+  .capacity-list { grid-template-columns: repeat(3, 1fr); }
+  .market { width: 38%; }
+  .market-capabilities { left: 31%; }
+  .microcases-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  :root { --s8: 4.5rem; }
+  .comparison-grid, .project-facts, .impact-strip, .footer-grid { grid-template-columns: 1fr; }
+  .convergence-card { min-height: auto; padding: 1rem; }
+  .convergence-top { grid-template-columns: 1fr; gap: 0.5rem; }
+  .convergence-lines { display: none; }
+  .ponte-node { margin: 1rem auto; width: auto; max-width: 240px; }
+  .markets-system { display: grid; gap: 1rem; min-height: 0; }
+  .market { position: static; width: auto; }
+  .market-hub { position: static; transform: none; width: auto; height: auto; border-radius: var(--r-md); padding: 1.25rem; order: 4; }
+  .market-connectors { display: none; }
+  .capacity-list { grid-template-columns: 1fr; }
+  .environment-grid { grid-template-columns: 1fr; }
+  .evidence-flow ol { grid-template-columns: 1fr; gap: 0.75rem; }
+  .evidence-flow li { text-align: left; padding: 0 0 0 2.6rem; min-height: 1.8rem; }
+  .evidence-flow li:before { left: 0; transform: none; }
+  .evidence-flow li:not(:last-child):after { content: "↓"; left: 0.65rem; right: auto; top: 1.8rem; }
+  .evidence-flow-guide { grid-template-columns: 1fr; text-align: left; }
+  .ambition-pillars { grid-template-columns: 1fr 1fr; }
+  .coalition-heading { align-items: flex-start; }
+}
+
+@media (max-width: 440px) {
+  .ambition-pillars { grid-template-columns: 1fr; }
+  .persona-tabs { display: grid; }
+  .persona-tabs button { text-align: left; }
+  .coalition-heading { display: block; }
+  .coalition-number { margin-top: 0.35rem; }
+  .brand-name { font-size: 0.85rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *:before, *:after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  .progress span { transition: none !important; }
+}
+
+
+/* v1.3 — explicação, ecossistema, P&D, escala e privacidade */
+.plain-flow{list-style:none;margin:2rem 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.plain-flow li{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:1.2rem}.plain-flow li>span,.institution-grid article>span,.scale-grid article>span{font:800 .7rem var(--mono);color:var(--brand-2);letter-spacing:.08em}.plain-flow strong{display:block;margin:.5rem 0 .35rem;font-size:.98rem}.plain-flow p{margin:0;color:var(--muted);font-size:.84rem}.plain-thesis{margin:1.2rem auto 0;max-width:820px;padding:1rem 1.2rem;border-left:3px solid var(--brand-2);background:var(--brand-soft);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.institution-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:2rem}.institution-grid article{padding:1.25rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md)}.institution-grid h3{font-size:1rem;margin:.45rem 0}.institution-grid p{font-size:.84rem;color:var(--muted);margin:0}.accountability-layer{margin-top:1.25rem;display:grid;grid-template-columns:.9fr 2.1fr;gap:1.5rem;padding:1.35rem;border:1px solid #7d8e88;background:#13201d;color:#fff;border-radius:var(--r-lg)}.accountability-layer h3{margin:.25rem 0 0;color:#fff}.accountability-layer p{margin:0;color:#c4d1cc;font-size:.88rem}.mono-label{font:800 .7rem var(--mono);letter-spacing:.08em;color:var(--brand-2)}
+.rd-intro{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:.75rem;align-items:center;margin:1.5rem 0}.rd-intro>div:not([aria-hidden]){border:1px solid var(--border);background:#fff;padding:1rem;border-radius:var(--r-md)}.rd-intro strong{display:block;margin-top:.35rem;font-size:.9rem}.rd-pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}.rd-pillars article{background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:1.1rem}.rd-pillars article>span{font:800 .7rem var(--mono);color:var(--brand-2);text-transform:uppercase}.rd-pillars h3{font-size:1rem;margin:.45rem 0}.rd-pillars p{font-size:.82rem;color:var(--muted);margin:0}.rd-action{margin-top:1.2rem;border:1px solid var(--border);border-radius:var(--r-lg);padding:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;background:var(--surface)}.rd-action h3{margin:.45rem 0 .25rem}.rd-action p{margin:0;color:var(--muted);font-size:.86rem}.regulatory-note{margin-top:.75rem;font-size:.75rem;color:var(--muted)}
+.scale-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.8rem;margin-top:2rem}.scale-grid article{border:1px solid var(--border);border-radius:var(--r-md);padding:1rem;background:#fff}.scale-grid h3{font-size:.95rem;margin:.4rem 0}.scale-grid p{font-size:.8rem;color:var(--muted);margin:0}.infrastructure-compare{margin-top:1.3rem;display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:1rem}.infrastructure-compare>div:not(.compare-arrow){padding:1.25rem;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface)}.infrastructure-compare h3{font-size:1rem;margin:.45rem 0}.infrastructure-compare p{font-size:.84rem;color:var(--muted);margin:0}.compare-arrow{display:grid;place-items:center;font-size:1.4rem;font-weight:800;color:var(--brand-2)}.necessity-strip{margin-top:1rem;padding:1rem 1.2rem;background:var(--brand);color:#fff;border-radius:var(--r-md);display:flex;gap:.75rem;align-items:baseline}.necessity-strip span{color:#c7d5cf;font-size:.86rem}
+.community-section{background:#0b1a16;color:#fff;border-top:1px solid #1c3d33}.community-grid{display:grid;grid-template-columns:1.7fr .8fr;gap:2rem;align-items:center}.community-section h2{color:#fff;margin:.25rem 0 .5rem}.community-section p{color:#b9cbc4}.community-note{font-size:.78rem!important}.community-actions{display:grid;gap:.7rem}.community-button{background:#25d366;color:#072218;font-weight:800;justify-content:center}.privacy-link,.footer-privacy,.inline-link{border:0;background:none;text-decoration:underline;cursor:pointer}.privacy-link{color:#bfe6d7}.footer-privacy{color:inherit;padding:0;font:inherit}.inline-link{padding:0;color:var(--brand);font:inherit}.lead-dialog{max-width:560px}.lead-intro{font-size:.84rem;color:var(--muted)}#lead-form{display:grid;gap:.85rem}.form-field label{display:block;font:800 .72rem var(--mono);text-transform:uppercase;color:var(--brand);margin-bottom:.3rem}.form-field input,.form-field select{width:100%;padding:.7rem .8rem;border:1px solid var(--border);border-radius:var(--r-sm);font:inherit;background:#fff}.form-pair{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.check-row{display:flex;align-items:flex-start;gap:.55rem;font-size:.76rem;color:var(--muted)}.check-row input{margin-top:.2rem;flex:0 0 auto}.form-status{font-size:.78rem;min-height:1.1em}.form-status.error{color:#9d302c}.form-status.success{color:#286c55}.form-submit{width:100%}.privacy-content{display:grid;gap:.8rem;color:var(--muted);font-size:.86rem}.privacy-content p{margin:0}.privacy-dialog{max-width:620px}
+@media(max-width:1024px){.plain-flow{grid-template-columns:repeat(2,1fr)}.institution-grid{grid-template-columns:repeat(2,1fr)}.rd-pillars{grid-template-columns:repeat(2,1fr)}.scale-grid{grid-template-columns:repeat(2,1fr)}.community-grid{grid-template-columns:1fr}.accountability-layer{grid-template-columns:1fr}.rd-intro{grid-template-columns:1fr}.rd-intro>div[aria-hidden]{display:none}}
+@media(max-width:640px){.plain-flow,.institution-grid,.rd-pillars,.scale-grid{grid-template-columns:1fr}.form-pair{grid-template-columns:1fr}.infrastructure-compare{grid-template-columns:1fr}.compare-arrow{transform:rotate(90deg)}.rd-action{align-items:flex-start;flex-direction:column}.necessity-strip{align-items:flex-start;flex-direction:column}.community-actions{width:100%}.persona-tabs{grid-template-columns:1fr 1fr}}
+
+/* v1.3 — progressive enhancement */
+@media (max-width:1050px){
+  html:not(.js) .site-header{position:static;}
+  html:not(.js) .menu-toggle{display:none;}
+  html:not(.js) .main-nav{position:static;display:flex;flex-direction:column;align-items:stretch;border:0;box-shadow:none;padding:.35rem 0;background:transparent;}
+  html:not(.js) .main-nav a{padding:.55rem 0;}
+}
+.noscript-note{font-size:.78rem;color:#b9cbc4;margin:0}.noscript-note a{color:#d9f5ea;text-decoration:underline;}
+
+/* v1.3 — contrast hardening */
+.flow-arrow{color:#5d756d;}
+.accountability-layer .mono-label{color:#a9d8c8;}
+</style>
+</head>
+<body><!-- PONTE Projetos — Release v1.3 Institucional / QA -->
+<a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+<header class="site-header" id="topo">
+<div class="container header-inner">
+<a aria-label="PONTE Projetos — início" class="brand" href="#problema">
+<span aria-hidden="true" class="brand-mark">P</span><span class="brand-name">PONTE <strong>Projetos</strong></span>
+</a>
+<button aria-controls="main-nav" aria-expanded="false" class="menu-toggle" type="button"><span class="sr-only">Abrir menu</span><span aria-hidden="true">☰</span></button>
+<nav aria-label="Navegação principal" class="main-nav" id="main-nav">
+<a href="#problema">A Tese</a>
+<a href="#como-funciona">Como Funciona</a>
+<a href="#ecossistema">Ecossistema</a>
+<a href="#pjf">Projeto em Formação</a>
+<a href="#empresas">P&amp;D Empresas</a>
+<a href="#grafo">O Grafo</a>
+<a href="#escala">Escala</a>
+<a href="#participacao">Conectar</a>
+<a class="nav-cta" href="#whatsapp-section">Comunidade</a>
+</nav>
+</div>
+</header>
+<main id="conteudo">
+<!-- SEÇÃO 01 — HERO / O PROBLEMA -->
+<section aria-labelledby="hero-title" class="section hero" id="problema">
+<div class="container hero-grid">
+<div class="hero-copy">
+<p class="eyebrow">Social <span>•</span> Econômica <span>•</span> Ambiental</p>
+<h1 id="hero-title">Existem recursos.<br/>Existem problemas reais.<br/>Existem pessoas capazes.</h1>
+<p class="hero-lead">O que falta é a <strong>arquitetura de coordenação</strong> para transformá-los em projetos financiáveis, executáveis e capazes de produzir transformação demonstrável por evidências e resultados.</p>
+<p class="hero-definition"><strong>PONTE Projetos</strong> é a infraestrutura digital da PONTE Estruturação de Projetos de Impacto. Ela transforma problemas fragmentados, capacidades dispersas e capital condicionado em projetos organizados para acontecer.</p>
+<a class="button button-primary" href="#como-funciona">Veja como funciona <span aria-hidden="true">↓</span></a>
+</div>
+<div aria-label="Capital, problemas e capacidades convergem na PONTE Projetos e resultam em projeto de impacto e transformação demonstrável" class="convergence-card">
+<div class="convergence-top">
+<div class="source-node"><strong>CAPITAL</strong><span>Recursos mobilizáveis</span></div>
+<div class="source-node"><strong>PROBLEMAS</strong><span>Demandas territoriais</span></div>
+<div class="source-node"><strong>CAPACIDADES</strong><span>Atores de execução</span></div>
+</div>
+<svg aria-label="Linhas convergindo dos três mercados para a PONTE" class="convergence-lines" role="img" viewbox="0 0 720 180">
+<path d="M95 18 C95 90 285 78 360 150"></path><path d="M360 18 L360 150"></path><path d="M625 18 C625 90 435 78 360 150"></path>
+</svg>
+<div class="ponte-node"><span>PONTE</span><strong>PROJETOS</strong><small>Arquitetura de coordenação</small></div>
+<div aria-hidden="true" class="flow-arrow">↓</div>
+<div class="result-node"><span>PROJETO DE IMPACTO</span><strong>TRANSFORMAÇÃO DEMONSTRÁVEL</strong><small>Social • Econômica • Ambiental</small></div>
+</div>
+</div>
+</section>
+<!-- SEÇÃO 02 — A INVERSÃO -->
+<section aria-labelledby="inversao-title" class="section section-soft" id="inversao">
+<div class="container">
+<header class="section-heading"><p class="kicker">A INVERSÃO METODOLÓGICA</p><h2 id="inversao-title">Não começamos pelo edital.</h2><p>Começamos pelo problema que precisa ser resolvido.</p></header>
+<div class="comparison-grid">
+<article class="method-panel conventional"><p class="panel-label">STATUS QUO</p><h3>Modelo Convencional</h3><ol class="method-steps"><li><b>Edital publicado</b><span>correr atrás de uma ideia</span></li><li><b>Procurar parceiros de última hora</b><span>adaptar tudo ao formulário</span></li><li><b>Submeter no prazo limite</b></li></ol><div class="method-outcome"><small>RESULTADO</small><strong>Projeto criado para caber na oportunidade.</strong><p>Menor aderência técnica, menor consistência, composição frágil e maior risco de execução inadequada.</p></div></article>
+<article class="method-panel structured"><p class="panel-label">ARQUITETURA PONTE</p><h3>Modelo Estruturado</h3><ol class="method-steps"><li><b>Problema demonstrável no território</b><span>mapear ativos e carências</span></li><li><b>Composição da coalizão de capacidades</b><span>solução acoplada ao capital compatível</span></li><li><b>Projeto preparado para execução</b></li></ol><div class="method-outcome"><small>RESULTADO</small><strong>Oportunidade usada para financiar uma intervenção que já faz sentido.</strong><p>Maior aderência técnica, coerência territorial, composição institucional deliberada e melhor preparação para execução.</p></div></article>
+</div>
+<p class="inversion-thesis"><strong>O edital deixa de ser o ponto de partida.</strong> Passa a ser um dos instrumentos de capital para financiar uma intervenção estruturada.</p>
+</div>
+</section><section aria-labelledby="como-funciona-title" class="section section-soft" id="como-funciona">
+<div class="container">
+<header class="section-heading centered">
+<p class="kicker">PARA ENTENDER EM 60 SEGUNDOS</p>
+<h2 id="como-funciona-title">O que a PONTE faz, na prática?</h2>
+<p>Ela não começa perguntando “qual edital está aberto?”. Começa perguntando “qual problema precisa virar projeto e o que falta para ele acontecer?”.</p>
+</header>
+<ol aria-label="Seis etapas do funcionamento da PONTE" class="plain-flow">
+<li><span>01</span><strong>Alguém apresenta uma necessidade</strong><p>Pode ser uma empresa, território, OSC, ICT, entidade setorial ou financiador.</p></li>
+<li><span>02</span><strong>A PONTE diagnostica o que existe e o que falta</strong><p>Problema, ativos, organizações, competências, documentação e requisitos.</p></li>
+<li><span>03</span><strong>Nasce um Projeto em Formação</strong><p>O desafio é convertido em uma arquitetura de solução com funções e evidências esperadas.</p></li>
+<li><span>04</span><strong>A coalizão é composta</strong><p>Entram proponente, especialistas, operadores, ICTs, fornecedores e parceiros necessários.</p></li>
+<li><span>05</span><strong>O capital compatível é acoplado</strong><p>Subvenção, financiamento, incentivo, investimento ou outro instrumento aderente.</p></li>
+<li><span>06</span><strong>Execução e evidência fecham o ciclo</strong><p>Responsabilidades, entregas, rastreabilidade e resultados passam a compor o histórico do projeto.</p></li>
+</ol>
+<div class="plain-thesis"><strong>A diferença:</strong> o recurso deixa de criar artificialmente o projeto. O projeto amadurece e encontra o instrumento de capital capaz de financiá-lo.</div>
+</div>
+</section><section aria-labelledby="mercados-title" class="section" id="mercados">
+<div class="container">
+<header class="section-heading centered"><p class="kicker">O MODELO MENTAL</p><h2 id="mercados-title">Os Três Mercados Conectados</h2><p>A PONTE atua na coordenação ativa entre quem financia, onde a transformação é necessária e quem sabe executar.</p></header>
+<div aria-label="Eixos de transformação" class="impact-strip"><div><strong>Transformação Social</strong><span>Saúde • Educação • Inclusão • Cultura • Segurança alimentar</span></div><div><strong>Transformação Econômica</strong><span>Produtividade • Inovação • Renda • Emprego • Desenvolvimento territorial</span></div><div><strong>Transformação Ambiental</strong><span>Água • Biodiversidade • Clima • Resíduos • Recuperação ambiental</span></div></div>
+<div class="markets-system">
+<article class="market market-capital"><span class="market-index">01 / Recursos</span><h3>CAPITAL</h3><p>Quem possui recursos e precisa alocá-los com conformidade e impacto.</p><ul><li>Fomento e subvenções</li><li>Fundos climáticos e setoriais</li><li>Investimento de impacto e ESG</li><li>Incentivos e cooperação</li></ul></article>
+<article class="market market-problems"><span class="market-index">02 / Demanda</span><h3>PROBLEMAS</h3><p>Onde uma transformação concreta é necessária e demonstrável.</p><ul><li>Territórios e municípios</li><li>Populações e comunidades</li><li>Cadeias produtivas locais</li><li>Passivos e infraestrutura</li></ul></article>
+<article class="market market-capabilities"><span class="market-index">03 / Execução</span><h3>CAPACIDADES</h3><p>Quem possui meios legítimos e técnicos para realizar a transformação.</p><ul><li>Empresas e especialistas</li><li>OSCs, associações e cooperativas</li><li>ICTs e pesquisadores</li><li>Ativos físicos e infraestrutura</li></ul></article>
+<div aria-label="Função central da PONTE" class="market-hub"><span>A FUNÇÃO CENTRAL</span><strong>PONTE</strong><p>Diagnostica • Combina • Estrutura • Governa</p></div>
+<svg aria-hidden="true" class="market-connectors" viewbox="0 0 1000 680"><path d="M190 180 C310 255 375 305 500 340"></path><path d="M810 180 C690 255 625 305 500 340"></path><path d="M500 575 C500 480 500 430 500 340"></path></svg>
+</div>
+<div class="system-clarification">
+<strong>Não se trata de um marketplace convencional de serviços.</strong> A unidade central de formação é o projeto: capital, problemas, organizações, ativos e competências são combinados para constituir uma coalizão executável.
+</div>
+</div>
+</section><section aria-labelledby="ecossistema-title" class="section" id="ecossistema">
+<div class="container">
+<header class="section-heading centered">
+<p class="kicker">ECOSSISTEMA INSTITUCIONAL</p>
+<h2 id="ecossistema-title">Projetos fortes exigem papéis diferentes — não um cadastro único de “parceiros”.</h2>
+<p>A PONTE organiza relações entre atores com funções econômicas, técnicas, territoriais e institucionais distintas, sem confundir participação em projeto com chancela pública.</p>
+</header>
+<div class="institution-grid">
+<article><span>01</span><h3>Empresas &amp; Indústrias</h3><p>Apresentam desafios tecnológicos, mercado, capacidade produtiva e demanda por inovação.</p></article>
+<article><span>02</span><h3>Territórios &amp; Poder Público</h3><p>Apresentam problemas públicos, políticas, ativos, permissões e contextos de implementação.</p></article>
+<article><span>03</span><h3>ICTs Públicas &amp; Privadas</h3><p>Oferecem conhecimento, pesquisadores, laboratórios, ensaios, validação e infraestrutura científica.</p></article>
+<article><span>04</span><h3>OSCs, Associações &amp; Cooperativas</h3><p>Agregam legitimidade territorial, mobilização, execução local e governança com rastreabilidade verificável.</p></article>
+<article><span>05</span><h3>Federações, Sindicatos &amp; Entidades Patronais</h3><p>Agregam demandas empresariais, articulam cadeias produtivas e ajudam a formar carteiras setoriais.</p></article>
+<article><span>06</span><h3>Capital &amp; Fomento</h3><p>Financia projetos aderentes a teses, regras, elegibilidade, risco e resultados esperados.</p></article>
+</div>
+<aside aria-label="Camada de accountability e transparência" class="accountability-layer">
+<div><span class="mono-label">CAMADA DE CONFIANÇA</span><h3>Accountability, transparência e rastreabilidade</h3></div>
+<p>Poder Judiciário, Ministério Público, Tribunais de Contas, controladorias, auditorias e outras instituições de justiça, controle e accountability não são tratados como validadores comerciais da PONTE. A infraestrutura deve estar preparada para organizar trilhas de decisão, origem de recursos, responsabilidades, contratos, entregas e evidências para escrutínio institucional quando legalmente cabível.</p>
+</aside>
+</div>
+</section>
+<!-- SEÇÃO 03 — OS TRÊS MERCADOS -->
+<!-- SEÇÃO 04 — PROJETO EM FORMAÇÃO (PJF) -->
+<section aria-labelledby="pjf-title" class="section section-dark" id="pjf">
+<div class="container">
+<div class="demo-notice"><strong>SIMULAÇÃO DEMONSTRATIVA</strong><span>Dados ilustrativos utilizados exclusivamente para explicar o funcionamento da plataforma.</span></div>
+<header class="section-heading"><p class="kicker">UNIDADE CENTRAL</p><h2 id="pjf-title">O “Projeto em Formação” (PJF)</h2><p>Veja como a PONTE empacota a demanda e abre chamadas para as competências faltantes.</p></header>
+<article aria-labelledby="project-title" class="project-card">
+<div class="project-header">
+<div><span class="project-code">PJF-0027</span><span class="status-badge">EM COMPOSIÇÃO</span></div>
+<h3 id="project-title">Recuperação Hídrica, Drenagem e Gestão Integrada de Resíduos</h3>
+<p>Território: <strong>Vale do Mamanguape / PB</strong></p>
+<div class="axis-tags"><span>Ambiental</span><span>Econômico</span><span>Social</span></div>
+<div class="unit-definition">
+<strong>A unidade central do mercado é o Projeto em Formação.</strong> Ele reúne o problema, o território, os ativos, as organizações, as capacidades necessárias, o capital potencial e as condições de execução.
+</div>
+</div>
+<div class="project-facts">
+<div><span>Problema Demonstrado</span><p>Descarte inadequado de resíduos em bacia hidrográfica e déficit de drenagem pluvial urbana.</p></div>
+<div><span>Organizações Mobilizadas</span><p>Associação territorial e cooperativa local com papéis definidos na composição do projeto.</p></div><div><span>Ativos Mobilizáveis</span><p>Infraestrutura comunitária, áreas disponíveis, bases territoriais e outros recursos físicos passíveis de mobilização.</p></div>
+<div><span>Solução em Estruturação</span><p>Sistema integrado de recuperação de mata ciliar, drenagem sustentável e valorização de recicláveis.</p></div>
+<div><span>Capital Potencial</span><p>Instrumentos sob análise de aderência, incluindo linhas de saneamento ambiental e fundos climáticos.</p></div>
+</div>
+<div class="coalition-block">
+<div class="coalition-heading"><div><span>STATUS DA COALIZÃO</span><strong>3/5 funções críticas cobertas</strong></div><div class="coalition-number">60%</div></div>
+<div aria-label="Funções críticas cobertas" aria-valuemax="5" aria-valuemin="0" aria-valuenow="3" class="progress" role="progressbar"><span data-progress="60"></span></div>
+<div class="capacity-list">
+<div class="capacity confirmed"><span aria-hidden="true">✓</span><b>Proponente</b><small>Associação</small></div>
+<div class="capacity confirmed"><span aria-hidden="true">✓</span><b>Operação Territorial</b><small>Cooperativa local</small></div>
+<div class="capacity confirmed"><span aria-hidden="true">✓</span><b>Estruturação / PMO</b><small>PONTE Projetos</small></div>
+<button class="capacity open" data-call="CP-014" type="button"><span aria-hidden="true">○</span><b>Engenharia Hídrica</b><small>Ver vaga CP-014</small></button>
+<button class="capacity open" data-call="CP-015" type="button"><span aria-hidden="true">○</span><b>Geoprocessamento</b><small>Ver vaga CP-015</small></button>
+</div>
+<p class="open-count">2 funções técnicas ainda precisam ser compostas antes da submissão do projeto.</p>
+</div>
+</article>
+<!-- 3 MICROCASOS MULTIDIMENSIONAIS -->
+<div class="microcases-strip">
+<h4>O mesmo mecanismo em diferentes transformações</h4>
+<div class="microcases-grid">
+<div class="microcase-card social">
+<span class="microcase-tag">Social</span>
+<strong>Pós-alta em saúde mental</strong>
+<p>Problema → ICT → unidade de saúde → tecnologia → financiamento</p>
+</div>
+<div class="microcase-card economic">
+<span class="microcase-tag">Econômica</span>
+<strong>Digitalização de cadeia produtiva</strong>
+<p>PMEs → tecnologia → ICT → capacitação → fomento à inovação</p>
+</div>
+<div class="microcase-card environmental">
+<span class="microcase-tag">Ambiental</span>
+<strong>Recuperação hídrica e resíduos</strong>
+<p>Território → cooperativa → engenharia → capital climático</p>
+</div>
+</div>
+<div class="microcases-conclusion">Muda o problema. Muda a coalizão. O mecanismo de formação permanece.</div>
+</div>
+</div>
+</section>
+<!-- SEÇÃO 05 — OS QUATRO AMBIENTES -->
+<section aria-labelledby="ambientes-title" class="section" id="ambientes">
+<div class="container">
+<header class="section-heading"><p class="kicker">JORNADA NA PLATAFORMA</p><h2 id="ambientes-title">Os Quatro Ambientes</h2><p>Como cada ator interage desde a descoberta até a execução comprovada.</p></header>
+<div class="environment-grid">
+<article class="environment"><span>01</span><h3>DESCOBRIR</h3><strong>Encontre capital e oportunidades compatíveis.</strong><p>Linhas filtradas por localização, natureza jurídica, setor, estágio e finalidade.</p></article>
+<article class="environment"><span>02</span><h3>APRESENTAR</h3><strong>Mostre o que você possui ou o que precisa transformar.</strong><p>Cadastre capacidade, organização, ativo, problema ou ideia.</p></article>
+<article class="environment"><span>03</span><h3>COMPOR</h3><strong>Entre em projetos que precisam da sua capacidade.</strong><p>Chamadas de Composição vinculam capacidades faltantes a Projetos em Formação.</p></article>
+<article class="environment"><span>04</span><h3>CONSTRUIR</h3><strong>Transforme a composição em execução.</strong><p>Workspace para projeto, orçamento, responsabilidades, governança, evidências e prestação de contas.</p></article>
+</div>
+<!-- CICLO COMPLETO ATÉ TRANSFORMAÇÃO -->
+<div class="evidence-flow">
+<h3>Do Problema à Transformação Demonstrável</h3>
+<ol>
+<li>PROBLEMA</li>
+<li>PROJETO</li>
+<li>FINANCIAMENTO</li>
+<li>EXECUÇÃO</li>
+<li>EVIDÊNCIA</li>
+<li>RESULTADO</li>
+<li>TRANSFORMAÇÃO</li>
+</ol>
+<div class="evidence-flow-guide">
+<div><strong>Entrega</strong> O que foi produzido</div>
+<div><strong>Resultado</strong> O que mudou</div>
+<div><strong>Transformação</strong> Mudança relevante demonstrada no contexto</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SEÇÃO 06 — O GRAFO -->
+<!-- SEÇÃO: NÚCLEO DE P&D PARA EMPRESAS -->
+<section aria-labelledby="empresas-title" class="section section-soft" id="empresas">
+<div class="container">
+<header class="section-heading">
+<p class="kicker">APLICAÇÃO DO MESMO MOTOR • INOVAÇÃO EMPRESARIAL</p>
+<h2 id="empresas-title">Implemente um Núcleo de P&amp;D sob demanda com a PONTE</h2>
+<p><strong>Não é outro produto.</strong> É o motor de formação de projetos aplicado à inovação empresarial: desafio tecnológico → coalizão → capital → execução → evidência.</p>
+</header>
+<div class="rd-intro">
+<div><span class="mono-label">EMPRESA</span><strong>Lidera a tese tecnológica e de negócio</strong></div>
+<div aria-hidden="true">→</div>
+<div><span class="mono-label">PONTE</span><strong>Estrutura projeto, capital e coalizão</strong></div>
+<div aria-hidden="true">→</div>
+<div><span class="mono-label">REDE</span><strong>ICTs, especialistas e instrumentos aderentes</strong></div>
+</div>
+<div class="rd-pillars">
+<article><span>Pilar 01</span><h3>Diagnóstico &amp; Pipeline</h3><p>Mapeamento de gargalos tecnológicos, oportunidades de produto/processo e formação de um portfólio priorizado de PD&amp;I.</p></article>
+<article><span>Pilar 02</span><h3>Capital para Inovação</h3><p><strong>Não reembolsável:</strong> subvenções, FAPs e modelos como EMBRAPII, conforme elegibilidade. <strong>Financiamento:</strong> linhas como BNDES Mais Inovação, conforme condições vigentes.</p></article>
+<article><span>Pilar 03</span><h3>Incentivos &amp; Créditos</h3><p>Mapeamento de regimes aplicáveis, como Lei do Bem, Lei de TICs e MOVER, sempre condicionado ao setor, regime tributário, habilitação e dispêndios elegíveis.</p></article>
+<article><span>Pilar 04</span><h3>ICTs &amp; Infraestrutura Científica</h3><p>Conexão com laboratórios, pesquisadores e unidades tecnológicas para desenvolver, testar e validar sem internalizar toda a capacidade científica na folha.</p></article>
+</div>
+<div class="rd-action">
+<div><span class="status-badge">P&amp;D SOB MEDIDA</span><h3>Sua empresa lidera a tese. A PONTE estrutura o projeto e a coalizão.</h3><p>O instrumento financeiro é escolhido depois da arquitetura tecnológica — não o contrário.</p></div>
+<button class="button button-primary" data-open-lead="Empresa - Diagnóstico P&amp;D" type="button">Solicitar diagnóstico de P&amp;D</button>
+</div>
+<p class="regulatory-note">Exemplos de instrumentos e incentivos são indicativos e dependem de regras, elegibilidade e condições vigentes na data da estruturação.</p>
+</div>
+</section>
+<section aria-labelledby="grafo-title" class="section section-soft" id="grafo">
+<div class="container graph-layout">
+<div class="graph-copy">
+<p class="kicker">O GRAFO DE FORMAÇÃO DE PROJETOS</p>
+<h2 id="grafo-title">Cada projeto deixa inteligência para o próximo.</h2>
+<p>A plataforma registra relações que uma simples base de contatos não consegue representar.</p>
+<div aria-live="polite" class="graph-detail" id="graph-detail">
+<span>EXEMPLO DE RELAÇÃO MAPEADA</span>
+<strong>Especialista A → Projeto X → Evidência Y → Território Z → Tecnologia W</strong>
+<p>Selecione um nó para explorar suas relações.</p>
+</div>
+<p style="font-size: 0.875rem; color: var(--muted); margin-bottom: 1rem;">
+Ao longo da execução, a PONTE passa a registrar quem participou, em que função, quais entregas foram assumidas, quais evidências foram produzidas e quais resultados foram documentados.
+</p>
+<div class="future-note">
+<span>VISÃO DE FUTURO</span>
+<p>Com histórico suficiente, essas relações poderão sustentar modelos de aderência, composição e desempenho.</p>
+</div>
+</div>
+<div class="graph-shell">
+<svg aria-labelledby="graph-svg-title graph-svg-desc" class="knowledge-graph" id="knowledge-graph" role="img" viewbox="0 0 760 620">
+<title id="graph-svg-title">Grafo de formação de projetos</title>
+<desc id="graph-svg-desc">Relações entre território, problema, ativos, organizações, capacidades, oportunidades, projeto, execução, evidência e resultado. Os nós podem ser selecionados.</desc>
+<g class="edges">
+<line class="graph-edge" data-a="territory" data-b="problem" x1="380" x2="205" y1="65" y2="180"></line>
+<line class="graph-edge" data-a="territory" data-b="asset" x1="380" x2="555" y1="65" y2="180"></line>
+<line class="graph-edge" data-a="problem" data-b="org" x1="205" x2="115" y1="180" y2="320"></line>
+<line class="graph-edge" data-a="problem" data-b="capacity" x1="205" x2="300" y1="180" y2="320"></line>
+<line class="graph-edge" data-a="asset" data-b="capacity" x1="555" x2="300" y1="180" y2="320"></line>
+<line class="graph-edge" data-a="org" data-b="project" x1="115" x2="380" y1="320" y2="435"></line>
+<line class="graph-edge" data-a="capacity" data-b="project" x1="300" x2="380" y1="320" y2="435"></line>
+<line class="graph-edge" data-a="opportunity" data-b="project" x1="650" x2="380" y1="320" y2="435"></line>
+<line class="graph-edge" data-a="project" data-b="execution" x1="380" x2="180" y1="435" y2="535"></line>
+<line class="graph-edge" data-a="project" data-b="evidence" x1="380" x2="380" y1="435" y2="555"></line>
+<line class="graph-edge" data-a="execution" data-b="evidence" x1="180" x2="380" y1="535" y2="555"></line>
+<line class="graph-edge" data-a="evidence" data-b="result" x1="380" x2="600" y1="555" y2="535"></line>
+<line class="graph-edge" data-a="result" data-b="territory" x1="600" x2="380" y1="535" y2="65"></line>
+</g>
+<g class="nodes">
+<g aria-label="Território. Onde o problema e a transformação se materializam." class="graph-node" data-id="territory" role="button" tabindex="0" transform="translate(380 65)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Território</text></g>
+<g aria-label="Problema. Demanda demonstrável que justifica a intervenção." class="graph-node" data-id="problem" role="button" tabindex="0" transform="translate(205 180)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Problema</text></g>
+<g aria-label="Ativo. Infraestrutura, área, tecnologia ou recurso mobilizável." class="graph-node" data-id="asset" role="button" tabindex="0" transform="translate(555 180)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Ativo</text></g>
+<g aria-label="Organização. Entidade com legitimidade, papel institucional ou elegibilidade." class="graph-node" data-id="org" role="button" tabindex="0" transform="translate(115 320)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Organização</text></g>
+<g aria-label="Capacidade. Competência técnica ou operacional necessária ao projeto." class="graph-node" data-id="capacity" role="button" tabindex="0" transform="translate(300 320)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Capacidade</text></g>
+<g aria-label="Capital. Instrumento financeiro potencialmente aderente." class="graph-node" data-id="opportunity" role="button" tabindex="0" transform="translate(650 320)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Capital</text></g>
+<g aria-label="Projeto. Coalizão estruturada em torno de problema, solução e capital." class="graph-node active" data-id="project" role="button" tabindex="0" transform="translate(380 435)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Projeto</text></g>
+<g aria-label="Execução. Realização das entregas pactuadas e governança da implementação." class="graph-node" data-id="execution" role="button" tabindex="0" transform="translate(180 535)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Execução</text></g>
+<g aria-label="Evidência. Registro verificável de entregas, resultados e conformidade." class="graph-node" data-id="evidence" role="button" tabindex="0" transform="translate(380 555)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Evidência</text></g>
+<g aria-label="Resultado. Mudança observada associada à intervenção." class="graph-node" data-id="result" role="button" tabindex="0" transform="translate(600 535)"><circle r="48"></circle><text dominant-baseline="middle" text-anchor="middle">Resultado</text></g>
+</g>
+</svg>
+</div>
+</div>
+</section><section aria-labelledby="escala-title" class="section" id="escala">
+<div class="container">
+<header class="section-heading centered">
+<p class="kicker">POR QUE ISSO PODE ESCALAR</p>
+<h2 id="escala-title">A PONTE não precisa recomeçar do zero a cada projeto.</h2>
+<p>A hipótese de escala nasce da padronização do Projeto em Formação, da reutilização responsável de relações qualificadas e da acumulação de evidências.</p>
+</header>
+<div class="scale-grid">
+<article><span>01</span><h3>Objeto padronizado</h3><p>Cada demanda pode ser traduzida em problema, território, ativos, organizações, funções, capital e evidências.</p></article>
+<article><span>02</span><h3>Atores reutilizáveis</h3><p>ICTs, especialistas, empresas, OSCs e fornecedores podem voltar a compor projetos quando houver aderência.</p></article>
+<article><span>03</span><h3>Conhecimento persistente</h3><p>Funções, entregas e evidências deixam histórico verificável em vez de desaparecerem no encerramento do contrato.</p></article>
+<article><span>04</span><h3>Motor multissetorial</h3><p>Saúde, indústria, clima, agricultura, infraestrutura e desenvolvimento territorial usam o mesmo mecanismo de formação.</p></article>
+<article><span>05</span><h3>Efeito de densidade</h3><p>Quanto mais relações qualificadas e evidências existem, maior a possibilidade de reduzir o esforço de formar a próxima coalizão.</p></article>
+</div>
+<div class="infrastructure-compare">
+<div><span class="mono-label">CONSULTORIA TRADICIONAL</span><h3>Cliente → consultor → proposta</h3><p>O conhecimento tende a permanecer no projeto ou na equipe que o executou.</p></div>
+<div aria-hidden="true" class="compare-arrow">≠</div>
+<div><span class="mono-label">INFRAESTRUTURA PONTE</span><h3>Problema ↔ Capital ↔ Capacidades ↔ Instituições</h3><p>O projeto gera relações e evidências reutilizáveis. A infraestrutura pode ficar mais eficiente conforme amadurece.</p></div>
+</div>
+<div class="necessity-strip"><strong>Por que é necessária?</strong><span>Porque o custo de coordenação entre problema, capacidade, regras, capital e evidência continua sendo uma barreira mesmo quando os recursos e os atores existem.</span></div>
+</div>
+</section>
+<!-- SEÇÃO 07 — AMBIÇÃO -->
+<section aria-labelledby="ambicao-title" class="section ambition" id="ambicao">
+<div class="container">
+<p class="kicker">A AMBIÇÃO DA PONTE</p>
+<h2 id="ambicao-title">A PONTE não espera que projetos apareçam.<br/><em>Cria as condições para que eles existam.</em></h2>
+<div class="ambition-pillars">
+<span>Problemas reais</span>
+<span>Capacidades reais</span>
+<span>Capital mobilizável</span>
+<span>Transformação demonstrável</span>
+</div>
+</div>
+</section>
+<!-- SEÇÃO 08 — SUA PARTICIPAÇÃO -->
+<section aria-labelledby="participacao-title" class="section participation" id="participacao">
+<div class="container participation-grid">
+<div>
+<p class="kicker">SUA PARTICIPAÇÃO</p>
+<h2 id="participacao-title">Onde você entra nessa infraestrutura?</h2>
+<p>Escolha o papel que mais se aproxima da sua situação. A PONTE não oferece a mesma relação para todos os atores.</p>
+<div aria-label="Perfis de participação" class="persona-tabs" role="tablist">
+<button aria-controls="persona-panel" aria-selected="true" data-persona="company" id="tab-company" role="tab" type="button">Empresa / Indústria</button>
+<button aria-controls="persona-panel" aria-selected="false" data-persona="specialist" id="tab-specialist" role="tab" type="button">Especialista / Fornecedor</button>
+<button aria-controls="persona-panel" aria-selected="false" data-persona="osc" id="tab-osc" role="tab" type="button">OSC / Associação</button>
+<button aria-controls="persona-panel" aria-selected="false" data-persona="territory" id="tab-territory" role="tab" type="button">Território / Poder Público</button>
+<button aria-controls="persona-panel" aria-selected="false" data-persona="institution" id="tab-institution" role="tab" type="button">ICT / Entidade Setorial</button>
+<button aria-controls="persona-panel" aria-selected="false" data-persona="capital" id="tab-capital" role="tab" type="button">Capital / Financiador</button>
+</div>
+</div>
+<div aria-labelledby="tab-company" aria-live="polite" class="persona-panel" id="persona-panel" role="tabpanel" tabindex="0">
+<span id="persona-eyebrow">TENHO UM DESAFIO TECNOLÓGICO</span>
+<h3 id="persona-title">Transforme necessidade empresarial em pipeline de P&amp;D.</h3>
+<p id="persona-text">Apresente gargalos, produtos, processos ou teses de inovação para estruturar projetos, coalizões e instrumentos de capital compatíveis.</p>
+<button class="button button-primary" id="persona-cta" type="button">Solicitar diagnóstico</button>
+</div>
+</div>
+</section>
+<!-- MÓDULO WHATSAPP & CAPTURA DE LEADS (CRM) -->
+<section class="section community-section" id="whatsapp-section" style="background: #0b1a16; color: #fff; padding: var(--s6) 0; border-top: 1px solid #1c3d33;">
+<div class="container community-grid">
+<div>
+<p class="kicker">CADASTRO DE INTERESSE + COMUNIDADE PONTE</p>
+<h2>Receba oportunidades e acompanhe projetos em formação.</h2>
+<p>Informe seu perfil e interesse para a PONTE organizar futuras conexões. Depois, você pode acessar a comunidade no WhatsApp.</p>
+<p class="community-note"><strong>Importante:</strong> esta versão portátil demonstra o fluxo. O envio real ao CRM só ocorre quando um endpoint seguro é configurado.</p>
+</div>
+<div class="community-actions">
+<button class="button community-button" data-open-lead="Comunidade WhatsApp" type="button">Cadastrar interesse e acessar comunidade</button>
+<button class="privacy-link" data-open-privacy="" type="button">Como tratamos dados neste protótipo?</button>
+<noscript><p class="noscript-note">JavaScript esta desativado. Ative o JavaScript para se cadastrar e receber o convite da comunidade, ou escreva para diretoria.ponte.projetos@gmail.com.</p></noscript></div>
+</div>
+</section>
+</main>
+<footer class="site-footer">
+<div class="container footer-grid">
+<div>
+<strong>PONTE Projetos</strong>
+<p>Infraestrutura digital da PONTE Estruturação de Projetos de Impacto para formação de projetos de transformação social, econômica e ambiental.</p>
+</div>
+<div>
+<p>Operação apartidária orientada à conformidade, capacidade técnica, execução e evidência.</p>
+<small>PONTE Projetos — Apresentação Executiva · © 2026 PONTE Projetos</small>
+<p><button class="footer-privacy" data-open-privacy="" type="button">Privacidade do protótipo</button></p></div>
+</div>
+</footer><div aria-hidden="true" class="modal" hidden="" id="privacy-modal">
+<div class="modal-backdrop" data-close-privacy=""></div>
+<div aria-labelledby="privacy-title" aria-modal="true" class="modal-dialog privacy-dialog" role="dialog">
+<button aria-label="Fechar aviso de privacidade" class="modal-close" data-close-privacy="" type="button">×</button>
+<p class="modal-kicker">PRIVACIDADE • AMBIENTE DEMONSTRATIVO</p>
+<h2 id="privacy-title">Como este protótipo trata seus dados</h2>
+<div class="privacy-content">
+<p><strong>Nesta versão portátil, o CRM não vem configurado.</strong> Enquanto o endpoint estiver vazio, nome, telefone, e-mail, perfil e interesse não são enviados à PONTE nem persistidos no <code>localStorage</code>.</p>
+<p>Quando a integração real for ativada, a publicação deverá informar de forma definitiva: controlador, finalidades, base(s) legal(is), dados coletados, compartilhamentos, prazo de retenção, medidas de segurança e canal para exercício dos direitos do titular.</p>
+<p>O aceite de comunicações futuras é separado e opcional. O acesso à comunidade não deve ser apresentado como autorização irrestrita para marketing.</p>
+</div>
+</div>
+</div>
+<!-- MODAL: CHAMADAS CP-014 E CP-015 -->
+<div aria-hidden="true" class="modal" hidden="" id="call-modal">
+<div class="modal-backdrop" data-close-modal=""></div>
+<div aria-labelledby="modal-title" aria-modal="true" class="modal-dialog" role="dialog">
+<button aria-label="Fechar chamada" class="modal-close" data-close-modal="" type="button">×</button>
+<p class="modal-kicker">CHAMADA DE COMPOSIÇÃO <span id="modal-code"></span></p>
+<h2 id="modal-title"></h2>
+<p class="modal-link">Vinculada ao Projeto em Formação <strong>PJF-0027</strong></p>
+<dl class="modal-details">
+<div><dt>Papel no projeto</dt><dd id="modal-role"></dd></div>
+<div><dt>Entregas esperadas</dt><dd id="modal-deliverables"></dd></div>
+<div><dt>Experiência requerida</dt><dd id="modal-experience"></dd></div>
+<div><dt>Forma de participação</dt><dd id="modal-mode"></dd></div>
+</dl>
+<p class="disclaimer">A manifestação de interesse não constitui promessa de contratação, financiamento ou participação definitiva no projeto. As condições econômicas e responsabilidades serão formalizadas em instrumento próprio caso a composição avance.</p>
+<button class="button button-primary" id="modal-apply" type="button">Tenho essa capacidade</button>
+</div>
+</div>
+<!-- MODAL: CAPTURA DE LEADS / CRM GATE WHATSAPP -->
+<div aria-hidden="true" class="modal" hidden="" id="lead-modal">
+<div class="modal-backdrop" data-close-lead=""></div>
+<div aria-labelledby="lead-modal-title" aria-modal="true" class="modal-dialog lead-dialog" role="dialog">
+<button aria-label="Fechar formulário" class="modal-close" data-close-lead="" type="button">×</button>
+<p class="modal-kicker">CADASTRO DE INTERESSE • COMUNIDADE PONTE</p>
+<h2 id="lead-modal-title">Conte à PONTE onde você entra no ecossistema</h2>
+<p class="lead-intro" id="lead-data-note">Coletamos apenas os dados necessários para organizar seu interesse nesta demonstração. O envio ao CRM só ocorre quando um endpoint seguro estiver configurado.</p>
+<form id="lead-form">
+<input id="lead-source" name="source" type="hidden" value="Comunidade WhatsApp"/>
+<div class="form-field"><label for="lead-name">Nome completo *</label><input autocomplete="name" id="lead-name" maxlength="120" name="name" required="" type="text"/></div>
+<div class="form-pair">
+<div class="form-field"><label for="lead-whatsapp">WhatsApp com DDD *</label><input aria-describedby="lead-data-note" autocomplete="tel" id="lead-whatsapp" inputmode="tel" maxlength="20" minlength="10" name="whatsapp" required="" type="tel"/></div>
+<div class="form-field"><label for="lead-email">E-mail profissional *</label><input autocomplete="email" id="lead-email" maxlength="160" name="email" required="" type="email"/></div>
+</div>
+<div class="form-field"><label for="lead-profile">Perfil *</label><select id="lead-profile" name="profile" required=""><option value="">Selecione…</option><option>Empresa / Indústria</option><option>Especialista / Fornecedor</option><option>OSC / Associação / Cooperativa</option><option>Gestão Pública / Território</option><option>Pesquisador / ICT</option><option>Federação / Sindicato Patronal / Entidade Setorial</option><option>Capital / Financiador</option></select></div>
+<div class="form-field"><label for="lead-interest">Principal interesse *</label><select id="lead-interest" name="interest" required=""><option value="">Selecione…</option><option>Acompanhar oportunidades e editais</option><option>Implementar Núcleo de P&amp;D</option><option>Compor Projeto em Formação</option><option>Apresentar problema territorial</option><option>Conectar ICT ou capacidade científica</option><option>Estruturar carteira setorial</option><option>Conhecer projetos para financiamento</option></select></div>
+<label class="check-row"><input id="privacy-ack" required="" type="checkbox"/><span>Li o <button class="inline-link" data-open-privacy="" type="button">aviso de privacidade deste protótipo</button> e compreendi a finalidade do cadastro.</span></label>
+<label class="check-row"><input id="marketing-optin" type="checkbox"/><span>Quero receber comunicações futuras sobre oportunidades, projetos e serviços da PONTE. <em>(opcional)</em></span></label>
+<div aria-live="polite" class="form-status" id="crm-status" role="status"></div>
+<button class="button community-button form-submit" type="submit">Registrar interesse e acessar comunidade →</button>
+</form>
+</div>
+</div>
+<div aria-atomic="true" aria-live="polite" class="toast" hidden="" id="toast" role="status"></div>
+<script>
+// NAVEGAÇÃO & SCROLLSPY
+(()=>{
+  const header = document.querySelector('.site-header');
+  const nav = document.getElementById('main-nav');
+  const toggle = document.querySelector('.menu-toggle');
+  const links = [...nav.querySelectorAll('a[href^="#"]')];
+  const sections = [...document.querySelectorAll('main section[id]')];
+
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!open));
+    nav.classList.toggle('open', !open);
+  });
+
+  links.forEach(a => a.addEventListener('click', () => {
+    nav.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }));
+
+  window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 8), { passive: true });
+
+  const io = new IntersectionObserver(entries => {
+    const active = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (!active) return;
+    links.forEach(a => a.removeAttribute('aria-current'));
+    const hit = links.find(a => a.getAttribute('href') === '#' + active.target.id);
+    if (hit) hit.setAttribute('aria-current', 'true');
+  }, { rootMargin: '-22% 0px -62% 0px', threshold: [0, 0.2, 0.5, 1] });
+
+  sections.forEach(s => io.observe(s));
+})();
+
+// PJF & MODAIS DAS CHAMADAS
+(()=>{
+  const demoProject = {
+    id: 'PJF-0027',
+    status: 'EM_COMPOSICAO',
+    territory: 'Vale do Mamanguape / PB',
+    capabilities: { required: 5, confirmed: 3 },
+    calls: {
+      'CP-014': {
+        title: 'Engenharia de Drenagem e Soluções Baseadas na Natureza',
+        role: 'Dimensionamento hidráulico e projetos executivos de microdrenagem sustentável.',
+        deliverables: 'Memorial descritivo, responsabilidade técnica aplicável e plano de intervenção.',
+        experience: 'Atuação comprovada em hidrologia, drenagem ou engenharia sanitária.',
+        mode: 'Prestação de serviços técnicos integrada à composição orçamentária do projeto.'
+      },
+      'CP-015': {
+        title: 'Geoprocessamento e Mapeamento Territorial',
+        role: 'Mapeamento de bacia, delimitação territorial, diagnóstico espacial e apoio cartográfico.',
+        deliverables: 'Mapas temáticos, base georreferenciada e produtos cartográficos.',
+        experience: 'Domínio de SIG, geoprocessamento e análise territorial ou ambiental.',
+        mode: 'Prestação de serviços técnicos integrada à composição orçamentária do projeto.'
+      }
+    }
+  };
+
+  const calls = demoProject.calls;
+  const progress = document.querySelector('.progress');
+  if (progress) {
+    progress.setAttribute('aria-valuemax', String(demoProject.capabilities.required));
+    progress.setAttribute('aria-valuenow', String(demoProject.capabilities.confirmed));
+  }
+
+  const modal = document.getElementById('call-modal');
+  const dialog = modal.querySelector('.modal-dialog');
+  const apply = document.getElementById('modal-apply');
+  const toast = document.getElementById('toast');
+  let opener = null;
+  let current = '';
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    clearTimeout(showToast.t);
+    showToast.t = setTimeout(() => toast.hidden = true, 5200);
+  }
+
+  function openModal(code) {
+    const c = calls[code];
+    if (!c) return;
+    current = code;
+    opener = document.activeElement;
+    document.getElementById('modal-code').textContent = code;
+    document.getElementById('modal-title').textContent = c.title;
+    document.getElementById('modal-role').textContent = c.role;
+    document.getElementById('modal-deliverables').textContent = c.deliverables;
+    document.getElementById('modal-experience').textContent = c.experience;
+    document.getElementById('modal-mode').textContent = c.mode;
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    modal.querySelector('.modal-close').focus();
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    if (opener) opener.focus();
+  }
+
+  document.querySelectorAll('[data-call]').forEach(b => b.addEventListener('click', () => openModal(b.dataset.call)));
+  modal.querySelectorAll('[data-close-modal]').forEach(b => b.addEventListener('click', closeModal));
+  apply.addEventListener('click', () => {
+    closeModal();
+    showToast('Capacidade identificada. Na plataforma operacional, este fluxo abrirá o cadastro de competências, experiência, território de atuação e documentação técnica.');
+  });
+
+  document.addEventListener('keydown', e => {
+    if (modal.hidden) return;
+    if (e.key === 'Escape') { closeModal(); return; }
+    if (e.key === 'Tab') {
+      const focusables = [...dialog.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled);
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    }
+  });
+})();
+
+// GRAFO DE CONHECIMENTO
+(()=>{
+  const svg = document.getElementById('knowledge-graph');
+  const detail = document.getElementById('graph-detail');
+  const nodes = {
+    territory: { label: 'Território', text: 'Onde o problema e a transformação se materializam.' },
+    problem: { label: 'Problema', text: 'Demanda demonstrável que justifica a intervenção.' },
+    asset: { label: 'Ativo', text: 'Infraestrutura, área, tecnologia ou recurso mobilizável.' },
+    org: { label: 'Organização', text: 'Entidade com legitimidade, papel institucional ou elegibilidade.' },
+    capacity: { label: 'Capacidade', text: 'Competência técnica ou operacional necessária ao projeto.' },
+    opportunity: { label: 'Capital', text: 'Instrumento financeiro potencialmente aderente.' },
+    project: { label: 'Projeto', text: 'Coalizão estruturada em torno de problema, solução e capital.' },
+    execution: { label: 'Execução', text: 'Realização das entregas pactuadas e governança da implementação.' },
+    evidence: { label: 'Evidência', text: 'Registro verificável de entregas, resultados e conformidade.' },
+    result: { label: 'Resultado', text: 'Mudança observada associada à intervenção.' }
+  };
+
+  const edgeEls = [...svg.querySelectorAll('.graph-edge')];
+  const nodeEls = [...svg.querySelectorAll('.graph-node')];
+
+  nodeEls.forEach(g => {
+    const id = g.dataset.id;
+    const n = nodes[id];
+    if (!n) return;
+    const activate = () => {
+      nodeEls.forEach(x => x.classList.toggle('active', x === g));
+      edgeEls.forEach(e => e.classList.toggle('active', e.dataset.a === id || e.dataset.b === id));
+      detail.querySelector('strong').textContent = n.label;
+      detail.querySelector('p').textContent = n.text;
+    };
+    g.addEventListener('click', activate);
+    g.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+    });
+  });
+})();
+
+// SELETOR DE PERSONAS
+(()=>{
+  const configs = {
+    company: { eyebrow:'TENHO UM DESAFIO TECNOLÓGICO', title:'Transforme necessidade empresarial em pipeline de P&D.', text:'Apresente gargalos, produtos, processos ou teses de inovação para estruturar projetos, coalizões e instrumentos de capital compatíveis.', cta:'Solicitar diagnóstico', source:'Empresa - Diagnóstico P&D' },
+    specialist: { eyebrow:'TENHO UMA CAPACIDADE', title:'Faça sua capacidade encontrar projetos.', text:'Cadastre especialidade, experiência, localização e disponibilidade para ser identificado quando um Projeto em Formação precisar da sua competência.', cta:'Cadastrar capacidade', source:'Especialista - Capacidade' },
+    osc: { eyebrow:'TENHO ATUAÇÃO TERRITORIAL', title:'Transforme demanda e legitimidade em projeto estruturado.', text:'Apresente sua organização, território, ativos, experiência e problemas que precisam ser enfrentados.', cta:'Apresentar organização', source:'OSC - Organização' },
+    territory: { eyebrow:'TENHO UM PROBLEMA PÚBLICO OU TERRITORIAL', title:'Faça o problema encontrar uma arquitetura de solução.', text:'Apresente o desafio, ativos e contexto institucional. A PONTE organiza hipóteses de intervenção, capacidades necessárias e instrumentos potenciais.', cta:'Apresentar problema', source:'Território - Problema' },
+    institution: { eyebrow:'TENHO CAPACIDADE CIENTÍFICA OU ARTICULAÇÃO SETORIAL', title:'Conecte infraestrutura científica ou demanda agregada a projetos.', text:'ICTs podem ofertar pesquisa, laboratório e validação; entidades setoriais podem organizar desafios e carteiras de empresas.', cta:'Conectar instituição', source:'Instituição - ICT ou Entidade Setorial' },
+    capital: { eyebrow:'TENHO CAPITAL OU INSTRUMENTO FINANCEIRO', title:'Encontre projetos em formação compatíveis com sua tese.', text:'Conheça projetos organizados por território, eixo de transformação, maturidade, governança e necessidade de capital.', cta:'Conhecer projetos', source:'Capital - Financiador' }
+  };
+  const tabs=[...document.querySelectorAll('[data-persona]')], panel=document.getElementById('persona-panel'), ey=document.getElementById('persona-eyebrow'), title=document.getElementById('persona-title'), text=document.getElementById('persona-text'), cta=document.getElementById('persona-cta');
+  let current='company';
+  function select(tab){
+    tabs.forEach(t=>{const on=t===tab;t.setAttribute('aria-selected',String(on));t.setAttribute('tabindex',on?'0':'-1');});
+    panel.setAttribute('aria-labelledby',tab.id); current=tab.dataset.persona; const c=configs[current]; ey.textContent=c.eyebrow; title.textContent=c.title; text.textContent=c.text; cta.textContent=c.cta;
+  }
+  tabs.forEach((tab,i)=>tab.setAttribute('tabindex',i===0?'0':'-1'));
+  tabs.forEach((tab,i)=>{ tab.addEventListener('click',()=>select(tab)); tab.addEventListener('keydown',e=>{ if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const d=e.key==='ArrowRight'?1:-1;const next=tabs[(i+d+tabs.length)%tabs.length];next.focus();select(next);} }); });
+  cta.addEventListener('click',()=>window.openLeadModal?.(configs[current].source));
+})();
+
+// PROGRESSÃO DA BARRA 3/5
+(()=>{
+  const bar = document.querySelector('[data-progress]');
+  if (!bar) return;
+  const target = bar.dataset.progress + '%';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { bar.style.width = target; return; }
+  bar.style.width = '0';
+  bar.getBoundingClientRect();
+  const section = document.getElementById('pjf');
+  const io = new IntersectionObserver(entries => {
+    if (entries.some(e => e.isIntersecting)) {
+      requestAnimationFrame(() => bar.style.width = target);
+      io.disconnect();
+    }
+  }, { threshold: 0.12 });
+  io.observe(section);
+})();
+</script>
+<script>
+// v1.3 — Cadastro de Interesse + Comunidade (sem falsa persistência local)
+window.PONTE_CONFIG = Object.assign({
+  crmEndpoint: '/api/leads/ponte-projetos',
+  whatsappCommunityUrl: '' // Devolvido pelo servidor apos gravar o lead
+}, window.PONTE_CONFIG || {});
+
+(()=>{
+  const leadModal=document.getElementById('lead-modal'), privacyModal=document.getElementById('privacy-modal'), form=document.getElementById('lead-form'), status=document.getElementById('crm-status');
+  let leadReturnFocus=null, privacyReturnFocus=null;
+  const focusables=(root)=>[...root.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled && !el.hidden);
+  function openModal(modal, trigger){ modal.hidden=false; modal.setAttribute('aria-hidden','false'); document.body.classList.add('modal-open'); const f=focusables(modal); f[0]?.focus(); return trigger||document.activeElement; }
+  function closeModal(modal, returnTo){ modal.hidden=true; modal.setAttribute('aria-hidden','true'); if(document.querySelectorAll('.modal:not([hidden])').length===0) document.body.classList.remove('modal-open'); returnTo?.focus?.(); }
+  window.openLeadModal=(source='Geral')=>{ leadReturnFocus=document.activeElement; document.getElementById('lead-source').value=source; openModal(leadModal,leadReturnFocus); };
+  document.querySelectorAll('[data-open-lead]').forEach(btn=>btn.addEventListener('click',()=>window.openLeadModal(btn.dataset.openLead||'Geral')));
+  document.querySelectorAll('[data-close-lead]').forEach(el=>el.addEventListener('click',()=>closeModal(leadModal,leadReturnFocus)));
+  document.querySelectorAll('[data-open-privacy]').forEach(btn=>btn.addEventListener('click',()=>{ privacyReturnFocus=document.activeElement; openModal(privacyModal,privacyReturnFocus); }));
+  document.querySelectorAll('[data-close-privacy]').forEach(el=>el.addEventListener('click',()=>closeModal(privacyModal,privacyReturnFocus)));
+
+  function trap(e, modal, closeFn){
+    if(modal.hidden) return;
+    if(e.key==='Escape'){e.preventDefault();closeFn();return;}
+    if(e.key!=='Tab') return;
+    const f=focusables(modal); if(!f.length) return; const first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
+  document.addEventListener('keydown',e=>{
+    // Apenas o modal superior processa teclado; evita fechar dois níveis com um único ESC.
+    if(!privacyModal.hidden){ trap(e,privacyModal,()=>closeModal(privacyModal,privacyReturnFocus)); return; }
+    if(!leadModal.hidden){ trap(e,leadModal,()=>closeModal(leadModal,leadReturnFocus)); }
+  });
+
+  function showStatus(message,type=''){ status.textContent=message; status.className='form-status '+type; }
+  async function submitLead(payload){
+    const endpoint=window.PONTE_CONFIG.crmEndpoint;
+    if(!endpoint){ return {demo:true}; }
+    // Aceita caminho relativo (mesmo domÃ­nio, jÃ¡ sob HTTPS) ou URL https absoluta.
+    if(!/^\//.test(endpoint) && !/^https:\/\//i.test(endpoint)) throw new Error('O endpoint de CRM deve usar HTTPS.');
+    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!response.ok) throw new Error('CRM respondeu com status '+response.status);
+    const data=await response.json().catch(()=>({}));
+    // O convite chega aqui, nÃ£o do cÃ³digo-fonte.
+    return {demo:false, whatsappUrl:data.whatsappUrl||''};
+  }
+  form?.addEventListener('submit',async e=>{
+    e.preventDefault(); if(!form.reportValidity()) return;
+    const submit=form.querySelector('[type="submit"]'); submit.disabled=true; showStatus('Processando…');
+    const payload={name:form.name.value.trim(),whatsapp:form.whatsapp.value.trim(),email:form.email.value.trim(),profile:form.profile.value,interest:form.interest.value,source:form.source.value,marketingOptIn:document.getElementById('marketing-optin').checked,timestamp:new Date().toISOString()};
+    try{
+      const result=await submitLead(payload);
+      if(result.demo){ showStatus('Modo demonstrativo: os dados não foram enviados nem armazenados. Abrindo a comunidade.','success'); }
+      else { showStatus('Interesse registrado com sucesso. Abrindo a comunidade.','success'); form.reset(); }
+      const destino=result.whatsappUrl||window.PONTE_CONFIG.whatsappCommunityUrl; if(destino) setTimeout(()=>window.open(destino,'_blank','noopener'),250);
+      if(!result.demo) setTimeout(()=>closeModal(leadModal,leadReturnFocus),500);
+    }catch(err){ console.error(err); showStatus('Não foi possível registrar seu interesse agora. Seus dados não foram gravados neste navegador. Tente novamente mais tarde.','error'); }
+    finally{submit.disabled=false;}
+  });
+})();
+</script></body>
+</html>

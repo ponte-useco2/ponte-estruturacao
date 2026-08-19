@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
       // public/ — é servido por Route Handler autenticado em
       // /hub-bananeiras/workspace (ver src/proxy.ts).
       { source: "/hub-bananeiras", destination: "/hub-bananeiras.html" },
+
+      // Apresentação executiva da plataforma PONTE Projetos.
+      // O formulário posta em /api/leads/ponte-projetos, que grava no Supabase
+      // e só então devolve o convite da comunidade no WhatsApp.
+      { source: "/plataforma", destination: "/plataforma.html" },
     ];
   },
 };
