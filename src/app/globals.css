@@ -3,6 +3,73 @@
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-heading: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+}
+
+/* ====================================================================
+   TOKENS DA PLATAFORMA  (prefixo pl-)  —  FONTE ÚNICA
+   --------------------------------------------------------------------
+   Origem: bloco :root de public/plataforma.html. Aquela página é a
+   apresentação pública da plataforma; o app logado é a continuação
+   dela, então herda os mesmos valores.
+
+   NÃO confundir com a paleta do site institucional (slate-900 + branco),
+   que continua valendo para as landing pages de marketing. São duas
+   superfícies com identidades deliberadamente distintas.
+
+   Quem consome estes tokens:
+     · src/app/plataforma/app/estilos.css  → --pa-*  (app logado)
+     · src/app/oportunidades/…Client.tsx   → --op-*  (painel público)
+   Ambos são ALIAS. Nenhum valor de cor nasce fora daqui.
+
+   POR QUE `static`: por padrão o Tailwind v4 faz tree-shake de variável
+   de tema não referenciada pelas fontes que ele escaneia. Os --pa-* vivem
+   num .css comum, fora do pipeline do Tailwind, então as referências
+   deles são invisíveis para o scanner — e os tokens seriam removidos do
+   bundle. `var()` sem fallback resolve para nada, e o app perderia todas
+   as cores em silêncio. `static` garante a emissão. Verificado: sem ele,
+   --color-pl-brand sumia do CSS compilado.
+   ==================================================================== */
+@theme static {
+  /* Superfícies */
+  --color-pl-bg: #f7f8f5;
+  --color-pl-surface: #ffffff;
+  --color-pl-surface-2: #eef2ed;
+  --color-pl-dark: #0a1412;
+  --color-pl-dark-surface: #11211e;
+
+  /* Texto e traço */
+  --color-pl-text: #13201d;
+  --color-pl-muted: #576561;
+  --color-pl-muted-2: #8b9691; /* derivado: rótulos e metadados de baixa ênfase */
+  --color-pl-border: #d4ded9;
+
+  /* Marca */
+  --color-pl-brand: #0f2d26;
+  --color-pl-brand-2: #1e5446;
+  --color-pl-brand-soft: #dbe8e2;
+
+  /* Eixos de transformação — SOCIAL / ECONÔMICO / AMBIENTAL (quadro 1g) */
+  --color-pl-social: #6b5394;
+  --color-pl-economic: #85581e;
+  --color-pl-environmental: #2d6b54;
+
+  /* Estado */
+  --color-pl-danger: #8a4b42;
+
+  /* Tipografia da plataforma.
+     A plataforma.html declara --display: 'Space Grotesk' mas NUNCA carrega a
+     fonte (a página não tem <link> nem @font-face), então na prática renderiza
+     o fallback. O app logado resolveu isso escolhendo Plus Jakarta, que já é
+     carregada via next/font — e é essa a escolha operante. Aqui o token
+     espelha o app, não a declaração morta da página pública. */
+  --font-pl-display: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-pl-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-pl-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Ritmo — espelha --max e --header da plataforma.html */
+  --spacing-pl-max: 1160px;
+  --spacing-pl-header: 74px;
 }
 
 @layer base {

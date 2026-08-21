@@ -1,0 +1,438 @@
+/* =====================================================================
+   Protótipo do app logado da Plataforma PONTE (Shell C — home por pergunta).
+   Tokens espelham public/plataforma.html para que a passagem da página
+   pública para o app não pareça outro produto.
+   Regras fora de @layer vencem o @layer base do Tailwind sem !important.
+   ===================================================================== */
+
+.pa-root {
+  /* ------------------------------------------------------------------
+     ALIAS sobre os tokens da plataforma (--color-pl-* / --font-pl-*,
+     declarados em @theme static no src/app/globals.css a partir do :root
+     de public/plataforma.html). Nenhum valor de cor nasce aqui.
+
+     Antes, os mesmos valores existiam com três nomes: --pa-* aqui, --op-*
+     no painel de oportunidades e --color-pl-* no Tailwind. Agora há uma
+     fonte só e dois alias.
+
+     Os valores literais seguem no comentário à direita como referência de
+     leitura — mudar cor da plataforma se faz em globals.css, não aqui.
+     ------------------------------------------------------------------ */
+  --pa-bg: var(--color-pl-bg);                     /* #f7f8f5 */
+  --pa-surface: var(--color-pl-surface);           /* #ffffff */
+  --pa-surface-2: var(--color-pl-surface-2);       /* #eef2ed */
+  --pa-text: var(--color-pl-text);                 /* #13201d */
+  --pa-muted: var(--color-pl-muted);               /* #576561 */
+  --pa-border: var(--color-pl-border);             /* #d4ded9 */
+  --pa-brand: var(--color-pl-brand);               /* #0f2d26 */
+  --pa-brand-2: var(--color-pl-brand-2);           /* #1e5446 */
+  --pa-brand-soft: var(--color-pl-brand-soft);     /* #dbe8e2 */
+  --pa-social: var(--color-pl-social);             /* #6b5394 */
+  --pa-economic: var(--color-pl-economic);         /* #85581e */
+  --pa-environmental: var(--color-pl-environmental); /* #2d6b54 */
+  --pa-danger: var(--color-pl-danger);             /* #8a4b42 */
+  --pa-dark: var(--color-pl-dark);                 /* #0a1412 */
+  --pa-dark-surface: var(--color-pl-dark-surface); /* #11211e */
+  --pa-mono: var(--font-pl-mono);
+  --pa-display: var(--font-pl-display);            /* Plus Jakarta */
+  --pa-font: var(--font-pl-body);                  /* Inter */
+  --pa-r: 0.6rem;
+  --pa-r-lg: 1.1rem;
+  --pa-top: 60px;
+  /* Altura da linha de abas do Shell B. Zera no mobile, onde as abas dão
+     lugar à tab bar inferior — ver media query no fim deste arquivo. */
+  --pa-abas: 38px;
+  /* Offset real do cabeçalho grudado: linha de identidade + linha de abas.
+     É este o valor que sticky de conteúdo deve usar, não --pa-top. */
+  --pa-top-total: calc(var(--pa-top) + var(--pa-abas));
+  --pa-max: 1180px;
+
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--pa-bg);
+  color: var(--pa-text);
+  font-family: var(--pa-font);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.pa-root *,
+.pa-root *::before,
+.pa-root *::after { box-sizing: border-box; }
+
+/* Reset de elemento dentro de :where() para especificidade ZERO. Sem isso,
+   `.pa-root button` (0,1,1) venceria `.pa-btn` e `.pa-chip` (0,1,0) e apagaria
+   borda, fundo e padding de todo botão com classe. */
+:where(.pa-root h1, .pa-root h2, .pa-root h3, .pa-root h4) {
+  font-family: var(--pa-display);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--pa-text);
+  margin: 0;
+}
+:where(.pa-root p) { margin: 0; color: var(--pa-muted); line-height: 1.55; }
+:where(.pa-root a) { color: inherit; text-decoration: none; }
+:where(.pa-root button, .pa-root input, .pa-root select, .pa-root textarea) {
+  font: inherit;
+  color: inherit;
+}
+:where(.pa-root button) { cursor: pointer; background: none; border: 0; padding: 0; }
+:where(.pa-root ul) { margin: 0; padding: 0; list-style: none; }
+.pa-root :focus-visible { outline: 3px solid var(--pa-brand-2); outline-offset: 2px; border-radius: 4px; }
+
+.pa-sr {
+  position: absolute !important;
+  width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ------------------------------------------------ tipografia utilitária */
+.pa-mono {
+  font-family: var(--pa-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--pa-muted);
+}
+.pa-kicker {
+  font-family: var(--pa-mono);
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--pa-brand-2);
+}
+.pa-titulo { font-size: clamp(1.35rem, 2.6vw, 1.85rem); }
+.pa-sub { font-size: 0.9rem; color: var(--pa-muted); }
+.pa-numero { font-family: var(--pa-display); font-size: 1.7rem; font-weight: 700; line-height: 1.1; }
+
+.pa-pilha { display: flex; flex-direction: column; gap: 0.7rem; }
+.pa-pilha-larga { display: flex; flex-direction: column; gap: 1.1rem; }
+.pa-linha { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pa-espaco { flex: 1; }
+
+/* ------------------------------------------------ aviso de protótipo */
+.pa-aviso-proto {
+  background: var(--pa-dark);
+  color: #cbdbd5;
+  font-family: var(--pa-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  padding: 0.45rem 1rem;
+  display: flex; gap: 0.6rem; align-items: center; justify-content: center;
+  text-align: center; flex-wrap: wrap;
+}
+.pa-aviso-proto strong { color: #fff; }
+.pa-aviso-proto a { color: #8fc6b1; text-decoration: underline; }
+
+/* ------------------------------------------------ topo */
+.pa-top {
+  position: sticky; top: 0; z-index: 60;
+  background: rgba(247, 248, 245, 0.94);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--pa-border);
+}
+.pa-top-inner {
+  height: var(--pa-top);
+  width: min(var(--pa-max), calc(100% - 1.6rem));
+  margin-inline: auto;
+  display: flex; align-items: center; gap: 0.55rem;
+}
+.pa-marca { display: flex; align-items: center; gap: 0.55rem; font-weight: 700; font-size: 0.9rem; }
+.pa-marca-selo {
+  display: grid; place-items: center;
+  width: 30px; height: 30px; flex: none;
+  background: var(--pa-brand); color: #fff;
+  border-radius: var(--pa-r);
+  font-family: var(--pa-display); font-weight: 700;
+}
+.pa-marca-nome { white-space: nowrap; }
+
+.pa-menu-wrap { position: relative; }
+.pa-menu-botao {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  border: 1px solid var(--pa-border); background: var(--pa-surface);
+  border-radius: var(--pa-r); padding: 0.42rem 0.7rem;
+  font-size: 0.82rem; font-weight: 600;
+}
+.pa-menu-botao[aria-expanded="true"] { background: var(--pa-brand-soft); border-color: var(--pa-brand-2); }
+.pa-menu {
+  position: absolute; right: 0; top: calc(100% + 0.4rem);
+  width: 278px; z-index: 70;
+  background: var(--pa-surface); border: 1px solid var(--pa-border);
+  border-radius: var(--pa-r-lg); box-shadow: 0 24px 60px rgba(9, 32, 26, 0.16);
+  padding: 0.45rem;
+}
+.pa-menu-grupo { padding: 0.55rem 0.6rem 0.2rem; }
+.pa-menu a {
+  display: flex; align-items: baseline; gap: 0.55rem;
+  padding: 0.5rem 0.6rem; border-radius: var(--pa-r); font-size: 0.88rem;
+}
+.pa-menu a:hover, .pa-menu a:focus-visible { background: var(--pa-surface-2); }
+.pa-menu a[aria-current="page"] { background: var(--pa-brand); color: #fff; }
+.pa-menu a[aria-current="page"] .pa-menu-num { color: #9dc6b6; }
+.pa-menu-num { font-family: var(--pa-mono); font-size: 0.68rem; color: var(--pa-brand-2); flex: none; }
+.pa-menu-sep { height: 1px; background: var(--pa-border); margin: 0.35rem 0.3rem; }
+
+.pa-icone-botao {
+  display: grid; place-items: center;
+  width: 34px; height: 34px; flex: none;
+  border: 1px solid var(--pa-border); background: var(--pa-surface);
+  border-radius: 999px;
+  font-family: var(--pa-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+}
+.pa-icone-botao:hover { background: var(--pa-brand-soft); }
+.pa-icone-botao.pa-ativo { background: var(--pa-brand); border-color: var(--pa-brand); color: #fff; }
+
+.pa-perfil-chip {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  border: 1px solid var(--pa-border); background: var(--pa-surface);
+  border-radius: 999px; padding: 0.2rem 0.65rem 0.2rem 0.2rem;
+  font-family: var(--pa-mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--pa-text);
+}
+.pa-perfil-chip > span:first-child {
+  display: grid; place-items: center; width: 26px; height: 26px; flex: none;
+  border-radius: 999px; background: var(--pa-brand); color: #fff;
+}
+
+/* ------------------------------------------------ layout de página */
+.pa-main { flex: 1; }
+.pa-pagina { width: min(var(--pa-max), calc(100% - 1.6rem)); margin-inline: auto; padding: 1.6rem 0 3rem; }
+.pa-pagina-estreita { width: min(760px, calc(100% - 1.6rem)); margin-inline: auto; padding: 1.6rem 0 3rem; }
+.pa-pagina-cabeca { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+.pa-pagina-cabeca > div:first-child { flex: 1 1 300px; }
+
+/* ------------------------------------------------ superfícies */
+.pa-cartao {
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-r-lg);
+  padding: 1rem;
+}
+.pa-cartao-plano { background: var(--pa-surface-2); border: 1px solid var(--pa-border); border-radius: var(--pa-r-lg); padding: 1rem; }
+.pa-tracejado { border: 1px dashed #b7c6c0; border-radius: var(--pa-r-lg); padding: 1rem; }
+.pa-escuro { background: var(--pa-dark-surface); color: #e7f0ec; border-radius: var(--pa-r-lg); padding: 1.1rem 1.2rem; }
+.pa-escuro p, .pa-escuro .pa-mono { color: #9eb9ae; }
+.pa-escuro h2, .pa-escuro h3 { color: #fff; }
+
+.pa-grade { display: grid; gap: 0.8rem; }
+.pa-grade-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pa-grade-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pa-grade-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* ------------------------------------------------ botões */
+.pa-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  min-height: 40px; padding: 0.5rem 0.9rem;
+  border: 1px solid var(--pa-border); background: var(--pa-surface);
+  border-radius: var(--pa-r); font-size: 0.86rem; font-weight: 600;
+  transition: background 0.15s ease;
+  text-align: center;
+}
+.pa-btn:hover { background: var(--pa-surface-2); }
+.pa-btn-primario { background: var(--pa-brand); border-color: var(--pa-brand); color: #fff; }
+.pa-btn-primario:hover { background: #071c17; }
+.pa-btn-pequeno { min-height: 32px; padding: 0.28rem 0.65rem; font-size: 0.78rem; }
+.pa-btn-bloco { width: 100%; }
+.pa-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pa-btn-perigo { background: var(--pa-danger); border-color: var(--pa-danger); color: #fff; }
+
+/* ------------------------------------------------ etiquetas */
+.pa-tag {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  border: 1px solid var(--pa-border); border-radius: 0.35rem;
+  padding: 0.14rem 0.42rem; background: var(--pa-surface);
+  font-family: var(--pa-mono); font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+  color: var(--pa-text);
+}
+.pa-tag-urgente { background: #f6e6e3; border-color: #e2c3bd; color: var(--pa-danger); }
+.pa-tag-aderente { background: var(--pa-brand-soft); border-color: #b6d2c7; color: var(--pa-brand); }
+.pa-tag-nova { background: #e6eef7; border-color: #c3d5e8; color: #2d5580; }
+.pa-tag-proto { background: #f4eddc; border-color: #ddc9a0; color: #7a6231; }
+.pa-tag-forte { background: var(--pa-brand); border-color: var(--pa-brand); color: #fff; }
+.pa-tag-ambiental { background: #dcece5; border-color: #b8d5c8; color: var(--pa-environmental); }
+.pa-tag-economico { background: #f0e6d8; border-color: #ddc9ab; color: var(--pa-economic); }
+.pa-tag-social { background: #ebe5f4; border-color: #cfc4e2; color: var(--pa-social); }
+
+/* ------------------------------------------------ progresso */
+.pa-barra { height: 8px; border-radius: 999px; background: #dce3df; overflow: hidden; }
+.pa-barra > span { display: block; height: 100%; background: var(--pa-brand); border-radius: 999px; transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.pa-escuro .pa-barra { background: #1c3b33; }
+.pa-escuro .pa-barra > span { background: #7ab39c; }
+
+/* ------------------------------------------------ chips / filtros */
+.pa-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.pa-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: 1px dashed #b7c6c0; border-radius: 999px;
+  padding: 0.32rem 0.7rem; background: var(--pa-surface);
+  font-size: 0.82rem; color: var(--pa-text);
+}
+.pa-chip:hover { border-style: solid; background: var(--pa-surface-2); }
+.pa-chip[aria-pressed="true"], .pa-chip.pa-ativo {
+  border-style: solid; border-color: var(--pa-brand);
+  background: var(--pa-brand); color: #fff;
+}
+.pa-chip[aria-pressed="true"] .pa-mono { color: #a9cdc1; }
+.pa-chip-contagem { font-family: var(--pa-mono); font-size: 0.66rem; opacity: 0.75; }
+
+/* ------------------------------------------------ abas */
+.pa-abas {
+  display: flex; gap: 0.3rem; flex-wrap: wrap;
+  border-bottom: 1px solid var(--pa-border);
+  padding-bottom: 0.6rem; margin-bottom: 1rem;
+}
+.pa-aba {
+  border: 1px solid transparent; border-radius: var(--pa-r);
+  padding: 0.35rem 0.7rem; font-size: 0.84rem; font-weight: 600; color: var(--pa-muted);
+}
+.pa-aba:hover { background: var(--pa-surface-2); color: var(--pa-text); }
+.pa-aba[aria-selected="true"] { background: var(--pa-brand-soft); border-color: #b6d2c7; color: var(--pa-brand); }
+
+/* ------------------------------------------------ formulários */
+.pa-campo { display: flex; flex-direction: column; gap: 0.32rem; }
+.pa-campo > label,
+.pa-campo-rotulo {
+  font-family: var(--pa-mono); font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--pa-muted);
+}
+.pa-input, .pa-select, .pa-textarea {
+  width: 100%;
+  border: 1px solid var(--pa-border); background: var(--pa-surface);
+  border-radius: var(--pa-r); padding: 0.55rem 0.7rem; font-size: 0.9rem;
+}
+.pa-textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
+.pa-input::placeholder, .pa-textarea::placeholder { color: #93a29d; }
+.pa-check { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.84rem; color: var(--pa-text); cursor: pointer; }
+.pa-check input { margin-top: 0.24rem; accent-color: var(--pa-brand); flex: none; }
+
+/* ------------------------------------------------ nota lateral */
+.pa-nota {
+  border-left: 3px solid #c2ae83;
+  background: #fbf7ee;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0 var(--pa-r) var(--pa-r) 0;
+  font-size: 0.78rem; color: #6f5f45; line-height: 1.5;
+}
+.pa-nota strong { color: #4d422f; }
+
+.pa-ressalva {
+  border: 1px dashed #b7c6c0; border-radius: var(--pa-r);
+  padding: 0.6rem 0.8rem;
+  font-family: var(--pa-mono); font-size: 0.63rem; line-height: 1.6;
+  letter-spacing: 0.04em; color: var(--pa-muted); text-transform: uppercase;
+}
+
+/* ------------------------------------------------ navegação mobile */
+.pa-bottom {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 55;
+  display: none;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--pa-border);
+  padding: 0.35rem 0.3rem calc(0.35rem + env(safe-area-inset-bottom));
+}
+.pa-bottom a {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1rem;
+  padding: 0.35rem 0.1rem; border-radius: var(--pa-r);
+  font-size: 0.68rem; font-weight: 600; color: var(--pa-muted);
+}
+.pa-bottom a[aria-current="page"] { color: var(--pa-brand); background: var(--pa-brand-soft); }
+.pa-bottom-num { font-family: var(--pa-mono); font-size: 0.58rem; letter-spacing: 0.06em; }
+
+.pa-fab {
+  position: fixed; right: 1rem; bottom: calc(4.8rem + env(safe-area-inset-bottom)); z-index: 56;
+  display: none; place-items: center;
+  width: 54px; height: 54px; border-radius: 999px;
+  background: var(--pa-brand); color: #fff;
+  box-shadow: 0 12px 30px rgba(9, 32, 26, 0.32);
+  font-family: var(--pa-mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em;
+}
+
+/* ------------------------------------------------ responsivo */
+@media (max-width: 980px) {
+  .pa-grade-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pa-grade-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .pa-bottom { display: flex; }
+  .pa-fab { display: grid; }
+  .pa-main { padding-bottom: 6.5rem; }
+  .pa-esconde-mobile { display: none !important; }
+}
+@media (max-width: 640px) {
+  .pa-grade-2, .pa-grade-3, .pa-grade-4 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ==================================================================
+   SHELL B — abas horizontais de primeiro nível
+   ------------------------------------------------------------------
+   Substitui o menu "Ambientes ▾" do Shell C. A topbar passa a ter
+   duas linhas: identidade + ações em cima, abas embaixo.
+
+   Motivo da troca (decidido com o cliente em 21/08): os contadores de
+   sub-aba do wireframe 1b espelham `resumo` do contrato de dados, que
+   o front é proibido de recalcular; largura cheia serve Descobrir,
+   Construir e Grafo, que perdem espaço com moldura lateral; e as abas
+   horizontais são o mesmo modelo mental da tab bar do mobile (1l),
+   em vez de exigirem metamorfose entre breakpoints.
+   ================================================================== */
+
+.pa-abas {
+  width: min(var(--pa-max), calc(100% - 1.6rem));
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pa-abas::-webkit-scrollbar { display: none; }
+
+.pa-aba {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.5rem 0.7rem 0.62rem;
+  border-bottom: 2px solid transparent;
+  color: var(--pa-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+.pa-aba:hover { color: var(--pa-text); }
+.pa-aba[aria-current="page"] {
+  color: var(--pa-brand);
+  font-weight: 650;
+  border-bottom-color: var(--pa-brand);
+}
+
+/* Numeral do ambiente — some quando o espaço aperta, o rótulo fica. */
+.pa-aba-num {
+  font-family: var(--pa-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--pa-muted);
+}
+.pa-aba[aria-current="page"] .pa-aba-num { color: var(--pa-brand-2); }
+
+/* Chip de perfil vira gatilho de menu — "Meus dados" e "Sair" moram aqui
+   agora que a moldura não tem mais o dropdown "Ambientes ▾". É o custo
+   documentado do Shell B: cadastro e Grafo saem do primeiro nível. */
+.pa-perfil-wrap { position: relative; display: inline-flex; }
+/* O chip virou <button>. A regra base de .pa-perfil-chip já declara borda,
+   fundo, raio, padding e a tipografia mono em versalete — todas vencem o
+   default do agente de usuário. Só falta o cursor; sobrescrever border ou
+   font aqui apagaria a aparência intencional do chip. */
+.pa-perfil-wrap > .pa-perfil-chip { cursor: pointer; }
+
+@media (max-width: 860px) {
+  /* A tab bar inferior (1l) assume a navegação; a linha de abas sai para
+     não duplicar o mesmo controle em duas alturas da tela. */
+  .pa-abas { display: none; }
+  .pa-root { --pa-abas: 0px; }
+}
