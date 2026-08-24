@@ -4,9 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
  * Proxy (ex-middleware, convenção Next 16) — protege rotas privadas do site.
  *
  * Protege:
- *   /conecta-impact-go       dashboard operacional privado
  *   /hub-bananeiras/workspace  Workspace do Instituidor
- *   /plataforma/app          app logado da Plataforma PONTE
+ *   /plataforma/app            app logado da Plataforma PONTE
  *
  * Como funciona:
  *   - Cookie da área presente E igual ao segredo da área → deixa passar
@@ -18,22 +17,16 @@ import { NextRequest, NextResponse } from "next/server";
  * próprios — um vazamento de credencial em uma não abre a outra.
  */
 const AREAS_RESERVADAS = [
-  {
-    prefixo: "/conecta-impact-go",
-    login: "/conecta-impact-go/login",
-    cookie: "ci_go_auth",
-    segredo: process.env.CI_GO_AUTH_SECRET || "conecta-impact-go-2026",
-  },
+  // Nenhuma área tem segredo padrão. O repositório é público: um default
+  // hardcoded é uma senha publicada. Sem a env var, o segredo é undefined e a
+  // checagem abaixo nega o acesso — fecha, não abre.
   {
     prefixo: "/hub-bananeiras/workspace",
     login: "/hub-bananeiras/login",
     cookie: "hub_bananeiras_auth",
-    segredo: process.env.HUB_AUTH_SECRET || "hub-bananeiras-2026",
+    segredo: process.env.HUB_AUTH_SECRET,
   },
   {
-    // Sem default: o repositório é público e um default hardcoded é uma senha
-    // publicada. Se PLATAFORMA_AUTH_SECRET não estiver definida, o segredo é
-    // undefined e a checagem abaixo nega o acesso — fecha, não abre.
     prefixo: "/plataforma/app",
     login: "/plataforma/login",
     cookie: "plataforma_auth",
@@ -70,7 +63,8 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/conecta-impact-go/:path*",
+    // /conecta-impact-go saiu: a área foi removida e a rota agora é um
+    // redirect 301 para a home, declarado em next.config.ts.
     "/hub-bananeiras/:path*",
     // Só o app e o login. `/plataforma` sozinho é a apresentação pública,
     // reescrita para plataforma.html — não pode passar por aqui.
