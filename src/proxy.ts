@@ -3,13 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Proxy (ex-middleware, convenção Next 16) — protege rotas privadas do site.
  *
- * Hoje protege apenas:
- *   /conecta-impact-go  (dashboard operacional privado)
+ * Protege:
+ *   /conecta-impact-go       dashboard operacional privado
+ *   /hub-bananeiras/workspace  Workspace do Instituidor
+ *   /plataforma/app          app logado da Plataforma PONTE
  *
  * Como funciona:
- *   - Se a rota pede auth e o cookie `ci_go_auth` está VÁLIDO → deixa passar
- *   - Se não tem cookie → redireciona pra /conecta-impact-go/login
- *   - A página /conecta-impact-go/login é sempre acessível (permite login)
+ *   - Cookie da área presente E igual ao segredo da área → deixa passar
+ *   - Qualquer outro caso → redireciona para o login da área, com ?next=
+ *   - A página de login da própria área é sempre acessível
  */
 /**
  * Áreas reservadas do site. Cada uma tem cookie, segredo e página de login
@@ -28,6 +30,15 @@ const AREAS_RESERVADAS = [
     cookie: "hub_bananeiras_auth",
     segredo: process.env.HUB_AUTH_SECRET || "hub-bananeiras-2026",
   },
+  {
+    // Sem default: o repositório é público e um default hardcoded é uma senha
+    // publicada. Se PLATAFORMA_AUTH_SECRET não estiver definida, o segredo é
+    // undefined e a checagem abaixo nega o acesso — fecha, não abre.
+    prefixo: "/plataforma/app",
+    login: "/plataforma/login",
+    cookie: "plataforma_auth",
+    segredo: process.env.PLATAFORMA_AUTH_SECRET,
+  },
 ] as const;
 
 export function proxy(req: NextRequest) {
@@ -39,7 +50,15 @@ export function proxy(req: NextRequest) {
   // A própria página de login é sempre acessível — senão ninguém entra
   if (pathname.startsWith(area.login)) return NextResponse.next();
 
-  if (req.cookies.get(area.cookie)?.value === area.segredo) {
+  const esperado = area.segredo;
+  const apresentado = req.cookies.get(area.cookie)?.value;
+
+  // Os dois testes de existência não são redundantes. Sem eles, uma área com
+  // env var ausente teria `esperado === undefined`; um visitante sem cookie
+  // teria `apresentado === undefined`; e `undefined === undefined` liberaria
+  // a área inteira para qualquer um. Falta de configuração tem que fechar a
+  // porta, nunca escancará-la.
+  if (esperado && apresentado && apresentado === esperado) {
     return NextResponse.next();
   }
 
@@ -50,5 +69,12 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/conecta-impact-go/:path*", "/hub-bananeiras/:path*"],
+  matcher: [
+    "/conecta-impact-go/:path*",
+    "/hub-bananeiras/:path*",
+    // Só o app e o login. `/plataforma` sozinho é a apresentação pública,
+    // reescrita para plataforma.html — não pode passar por aqui.
+    "/plataforma/app/:path*",
+    "/plataforma/login",
+  ],
 };
