@@ -1,4 +1,4 @@
-# Sincroniza public/dados/oportunidades.json a partir do repositório que
+# Sincroniza src/dados/oportunidades.json a partir do repositório que
 # processa os dados: diretoriajnconsulting-dotcom/jn-portal-oportunidades.
 #
 # Divisão de responsabilidade:
@@ -74,14 +74,14 @@ jobs:
 
       - name: Publicar
         run: |
-          mkdir -p public/dados
-          cp /tmp/oportunidades.json public/dados/oportunidades.json
+          mkdir -p src/dados
+          cp /tmp/oportunidades.json src/dados/oportunidades.json
 
       - name: Commit se mudou
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/dados/oportunidades.json
+          git add src/dados/oportunidades.json
           if git diff --staged --quiet; then
             echo "Dado idêntico ao publicado — nada a fazer."
           else

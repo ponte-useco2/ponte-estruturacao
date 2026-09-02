@@ -13,73 +13,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useRegistro } from "./usar-registro";
 
 // ============================ TIPOS ==============================
 
-const CONTRATO_MAJOR = 1;
+/**
+ * Os tipos do contrato vêm de `@/lib/oportunidades/contrato`, leitura única
+ * de docs/CONTRATO-DADOS-OPORTUNIDADES.md. Este painel e o ambiente Descobrir
+ * do app logado consomem a MESMA definição — antes eram duas cópias, e a
+ * divergência já tinha começado: os campos 1.1 entraram aqui e não lá.
+ *
+ * Os helpers locais (parseISODate, formatBR, norm, realcar…) seguem neste
+ * arquivo por ora; portá-los é diff separado, para que uma regressão de
+ * formatação não se confunda com a unificação de tipos.
+ */
+import {
+  CONTRATO_MAJOR,
+  type Oportunidade,
+  type Payload,
+  type PropostaRecente,
+} from "@/lib/oportunidades/contrato";
 
-type Canal = "proposta" | "emenda";
-
-interface Oportunidade {
-  id: string;
-  programa: string;
-  orgao: string;
-  natureza: string;
-  canal: Canal;
-  modalidade?: string;
-  situacao?: string;
-  abre?: string;
-  fecha: string;
-  dias_restantes: number;
-  urgente: boolean;
-  nova: boolean;
-  aderente: boolean;
-  temas: string[];
-  codigos: string[];
-  propostas_recebidas: number;
-}
-
-interface PropostaRecente {
-  data: string;
-  programa: string;
-  proponente: string;
-  municipio: string;
-  uf: string;
-  natureza: string;
-  situacao: string;
-  valor_global: number | null;
-  objeto: string;
-  mesma_uf: boolean;
-}
-
-export interface Payload {
-  versao: string;
-  gerado_em: string;
-  uf: string;
-  origem: {
-    repositorio: string;
-    modulo: string;
-    atualizada_em: string | null;
-    defasagem_dias: number | null;
-    defasada: boolean;
-  };
-  resumo: {
-    abertas: number;
-    urgentes: number;
-    aderentes: number;
-    novas: number;
-    propostas_recentes: number;
-    encerradas: number;
-  };
-  filtros: {
-    naturezas: string[];
-    canais: Canal[];
-    orgaos: string[];
-  };
-  oportunidades: Oportunidade[];
-  propostas_recentes: PropostaRecente[];
-  encerradas: string[];
-}
+/** Re-export: `page.tsx` importa `Payload` deste módulo. */
+export type { Payload };
 
 // ============================ HELPERS ==============================
 
@@ -185,15 +141,33 @@ function realcar(texto: string, termo: string): React.ReactNode {
 function Estilos() {
   return (
     <style>{`
+      /* ------------------------------------------------------------------
+         Os --op-* são ALIAS sobre os tokens da plataforma (--color-pl-*,
+         definidos em src/app/globals.css a partir do :root de
+         public/plataforma.html). Não são uma segunda paleta convivendo:
+         nenhum valor de cor nasce aqui.
+
+         Isto é a troca de variáveis; o port do arquivo para Tailwind é
+         diff separado — migração visual e feature nova não compartilham
+         commit, senão uma regressão não tem culpado identificável.
+
+         PENDENTE DO PORT: quatro hexes ainda hardcoded em regras abaixo
+         (#E1E1DF, #F4EFE6, #FDF5EF, #C9C7BF) e a Georgia em --op-display.
+         ------------------------------------------------------------------ */
       :root {
-        --op-bg: #FCFCFB;
-        --op-wash: #F9F9F7;
-        --op-ink: #2E2C27;
-        --op-soft: #6B6A63;
-        --op-grey: #B4B3A8;
-        --op-hair: #E4E3DC;
-        --op-clay: #C6613F;
-        --op-verde: #5C7A5C;
+        --op-bg: var(--color-pl-bg);
+        --op-wash: var(--color-pl-surface-2);
+        --op-ink: var(--color-pl-text);
+        --op-soft: var(--color-pl-muted);
+        --op-grey: var(--color-pl-muted-2);
+        --op-hair: var(--color-pl-border);
+        --op-clay: var(--color-pl-danger);
+        --op-verde: var(--color-pl-brand-2);
+
+        /* Georgia estava hardcoded em 4 regras. Promovida a variável com o
+           valor INALTERADO — zero mudança visual agora, e o port vira troca
+           de um valor só: var(--font-pl-display). */
+        --op-display: Georgia, "Times New Roman", serif;
       }
       .op-root {
         background: var(--op-bg);
@@ -206,13 +180,13 @@ function Estilos() {
       .op-wrap { max-width: 1080px; margin: 0 auto; padding: 44px 30px 36px; }
       .op-sup { font-size: 12.5px; letter-spacing: .03em; margin: 0 0 12px; color: var(--op-soft); }
       .op-h1 {
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: var(--op-display);
         font-weight: 600; font-size: 34px; line-height: 1.2;
         color: var(--op-ink); margin: 0 0 8px; letter-spacing: -.01em;
       }
       .op-sub { font-size: 15px; margin: 0; max-width: 640px; color: var(--op-soft); }
       .op-kpis { display: flex; gap: 40px; margin-top: 28px; flex-wrap: wrap; }
-      .op-kpi .op-n { font-family: Georgia, serif; font-size: 32px; color: var(--op-ink); line-height: 1; }
+      .op-kpi .op-n { font-family: var(--op-display); font-size: 32px; color: var(--op-ink); line-height: 1; }
       .op-kpi .op-l {
         font-size: 12px; letter-spacing: .05em; text-transform: uppercase;
         margin-top: 5px; color: var(--op-grey);
@@ -335,7 +309,7 @@ function Estilos() {
       }
       .op-orgao { max-width: 200px; }
       .op-dias {
-        font-family: Georgia, serif; color: var(--op-ink);
+        font-family: var(--op-display); color: var(--op-ink);
         font-variant-numeric: tabular-nums; letter-spacing: -.01em;
       }
       .op-dias.urg { color: var(--op-clay); font-weight: 700; }
@@ -361,6 +335,11 @@ function Estilos() {
         border-radius: 2px; padding: 0 1px; font-weight: 700;
       }
       .op-propostas { font-variant-numeric: tabular-nums; text-align: right; padding-right: 20px !important; }
+      .op-prop-sub {
+        display: block; font-size: 10.5px; color: var(--op-grey);
+        margin-top: 3px; letter-spacing: .01em; white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
       .op-aviso {
         background: #FDF5EF; border-left: 4px solid var(--op-clay);
         padding: 14px 18px; margin: 24px 0 0; border-radius: 2px;
@@ -372,7 +351,7 @@ function Estilos() {
         border-radius: 4px; padding: 34px 38px;
       }
       .op-cta h2 {
-        font-family: Georgia, "Times New Roman", serif; font-weight: 600;
+        font-family: var(--op-display); font-weight: 600;
         font-size: 22px; line-height: 1.3; margin: 0 0 10px; color: var(--op-bg);
         letter-spacing: -.01em; text-transform: none;
       }
@@ -503,6 +482,7 @@ export function OportunidadesClient({
   const [mostrarMaisOrgaos, setMostrarMaisOrgaos] = useState(false);
   const [grudado, setGrudado] = useState(false);
   const controlesRef = useRef<HTMLDivElement | null>(null);
+  const registrar = useRegistro();
 
   // Sombra sutil na barra de controles quando ela gruda no topo
   useEffect(() => {
@@ -562,7 +542,9 @@ export function OportunidadesClient({
   const carregar = useCallback(async () => {
     setStatus("loading");
     try {
-      const r = await fetch("/dados/oportunidades.json", { cache: "default" });
+      // Rota autenticada, não mais o arquivo estático de public/: aquele
+      // endereço servia o painel inteiro a quem não tinha entrado.
+      const r = await fetch("/oportunidades/dados", { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       const d: Payload = await r.json();
       const [major] = String(d.versao ?? "").split(".");
@@ -660,7 +642,9 @@ export function OportunidadesClient({
     setBusca("");
   };
   const toggleChip = (grupo: string[], setter: (v: string[]) => void, val: string) => {
-    setter(grupo.includes(val) ? grupo.filter((x) => x !== val) : [...grupo, val]);
+    const ligando = !grupo.includes(val);
+    setter(ligando ? [...grupo, val] : grupo.filter((x) => x !== val));
+    registrar("filtro", { valor: val, ligado: ligando });
   };
 
   // Contagem por chip (a partir do array bruto, não recontar depois de filtro)
@@ -752,7 +736,13 @@ export function OportunidadesClient({
                   id="op-campo-busca"
                   type="search"
                   value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
+                  onChange={(e) => {
+                    setBusca(e.target.value);
+                    // Agrupado: só o termo final é gravado, não cada tecla.
+                    if (e.target.value.trim().length >= 3) {
+                      registrar("busca", { termo: e.target.value.trim() });
+                    }
+                  }}
                   placeholder="Buscar programa, órgão, tema ou código…"
                   aria-label="Buscar entre as oportunidades"
                   autoComplete="off"
@@ -1043,8 +1033,12 @@ function Secao({
  */
 function LinkTransferegov({ codigo }: { codigo: string }) {
   const [copiado, setCopiado] = useState(false);
+  const registrar = useRegistro();
 
   const abrir = async () => {
+    // Sem agrupamento: cada clique é uma intenção distinta de consultar um
+    // programa, e é justamente esse o sinal que interessa.
+    registrar("link_externo", { codigo }, false);
     try {
       await navigator.clipboard.writeText(codigo);
       setCopiado(true);
@@ -1076,6 +1070,25 @@ function LinkTransferegov({ codigo }: { codigo: string }) {
       {copiado ? "código copiado — cole lá ✓" : "Consultar no Transferegov ↗"}
     </button>
   );
+}
+
+/** Só há breakdown se o payload for 1.1+ e houver ao menos uma proposta. */
+function temBreakdown(o: Oportunidade): boolean {
+  return (
+    o.propostas_enviadas !== undefined &&
+    o.propostas_em_elaboracao !== undefined &&
+    o.propostas_recebidas > 0
+  );
+}
+
+/** Situações exatas do SICONV, para o title da célula. */
+function detalheSituacoes(o: Oportunidade): string {
+  const s = o.propostas_por_situacao;
+  if (!s || Object.keys(s).length === 0) return "";
+  return Object.entries(s)
+    .sort((a, b) => b[1] - a[1])
+    .map(([situacao, n]) => `${n} ${situacao}`)
+    .join(" · ");
 }
 
 function OportunidadeRow({ o, termo = "" }: { o: Oportunidade; termo?: string }) {
@@ -1131,7 +1144,14 @@ function OportunidadeRow({ o, termo = "" }: { o: Oportunidade; termo?: string })
           <span style={{ width: `${proporcao}%` }} />
         </span>
       </td>
-      <td className="op-col-propostas op-propostas">{o.propostas_recebidas}</td>
+      <td className="op-col-propostas op-propostas">
+        {o.propostas_recebidas}
+        {temBreakdown(o) && (
+          <span className="op-prop-sub" title={detalheSituacoes(o)}>
+            {o.propostas_enviadas} env · {o.propostas_em_elaboracao} elab
+          </span>
+        )}
+      </td>
     </tr>
   );
 }

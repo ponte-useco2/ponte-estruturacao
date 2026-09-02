@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ops": "node ops-graph/src/cli.mjs",
+    "ops:test": "node --test ops-graph/test/graph.test.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.99.0",
     "@types/nodemailer": "^7.0.11",
     "@vercel/analytics": "^1.6.1",
