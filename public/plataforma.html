@@ -380,6 +380,7 @@ ul { padding-left: 1.2rem; }
 <a href="#grafo">O Grafo</a>
 <a href="#escala">Escala</a>
 <a href="#participacao">Conectar</a>
+<a href="/plataforma/app">Entrar no app</a>
 <a class="nav-cta" href="#whatsapp-section">Comunidade</a>
 </nav>
 </div>
@@ -542,6 +543,7 @@ ul { padding-left: 1.2rem; }
 <article class="environment"><span>03</span><h3>COMPOR</h3><strong>Entre em projetos que precisam da sua capacidade.</strong><p>Chamadas de Composição vinculam capacidades faltantes a Projetos em Formação.</p></article>
 <article class="environment"><span>04</span><h3>CONSTRUIR</h3><strong>Transforme a composição em execução.</strong><p>Workspace para projeto, orçamento, responsabilidades, governança, evidências e prestação de contas.</p></article>
 </div>
+<p class="environments-cta" style="margin-top: var(--s4);"><a class="button button-primary" href="/plataforma/app">Percorrer os quatro ambientes no protótipo do app →</a> <small style="display:block; margin-top:.6rem; color:var(--muted);">Protótipo navegável, sem login. Os dados de projeto são ilustrativos; as janelas de capital vêm do arquivo público de oportunidades.</small></p>
 <!-- CICLO COMPLETO ATÉ TRANSFORMAÇÃO -->
 <div class="evidence-flow">
 <h3>Do Problema à Transformação Demonstrável</h3>
@@ -714,6 +716,7 @@ Ao longo da execução, a PONTE passa a registrar quem participou, em que funç�
 </div>
 <div class="community-actions">
 <button class="button community-button" data-open-lead="Comunidade WhatsApp" type="button">Cadastrar interesse e acessar comunidade</button>
+<a class="button" href="/plataforma/app" style="background:transparent;border-color:#2b5a4c;color:#fff;">Entrar no protótipo do app →</a>
 <button class="privacy-link" data-open-privacy="" type="button">Como tratamos dados neste protótipo?</button>
 <noscript><p class="noscript-note">JavaScript esta desativado. Ative o JavaScript para se cadastrar e receber o convite da comunidade, ou escreva para diretoria.ponte.projetos@gmail.com.</p></noscript></div>
 </div>
@@ -781,6 +784,7 @@ Ao longo da execução, a PONTE passa a registrar quem participou, em que funç�
 <label class="check-row"><input id="privacy-ack" required="" type="checkbox"/><span>Li o <button class="inline-link" data-open-privacy="" type="button">aviso de privacidade deste protótipo</button> e compreendi a finalidade do cadastro.</span></label>
 <label class="check-row"><input id="marketing-optin" type="checkbox"/><span>Quero receber comunicações futuras sobre oportunidades, projetos e serviços da PONTE. <em>(opcional)</em></span></label>
 <div aria-live="polite" class="form-status" id="crm-status" role="status"></div>
+<p class="app-entry" hidden="" id="app-entry" style="margin:.75rem 0 0;"><a class="button button-primary" href="/plataforma/app/onboarding" id="app-entry-link">Continuar para o app →</a><small style="display:block;margin-top:.5rem;color:var(--muted);">Seu perfil e interesse abrem o app já configurados. Nada além disso é levado.</small></p>
 <button class="button community-button form-submit" type="submit">Registrar interesse e acessar comunidade →</button>
 </form>
 </div>
@@ -1001,7 +1005,7 @@ window.PONTE_CONFIG = Object.assign({
   const focusables=(root)=>[...root.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled && !el.hidden);
   function openModal(modal, trigger){ modal.hidden=false; modal.setAttribute('aria-hidden','false'); document.body.classList.add('modal-open'); const f=focusables(modal); f[0]?.focus(); return trigger||document.activeElement; }
   function closeModal(modal, returnTo){ modal.hidden=true; modal.setAttribute('aria-hidden','true'); if(document.querySelectorAll('.modal:not([hidden])').length===0) document.body.classList.remove('modal-open'); returnTo?.focus?.(); }
-  window.openLeadModal=(source='Geral')=>{ leadReturnFocus=document.activeElement; document.getElementById('lead-source').value=source; openModal(leadModal,leadReturnFocus); };
+  window.openLeadModal=(source='Geral')=>{ leadReturnFocus=document.activeElement; document.getElementById('lead-source').value=source; const entradaAnterior=document.getElementById('app-entry'); if(entradaAnterior) entradaAnterior.hidden=true; if(status){ status.textContent=''; status.className='form-status'; } openModal(leadModal,leadReturnFocus); };
   document.querySelectorAll('[data-open-lead]').forEach(btn=>btn.addEventListener('click',()=>window.openLeadModal(btn.dataset.openLead||'Geral')));
   document.querySelectorAll('[data-close-lead]').forEach(el=>el.addEventListener('click',()=>closeModal(leadModal,leadReturnFocus)));
   document.querySelectorAll('[data-open-privacy]').forEach(btn=>btn.addEventListener('click',()=>{ privacyReturnFocus=document.activeElement; openModal(privacyModal,privacyReturnFocus); }));
@@ -1042,7 +1046,19 @@ window.PONTE_CONFIG = Object.assign({
       if(result.demo){ showStatus('Modo demonstrativo: os dados não foram enviados nem armazenados. Abrindo a comunidade.','success'); }
       else { showStatus('Interesse registrado com sucesso. Abrindo a comunidade.','success'); form.reset(); }
       const destino=result.whatsappUrl||window.PONTE_CONFIG.whatsappCommunityUrl; if(destino) setTimeout(()=>window.open(destino,'_blank','noopener'),250);
-      if(!result.demo) setTimeout(()=>closeModal(leadModal,leadReturnFocus),500);
+      // Passo 2 -> 3 do fluxo: o cadastro tambem e a porta de entrada do app.
+      // Perfil e interesse ja declarados abrem o onboarding preenchido.
+      const entrada=document.getElementById('app-entry'), entradaLink=document.getElementById('app-entry-link');
+      if(entrada&&entradaLink){
+        const q=new URLSearchParams();
+        if(payload.profile) q.set('perfil',payload.profile);
+        if(payload.interest) q.set('interesse',payload.interest);
+        entradaLink.href='/plataforma/app/onboarding'+(q.toString()?('?'+q.toString()):'');
+        entrada.hidden=false;
+      } else if(!result.demo){
+        // Sem o bloco de entrada, mantem o comportamento antigo de fechar sozinho.
+        setTimeout(()=>closeModal(leadModal,leadReturnFocus),500);
+      }
     }catch(err){ console.error(err); showStatus('Não foi possível registrar seu interesse agora. Seus dados não foram gravados neste navegador. Tente novamente mais tarde.','error'); }
     finally{submit.disabled=false;}
   });
