@@ -3,25 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Proxy (ex-middleware, convenção Next 16) — protege rotas privadas do site.
  *
- * Hoje protege apenas:
- *   /conecta-impact-go  (dashboard operacional privado)
+ * Protege:
+ *   /hub-bananeiras/workspace   Workspace do Instituidor
  *
- * Como funciona:
- *   - Se a rota pede auth e o cookie `ci_go_auth` está VÁLIDO → deixa passar
- *   - Se não tem cookie → redireciona pra /conecta-impact-go/login
- *   - A página /conecta-impact-go/login é sempre acessível (permite login)
- */
-/**
- * Áreas reservadas do site. Cada uma tem cookie, segredo e página de login
- * próprios — um vazamento de credencial em uma não abre a outra.
+ * O /conecta-impact-go saiu: a área foi removida e a rota agora é um redirect
+ * 301 para a home, declarado em next.config.ts.
+ *
+ * NOTA sobre a suspensão da oferta do HUB: a página pública /hub-bananeiras
+ * pode estar suspensa (ver src/app/hub-bananeiras/route.ts), mas o Workspace
+ * continua acessível a quem tem credencial. Suspender a oferta comercial não
+ * é o mesmo que tirar o acesso de quem já é cliente.
  */
 const AREAS_RESERVADAS = [
-  {
-    prefixo: "/conecta-impact-go",
-    login: "/conecta-impact-go/login",
-    cookie: "ci_go_auth",
-    segredo: process.env.CI_GO_AUTH_SECRET || "conecta-impact-go-2026",
-  },
   {
     prefixo: "/hub-bananeiras/workspace",
     login: "/hub-bananeiras/login",
@@ -39,7 +32,14 @@ export function proxy(req: NextRequest) {
   // A própria página de login é sempre acessível — senão ninguém entra
   if (pathname.startsWith(area.login)) return NextResponse.next();
 
-  if (req.cookies.get(area.cookie)?.value === area.segredo) {
+  const esperado = area.segredo;
+  const apresentado = req.cookies.get(area.cookie)?.value;
+
+  // Os dois testes de existência não são redundantes. Sem eles, uma área com
+  // env var ausente teria `esperado === undefined`; um visitante sem cookie
+  // teria `apresentado === undefined`; e `undefined === undefined` liberaria
+  // a área inteira para qualquer um.
+  if (esperado && apresentado && apresentado === esperado) {
     return NextResponse.next();
   }
 
@@ -50,5 +50,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/conecta-impact-go/:path*", "/hub-bananeiras/:path*"],
+  matcher: ["/hub-bananeiras/:path*"],
 };
