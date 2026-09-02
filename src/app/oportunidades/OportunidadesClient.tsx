@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useRegistro } from "./usar-registro";
 
 // ============================ TIPOS ==============================
 
@@ -481,6 +482,7 @@ export function OportunidadesClient({
   const [mostrarMaisOrgaos, setMostrarMaisOrgaos] = useState(false);
   const [grudado, setGrudado] = useState(false);
   const controlesRef = useRef<HTMLDivElement | null>(null);
+  const registrar = useRegistro();
 
   // Sombra sutil na barra de controles quando ela gruda no topo
   useEffect(() => {
@@ -540,7 +542,9 @@ export function OportunidadesClient({
   const carregar = useCallback(async () => {
     setStatus("loading");
     try {
-      const r = await fetch("/dados/oportunidades.json", { cache: "default" });
+      // Rota autenticada, não mais o arquivo estático de public/: aquele
+      // endereço servia o painel inteiro a quem não tinha entrado.
+      const r = await fetch("/oportunidades/dados", { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       const d: Payload = await r.json();
       const [major] = String(d.versao ?? "").split(".");
@@ -638,7 +642,9 @@ export function OportunidadesClient({
     setBusca("");
   };
   const toggleChip = (grupo: string[], setter: (v: string[]) => void, val: string) => {
-    setter(grupo.includes(val) ? grupo.filter((x) => x !== val) : [...grupo, val]);
+    const ligando = !grupo.includes(val);
+    setter(ligando ? [...grupo, val] : grupo.filter((x) => x !== val));
+    registrar("filtro", { valor: val, ligado: ligando });
   };
 
   // Contagem por chip (a partir do array bruto, não recontar depois de filtro)
@@ -730,7 +736,13 @@ export function OportunidadesClient({
                   id="op-campo-busca"
                   type="search"
                   value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
+                  onChange={(e) => {
+                    setBusca(e.target.value);
+                    // Agrupado: só o termo final é gravado, não cada tecla.
+                    if (e.target.value.trim().length >= 3) {
+                      registrar("busca", { termo: e.target.value.trim() });
+                    }
+                  }}
                   placeholder="Buscar programa, órgão, tema ou código…"
                   aria-label="Buscar entre as oportunidades"
                   autoComplete="off"
@@ -1021,8 +1033,12 @@ function Secao({
  */
 function LinkTransferegov({ codigo }: { codigo: string }) {
   const [copiado, setCopiado] = useState(false);
+  const registrar = useRegistro();
 
   const abrir = async () => {
+    // Sem agrupamento: cada clique é uma intenção distinta de consultar um
+    // programa, e é justamente esse o sinal que interessa.
+    registrar("link_externo", { codigo }, false);
     try {
       await navigator.clipboard.writeText(codigo);
       setCopiado(true);

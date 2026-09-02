@@ -72,6 +72,56 @@
   --spacing-pl-header: 74px;
 }
 
+/* ====================================================================
+   TOKENS DO DESIGN SYSTEM CTLC  (prefixo ct-)  —  FONTE ÚNICA
+   --------------------------------------------------------------------
+   Origem: `_ds/ctlc-design-system-<id>/tokens/colors.css` do handoff
+   PARNA_WEB_SITE_OPORTUNIDADES (Claude Design). É a terceira identidade
+   do repositório, e é deliberadamente distinta das outras duas:
+
+     · site institucional  → slate-900 sobre branco, Plus Jakarta
+     · plataforma (--pl-*) → verde sobre off-white, Inter
+     · CTLC (--ct-*)       → near-black, índigo→violeta, Poppins
+
+   Quem consome: src/app/carteira/estilos.ts → --ct-*  (ALIAS).
+   A Carteira Territorial é peça do CTLC, não do site de marketing —
+   por isso ela não herda a paleta institucional.
+
+   Sobre `static`: mesmo motivo dos --pl-*. Os --ct-* são lidos por um
+   bloco <style> dentro de um componente, via var(), e nunca por uma
+   utility do Tailwind. O scanner não enxerga essas referências e faria
+   tree-shake do bloco inteiro; sem os tokens, var() resolve para nada e
+   a tela perde todas as cores em silêncio.
+   ==================================================================== */
+@theme static {
+  /* Rampa neutra — dominante escura */
+  --color-ct-ink-1000: #0a0a0b;
+  --color-ct-ink-900: #121212;
+  --color-ct-ink-800: #1c1c1f;
+  --color-ct-ink-400: #6b6b74;
+  --color-ct-ink-300: #9a9aa4;
+  --color-ct-ink-200: #c9c9d1;
+  --color-ct-ink-100: #e8e8ee;
+  --color-ct-ink-50: #f4f4f8;
+  --color-ct-ink-0: #ffffff;
+
+  /* Marca — as três âncoras cromáticas do CTLC */
+  --color-ct-indigo-700: #241f5f;
+  --color-ct-blue-600: #475fb1;
+  --color-ct-blue-500: #6178c2;
+  --color-ct-blue-400: #8b9dd6;
+  --color-ct-violet-600: #a05cdc;
+  --color-ct-violet-500: #b47ce4;
+
+  /* Estado — extensão do design system, não faz parte da marca de origem */
+  --color-ct-green-500: #3fbf8f;
+  --color-ct-amber-500: #e0a23c;
+  --color-ct-red-500: #e2564b;
+
+  /* Tipografia — Poppins é a fonte do CTLC, carregada em carteira/layout.tsx */
+  --font-ct-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
 @layer base {
   body {
     @apply bg-white text-slate-900 font-sans antialiased;

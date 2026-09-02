@@ -1,57 +1,49 @@
 import { Suspense } from "react";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { OportunidadesClient, type Payload } from "./OportunidadesClient";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { OportunidadesClient, type Payload } from "./OportunidadesClient";
+import { lerPayload } from "./dados.server";
+import { visitanteAtual, authConfigurada } from "@/lib/supabase-auth";
+import { registrarEvento } from "./eventos";
 
+/**
+ * `noindex`: a página virou área reservada. Manter metadados de indexação
+ * numa rota que redireciona para login só produz resultado de busca que leva
+ * a uma porta fechada — pior para quem clica do que não aparecer.
+ */
 export const metadata: Metadata = {
   title: "Oportunidades — janelas abertas de convênio | Ponte",
   description:
-    "Painel público das janelas de proposta e emenda abertas no Transferegov. Onde ainda dá pra entrar com proposta de convênio, e quanto tempo falta.",
-  alternates: { canonical: "https://ponteprojetos.com.br/oportunidades" },
-  openGraph: {
-    title: "Oportunidades — janelas abertas de convênio",
-    description:
-      "Onde ainda dá pra entrar com proposta de convênio, e quanto tempo falta. Dados do Transferegov, atualizado diariamente.",
-    url: "https://ponteprojetos.com.br/oportunidades",
-    siteName: "Ponte Projetos",
-    locale: "pt_BR",
-    type: "website",
-  },
+    "Painel das janelas de proposta e emenda abertas no Transferegov. Acesso mediante cadastro.",
+  robots: { index: false, follow: false },
 };
 
 /**
- * Revalidação de 1h como rede de segurança. Na prática o JSON só muda quando
- * a GitHub Action commita — o que já dispara rebuild completo na Vercel.
- */
-export const revalidate = 3600;
-
-/**
- * Lê o payload no servidor, em build time. Ganho sobre o fetch no cliente:
- * o conteúdo vai no HTML (indexável pelo Google, sem depender de execução de
- * JS) e não há flash de esqueleto.
+ * Dinâmica, não mais estática.
  *
- * A fronteira do contrato continua respeitada: nenhum contato com Transferegov,
- * apenas leitura de um JSON estático já publicado pelo pipeline.
+ * A página lia o JSON em build time e servia HTML pronto — ótimo para SEO e
+ * velocidade, incompatível com controle de acesso: uma página pré-renderizada
+ * é a mesma para todo mundo, inclusive para quem não entrou.
  *
- * Se a leitura falhar, devolve null e o client faz fetch como fallback.
+ * O custo é baixo: o "banco de dados" é um arquivo JSON lido do disco.
  */
-async function lerPayload(): Promise<Payload | null> {
-  try {
-    const arquivo = path.join(process.cwd(), "public", "dados", "oportunidades.json");
-    const bruto = await fs.readFile(arquivo, "utf-8");
-    const d = JSON.parse(bruto) as Payload;
-    // Contrato: major diferente = incompatível. Devolve null e o client avisa.
-    const [major] = String(d.versao ?? "").split(".");
-    if (parseInt(major, 10) !== 1) return null;
-    return d;
-  } catch {
-    return null;
-  }
-}
+export const dynamic = "force-dynamic";
 
 export default async function OportunidadesPage() {
-  const payloadInicial = await lerPayload();
+  // Sem Supabase configurado, a porta fecha. Nunca abre por omissão.
+  if (!authConfigurada()) redirect("/oportunidades/entrar?erro=config");
+
+  const visitante = await visitanteAtual();
+  if (!visitante) redirect("/oportunidades/entrar");
+  if (visitante.status !== "aprovado") redirect("/oportunidades/aguardando");
+
+  const payloadInicial: Payload | null = await lerPayload();
+
+  // Registro da entrada. Sem `await` bloqueante seria mais rápido, mas em
+  // serverless a função pode ser encerrada antes da gravação terminar — e um
+  // registro de auditoria que às vezes não grava não é registro de auditoria.
+  await registrarEvento("entrada", { versao: payloadInicial?.versao ?? null });
+
   return (
     <Suspense fallback={null}>
       <OportunidadesClient payloadInicial={payloadInicial} />
