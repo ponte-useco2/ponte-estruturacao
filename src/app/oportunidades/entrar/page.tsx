@@ -32,16 +32,28 @@ export default async function EntrarPage({
     sessao: "Não consegui criar sua sessão. Tente novamente.",
   };
 
+  /**
+   * Esta é a porta de duas áreas: o radar de oportunidades e o protótipo da
+   * plataforma. Quem chega vindo da segunda não pode ler um texto sobre
+   * janelas de convênio — a tela diria que ele está no lugar errado quando
+   * está no lugar certo.
+   */
+  const paraPlataforma = (next || "").startsWith("/plataforma");
+  const titulo = paraPlataforma
+    ? "Plataforma PONTE"
+    : "Janelas abertas de convênio";
+  const subtitulo = paraPlataforma
+    ? "Protótipo navegável: descobrir capital, apresentar capacidade, compor coalizão e construir com evidência. Trabalha com dados ilustrativos."
+    : "Programas do Transferegov que ainda aceitam proposta ou emenda, com prazo, quem pode se candidatar e quantos concorrentes já entraram. Atualizado diariamente.";
+
   return (
     <div className="op-entrar-root">
       <div className="op-entrar-wrap">
-        <div className="op-entrar-marca">PONTE · RADAR DE OPORTUNIDADES</div>
-        <h1 className="op-entrar-titulo">Janelas abertas de convênio</h1>
-        <p className="op-entrar-sub">
-          Programas do Transferegov que ainda aceitam proposta ou emenda, com
-          prazo, quem pode se candidatar e quantos concorrentes já entraram.
-          Atualizado diariamente.
-        </p>
+        <div className="op-entrar-marca">
+          {paraPlataforma ? "PONTE · PLATAFORMA" : "PONTE · RADAR DE OPORTUNIDADES"}
+        </div>
+        <h1 className="op-entrar-titulo">{titulo}</h1>
+        <p className="op-entrar-sub">{subtitulo}</p>
 
         <div className="op-entrar-card">
           {erro && mensagens[erro] && (
