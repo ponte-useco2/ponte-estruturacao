@@ -1,7 +1,13 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
-import nodemailer from "nodemailer";
+import { sendEmail } from "@/lib/email";
+import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
+
+/**
+ * Destinatário fixo, resolvido no servidor. Nunca vem do formulário.
+ */
+const ADMIN_EMAIL = process.env.EMAIL_USER || "diretoria.ponte.projetos@gmail.com";
 
 export async function submitFinepForm(formData: FormData) {
   try {
@@ -103,43 +109,57 @@ export async function submitFinepForm(formData: FormData) {
       return { success: false, error: dbError.message };
     }
 
-    // 3. Send Emails via Nodemailer
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
+    // 3. Notificação à diretoria — pelo mesmo caminho de todos os outros envios.
+    //
+    // Três mudanças em relação à versão anterior, e nenhuma delas é cosmética:
+    //
+    //   a) Passa por `sendEmail` em vez de instanciar o próprio transporter.
+    //      Um transporte paralelo fura qualquer contador, reserva ou circuit
+    //      breaker construído sobre `lib/email.ts` (ver SEC-001).
+    //
+    //   b) O destinatário é fixo. Antes incluía `payload.email_contato`, um
+    //      endereço digitado no formulário público sem verificação de posse:
+    //      qualquer visitante fazia o servidor enviar mensagem, em nome do
+    //      domínio, para quem quisesse. A confirmação automática ao contato
+    //      fica suspensa até existir verificação de posse — a equipe responde
+    //      pelo botão do e-mail de notificação, que já traz o endereço.
+    //
+    //   c) Falha de e-mail não invalida o cadastro. Os dados já foram gravados;
+    //      devolver erro aqui perderia um formulário legítimo por um problema
+    //      de SMTP.
+    //
+    // O template escapa os valores; a versão anterior interpolava o payload
+    // direto no HTML.
+    try {
+      const { subject, html, text } = renderAdminNotificationEmail({
+        formLabel: "FINEP Subvenção — Diagnóstico",
+        nome: payload.razao_social || "Empresa não informada",
+        email: payload.email_contato,
+        campos: [
+          { label: "Razão social", value: payload.razao_social },
+          { label: "CNPJ", value: payload.cnpj },
+          { label: "Responsável", value: payload.responsavel_contato },
+          { label: "E-mail de contato", value: payload.email_contato },
+          { label: "Porte", value: payload.porte_empresa },
+          { label: "Região do projeto", value: payload.regiao_projeto },
+          { label: "TRL", value: payload.trl_atual ? `${payload.trl_atual} → ${payload.trl_final || "?"}` : null },
+          { label: "Valor solicitado", value: payload.v_finep },
+          { label: "Diagnóstico", value: payload.diagnostico_status },
+          { label: "Data de levantamento", value: payload.data_levantamento },
+          { label: "Consultor Ponte", value: payload.consultor_ponte },
+          { label: "Anexos", value: uploadedFiles.length ? `${uploadedFiles.length} arquivo(s)` : null },
+        ],
       });
 
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: `${payload.email_contato}, diretoria.ponte.projetos@gmail.com`,
-        subject: `Novo Cadastro FINEP: ${payload.razao_social}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-            <h2 style="color: #4F46E5;">Confirmação de Envio - Formulário FINEP</h2>
-            <p>Olá,</p>
-            <p>Os dados para a subvenção FINEP da empresa <strong>${payload.razao_social}</strong> foram recebidos com sucesso.</p>
-            <br/>
-            <h3>Resumo das Informações:</h3>
-            <ul>
-              <li><strong>CNPJ:</strong> ${payload.cnpj}</li>
-              <li><strong>Email de Contato:</strong> ${payload.email_contato}</li>
-              <li><strong>Responsável:</strong> ${payload.responsavel_contato}</li>
-              <li><strong>Data de Levantamento:</strong> ${payload.data_levantamento || "Não informada"}</li>
-              <li><strong>Consultor Ponte:</strong> ${payload.consultor_ponte || "Não informado"}</li>
-            </ul>
-            <br/>
-            <p>Atenciosamente,<br/><strong>Equipe Ponte Estruturação</strong></p>
-          </div>
-        `,
-      };
-
-      await transporter.sendMail(mailOptions);
-    } else {
-      console.warn("Nodemailer: Credentials not found in .env.local (EMAIL_USER, EMAIL_PASS). Emails visually skipped.");
+      await sendEmail({
+        to: ADMIN_EMAIL,
+        subject,
+        html,
+        text,
+        fromName: "Ponte — FINEP Subvenção",
+      });
+    } catch (notifyErr) {
+      console.error("[actions-finep] falha ao notificar a diretoria:", notifyErr);
     }
 
     return { success: true };
