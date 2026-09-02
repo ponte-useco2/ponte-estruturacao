@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 /**
  * Proxy (ex-middleware, convenção Next 16) — protege rotas privadas do site.
  *
  * Protege:
- *   /hub-bananeiras/workspace  Workspace do Instituidor
- *   /plataforma/app            app logado da Plataforma PONTE
+ *   /hub-bananeiras/workspace  Workspace do Instituidor — cookie próprio
+ *
+ * E renova a sessão do Supabase em /oportunidades e /plataforma/app, cujo
+ * controle de acesso mora no layout de cada segmento, não aqui.
  *
  * Como funciona:
  *   - Cookie da área presente E igual ao segredo da área → deixa passar
@@ -24,18 +27,66 @@ const AREAS_RESERVADAS = [
     prefixo: "/hub-bananeiras/workspace",
     login: "/hub-bananeiras/login",
     cookie: "hub_bananeiras_auth",
-    segredo: process.env.HUB_AUTH_SECRET,
+    // DÍVIDA CONHECIDA, adiada de propósito.
+    //
+    // Este valor está publicado no GitHub e precisa ser trocado. Ele volta
+    // aqui porque removê-lo sozinho quebra o acesso do cliente: o login em
+    // src/app/hub-bananeiras/login/actions.ts ainda grava este mesmo texto no
+    // cookie, e HUB_AUTH_SECRET não existe na Vercel (conferido em 02/09).
+    // Sem o default, o login aceita a senha e o proxy devolve para o login,
+    // em laço.
+    //
+    // Para quitar: criar HUB_USER, HUB_PASS e HUB_AUTH_SECRET na Vercel e
+    // commitar o actions.ts corrigido, na mesma passada — é o que o
+    // rotaciona-credenciais.ps1 faz. Só então esta linha pode cair.
+    segredo: process.env.HUB_AUTH_SECRET || "hub-bananeiras-2026",
   },
-  {
-    prefixo: "/plataforma/app",
-    login: "/plataforma/login",
-    cookie: "plataforma_auth",
-    segredo: process.env.PLATAFORMA_AUTH_SECRET,
-  },
+  // /plataforma/app saiu daqui: passou a usar Supabase Auth com a mesma lista
+  // de acesso da /oportunidades, verificada no layout do segmento. Cookie
+  // próprio e senha em variável de ambiente deixaram de existir — as três
+  // PLATAFORMA_* na Vercel ficaram órfãs e podem ser removidas.
 ] as const;
 
-export function proxy(req: NextRequest) {
+/**
+ * Renova a sessão do Supabase.
+ *
+ * O token de acesso expira em cerca de uma hora. Server Components não podem
+ * gravar cookie, então sem esta passagem pelo middleware o refresh nunca
+ * acontece: a pessoa é deslogada no meio do uso, sem ter feito nada.
+ *
+ * Aqui apenas renovamos. Quem decide se a pessoa entra é a página, que também
+ * consulta o status de aprovação — informação que não está no token.
+ */
+async function renovarSessao(req: NextRequest, res: NextResponse) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return;
+
+  const supabase = createServerClient(url, anon, {
+    cookies: {
+      getAll() {
+        return req.cookies.getAll();
+      },
+      setAll(lista) {
+        lista.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+      },
+    },
+  });
+
+  await supabase.auth.getUser();
+}
+
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Áreas com Supabase Auth: aqui só renovamos o token. Quem decide o acesso
+  // é a página, que também consulta o status de aprovação — informação que não
+  // viaja no token e por isso não pode ser verificada aqui.
+  if (pathname.startsWith("/oportunidades") || pathname.startsWith("/plataforma/app")) {
+    const res = NextResponse.next({ request: req });
+    await renovarSessao(req, res);
+    return res;
+  }
 
   const area = AREAS_RESERVADAS.find((a) => pathname.startsWith(a.prefixo));
   if (!area) return NextResponse.next();
@@ -67,8 +118,10 @@ export const config = {
     // redirect 301 para a home, declarado em next.config.ts.
     "/hub-bananeiras/:path*",
     // Só o app e o login. `/plataforma` sozinho é a apresentação pública,
-    // reescrita para plataforma.html — não pode passar por aqui.
+    // reescrita para plataforma.html — se entrasse aqui, o middleware
+    // interceptaria a página que o site inteiro divulga.
     "/plataforma/app/:path*",
     "/plataforma/login",
+    "/oportunidades/:path*",
   ],
 };
