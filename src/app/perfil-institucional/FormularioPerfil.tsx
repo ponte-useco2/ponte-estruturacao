@@ -35,6 +35,7 @@ import {
   type Secao,
 } from "./campos";
 import { definir, inscrever, limparTudo, snapshot, snapshotServidor } from "./rascunho";
+import { BotaoEnviar } from "./BotaoEnviar";
 import { montarTexto } from "./texto";
 import { estilos } from "./estilos";
 
@@ -286,7 +287,7 @@ export function FormularioPerfil() {
             nivel={1}
             sobrescrita="Dossiê institucional"
             titulo="Formulário de Perfil Institucional"
-            lede="Este formulário reúne as informações que os editais e as parcerias com o poder público costumam exigir da organização. Preencha o que souber; o que faltar pode ser completado depois. As respostas ficam salvas neste navegador enquanto o preenchimento avança."
+            lede="Este formulário reúne as informações que os editais e as parcerias com o poder público costumam exigir da organização. Preencha o que souber; o que faltar pode ser completado depois. As respostas ficam salvas neste navegador enquanto o preenchimento avança e só chegam à Ponte quando você usa o botão Enviar, no fim da página. Ao enviar, os dados passam a ser tratados pela Ponte conforme a autorização do bloco 10."
           />
           <p className="pfi-nota">
             Em caso de dúvida sobre qualquer campo, escreva “não sei” — o item será tratado na
@@ -313,9 +314,12 @@ export function FormularioPerfil() {
 
         <footer className="pfi-rodape">
           <p>
-            Ao terminar, usar <strong>Copiar respostas</strong> e enviar o texto junto com os PDFs
-            para <strong>{EMAIL}</strong>.
+            Ao terminar, use <strong>Enviar para a Ponte</strong> — as respostas chegam
+            direto a nós. Os anexos em PDF continuam indo por e-mail para{" "}
+            <strong>{EMAIL}</strong>. Se preferir revisar antes de enviar,{" "}
+            <strong>Copiar respostas</strong> gera o texto completo.
           </p>
+          <BotaoEnviar respostas={respostas} />
           <button type="button" className="pfi-btn pfi-btn-fantasma pfi-noprint" onClick={limpar}>
             Limpar formulário
           </button>
