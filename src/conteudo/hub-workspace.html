@@ -59,28 +59,22 @@
 </head>
 <body class="bg-[#070a0d] text-slate-200 font-sans antialiased selection:bg-amber-500/30 selection:text-amber-200 custom-scrollbar min-h-screen pb-24">
 
-  <!-- SESSION GUARD: BARREIRA DE AUTENTICAÇÃO ATIVA -->
-  <div id="sessionBarrier" class="fixed inset-0 z-50 bg-[#070a0d] flex items-center justify-center p-4">
-    <div class="bg-[#0b0f14] border-2 border-amber-500/40 rounded-3xl max-w-sm w-full p-8 text-center shadow-2xl space-y-4">
-      <div class="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto text-xl font-mono font-bold">🔒</div>
-      <h2 class="text-lg font-bold text-white font-serif italic">Ambiente Reservado do Instituidor</h2>
-      <p class="text-xs text-slate-400 font-mono">Este workspace requer autenticação ativa de instituidor habilitado.</p>
-      
-      <div class="space-y-3 text-left pt-2">
-        <input type="text" id="guardUser" placeholder="Usuário" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-800 text-xs text-white outline-none font-mono">
-        <input type="password" id="guardPass" placeholder="Senha" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-800 text-xs text-white outline-none font-mono">
-        <button onclick="unlockWorkspaceGuard()" class="w-full py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs uppercase tracking-wider font-bold transition shadow-lg shadow-amber-500/20">
-          Autenticar Sessão
-        </button>
-      </div>
-      <div class="pt-2">
-        <a href="index.html" class="text-xs text-slate-500 hover:text-slate-300 font-mono">← Voltar à página pública</a>
-      </div>
-    </div>
-  </div>
+  <!--
+    Portão de sessão removido em 02/09/2026.
+
+    Havia aqui uma segunda barreira de login em JavaScript (SHA-256 de
+    usuário:senha embutido no HTML). Ela era client-side — o hash e a lógica
+    ficavam legíveis para qualquer um que abrisse o arquivo, e a checagem podia
+    ser burlada no próprio navegador. Não protegia nada de verdade.
+
+    O acesso a esta página é garantido pelo proxy (src/proxy.ts), que exige o
+    cookie de sessão da área /hub-bananeiras/workspace antes de o Route Handler
+    sequer servir este HTML. Uma barreira dupla, sendo a de dentro só decorativa,
+    confundia mais do que protegia. Ficou só a que segura de verdade.
+  -->
 
   <!-- WORKSPACE PRINCIPAL -->
-  <div id="mainWorkspace" class="hidden">
+  <div id="mainWorkspace">
     
     <!-- Topo do Workspace -->
     <header class="bg-[#0b0f14] border-b border-slate-800 sticky top-0 z-40">
@@ -265,7 +259,6 @@
 
   <!-- JAVASCRIPT: SESSION GUARD & MOTOR DELIBERATIVO v5.2 (DUAL STREAM + TAMPER-EVIDENT GATE) -->
   <script>
-    const TARGET_DIGEST = "aef826ecb2535a142c26c7f17b229412f59ef6bc83464640577391661e4df6ff";
     let isLedgerReadOnly = false;
 
     async function sha256(message) {
@@ -286,46 +279,19 @@
       return "ICARO";
     }
 
+    // Antes decidia entre mostrar o workspace e mostrar a barreira. A barreira
+    // saiu; quem chega aqui já passou pelo proxy. A função ficou por ser
+    // chamada na inicialização e depois de operações que reabrem o caderno.
     function checkActiveSession() {
-      const sessionRaw = sessionStorage.getItem('hub_fundador_session');
-      if (sessionRaw) {
-        try {
-          const session = JSON.parse(sessionRaw);
-          if (session && session.user) {
-            document.getElementById('sessionBarrier').classList.add('hidden');
-            document.getElementById('mainWorkspace').classList.remove('hidden');
-            document.getElementById('activeUserDisplay').textContent = session.user;
-            initDecisionEngineSafe();
-            switchWsCaderno('gov');
-            return;
-          }
-        } catch (e) {}
-      }
-      document.getElementById('sessionBarrier').classList.remove('hidden');
-      document.getElementById('mainWorkspace').classList.add('hidden');
-    }
-
-    async function unlockWorkspaceGuard() {
-      const user = document.getElementById('guardUser').value.trim().toUpperCase();
-      const pass = document.getElementById('guardPass').value.trim();
-      const digest = await sha256(`${user}:${pass}`);
-
-      if (digest === TARGET_DIGEST) {
-        const sessionPayload = {
-          user: user,
-          issuedAt: new Date().toISOString(),
-          token: "auth_token_" + Math.random().toString(36).substring(2) + Date.now().toString(36)
-        };
-        sessionStorage.setItem('hub_fundador_session', JSON.stringify(sessionPayload));
-        checkActiveSession();
-      } else {
-        alert("Credenciais inválidas.");
-      }
+      document.getElementById('activeUserDisplay').textContent = getSessionUser();
+      initDecisionEngineSafe();
+      switchWsCaderno('gov');
     }
 
     function logoutWorkspace() {
-      sessionStorage.removeItem('hub_fundador_session');
-      window.location.href = 'index.html';
+      // Encerra a sessão de verdade — a do cookie, no servidor — em vez de só
+      // limpar o sessionStorage local, que não guarda mais o acesso.
+      window.location.href = '/hub-bananeiras/logout';
     }
 
     const DECISIONS_CONFIG = [
