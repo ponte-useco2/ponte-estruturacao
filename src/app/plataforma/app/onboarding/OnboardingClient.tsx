@@ -12,11 +12,17 @@
  * que é onde a pessoa já declarou as duas coisas.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSessao } from "../_lib/sessao";
 import { INTERESSES, PERFIS, perfilDoRotuloPublico, perfilPor } from "../_lib/fixtures";
+import {
+  UFS,
+  buscarMunicipios,
+  comporTerritorio,
+  separarTerritorio,
+} from "../_lib/localidades";
 import type { PerfilId, Sessao } from "../_lib/tipos";
 import { Gravador } from "../_componentes/Gravador";
 import { Tag } from "../_componentes/primitivos";
@@ -127,8 +133,54 @@ function Passos({
   const [perfil, setPerfil] = useState<PerfilId>(perfilInicial);
   const [interesse, setInteresse] = useState(interesseInicial);
   const [nome, setNome] = useState(nomeInicial);
-  const [territorio, setTerritorio] = useState(territorioInicial);
   const [setor, setSetor] = useState(setorInicial);
+
+  // Território vem em duas partes agora. Se a sessão já tinha "Município / UF"
+  // salvo, separarTerritorio o desmonta para semear os dois selects.
+  const territorioSeed = useMemo(
+    () => separarTerritorio(territorioInicial),
+    [territorioInicial],
+  );
+  const [estado, setEstado] = useState(territorioSeed.uf);
+  const [municipio, setMunicipio] = useState(territorioSeed.municipio);
+  const [municipios, setMunicipios] = useState<string[]>([]);
+  const [carregandoMun, setCarregandoMun] = useState(false);
+  // Se o IBGE não responder, o município vira campo de texto livre — o
+  // onboarding não pode travar por causa de uma lista indisponível.
+  const [erroMun, setErroMun] = useState(false);
+
+  // Carrega os municípios quando a UF muda. `vivo` descarta respostas de uma
+  // UF anterior que chegam depois de o usuário já ter trocado de estado.
+  useEffect(() => {
+    if (!estado) {
+      setMunicipios([]);
+      setErroMun(false);
+      return;
+    }
+    let vivo = true;
+    setCarregandoMun(true);
+    setErroMun(false);
+    buscarMunicipios(estado)
+      .then((lista) => {
+        if (vivo) setMunicipios(lista);
+      })
+      .catch(() => {
+        if (vivo) {
+          setErroMun(true);
+          setMunicipios([]);
+        }
+      })
+      .finally(() => {
+        if (vivo) setCarregandoMun(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [estado]);
+
+  // Valor gravado e exibido: "Município / UF". Derivado, não estado próprio,
+  // para não haver duas fontes de verdade a sincronizar.
+  const territorio = comporTerritorio(municipio, estado);
 
   const escolhido = useMemo(() => perfilPor(perfil), [perfil]);
   const caminhos = CAMINHOS[perfil];
@@ -243,15 +295,57 @@ function Passos({
           {passo === 3 && (
             <>
               <div className="pa-campo">
-                <label htmlFor="ob-territorio">Território de atuação</label>
-                <input
-                  id="ob-territorio"
-                  className="pa-input"
-                  value={territorio}
-                  onChange={(e) => setTerritorio(e.target.value)}
-                  placeholder="Município / UF"
-                  autoComplete="off"
-                />
+                <label htmlFor="ob-estado">Estado</label>
+                <select
+                  id="ob-estado"
+                  className="pa-select"
+                  value={estado}
+                  onChange={(e) => {
+                    setEstado(e.target.value);
+                    // Trocou de UF: o município antigo não pertence mais a ela.
+                    setMunicipio("");
+                  }}
+                >
+                  <option value="">Selecione…</option>
+                  {UFS.map((uf) => (
+                    <option key={uf.sigla} value={uf.sigla}>
+                      {uf.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pa-campo">
+                <label htmlFor="ob-municipio">Município</label>
+                {erroMun ? (
+                  <input
+                    id="ob-municipio"
+                    className="pa-input"
+                    value={municipio}
+                    onChange={(e) => setMunicipio(e.target.value)}
+                    placeholder="Digite o município"
+                    autoComplete="off"
+                  />
+                ) : (
+                  <select
+                    id="ob-municipio"
+                    className="pa-select"
+                    value={municipio}
+                    onChange={(e) => setMunicipio(e.target.value)}
+                    disabled={!estado || carregandoMun}
+                  >
+                    <option value="">
+                      {!estado
+                        ? "Escolha o estado primeiro"
+                        : carregandoMun
+                          ? "Carregando municípios…"
+                          : "Selecione…"}
+                    </option>
+                    {municipios.map((m) => (
+                      <option key={m}>{m}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="pa-campo">
