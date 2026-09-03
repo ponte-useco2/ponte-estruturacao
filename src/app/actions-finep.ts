@@ -3,50 +3,58 @@
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
+import { consumir, origemDoPedido } from "@/lib/freio";
 
 /**
  * Destinatário fixo, resolvido no servidor. Nunca vem do formulário.
  */
 const ADMIN_EMAIL = process.env.EMAIL_USER || "diretoria.ponte.projetos@gmail.com";
 
+/**
+ * ESTA ACTION NÃO RECEBE ARQUIVO. É uma decisão de segurança, não um recurso
+ * que faltou implementar.
+ *
+ * Até 03/09/2026 ela aceitava anexos: qualquer tipo, qualquer tamanho,
+ * qualquer quantidade, com a extensão tirada do nome enviado pelo próprio
+ * remetente, gravando com a chave de service role — que ignora RLS e ignora as
+ * policies de Storage — e devolvendo `getPublicUrl()`. Somado ao limite de
+ * corpo de 20 MB, era um serviço anônimo de hospedagem de arquivos com URL
+ * pública, rodando em infraestrutura da PONTE. Foi o achado crítico da
+ * auditoria (AUDITORIA-SEGURANCA.md §1).
+ *
+ * O formulário existe para captar a informação inicial do cliente e rodar o
+ * diagnóstico de elegibilidade. Os comprovantes são pedidos depois, no
+ * atendimento, por um canal em que se sabe quem está do outro lado. Isso
+ * elimina a superfície inteira em vez de tentar cercá-la.
+ *
+ * SE UM DIA PRECISAR VOLTAR A RECEBER ARQUIVO: não é neste caminho. Exige
+ * remetente autenticado, bucket privado, URL assinada com prazo, allowlist de
+ * tipo verificada pelo conteúdo, teto de tamanho e de quantidade, e nome
+ * gerado no servidor.
+ */
+
 export async function submitFinepForm(formData: FormData) {
   try {
+    // Freio: entrada pública que grava no banco e dispara e-mail pela cota
+    // compartilhada de 500/dia do Gmail.
+    const origem = await origemDoPedido("finep");
+    if (!consumir(origem, { limite: 5, janelaMs: 10 * 60 * 1000 })) {
+      return {
+        success: false,
+        error: "Muitos envios em sequência. Aguarde alguns minutos e tente de novo.",
+      };
+    }
+
     const supabase = createServerSupabaseClient();
 
-    // Extracting data from FormData
     const payloadString = formData.get("data") as string;
     if (!payloadString) {
       return { success: false, error: "Nenhum dado enviado." };
     }
 
     const payload = JSON.parse(payloadString);
-    const fileEntries = Array.from(formData.entries()).filter(([key]) => key.startsWith("file_"));
-    const uploadedFiles: any[] = [];
-    // 1. Upload files
-    for (const [key, value] of fileEntries) {
-      if (value instanceof File && value.size > 0) {
-        const fileExt = value.name.split('.').pop();
-        const fileName = `${payload.cnpj?.replace(/[^0-9]/g, '') || 'sem-cnpj'}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `uploads/${fileName}`;
 
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('finep_attachments')
-          .upload(filePath, value);
-
-        if (uploadError) {
-          console.error("Erro no upload do arquivo:", uploadError);
-          // Podemos decidir se continuamos ou falhamos tudo. Vamos continuar e avisar.
-        } else if (uploadData) {
-          uploadedFiles.push({
-            originalName: value.name,
-            path: uploadData.path,
-            url: supabase.storage.from('finep_attachments').getPublicUrl(uploadData.path).data.publicUrl
-          });
-        }
-      }
-    }
-
-    // 2. Insert into database
+    // Gravação
     const formDataToSave = {
       razao_social: payload.razao_social,
       cnpj: payload.cnpj,
@@ -96,7 +104,7 @@ export async function submitFinepForm(formData: FormData) {
       diagnostico_status: payload.diagnostico_status,
       diagnostico_pendencias: payload.diagnostico_pendencias || [],
 
-      arquivos_anexos: uploadedFiles,
+      arquivos_anexos: [],
       observacoes: payload.observacoes || {}
     };
 
@@ -106,10 +114,12 @@ export async function submitFinepForm(formData: FormData) {
 
     if (dbError) {
       console.error("Erro ao salvar formulário na tabela:", dbError);
-      return { success: false, error: dbError.message };
+      // A mensagem do PostgREST carrega nome de tabela, coluna e constraint.
+      // Devolvida a um anônimo, é reconhecimento de schema de graça.
+      return { success: false, error: "Não foi possível registrar agora." };
     }
 
-    // 3. Notificação à diretoria — pelo mesmo caminho de todos os outros envios.
+    // Notificação à diretoria — pelo mesmo caminho de todos os outros envios.
     //
     // Três mudanças em relação à versão anterior, e nenhuma delas é cosmética:
     //
@@ -147,7 +157,11 @@ export async function submitFinepForm(formData: FormData) {
           { label: "Diagnóstico", value: payload.diagnostico_status },
           { label: "Data de levantamento", value: payload.data_levantamento },
           { label: "Consultor Ponte", value: payload.consultor_ponte },
-          { label: "Anexos", value: uploadedFiles.length ? `${uploadedFiles.length} arquivo(s)` : null },
+          {
+            label: "Documentos",
+            value:
+              "Não trafegam por este formulário — solicitar no atendimento.",
+          },
         ],
       });
 
@@ -165,6 +179,6 @@ export async function submitFinepForm(formData: FormData) {
     return { success: true };
   } catch (err: unknown) {
     console.error("Erro inesperado no submit do FINEP:", err);
-    return { success: false, error: err instanceof Error ? err.message : "Erro desconhecido" };
+    return { success: false, error: "Não foi possível registrar agora." };
   }
 }

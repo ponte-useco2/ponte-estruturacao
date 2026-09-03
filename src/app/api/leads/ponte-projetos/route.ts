@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
+import { consumir, origemDoPedido } from "@/lib/freio";
 
 /**
  * Endpoint de captação da apresentação PONTE Projetos (/plataforma).
@@ -27,9 +28,13 @@ const ADMIN_EMAIL = process.env.EMAIL_USER || "diretoria.ponte.projetos@gmail.co
 
 // Convite da comunidade. Mora no servidor de propósito — se mudar, troque a
 // env var na Vercel sem tocar no HTML.
-const WHATSAPP_COMUNIDADE =
-  process.env.PONTE_WHATSAPP_COMUNIDADE ||
-  "https://chat.whatsapp.com/HhWWd1Fgfl3Gf40580GOGN";
+//
+// O default embutido saiu em 03/09/2026. O comentário original desta rota
+// dizia que "quem inspecionar o código-fonte não encontra o convite" — mas o
+// repositório é público e o link estava aqui, em texto puro. Sem a env var, a
+// rota grava o lead e informa que o convite chega por e-mail: melhor do que
+// republicar o link a cada deploy.
+const WHATSAPP_COMUNIDADE = process.env.PONTE_WHATSAPP_COMUNIDADE || "";
 
 interface LeadPayload {
   name?: string;
@@ -48,6 +53,16 @@ function limpar(v: unknown, max = 200): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Freio: endpoint público que grava no banco e dispara e-mail pela cota
+  // compartilhada de 500/dia do Gmail.
+  const origemPedido = await origemDoPedido("leads-api");
+  if (!consumir(origemPedido, { limite: 5, janelaMs: 10 * 60 * 1000 })) {
+    return NextResponse.json(
+      { ok: false, error: "Muitos envios em sequência. Aguarde alguns minutos." },
+      { status: 429 }
+    );
+  }
+
   let body: LeadPayload;
   try {
     body = await req.json();
@@ -153,7 +168,9 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(
-    { ok: true, whatsappUrl: WHATSAPP_COMUNIDADE },
+    WHATSAPP_COMUNIDADE
+      ? { ok: true, whatsappUrl: WHATSAPP_COMUNIDADE }
+      : { ok: true, aviso: "Cadastro registrado. O convite da comunidade chega por e-mail." },
     { status: 200, headers: { "Cache-Control": "no-store" } }
   );
 }

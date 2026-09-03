@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { consumir, origemDoPedido } from "@/lib/freio";
 
 /**
  * Server action para registrar leads da landing /reurb.
@@ -14,6 +15,16 @@ import { createServerSupabaseClient } from "@/lib/supabase";
  * cadastral) são consolidados em demanda_resumo para não exigir migração no Supabase.
  */
 export async function submitReurbLead(formData: FormData) {
+  // Freio: entrada pública que grava no banco. Sem ele, um laço polui a
+  // tabela `leads` e consome o plano Free.
+  const origem = await origemDoPedido("reurb");
+  if (!consumir(origem, { limite: 5, janelaMs: 10 * 60 * 1000 })) {
+    return {
+      success: false,
+      error: "Muitos envios em sequência. Aguarde alguns minutos e tente de novo.",
+    };
+  }
+
   const supabase = createServerSupabaseClient();
 
   // Campos crus vindos do formulário
@@ -60,7 +71,9 @@ export async function submitReurbLead(formData: FormData) {
 
     if (error) {
       console.error("Erro ao salvar lead REURB no Supabase:", error);
-      return { success: false, error: error.message };
+      // A mensagem do PostgREST carrega nome de tabela, coluna e constraint.
+      // Devolvida a um anônimo, é reconhecimento de schema de graça.
+      return { success: false, error: "Não foi possível registrar agora." };
     }
 
     return { success: true };
@@ -68,7 +81,7 @@ export async function submitReurbLead(formData: FormData) {
     console.error("Erro inesperado ao salvar lead REURB:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro desconhecido",
+      error: "Não foi possível registrar agora.",
     };
   }
 }

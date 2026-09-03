@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
 import { ENTRADAS, TOTAL_CAMPOS } from "./campos";
+import { consumir, origemDoPedido } from "@/lib/freio";
 import { montarTexto } from "./texto";
 import type { Respostas } from "./rascunho";
 
@@ -44,6 +45,35 @@ export interface EnvioResult {
 const ultimoEnvio = new Map<string, number>();
 const INTERVALO_MS = 30_000;
 
+/**
+ * Campos aceitos — derivados de ENTRADAS, que é a definição do formulário.
+ *
+ * A versão anterior gravava `respostas` INTEIRO, como veio. Sendo esta uma
+ * action pública, isso era um depósito de JSON arbitrário aberto na internet:
+ * com o `bodySizeLimit` do Next, cada requisição podia empurrar megabytes de
+ * conteúdo qualquer para dentro de uma tabela que guarda CPF, RG e conta
+ * bancária.
+ *
+ * Agora só entra o que o formulário define. Campo novo em campos.ts entra
+ * sozinho aqui; campo inventado pelo cliente é descartado em silêncio.
+ */
+const CAMPOS_ACEITOS = new Set<string>(ENTRADAS.map((e) => e.nome));
+
+/** Teto por campo de texto. O maior campo real do formulário não chega perto. */
+const TAMANHO_CAMPO = 5000;
+
+function filtrarRespostas(respostas: Respostas): Respostas {
+  const limpo: Respostas = {};
+  for (const [chave, valor] of Object.entries(respostas)) {
+    if (!CAMPOS_ACEITOS.has(chave)) continue;
+    if (typeof valor === "string") limpo[chave] = valor.slice(0, TAMANHO_CAMPO);
+    else if (typeof valor === "boolean") limpo[chave] = valor;
+    // Qualquer outro tipo (objeto, array, número) não existe no formulário e
+    // não entra no banco.
+  }
+  return limpo;
+}
+
 function soDigitos(v: unknown): string {
   return typeof v === "string" ? v.replace(/\D/g, "") : "";
 }
@@ -56,6 +86,13 @@ function texto(respostas: Respostas, nome: string): string {
 export async function enviarPerfil(respostas: Respostas): Promise<EnvioResult> {
   if (!respostas || typeof respostas !== "object") {
     return { ok: false, erro: "Nada para enviar." };
+  }
+
+  // Freio por origem, além do freio por CNPJ mais abaixo. O de CNPJ sozinho
+  // não segura nada: bastava variar o CNPJ a cada requisição.
+  const origem = await origemDoPedido("perfil");
+  if (!consumir(origem, { limite: 4, janelaMs: 10 * 60 * 1000 })) {
+    return { ok: false, erro: "Muitos envios em sequência. Aguarde alguns minutos e tente de novo." };
   }
 
   const razaoSocial = texto(respostas, "razao_social");
@@ -91,14 +128,15 @@ export async function enviarPerfil(respostas: Respostas): Promise<EnvioResult> {
     return e.chave === "marca" ? v === true : typeof v === "string" && v.trim() !== "";
   }).length;
 
-  const corpo = montarTexto(respostas);
+  const respostasFiltradas = filtrarRespostas(respostas);
+  const corpo = montarTexto(respostasFiltradas);
 
   const supabase = createServerSupabaseClient();
   const { error } = await supabase.from("perfil_institucional").insert({
     razao_social: razaoSocial,
     cnpj: cnpj || null,
     email_contato: emailContato || null,
-    respostas,
+    respostas: respostasFiltradas,
     texto: corpo,
     campos_preenchidos: preenchidos,
     total_campos: TOTAL_CAMPOS,

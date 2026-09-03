@@ -48,7 +48,12 @@ function normalizeWhatsapp(raw: string): string {
 }
 
 export function renderAdminNotificationEmail(input: AdminNotificationInput) {
-  const subject = `[Ponte][Lead] ${input.formLabel} — ${input.nome}`;
+  // O corpo é escapado campo a campo; o assunto é cabeçalho e por isso segue
+  // outra regra: nada de quebra de linha, e comprimento contido. O nodemailer
+  // já codifica cabeçalhos, então não havia injeção — isto fecha a porta antes
+  // de depender disso.
+  const nomeNoAssunto = String(input.nome).replace(/[\r\n]+/g, " ").slice(0, 120);
+  const subject = `[Ponte][Lead] ${input.formLabel} — ${nomeNoAssunto}`;
 
   // Filtra campos vazios pra deixar o email enxuto
   const camposPreenchidos = input.campos.filter(

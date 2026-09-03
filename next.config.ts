@@ -3,8 +3,71 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: "20mb",
+      /**
+       * 20 MB era um convite. Server action é endpoint HTTP público, e as
+       * quatro actions de formulário não exigem autenticação: o teto vale para
+       * elas também. Com 20 MB, um laço anônimo empurrava megabytes por
+       * requisição para dentro do Storage e do banco de um projeto Free.
+       *
+       * 5 MB cobre o maior anexo que o formulário FINEP aceita (ver
+       * TAMANHO_MAX em src/app/actions-finep.ts) com folga para o restante do
+       * payload. Se um formulário novo precisar de mais, suba o limite DELE,
+       * não o do site inteiro.
+       */
+      bodySizeLimit: "5mb",
     },
+  },
+  /**
+   * Cabeçalhos de segurança.
+   *
+   * O site não tinha nenhum. A superfície de XSS é pequena de fato — não há
+   * `dangerouslySetInnerHTML` em lugar nenhum e o HTML servido de
+   * src/conteudo/ é escrito pela equipe — então a CSP aqui é defesa em
+   * profundidade, não tampa de buraco aberto.
+   *
+   * O que NÃO era defesa em profundidade e agora está coberto: sem
+   * `frame-ancestors`, as áreas reservadas podiam ser embutidas em iframe por
+   * terceiro (clickjacking); sem HSTS, a primeira visita aceitava downgrade
+   * para HTTP.
+   *
+   * SOBRE A CSP: `unsafe-inline` em script-src é necessário enquanto o Next
+   * injetar scripts inline sem nonce, e `unsafe-eval` sai do framer-motion em
+   * desenvolvimento. Apertar isso exige nonce por requisição no proxy — vale
+   * fazer, mas é mudança de outra natureza e não cabia nesta rodada.
+   */
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https://*.supabase.co https://va.vercel-scripts.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; ");
+
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: csp },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=()",
+          },
+        ],
+      },
+    ];
   },
   async rewrites() {
     return [
@@ -42,6 +105,20 @@ const nextConfig: NextConfig = {
       { source: "/centelha-3-pb/:path*", destination: "/", permanent: true },
       { source: "/conecta-impact-go", destination: "/", permanent: true },
       { source: "/conecta-impact-go/:path*", destination: "/", permanent: true },
+
+      /**
+       * HUB Bananeiras — arquivado em 03/09/2026.
+       *
+       * O cliente desistiu: era proposta comercial, sem contratação nem
+       * pagamento. A proposta e o Workspace circularam por link com o
+       * instituidor e com terceiros, então vale o mesmo critério das outras
+       * duas: 301 em vez de 404, para quem tiver o link antigo chegar à home
+       * em vez de achar que o site quebrou.
+       *
+       * O material está em Site-Ponte/_arquivo/hub-bananeiras-2026-09-03/.
+       */
+      { source: "/hub-bananeiras", destination: "/", permanent: true },
+      { source: "/hub-bananeiras/:path*", destination: "/", permanent: true },
     ];
   },
 };

@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { consumir, origemDoPedido } from "@/lib/freio";
 
 /**
  * Server action para registrar leads da Trilha PONTE de Decisão Legítima (/diagnostico-sbce).
@@ -14,6 +15,16 @@ import { createServerSupabaseClient } from "@/lib/supabase";
  * são consolidados em demanda_resumo para não exigir migração no Supabase.
  */
 export async function submitSbceLead(formData: FormData) {
+  // Freio: entrada pública que grava no banco. Sem ele, um laço polui a
+  // tabela `leads` e consome o plano Free.
+  const origem = await origemDoPedido("sbce");
+  if (!consumir(origem, { limite: 5, janelaMs: 10 * 60 * 1000 })) {
+    return {
+      success: false,
+      error: "Muitos envios em sequência. Aguarde alguns minutos e tente de novo.",
+    };
+  }
+
   const supabase = createServerSupabaseClient();
 
   const nome = (formData.get("nome") as string) || "";
@@ -59,14 +70,16 @@ export async function submitSbceLead(formData: FormData) {
     const { error } = await supabase.from("leads").insert([leadData]);
     if (error) {
       console.error("Erro ao salvar lead SBCE no Supabase:", error);
-      return { success: false, error: error.message };
+      // A mensagem do PostgREST carrega nome de tabela, coluna e constraint.
+      // Devolvida a um anônimo, é reconhecimento de schema de graça.
+      return { success: false, error: "Não foi possível registrar agora." };
     }
     return { success: true };
   } catch (err: unknown) {
     console.error("Erro inesperado ao salvar lead SBCE:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro desconhecido",
+      error: "Não foi possível registrar agora.",
     };
   }
 }

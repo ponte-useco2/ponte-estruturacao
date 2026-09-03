@@ -47,7 +47,10 @@ export async function decidirAcesso(
     })
     .eq("id", id);
 
-  if (error) return { ok: false, erro: error.message };
+  if (error) {
+    console.error("decidirAcesso:", error.message);
+    return { ok: false, erro: "Não foi possível registrar a decisão." };
+  }
 
   revalidatePath("/oportunidades/admin");
   return { ok: true };

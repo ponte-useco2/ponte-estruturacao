@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, UploadCloud, X, AlertTriangle, CheckCircle2, Calculator } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, Calculator } from "lucide-react";
 import { Button } from "./Button";
 import { submitFinepForm } from "@/app/actions-finep";
 
@@ -67,7 +67,6 @@ const initialState: FormDataState = {
 
 export function FormularioFinep() {
   const [data, setData] = useState<FormDataState>(initialState);
-  const [files, setFiles] = useState<Record<string, File[]>>({});
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({ b1: true, b2: true, b3: true, b4: true, b5: true, b6: true, b7: true });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,20 +79,6 @@ export function FormularioFinep() {
 
   const handleChange = (field: keyof FormDataState, value: string | number | boolean | string[] | Record<string, boolean> | Record<string, number> | Record<string, string>) => {
     setData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleFileChange = (questionId: string, inputFiles: FileList | null) => {
-    if (!inputFiles) return;
-    const newFiles = Array.from(inputFiles);
-    setFiles(prev => ({ ...prev, [questionId]: [...(prev[questionId] || []), ...newFiles] }));
-  };
-
-  const removeFile = (questionId: string, index: number) => {
-    setFiles(prev => {
-      const updated = [...(prev[questionId] || [])];
-      updated.splice(index, 1);
-      return { ...prev, [questionId]: updated };
-    });
   };
 
   // Eligibility Checks
@@ -160,12 +145,10 @@ export function FormularioFinep() {
       diagnostico_pendencias: ineligibilities
     }));
 
-    // Append all files
-    Object.keys(files).forEach((qId) => {
-      files[qId].forEach((file, index) => {
-        formData.append(`file_${qId}_${index}`, file);
-      });
-    });
+    // Este formulário capta a informação inicial do cliente. Os comprovantes
+    // são pedidos depois, no atendimento — ver AUDITORIA-SEGURANCA.md §1: o
+    // upload anônimo gravava com service role em bucket público e era o achado
+    // mais grave do site.
 
     try {
       const result = await submitFinepForm(formData);
@@ -188,7 +171,7 @@ export function FormularioFinep() {
       <div className="bg-emerald-50 border border-emerald-200 p-8 rounded-2xl text-center max-w-4xl mx-auto shadow-sm">
         <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
         <h3 className="text-2xl font-bold text-emerald-900 mb-2">Formulário Enviado com Sucesso!</h3>
-        <p className="text-emerald-700">Seus dados e documentos foram registrados. Em breve, a equipe da Ponte Estruturação de Projetos entrará em contato.</p>
+        <p className="text-emerald-700">Seus dados foram registrados. Em breve a equipe da Ponte Estruturação de Projetos entra em contato para pedir os documentos comprobatórios.</p>
       </div>
     );
   }
@@ -319,21 +302,17 @@ export function FormularioFinep() {
           <div className="p-6 space-y-6">
             <QuestionRadio num="13" text="A empresa apresentou ROB >= R$ 100.000,00?" field="q13" data={data} onChange={handleChange} />
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
-              Se respondeu <strong>NÃO</strong> acima, a empresa precisa atender a pelo menos UM dos requisitos abaixo. Faça os uploads caso atenda.
+              Se respondeu <strong>NÃO</strong> acima, a empresa precisa atender a pelo menos UM dos requisitos abaixo. Marque o que se aplica — os comprovantes são solicitados depois, pela equipe da PONTE.
             </div>
 
             <div className="space-y-4">
               <QuestionRadio num="14" text="Apoio financeiro da FINEP?" field="q14" data={data} onChange={handleChange} />
-              {data.q14 === 'sim' && <FileUpload id="up14" title="Comprovante FINEP" files={files.q14} onFileChange={(f: FileList | null) => handleFileChange("q14", f)} onRemove={i => removeFile("q14", i)} />}
 
               <QuestionRadio num="15" text="Apoio SUDENE, SUDECO ou SUDAM?" field="q15" data={data} onChange={handleChange} />
-              {data.q15 === 'sim' && <FileUpload id="up15" title="Comprovante SUDENE/SUDECO/SUDAM" files={files.q15} onFileChange={(f: FileList | null) => handleFileChange("q15", f)} onRemove={i => removeFile("q15", i)} />}
 
               <QuestionRadio num="16" text="Concluiu programa SEBRAE?" field="q16" data={data} onChange={handleChange} />
-              {data.q16 === 'sim' && <FileUpload id="up16" title="Certificado SEBRAE" files={files.q16} onFileChange={(f: FileList | null) => handleFileChange("q16", f)} onRemove={i => removeFile("q16", i)} />}
 
               <QuestionRadio num="17" text="Aceleração/Investimento reconhecido?" field="q17" data={data} onChange={handleChange} />
-              {data.q17 === 'sim' && <FileUpload id="up17" title="Comprovante de Investimento" files={files.q17} onFileChange={(f: FileList | null) => handleFileChange("q17", f)} onRemove={i => removeFile("q17", i)} />}
             </div>
           </div>
         )}
@@ -349,15 +328,12 @@ export function FormularioFinep() {
           <div className="p-6 space-y-6">
             <div className="space-y-6 border-b pb-6">
               <QuestionRadio num="18" text="Possui Estatuto ou Contrato Social arquivado?" field="q18" data={data} onChange={handleChange} />
-              {data.q18 === 'sim' && <FileUpload id="up18" title="Contrato Social" files={files.q18} onFileChange={(f: FileList | null) => handleFileChange("q18", f)} onRemove={i => removeFile("q18", i)} />}
             </div>
             <div className="space-y-6 border-b pb-6">
               <QuestionRadio num="20" text="Balanço Patrimonial 2025 assinado?" field="q20" data={data} onChange={handleChange} />
-              {data.q20 === 'sim' && <FileUpload id="up20" title="Balanço 2025" files={files.q20} onFileChange={(f: FileList | null) => handleFileChange("q20", f)} onRemove={i => removeFile("q20", i)} />}
             </div>
             <div className="space-y-6 border-b pb-6">
               <QuestionRadio num="21" text="DRE 2025 assinada?" field="q21" data={data} onChange={handleChange} />
-              {data.q21 === 'sim' && <FileUpload id="up21" title="DRE 2025" files={files.q21} onFileChange={(f: FileList | null) => handleFileChange("q21", f)} onRemove={i => removeFile("q21", i)} />}
             </div>
             
             <QuestionRadio num="23" text="Empresa tem condições de produzir o vídeo do projeto?" field="q23" data={data} onChange={handleChange} />
@@ -392,7 +368,11 @@ export function FormularioFinep() {
                    </label>
                  ))}
               </div>
-              <FileUpload id="up_cert" title="Upload das Certidões (PDF)" files={files.certidoes} onFileChange={(f: FileList | null) => handleFileChange("certidoes", f)} onRemove={i => removeFile("certidoes", i)} />
+              <p className="text-xs text-slate-500">
+                Marque as certidões já obtidas. Os arquivos são solicitados pela
+                equipe da PONTE na etapa seguinte — este formulário registra o
+                diagnóstico, não recebe documentos.
+              </p>
             </div>
             
             <QuestionRadio num="34" text="A empresa NÃO figura como PROPONENTE em outra proposta nesta seleção?" field="q34" data={data} onChange={handleChange} labels={["Sim (apenas esta)", "Não (há outras)"]}/>
@@ -598,37 +578,3 @@ function QuestionRadio({ num, text, explanation, field, data, onChange, labels =
   );
 }
 
-type FileUploadProps = {
-  id: string;
-  title: string;
-  files?: File[];
-  onFileChange: (files: FileList | null) => void;
-  onRemove: (index: number) => void;
-};
-
-function FileUpload({ id, title, files = [], onFileChange, onRemove }: FileUploadProps) {
-  return (
-    <div className="pl-8 pt-2">
-      <p className="text-xs font-bold text-slate-700 mb-2">📎 {title}</p>
-      <div className="relative border-2 border-dashed border-slate-300 bg-slate-50 rounded-lg p-4 text-center hover:bg-slate-100 hover:border-slate-400 transition-colors">
-        <input type="file" title="Upload file" multiple id={id} onChange={(e) => onFileChange(e.target.files)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-        <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
-          <UploadCloud className="text-slate-400 w-6 h-6" />
-          <span className="text-sm text-slate-500">Clique ou arraste os arquivos aqui</span>
-        </div>
-      </div>
-      {files.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {files.map((f: File, i: number) => (
-            <div key={i} className="flex items-center gap-2 bg-slate-800 text-white text-xs px-3 py-1.5 rounded-full">
-              <span className="max-w-[150px] truncate">{f.name}</span>
-              <button aria-label="Remover arquivo" type="button" onClick={() => onRemove(i)} className="text-slate-300 hover:text-rose-400 transition-colors">
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
