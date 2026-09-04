@@ -1,0 +1,98 @@
+/*
+ * Paraíba Produtiva — estilos de base, escopados.
+ *
+ * O protótipo (Claude Design) aplicava estas regras em `html`/`body`. Aqui a
+ * página vive dentro do site da Ponte, cujo layout raiz pinta o body de branco
+ * e define outra tipografia — então tudo fica sob `.pp-root`, e o body
+ * continua intocado nas demais rotas.
+ *
+ * Quase todo o visual está inline no JSX (é assim que o protótipo foi
+ * desenhado). O que mora aqui é só o que não cabe em style inline:
+ * pseudo-elementos, :hover, @keyframes, media queries e a ponte das fontes.
+ */
+
+/* As três famílias chegam pelo next/font no layout da rota. */
+.pp-fontes {
+  --pp-serif: var(--font-instrument-serif), Georgia, serif;
+  --pp-sans: var(--font-instrument-sans), Helvetica, sans-serif;
+  --pp-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+.pp-root {
+  margin: 0;
+  background: oklch(0.17 0.008 110);
+  color: oklch(0.94 0.006 100);
+  font-family: var(--pp-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/*
+ * O globals.css do site aplica cor escura e família própria em h1–h6 por
+ * classe. O protótipo define ambos inline em todos os títulos, então isto é
+ * rede de segurança: se algum título ficar sem estilo inline, herda o tema
+ * escuro em vez de aparecer preto sobre grafite.
+ */
+.pp-root :is(h1, h2, h3, h4, h5, h6) {
+  color: inherit;
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+.pp-root a {
+  color: oklch(0.78 0.13 150);
+  text-decoration: none;
+}
+.pp-root a:hover {
+  color: oklch(0.88 0.1 150);
+}
+
+.pp-root ::selection {
+  background: oklch(0.62 0.14 150 / 0.35);
+}
+
+.pp-root summary::-webkit-details-marker {
+  display: none;
+}
+.pp-root summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.pp-root input[type="range"] {
+  accent-color: oklch(0.74 0.13 150);
+}
+
+@keyframes pp-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@keyframes pp-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* Índice lateral: oculto abaixo de 900px (briefing §4.5). */
+@media (max-width: 899px) {
+  .pp-root [data-pp="index"] {
+    display: none !important;
+  }
+}
+
+/* Rolagem suave só nesta página, e nunca com movimento reduzido. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.pp-root) {
+    scroll-behavior: smooth;
+  }
+}
