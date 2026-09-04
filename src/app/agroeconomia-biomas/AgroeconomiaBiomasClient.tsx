@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Paraíba Produtiva — narrativa da proposta, em página longa de rolagem.
+ * Programa Agroeconomia Biomas (ex-Paraíba Produtiva) — narrativa da proposta, em página longa de rolagem.
  *
- * Implementa o protótipo `Paraiba Produtiva.dc.html` (Claude Design). O JSX
+ * Implementa o protótipo `Paraiba Produtiva.dc.html` — renomeado para
+ * Programa Agroeconomia Biomas a pedido, em 03/09/2026 — (Claude Design). O JSX
  * abaixo é a conversão direta do HTML do protótipo — estilos inline, texto
  * verbatim, mesma ordem dos 19 blocos. O comportamento (reveal por rolagem,
  * diagramas que se desenham, contadores, índice lateral, barra de progresso,
@@ -24,7 +25,7 @@ const ACCENT = "oklch(0.78 0.13 150)";
 /** Deslocamento do reveal, em px. "cinematográfico" no protótipo. */
 const DIST = 34;
 
-export function ParaibaProdutivaClient() {
+export function AgroeconomiaBiomasClient() {
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Slider α/β do bloco Território: única peça com estado no protótipo.
@@ -370,12 +371,12 @@ export function ParaibaProdutivaClient() {
               <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.78 0.13 150)", animation: "pp-pulse 2.6s ease-in-out infinite" }}></span>
               <span>Programa de desenvolvimento produtivo territorial</span>
             </div>
-            <h1 data-r="up" data-par="0.12" style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(58px, 12vw, 186px)", lineHeight: "0.86", letterSpacing: "-0.035em" }}> Paraíba<br /><em style={{ fontStyle: "italic", color: "oklch(0.78 0.13 150)" }}>Produtiva</em>
+            <h1 data-r="up" data-par="0.12" style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(58px, 12vw, 186px)", lineHeight: "0.86", letterSpacing: "-0.035em" }}> Agroeconomia<br /><em style={{ fontStyle: "italic", color: "oklch(0.78 0.13 150)" }}>Biomas</em>
             </h1>
             <p data-r="up" data-par="0.2" style={{ margin: "0", maxWidth: "720px", fontSize: "clamp(19px, 2.1vw, 27px)", lineHeight: "1.45", color: "oklch(0.88 0.006 100)", textWrap: "pretty" }}> Inteligência empresarial para transformar problemas individuais em prosperidade territorial. </p>
             <div data-r="up" style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginTop: "6px" }}>
-              <a href="#tese" style={{ padding: "15px 26px", borderRadius: "999px", background: "oklch(0.78 0.13 150)", color: "oklch(0.2 0.03 150)", fontSize: "15px", fontWeight: "600", transition: "transform .3s cubic-bezier(.2,.8,.2,1), background .3s" }} style-hover="background: oklch(0.88 0.10 150); transform: translateY(-3px);">Ler a tese</a>
-              <a href="#decisoes" style={{ padding: "15px 26px", borderRadius: "999px", border: "1px solid oklch(0.4 0.01 110)", color: "oklch(0.9 0.006 100)", fontSize: "15px", fontWeight: "500", transition: "transform .3s cubic-bezier(.2,.8,.2,1), border-color .3s, color .3s" }} style-hover="border-color: oklch(0.78 0.13 150); color: oklch(0.88 0.10 150); transform: translateY(-3px);">Decisões de arquitetura v1.0</a>
+              <a href="#tese" style={{ padding: "15px 26px", borderRadius: "999px", background: "oklch(0.78 0.13 150)", color: "oklch(0.2 0.03 150)", fontSize: "15px", fontWeight: "600", transition: "transform .3s cubic-bezier(.2,.8,.2,1), background .3s" }} className="pp-hv-1">Ler a tese</a>
+              <a href="#decisoes" style={{ padding: "15px 26px", borderRadius: "999px", border: "1px solid oklch(0.4 0.01 110)", color: "oklch(0.9 0.006 100)", fontSize: "15px", fontWeight: "500", transition: "transform .3s cubic-bezier(.2,.8,.2,1), border-color .3s, color .3s" }} className="pp-hv-2">Decisões de arquitetura v1.0</a>
             </div>
           </div>
           <div style={{ position: "relative", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "20px", padding: "0 clamp(28px, 8vw, 170px) 44px", fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.1em", color: "oklch(0.66 0.008 100)" }}>
@@ -389,9 +390,9 @@ export function ParaibaProdutivaClient() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "clamp(36px, 6vw, 90px)", alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
               <span data-r="fade" style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase", color: "oklch(0.66 0.008 100)" }}>01 — Tese central</span>
-              <p data-r="up" style={{ margin: "0", fontSize: "16px", lineHeight: "1.65", color: "oklch(0.72 0.008 100)", maxWidth: "380px", textWrap: "pretty" }}>A USECO₂ é a infraestrutura tecnológica e metodológica subjacente. Não é o programa. Esse detalhe resolve uma parte significativa das objeções levantadas nas duas sabatinas.</p>
+              <p data-r="up" style={{ margin: "0", fontSize: "16px", lineHeight: "1.65", color: "oklch(0.72 0.008 100)", maxWidth: "380px", textWrap: "pretty" }}>A USECO₂ é a infraestrutura tecnológica e metodológica subjacente. Não é o programa. O que ela traz é a expertise construída no bioma da Caatinga — inventário de emissões, eficiência em energia, água e resíduos, leitura territorial com GIS — posta a serviço de uma pergunta que nenhum pequeno negócio responde sozinho: como o seu território produz, e onde ele trava.</p>
             </div>
-            <blockquote data-r="up" style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "clamp(27px, 3.5vw, 50px)", lineHeight: "1.16", letterSpacing: "-0.02em", textWrap: "pretty" }}> O Paraíba Produtiva é um programa de desenvolvimento produtivo territorial que oferece ao pequeno negócio uma <em style={{ color: "oklch(0.78 0.13 150)" }}>referência que ele não possui sozinho</em>, transforma milhares dessas referências em inteligência para o Sebrae e converte gargalos recorrentes em ações empresariais e projetos coletivos mensuráveis. </blockquote>
+            <blockquote data-r="up" style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "clamp(27px, 3.5vw, 50px)", lineHeight: "1.16", letterSpacing: "-0.02em", textWrap: "pretty" }}> O Agroeconomia Biomas é um programa de desenvolvimento produtivo territorial que oferece ao pequeno negócio uma <em style={{ color: "oklch(0.78 0.13 150)" }}>referência que ele não possui sozinho</em>, transforma milhares dessas referências em inteligência para o Sebrae e converte gargalos recorrentes em ações empresariais e projetos coletivos mensuráveis. </blockquote>
           </div>
         </section>
 
@@ -400,15 +401,15 @@ export function ParaibaProdutivaClient() {
             <span data-r="fade" style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase", color: "oklch(0.66 0.008 100)" }}>02 — A entrada institucional</span>
             <p data-r="up" style={{ margin: "0", fontSize: "clamp(23px, 2.9vw, 39px)", lineHeight: "1.3", letterSpacing: "-0.02em", textWrap: "pretty" }}> “O Sebrae/PB consegue hoje identificar, de maneira contínua e comparável, quando dezenas de problemas de pequenas empresas constituem um mesmo gargalo territorial que justificaria uma intervenção coletiva — e medir se essa intervenção produziu mais resultado por real investido que o atendimento individual?” </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "16px" }}>
-              <div data-r="up" style={{ padding: "26px", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "14px", transition: "transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s" }} style-hover="border-color: oklch(0.5 0.06 150); transform: translateY(-5px);">
+              <div data-r="up" style={{ padding: "26px", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "14px", transition: "transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s" }} className="pp-hv-3">
                 <div style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11.5px", letterSpacing: "0.12em", color: "oklch(0.78 0.13 150)", marginBottom: "10px" }}>SE “JÁ FAZEMOS”</div>
                 <div style={{ fontSize: "17px", lineHeight: "1.5", color: "oklch(0.86 0.006 100)" }}>A proposta perde razão de existir.</div>
               </div>
-              <div data-r="up" style={{ padding: "26px", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "14px", transition: "transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s" }} style-hover="border-color: oklch(0.5 0.06 150); transform: translateY(-5px);">
+              <div data-r="up" style={{ padding: "26px", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "14px", transition: "transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s" }} className="pp-hv-3">
                 <div style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11.5px", letterSpacing: "0.12em", color: "oklch(0.78 0.13 150)", marginBottom: "10px" }}>SE “EM PARTE”</div>
                 <div style={{ fontSize: "17px", lineHeight: "1.5", color: "oklch(0.86 0.006 100)" }}>Começamos a mapear a lacuna.</div>
               </div>
-              <div data-r="up" style={{ padding: "26px", border: "1px solid oklch(0.55 0.1 150)", borderRadius: "14px", background: "oklch(0.62 0.14 150 / 0.1)", transition: "transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s" }} style-hover="border-color: oklch(0.78 0.13 150); transform: translateY(-5px);">
+              <div data-r="up" style={{ padding: "26px", border: "1px solid oklch(0.55 0.1 150)", borderRadius: "14px", background: "oklch(0.62 0.14 150 / 0.1)", transition: "transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s" }} className="pp-hv-4">
                 <div style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11.5px", letterSpacing: "0.12em", color: "oklch(0.82 0.12 150)", marginBottom: "10px" }}>SE “NÃO”</div>
                 <div style={{ fontSize: "17px", lineHeight: "1.5", color: "oklch(0.92 0.006 100)" }}>Temos o problema.</div>
               </div>
@@ -420,17 +421,17 @@ export function ParaibaProdutivaClient() {
           <span data-r="fade" style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase", color: "oklch(0.66 0.008 100)" }}>03 — O problema institucional</span>
           <h2 data-r="up" style={{ margin: "20px 0 56px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(36px, 5.6vw, 78px)", lineHeight: "1.02", letterSpacing: "-0.03em", maxWidth: "880px", textWrap: "balance" }}>Três lacunas que o programa existe para fechar</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: "1px", background: "oklch(0.26 0.01 110)" }}>
-            <article data-r="up" style={{ padding: "clamp(28px, 3vw, 44px)", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", minHeight: "290px", transition: "background .4s" }} style-hover="background: oklch(0.205 0.012 125);">
+            <article data-r="up" style={{ padding: "clamp(28px, 3vw, 44px)", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", minHeight: "290px", transition: "background .4s" }} className="pp-hv-5">
               <span style={{ fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "60px", lineHeight: "1", color: "oklch(0.62 0.14 150)" }}>1</span>
               <h3 style={{ margin: "0", fontSize: "23px", fontWeight: "500", letterSpacing: "-0.01em" }}>Informação fragmentada</h3>
               <p style={{ margin: "0", fontSize: "16px", lineHeight: "1.6", color: "oklch(0.76 0.008 100)", textWrap: "pretty" }}>Cada atendimento produz valor individual, mas nem sempre aumenta proporcionalmente a inteligência disponível para a próxima decisão territorial.</p>
             </article>
-            <article data-r="up" style={{ padding: "clamp(28px, 3vw, 44px)", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", minHeight: "290px", transition: "background .4s" }} style-hover="background: oklch(0.205 0.012 125);">
+            <article data-r="up" style={{ padding: "clamp(28px, 3vw, 44px)", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", minHeight: "290px", transition: "background .4s" }} className="pp-hv-5">
               <span style={{ fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "60px", lineHeight: "1", color: "oklch(0.62 0.14 150)" }}>2</span>
               <h3 style={{ margin: "0", fontSize: "23px", fontWeight: "500", letterSpacing: "-0.01em" }}>Intervenção unitária em problema coletivo</h3>
               <p style={{ margin: "0", fontSize: "16px", lineHeight: "1.6", color: "oklch(0.76 0.008 100)", textWrap: "pretty" }}>Se 80 empresas têm o mesmo gargalo, 80 atendimentos separados podem ser economicamente inferiores a uma intervenção coletiva.</p>
             </article>
-            <article data-r="up" style={{ padding: "clamp(28px, 3vw, 44px)", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", minHeight: "290px", transition: "background .4s" }} style-hover="background: oklch(0.205 0.012 125);">
+            <article data-r="up" style={{ padding: "clamp(28px, 3vw, 44px)", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", minHeight: "290px", transition: "background .4s" }} className="pp-hv-5">
               <span style={{ fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "60px", lineHeight: "1", color: "oklch(0.62 0.14 150)" }}>3</span>
               <h3 style={{ margin: "0", fontSize: "23px", fontWeight: "500", letterSpacing: "-0.01em" }}>Mensuração</h3>
               <p style={{ margin: "0", fontSize: "16px", lineHeight: "1.6", color: "oklch(0.76 0.008 100)", textWrap: "pretty" }}>É fácil medir número de atendimentos. É muito mais difícil conectar atendimento → ação → resultado → mudança territorial.</p>
@@ -448,7 +449,7 @@ export function ParaibaProdutivaClient() {
           </div>
 
           <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginTop: "56px" }}>
-            <div data-r="up" style={{ padding: "clamp(26px, 3vw, 40px)", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "18px", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "20px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} style-hover="border-color: oklch(0.5 0.08 150); transform: translateY(-6px);">
+            <div data-r="up" style={{ padding: "clamp(26px, 3vw, 40px)", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "18px", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "20px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-6">
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
                 <h3 style={{ margin: "0", fontSize: "25px", fontWeight: "500", letterSpacing: "-0.015em" }}>Espelho de Pares</h3>
                 <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.12em", color: "oklch(0.78 0.13 150)" }}>A</span>
@@ -459,7 +460,7 @@ export function ParaibaProdutivaClient() {
                 <div><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.14em", color: "oklch(0.6 0.008 100)", display: "block", marginBottom: "6px" }}>MEI</span>preço · receita/faixa · canais · capacidade · enquadramento</div>
               </div>
             </div>
-            <div data-r="up" style={{ padding: "clamp(26px, 3vw, 40px)", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "18px", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "20px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} style-hover="border-color: oklch(0.5 0.08 150); transform: translateY(-6px);">
+            <div data-r="up" style={{ padding: "clamp(26px, 3vw, 40px)", border: "1px solid oklch(0.28 0.01 110)", borderRadius: "18px", background: "oklch(0.17 0.008 110)", display: "flex", flexDirection: "column", gap: "20px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-6">
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
                 <h3 style={{ margin: "0", fontSize: "25px", fontWeight: "500", letterSpacing: "-0.015em" }}>Espelho de Oportunidade</h3>
                 <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.12em", color: "oklch(0.78 0.13 150)" }}>B</span>
@@ -486,9 +487,9 @@ export function ParaibaProdutivaClient() {
               <p data-r="up" style={{ margin: "0", fontSize: "16px", lineHeight: "1.65", color: "oklch(0.72 0.008 100)", maxWidth: "420px", textWrap: "pretty" }}>O empresário não fornece dados para alimentar uma política pública. Fornece dados porque recebe uma régua que sozinho não possui.</p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div data-r="up" style={{ padding: "24px 26px", borderRadius: "16px", background: "oklch(0.135 0.008 110)", borderLeft: "2px solid oklch(0.62 0.14 150)", fontSize: "17px", lineHeight: "1.5", transition: "transform .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="transform: translateX(6px);">“Seu consumo energético relativo está no quartil superior do grupo comparável.”</div>
-              <div data-r="up" style={{ padding: "24px 26px", borderRadius: "16px", background: "oklch(0.135 0.008 110)", borderLeft: "2px solid oklch(0.62 0.14 150)", fontSize: "17px", lineHeight: "1.5", transition: "transform .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="transform: translateX(6px);">“Você cumpre 6 dos 9 requisitos identificados para esta oportunidade; estes três ainda faltam.”</div>
-              <div data-r="up" style={{ padding: "24px 26px", borderRadius: "16px", background: "oklch(0.135 0.008 110)", borderLeft: "2px solid oklch(0.62 0.14 150)", fontSize: "17px", lineHeight: "1.5", transition: "transform .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="transform: translateX(6px);">“Seu preço está abaixo da faixa mediana observada entre negócios comparáveis da sua região.”</div>
+              <div data-r="up" style={{ padding: "24px 26px", borderRadius: "16px", background: "oklch(0.135 0.008 110)", borderLeft: "2px solid oklch(0.62 0.14 150)", fontSize: "17px", lineHeight: "1.5", transition: "transform .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-7">“Seu consumo energético relativo está no quartil superior do grupo comparável.”</div>
+              <div data-r="up" style={{ padding: "24px 26px", borderRadius: "16px", background: "oklch(0.135 0.008 110)", borderLeft: "2px solid oklch(0.62 0.14 150)", fontSize: "17px", lineHeight: "1.5", transition: "transform .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-7">“Você cumpre 6 dos 9 requisitos identificados para esta oportunidade; estes três ainda faltam.”</div>
+              <div data-r="up" style={{ padding: "24px 26px", borderRadius: "16px", background: "oklch(0.135 0.008 110)", borderLeft: "2px solid oklch(0.62 0.14 150)", fontSize: "17px", lineHeight: "1.5", transition: "transform .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-7">“Seu preço está abaixo da faixa mediana observada entre negócios comparáveis da sua região.”</div>
             </div>
           </div>
         </section>
@@ -498,17 +499,17 @@ export function ParaibaProdutivaClient() {
           <h2 data-r="up" style={{ margin: "20px 0 18px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(34px, 5vw, 70px)", lineHeight: "1.03", letterSpacing: "-0.03em", maxWidth: "860px", textWrap: "balance" }}>O benchmark começa antes de existir amostra</h2>
           <p data-r="up" style={{ margin: "0 0 52px", fontSize: "16px", lineHeight: "1.65", color: "oklch(0.72 0.008 100)", maxWidth: "560px", textWrap: "pretty" }}>Não podemos prometer benchmark comunitário sem amostra. Três réguas resolvem a partida — e a terceira é a que cria o efeito de rede.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "18px" }}>
-            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} style-hover="border-color: oklch(0.5 0.08 150); transform: translateY(-5px);">
+            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-8">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.78 0.13 150)" }}>TIPO A</span>
               <h3 style={{ margin: "0", fontSize: "22px", fontWeight: "500" }}>Régua normativa</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.6", color: "oklch(0.74 0.008 100)" }}>requisitos legais · limites · critérios de programas · padrões objetivos</p>
             </div>
-            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} style-hover="border-color: oklch(0.5 0.08 150); transform: translateY(-5px);">
+            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-8">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.78 0.13 150)" }}>TIPO B</span>
               <h3 style={{ margin: "0", fontSize: "22px", fontWeight: "500" }}>Régua externa</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.6", color: "oklch(0.74 0.008 100)" }}>bases públicas · dados setoriais · dados Sebrae autorizados · referências técnicas</p>
             </div>
-            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.55 0.1 150)", background: "oklch(0.62 0.14 150 / 0.08)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} style-hover="border-color: oklch(0.78 0.13 150); transform: translateY(-5px);">
+            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.55 0.1 150)", background: "oklch(0.62 0.14 150 / 0.08)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s, transform .4s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-4">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.84 0.12 150)" }}>TIPO C</span>
               <h3 style={{ margin: "0", fontSize: "22px", fontWeight: "500" }}>Régua comunitária</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.6", color: "oklch(0.8 0.02 130)" }}>participantes · agregada · anonimizada · estratificada</p>
@@ -612,23 +613,23 @@ export function ParaibaProdutivaClient() {
           <span data-r="fade" style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase", color: "oklch(0.66 0.008 100)" }}>09 — O programa completo</span>
           <h2 data-r="up" style={{ margin: "20px 0 56px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(34px, 5.2vw, 74px)", lineHeight: "1.02", letterSpacing: "-0.03em" }}>Quatro níveis</h2>
           <div data-draw="levels" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "1px", background: "oklch(0.26 0.01 110)", borderTop: "1px solid oklch(0.26 0.01 110)", borderBottom: "1px solid oklch(0.26 0.01 110)" }}>
-            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} style-hover="background: oklch(0.205 0.012 125);">
+            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} className="pp-hv-5">
               <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>N0</span><h3 style={{ margin: "0", fontSize: "24px", fontWeight: "500", letterSpacing: "-0.01em" }}>Espelho</h3></div>
               <p style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "24px", color: "oklch(0.9 0.006 100)" }}>Como estou?</p>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>universal · digital-first · baixa intensidade · valor imediato</p>
             </article>
-            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} style-hover="background: oklch(0.205 0.012 125);">
+            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} className="pp-hv-5">
               <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>N1</span><h3 style={{ margin: "0", fontSize: "24px", fontWeight: "500", letterSpacing: "-0.01em" }}>Raio-X</h3></div>
               <p style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "24px", color: "oklch(0.9 0.006 100)" }}>Por que estou assim?</p>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>eficiência · energia · água · resíduos · processos · dados · readiness · sustentabilidade · GEE quando relevante</p>
             </article>
-            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} style-hover="background: oklch(0.205 0.012 125);">
+            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} className="pp-hv-5">
               <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>N2</span><h3 style={{ margin: "0", fontSize: "24px", fontWeight: "500", letterSpacing: "-0.01em" }}>Rota</h3></div>
               <p style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "24px", color: "oklch(0.9 0.006 100)" }}>O que faço agora?</p>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>ALI · Sebrae · mercado · crédito · SENAI · universidade · fornecedor · tecnologia · capacitação</p>
               <p style={{ margin: "0", fontSize: "14px", color: "oklch(0.66 0.008 100)", fontStyle: "italic" }}>A USECO₂ não monopoliza a resposta.</p>
             </article>
-            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} style-hover="background: oklch(0.205 0.012 125);">
+            <article data-r="up" style={{ background: "oklch(0.17 0.008 110)", padding: "clamp(26px, 3vw, 40px)", display: "flex", flexDirection: "column", gap: "16px", minHeight: "340px", transition: "background .4s" }} className="pp-hv-5">
               <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>N3</span><h3 style={{ margin: "0", fontSize: "24px", fontWeight: "500", letterSpacing: "-0.01em" }}>Projeto</h3></div>
               <p style={{ margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "24px", color: "oklch(0.9 0.006 100)" }}>O que resolvemos coletivamente?</p>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>PMO · MRV · cronograma · riscos · parceiros · indicadores · financiabilidade · accountability</p>
@@ -707,8 +708,6 @@ export function ParaibaProdutivaClient() {
             </div>
             <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.6", color: "oklch(0.7 0.008 100)", fontStyle: "italic" }}>Os pesos α e β não devem ser inventados nesta versão. Devem ser pactuados pelo programa. Essa transparência é crucial.</p>
           </div>
-
-          <a data-r="up" href="mapa-territorial.html" style={{ display: "inline-flex", alignItems: "center", gap: "12px", marginTop: "34px", padding: "16px 26px", borderRadius: "999px", border: "1px solid oklch(0.4 0.01 110)", fontSize: "15px", fontWeight: "500", color: "oklch(0.9 0.006 100)", transition: "transform .3s cubic-bezier(.2,.8,.2,1), border-color .3s, color .3s" }} style-hover="border-color: oklch(0.78 0.13 150); color: oklch(0.88 0.10 150); transform: translateX(6px);">Ver o mapa dos 223 municípios <span style={{ fontFamily: "var(--pp-mono), monospace" }}>→</span></a>
         </section>
 
         <section data-pp="chapter" data-pp-label="Quatro rotas" style={{ position: "relative", padding: "clamp(110px, 15vh, 190px) clamp(28px, 8vw, 170px)" }}>
@@ -716,22 +715,22 @@ export function ParaibaProdutivaClient() {
           <h2 data-r="up" style={{ margin: "20px 0 18px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(34px, 5.2vw, 74px)", lineHeight: "1.02", letterSpacing: "-0.03em" }}>Quatro rotas demonstrativas</h2>
           <p data-r="up" style={{ margin: "0 0 50px", fontSize: "16px", lineHeight: "1.65", color: "oklch(0.72 0.008 100)", maxWidth: "540px" }}>Não são departamentos rígidos. São os primeiros casos de demonstração — e testam quase todas as capacidades relevantes.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px" }}>
-            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateY(-6px); background: oklch(0.16 0.014 130);">
+            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-9">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.78 0.13 150)" }}>ROTA I</span>
               <h3 style={{ margin: "0", fontSize: "22px", fontWeight: "500" }}>Negócios Urbanos</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>comércio · serviços · energia · cartão · vendas · digitalização · margem</p>
             </div>
-            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateY(-6px); background: oklch(0.16 0.014 130);">
+            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-9">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.78 0.13 150)" }}>ROTA II</span>
               <h3 style={{ margin: "0", fontSize: "22px", fontWeight: "500" }}>Semiárido Produtivo</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>agroindústria · água · energia · processamento · mercado · logística · compras públicas</p>
             </div>
-            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateY(-6px); background: oklch(0.16 0.014 130);">
+            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-9">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.78 0.13 150)" }}>ROTA III</span>
               <h3 style={{ margin: "0", fontSize: "22px", fontWeight: "500" }}>Destinos Produtivos</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>turismo · gastronomia · economia criativa · fornecedores · presença digital · eficiência</p>
             </div>
-            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateY(-6px); background: oklch(0.16 0.014 130);">
+            <div data-r="up" style={{ padding: "32px 28px", borderRadius: "18px", background: "oklch(0.135 0.008 110)", display: "flex", flexDirection: "column", gap: "14px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-9">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.78 0.13 150)" }}>ROTA IV</span>
               <h3 style={{ margin: "0", fontSize: "22px", fontWeight: "500" }}>Fornecedor Local</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.65", color: "oklch(0.74 0.008 100)" }}>infraestrutura · compras · grandes empresas · setor público · requisitos · qualificação · capacidade produtiva</p>
@@ -748,19 +747,19 @@ export function ParaibaProdutivaClient() {
             <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "16px 4px", background: "oklch(0.135 0.008 110)", fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.14em", color: "oklch(0.62 0.008 100)" }}>
               <span>PREMISSA</span><span>RECEBE</span><span>CEDE</span><span>RAZÃO PARA PERMANECER</span>
             </div>
-            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontWeight: "500" }}>Sebrae/PB</span><span style={{ color: "oklch(0.8 0.008 100)" }}>inteligência, escala, ROI, território</span><span style={{ color: "oklch(0.72 0.008 100)" }}>não internaliza toda a tecnologia</span><span style={{ color: "oklch(0.8 0.05 150)" }}>menor custo/risco</span>
             </div>
-            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontWeight: "500" }}>MPE</span><span style={{ color: "oklch(0.8 0.008 100)" }}>benchmark e oportunidade</span><span style={{ color: "oklch(0.72 0.008 100)" }}>poucos dados</span><span style={{ color: "oklch(0.8 0.05 150)" }}>ganho individual imediato</span>
             </div>
-            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontWeight: "500" }}>USECO₂</span><span style={{ color: "oklch(0.8 0.008 100)" }}>contrato, validação, PI replicável, escala</span><span style={{ color: "oklch(0.72 0.008 100)" }}>dados identificáveis</span><span style={{ color: "oklch(0.8 0.05 150)" }}>maior adoção e replicabilidade</span>
             </div>
-            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontWeight: "500" }}>Território</span><span style={{ color: "oklch(0.8 0.008 100)" }}>universalidade, emprego, projetos</span><span style={{ color: "oklch(0.72 0.008 100)" }}>não controla ranking</span><span style={{ color: "oklch(0.8 0.05 150)" }}>legitimidade + resultado</span>
             </div>
-            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="row" style={{ display: "grid", gridTemplateColumns: "1.1fr 1.4fr 1.2fr 1.3fr", gap: "20px", padding: "22px 4px", background: "oklch(0.135 0.008 110)", fontSize: "15.5px", lineHeight: "1.5", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontWeight: "500" }}>Governança</span><span style={{ color: "oklch(0.8 0.008 100)" }}>auditabilidade e reversibilidade</span><span style={{ color: "oklch(0.72 0.008 100)" }}>—</span><span style={{ color: "oklch(0.8 0.05 150)" }}>condição de existência</span>
             </div>
           </div>
@@ -772,15 +771,15 @@ export function ParaibaProdutivaClient() {
           <span data-r="fade" style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase", color: "oklch(0.66 0.008 100)" }}>13 — Decisão arquitetural</span>
           <h2 data-r="up" style={{ margin: "20px 0 46px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(36px, 5.6vw, 82px)", lineHeight: "1", letterSpacing: "-0.03em" }}>Tecnologia federável;<br /><em style={{ color: "oklch(0.78 0.13 150)" }}>dados soberanos</em></h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "18px" }}>
-            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s" }} style-hover="border-color: oklch(0.5 0.08 150);">
+            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s" }} className="pp-hv-11">
               <h3 style={{ margin: "0", fontSize: "21px", fontWeight: "500" }}>Sebrae</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.6", color: "oklch(0.74 0.008 100)" }}>controla seus dados institucionais conforme enquadramento jurídico validado</p>
             </div>
-            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s" }} style-hover="border-color: oklch(0.5 0.08 150);">
+            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s" }} className="pp-hv-11">
               <h3 style={{ margin: "0", fontSize: "21px", fontWeight: "500" }}>MPE</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.6", color: "oklch(0.74 0.008 100)" }}>mantém direitos aplicáveis aos seus dados</p>
             </div>
-            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s" }} style-hover="border-color: oklch(0.5 0.08 150);">
+            <div data-r="up" style={{ padding: "30px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)", display: "flex", flexDirection: "column", gap: "12px", transition: "border-color .4s" }} className="pp-hv-11">
               <h3 style={{ margin: "0", fontSize: "21px", fontWeight: "500" }}>USECO₂</h3>
               <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.6", color: "oklch(0.74 0.008 100)" }}>software · arquitetura · motores · taxonomias genéricas · componentes preexistentes · know-how</p>
             </div>
@@ -806,32 +805,32 @@ export function ParaibaProdutivaClient() {
           <span data-r="fade" style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase", color: "oklch(0.66 0.008 100)" }}>14 — Contrato de aprendizagem</span>
           <h2 data-r="up" style={{ margin: "20px 0 50px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(34px, 5.2vw, 74px)", lineHeight: "1.02", letterSpacing: "-0.03em" }}>Seis hipóteses e seis gates</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1px", background: "oklch(0.26 0.01 110)" }}>
-            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>H1 · ADESÃO</span>
               <p style={{ margin: "0", fontSize: "16.5px", lineHeight: "1.5" }}>O Espelho cria valor suficiente para a empresa participar?</p>
               <p style={{ margin: "0", fontSize: "14px", color: "oklch(0.66 0.008 100)" }}>falha → redesenhar contrapartida/canal</p>
             </div>
-            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>H2 · VALIDADE</span>
               <p style={{ margin: "0", fontSize: "16.5px", lineHeight: "1.5" }}>A classificação é consistente com avaliação humana mais profunda?</p>
               <p style={{ margin: "0", fontSize: "14px", color: "oklch(0.66 0.008 100)" }}>falha → redesenhar taxonomia/perguntas</p>
             </div>
-            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>H3 · ECONOMIA</span>
               <p style={{ margin: "0", fontSize: "16.5px", lineHeight: "1.5" }}>O modelo reduz horas e custo institucional?</p>
               <p style={{ margin: "0", fontSize: "14px", color: "oklch(0.66 0.008 100)" }}>falha → tese de escala rejeitada</p>
             </div>
-            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>H4 · AÇÃO</span>
               <p style={{ margin: "0", fontSize: "16.5px", lineHeight: "1.5" }}>O Espelho/Raio-X gera mudança verificável?</p>
               <p style={{ margin: "0", fontSize: "14px", color: "oklch(0.66 0.008 100)" }}>falha → programa virou formulário</p>
             </div>
-            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>H5 · UTILIDADE DECISÓRIA</span>
               <p style={{ margin: "0", fontSize: "16.5px", lineHeight: "1.5" }}>Os dados agregados mudam uma decisão real do Sebrae?</p>
               <p style={{ margin: "0", fontSize: "14px", color: "oklch(0.66 0.008 100)" }}>falha → não existe business case institucional</p>
             </div>
-            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} style-hover="background: oklch(0.165 0.012 130);">
+            <div data-r="up" style={{ background: "oklch(0.135 0.008 110)", padding: "28px", display: "flex", flexDirection: "column", gap: "12px", transition: "background .35s" }} className="pp-hv-10">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.84 0.12 150)" }}>H6 · EFEITO DE REDE</span>
               <p style={{ margin: "0", fontSize: "16.5px", lineHeight: "1.5" }}>A utilidade percebida e a qualidade dos benchmarks aumentam conforme cresce a densidade das células comparáveis?</p>
               <p style={{ margin: "0", fontSize: "14px", color: "oklch(0.66 0.008 100)" }}>falha → benchmark não produz moat</p>
@@ -856,33 +855,33 @@ export function ParaibaProdutivaClient() {
           <h2 data-r="up" style={{ margin: "20px 0 18px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(34px, 5.2vw, 74px)", lineHeight: "1.02", letterSpacing: "-0.03em" }}>Cinco capacidades decisórias</h2>
           <p data-r="up" style={{ margin: "0 0 50px", fontSize: "16px", lineHeight: "1.65", color: "oklch(0.72 0.008 100)", maxWidth: "480px" }}>O Sebrae não recebe apenas dashboard.</p>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="padding-left: 14px;">
+            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-12">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)", minWidth: "34px" }}>01</span>
               <h3 style={{ margin: "0", fontSize: "clamp(24px, 3vw, 40px)", fontWeight: "400", fontFamily: "var(--pp-serif), Georgia, serif", letterSpacing: "-0.02em", flex: "1 1 260px" }}>Radar de recorrência</h3>
               <p style={{ margin: "0", fontSize: "16px", color: "oklch(0.74 0.008 100)", flex: "1 1 240px" }}>onde um problema está se acumulando</p>
             </div>
-            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="padding-left: 14px;">
+            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-12">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)", minWidth: "34px" }}>02</span>
               <h3 style={{ margin: "0", fontSize: "clamp(24px, 3vw, 40px)", fontWeight: "400", fontFamily: "var(--pp-serif), Georgia, serif", letterSpacing: "-0.02em", flex: "1 1 260px" }}>Mapa de oportunidades</h3>
               <p style={{ margin: "0", fontSize: "16px", color: "oklch(0.74 0.008 100)", flex: "1 1 240px" }}>onde existem gaps coletivos</p>
             </div>
-            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="padding-left: 14px;">
+            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-12">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)", minWidth: "34px" }}>03</span>
               <h3 style={{ margin: "0", fontSize: "clamp(24px, 3vw, 40px)", fontWeight: "400", fontFamily: "var(--pp-serif), Georgia, serif", letterSpacing: "-0.02em", flex: "1 1 260px" }}>Roteador institucional</h3>
               <p style={{ margin: "0", fontSize: "16px", color: "oklch(0.74 0.008 100)", flex: "1 1 240px" }}>qual solução existente deveria absorver cada perfil</p>
             </div>
-            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="padding-left: 14px;">
+            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-12">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)", minWidth: "34px" }}>04</span>
               <h3 style={{ margin: "0", fontSize: "clamp(24px, 3vw, 40px)", fontWeight: "400", fontFamily: "var(--pp-serif), Georgia, serif", letterSpacing: "-0.02em", flex: "1 1 260px" }}>Carteira de intervenções</h3>
               <p style={{ margin: "0", fontSize: "16px", color: "oklch(0.74 0.008 100)", flex: "1 1 240px" }}>quais problemas justificam ação coletiva</p>
             </div>
-            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", borderBottom: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} style-hover="padding-left: 14px;">
+            <div data-r="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 32px", padding: "30px 0", borderTop: "1px solid oklch(0.26 0.01 110)", borderBottom: "1px solid oklch(0.26 0.01 110)", transition: "padding-left .35s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-12">
               <span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)", minWidth: "34px" }}>05</span>
               <h3 style={{ margin: "0", fontSize: "clamp(24px, 3vw, 40px)", fontWeight: "400", fontFamily: "var(--pp-serif), Georgia, serif", letterSpacing: "-0.02em", flex: "1 1 260px" }}>Evidência longitudinal</h3>
               <p style={{ margin: "0", fontSize: "16px", color: "oklch(0.74 0.008 100)", flex: "1 1 240px" }}>o que efetivamente mudou</p>
             </div>
           </div>
-          <p data-r="up" style={{ margin: "44px 0 0", fontSize: "17px", lineHeight: "1.6", color: "oklch(0.8 0.008 100)", maxWidth: "640px", textWrap: "pretty" }}>A relação com o ALI fica delimitada: <strong style={{ fontWeight: "500" }}>o ALI transforma a empresa; o Paraíba Produtiva aprende entre empresas</strong> e ajuda o Sebrae a decidir quando uma resposta individual deve virar resposta coletiva. Não compete. Orquestra.</p>
+          <p data-r="up" style={{ margin: "44px 0 0", fontSize: "17px", lineHeight: "1.6", color: "oklch(0.8 0.008 100)", maxWidth: "640px", textWrap: "pretty" }}>A relação com o ALI fica delimitada: <strong style={{ fontWeight: "500" }}>o ALI transforma a empresa; o Agroeconomia Biomas aprende entre empresas</strong> e ajuda o Sebrae a decidir quando uma resposta individual deve virar resposta coletiva. Não compete. Orquestra.</p>
         </section>
 
         <section data-pp="chapter" data-pp-label="Contratação" style={{ position: "relative", padding: "clamp(110px, 15vh, 190px) clamp(28px, 8vw, 170px)", background: "oklch(0.135 0.008 110)" }}>
@@ -890,12 +889,12 @@ export function ParaibaProdutivaClient() {
           <h2 data-r="up" style={{ margin: "20px 0 18px", fontFamily: "var(--pp-serif), Georgia, serif", fontWeight: "400", fontSize: "clamp(34px, 5.2vw, 74px)", lineHeight: "1.02", letterSpacing: "-0.03em", maxWidth: "900px", textWrap: "balance" }}>Começa pelo problema, não pelo fornecedor</h2>
           <p data-r="up" style={{ margin: "0 0 50px", fontSize: "16px", lineHeight: "1.65", color: "oklch(0.72 0.008 100)", maxWidth: "640px", textWrap: "pretty" }}>A Resolução CDN 493/2024 prevê Desafio de Inovação, Diálogo Competitivo e Encomenda Tecnológica, além de julgamento por melhor solução inovadora — e, na fase preparatória, Pedido de Informações, Reunião Participativa e Consulta Pública. A ausência do Sebraetec não encerra a conversa.</p>
           <div data-draw="steps" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateX(8px); background: oklch(0.2 0.014 130);"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>01</span><span style={{ fontSize: "17px" }}>problema institucional</span></div>
-            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateX(8px); background: oklch(0.2 0.014 130);"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>02</span><span style={{ fontSize: "17px" }}>interação formal com mercado — RFI / reunião participativa</span></div>
-            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateX(8px); background: oklch(0.2 0.014 130);"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>03</span><span style={{ fontSize: "17px" }}>Sebrae confirma lacuna</span></div>
-            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateX(8px); background: oklch(0.2 0.014 130);"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>04</span><span style={{ fontSize: "17px" }}>jurídico/compras classifica objeto</span></div>
-            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} style-hover="transform: translateX(8px); background: oklch(0.2 0.014 130);"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>05</span><span style={{ fontSize: "17px" }}>modalidade adequada</span></div>
-            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.62 0.14 150 / 0.1)", border: "1px solid oklch(0.55 0.1 150)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1)" }} style-hover="transform: translateX(8px);"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.84 0.12 150)" }}>06</span><span style={{ fontSize: "17px" }}>piloto competitivo ou contratação cabível</span></div>
+            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-13"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>01</span><span style={{ fontSize: "17px" }}>problema institucional</span></div>
+            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-13"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>02</span><span style={{ fontSize: "17px" }}>interação formal com mercado — RFI / reunião participativa</span></div>
+            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-13"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>03</span><span style={{ fontSize: "17px" }}>Sebrae confirma lacuna</span></div>
+            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-13"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>04</span><span style={{ fontSize: "17px" }}>jurídico/compras classifica objeto</span></div>
+            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.17 0.008 110)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1), background .4s" }} className="pp-hv-13"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.78 0.13 150)" }}>05</span><span style={{ fontSize: "17px" }}>modalidade adequada</span></div>
+            <div data-step="" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "22px 26px", background: "oklch(0.62 0.14 150 / 0.1)", border: "1px solid oklch(0.55 0.1 150)", borderRadius: "12px", transition: "transform .4s cubic-bezier(.2,.8,.2,1)" }} className="pp-hv-14"><span style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "12px", color: "oklch(0.84 0.12 150)" }}>06</span><span style={{ fontSize: "17px" }}>piloto competitivo ou contratação cabível</span></div>
           </div>
           <p data-r="up" style={{ margin: "40px 0 0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "clamp(21px, 2.3vw, 30px)", lineHeight: "1.3", maxWidth: "780px", textWrap: "pretty" }}>Não pedimos “contratação direta da USECO₂”. Apresentamos <em style={{ color: "oklch(0.78 0.13 150)" }}>um problema suficientemente bom para o Sebrae querer resolvê-lo de forma institucionalmente correta.</em></p>
         </section>
@@ -931,7 +930,7 @@ export function ParaibaProdutivaClient() {
         <section data-pp="chapter" data-pp-label="Uma frase" style={{ position: "relative", minHeight: "92vh", display: "flex", flexDirection: "column", justifyContent: "center", gap: "44px", padding: "clamp(110px, 14vh, 180px) clamp(28px, 8vw, 170px)", background: "oklch(0.135 0.008 110)", overflow: "hidden" }}>
           <div data-r="fade" data-par="0.06" style={{ position: "absolute", inset: "0", background: "radial-gradient(70% 60% at 20% 100%, oklch(0.62 0.14 150 / 0.12), transparent 70%)", pointerEvents: "none" }}></div>
           <span data-r="fade" style={{ position: "relative", fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.2em", textTransform: "uppercase", color: "oklch(0.66 0.008 100)" }}>18 — A proposta de valor em uma frase</span>
-          <p data-r="up" style={{ position: "relative", margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "clamp(28px, 4.2vw, 62px)", lineHeight: "1.14", letterSpacing: "-0.025em", maxWidth: "1180px", textWrap: "pretty" }}> O Paraíba Produtiva transforma cada interação com um pequeno negócio em duas coisas ao mesmo tempo: uma informação <em style={{ color: "oklch(0.78 0.13 150)" }}>imediatamente útil para o empresário</em> e uma peça de inteligência que ajuda o Sebrae a descobrir quando um problema individual se tornou um problema territorial — e, então, decidir se vale mais atendê-lo empresa por empresa ou resolvê-lo coletivamente. </p>
+          <p data-r="up" style={{ position: "relative", margin: "0", fontFamily: "var(--pp-serif), Georgia, serif", fontSize: "clamp(28px, 4.2vw, 62px)", lineHeight: "1.14", letterSpacing: "-0.025em", maxWidth: "1180px", textWrap: "pretty" }}> O Agroeconomia Biomas transforma cada interação com um pequeno negócio em duas coisas ao mesmo tempo: uma informação <em style={{ color: "oklch(0.78 0.13 150)" }}>imediatamente útil para o empresário</em> e uma peça de inteligência que ajuda o Sebrae a descobrir quando um problema individual se tornou um problema territorial — e, então, decidir se vale mais atendê-lo empresa por empresa ou resolvê-lo coletivamente. </p>
           <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", marginTop: "10px" }}>
             <div data-r="up" style={{ padding: "26px 28px", borderRadius: "16px", border: "1px solid oklch(0.28 0.01 110)" }}>
               <div style={{ fontFamily: "var(--pp-mono), monospace", fontSize: "11px", letterSpacing: "0.16em", color: "oklch(0.66 0.008 100)", marginBottom: "12px" }}>PARA O EMPRESÁRIO</div>
@@ -945,9 +944,8 @@ export function ParaibaProdutivaClient() {
         </section>
 
         <footer style={{ padding: "60px clamp(28px, 8vw, 170px) 70px", display: "flex", flexWrap: "wrap", gap: "24px", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid oklch(0.24 0.01 110)", fontFamily: "var(--pp-mono), monospace", fontSize: "12px", letterSpacing: "0.1em", color: "oklch(0.6 0.008 100)" }}>
-          <span>PARAÍBA PRODUTIVA · USECO₂ · v1.0</span>
+          <span>PROGRAMA AGROECONOMIA BIOMAS · USECO₂ · v1.0</span>
           <span style={{ display: "flex", flexWrap: "wrap", gap: "22px" }}>
-            <a href="mapa-territorial.html">Mapa territorial</a>
             <a href="#tese">Tese</a>
             <a href="#decisoes">Decisões v1.0</a>
           </span>

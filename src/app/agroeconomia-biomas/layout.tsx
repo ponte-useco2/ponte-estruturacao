@@ -2,7 +2,7 @@ import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/goo
 import "./estilos.css";
 
 /**
- * Paraíba Produtiva — tipografia própria.
+ * Programa Agroeconomia Biomas — tipografia própria.
  *
  * Instrument Serif, Instrument Sans e JetBrains Mono não aparecem em nenhuma
  * outra superfície do site. Carregá-las no layout raiz cobraria as três

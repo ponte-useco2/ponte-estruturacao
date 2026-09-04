@@ -1,5 +1,5 @@
 /*
- * Paraíba Produtiva — estilos de base, escopados.
+ * Programa Agroeconomia Biomas — estilos de base, escopados.
  *
  * O protótipo (Claude Design) aplicava estas regras em `html`/`body`. Aqui a
  * página vive dentro do site da Ponte, cujo layout raiz pinta o body de branco
@@ -96,3 +96,22 @@
     scroll-behavior: smooth;
   }
 }
+
+/* Hovers do protótipo (eram `style-hover`, pseudo-atributo do editor). */
+.pp-root [class^="pp-hv-"], .pp-root [class*=" pp-hv-"] {
+  transition: transform 0.4s cubic-bezier(0.16, 0.8, 0.3, 1), background 0.4s, border-color 0.4s, color 0.4s, padding-left 0.4s;
+}
+.pp-root .pp-hv-1:hover { background: oklch(0.88 0.10 150); transform: translateY(-3px); }
+.pp-root .pp-hv-2:hover { border-color: oklch(0.78 0.13 150); color: oklch(0.88 0.10 150); transform: translateY(-3px); }
+.pp-root .pp-hv-3:hover { border-color: oklch(0.5 0.06 150); transform: translateY(-5px); }
+.pp-root .pp-hv-4:hover { border-color: oklch(0.78 0.13 150); transform: translateY(-5px); }
+.pp-root .pp-hv-5:hover { background: oklch(0.205 0.012 125); }
+.pp-root .pp-hv-6:hover { border-color: oklch(0.5 0.08 150); transform: translateY(-6px); }
+.pp-root .pp-hv-7:hover { transform: translateX(6px); }
+.pp-root .pp-hv-8:hover { border-color: oklch(0.5 0.08 150); transform: translateY(-5px); }
+.pp-root .pp-hv-9:hover { transform: translateY(-6px); background: oklch(0.16 0.014 130); }
+.pp-root .pp-hv-10:hover { background: oklch(0.165 0.012 130); }
+.pp-root .pp-hv-11:hover { border-color: oklch(0.5 0.08 150); }
+.pp-root .pp-hv-12:hover { padding-left: 14px; }
+.pp-root .pp-hv-13:hover { transform: translateX(8px); background: oklch(0.2 0.014 130); }
+.pp-root .pp-hv-14:hover { transform: translateX(8px); }

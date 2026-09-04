@@ -107,6 +107,12 @@ const nextConfig: NextConfig = {
       { source: "/conecta-impact-go/:path*", destination: "/", permanent: true },
 
       /**
+       * Programa renomeado em 03/09/2026. A rota /paraiba-produtiva chegou a
+       * ser publicada por algumas horas; quem tiver o link cai na nova.
+       */
+      { source: "/paraiba-produtiva", destination: "/agroeconomia-biomas", permanent: true },
+
+      /**
        * HUB Bananeiras — arquivado em 03/09/2026.
        *
        * O cliente desistiu: era proposta comercial, sem contratação nem
