@@ -8,13 +8,31 @@
 # Não duplicamos o processamento. Um lugar só faz o trabalho pesado; aqui só
 # consumimos o resultado já validado contra o schema.
 #
-# Roda depois do pipeline de lá (12:30 UTC), com folga para ele terminar.
+# Ordem garantida por AVISO, não por relógio.
+#
+# Antes, os dois lados se coordenavam por horário: o jn-portal às 12:30 UTC e
+# este às 14:15, na esperança de que 1h45 bastasse. Mas o GitHub adia execução
+# agendada quando os runners estão cheios, e o atraso observado chega a seis
+# horas — para os dois lados, de forma independente. Nada garantia a ordem.
+#
+# Se esta sincronização rodasse primeiro, copiaria o arquivo de ontem, terminaria
+# com SUCESSO e o site ficaria um dia atrás sem nenhum sinal de erro.
+#
+# Agora o jn-portal dispara `repository_dispatch` ao terminar, e o `schedule`
+# abaixo vira rede de segurança para o caso do aviso não sair.
 
 name: Sincroniza oportunidades
 
 on:
+  # Aviso do jn-portal ao terminar de publicar o contrato. O `event_type` tem
+  # de bater LETRA POR LETRA com o que o radar envia em .github/workflows/radar.yml
+  # — o GitHub aceita o POST com 204 mesmo sem ninguém escutando, então um nome
+  # errado aqui vira sucesso aparente e efeito nenhum.
+  repository_dispatch:
+    types: [oportunidades-atualizadas]
+  # Rede de segurança: se o aviso não sair, o horário ainda pega o dado do dia.
   schedule:
-    - cron: "15 14 * * *" # 14:15 UTC = 11:15 Fortaleza (jn-portal roda 12:30 UTC)
+    - cron: "15 14 * * *" # 14:15 UTC = 11:15 Fortaleza
   workflow_dispatch:
 
 permissions:
