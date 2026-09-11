@@ -43,3 +43,10 @@ next-env.d.ts
 # artefatos locais
 Ponte_Estruturacao.zip
 Formulario_FINEP_Subvencao_Regional.html
+
+# design-sync (Claude Design): scripts, saída e estado local
+/.ds-sync/
+/ds-bundle/
+/.design-sync/.cache/
+/.design-sync/learnings/
+/.design-sync/node_modules

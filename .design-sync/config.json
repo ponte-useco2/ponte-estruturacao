@@ -1,0 +1,32 @@
+{
+  "projectId": "af23091f-4b71-4927-b4c5-51c4ea987258",
+  "shape": "package",
+  "pkg": "ponte-app",
+  "globalName": "PlataformaPonte",
+  "buildCmd": "node .design-sync/gerar-estilos.mjs",
+  "entry": ".design-sync/fonte/plataforma.tsx",
+  "srcDir": ".design-sync/fonte",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".design-sync/.cache/gerado/plataforma.css",
+  "guidelinesGlob": ".design-sync/diretrizes/**/*.md",
+  "readmeHeader": ".design-sync/conventions.md",
+  "componentSrcMap": {
+    "RaizPlataforma": ".design-sync/fonte/plataforma.tsx",
+    "Tag": "src/app/plataforma/app/_componentes/primitivos.tsx",
+    "Barra": "src/app/plataforma/app/_componentes/primitivos.tsx",
+    "Rotulo": "src/app/plataforma/app/_componentes/primitivos.tsx",
+    "Nota": "src/app/plataforma/app/_componentes/primitivos.tsx",
+    "Eixos": "src/app/plataforma/app/_componentes/primitivos.tsx",
+    "Ciclo": "src/app/plataforma/app/_componentes/primitivos.tsx"
+  },
+  "dtsPropsFor": {
+    "RaizPlataforma": "/** Conteúdo da tela. Tudo que usa tokens --pa-* precisa estar aqui dentro. */ children: React.ReactNode;",
+    "Tag": "/** Tom visual. `urgente` só para prazo correndo; `aderente` para o que combina com as preferências da pessoa; `forte` para o identificador principal da tela; `ambiental`/`economico`/`social` para eixos. Padrão: `neutro`. */ tom?: \"neutro\" | \"urgente\" | \"aderente\" | \"nova\" | \"proto\" | \"forte\" | \"ambiental\" | \"economico\" | \"social\"; children: React.ReactNode;",
+    "Barra": "/** Valor atual. */ valor: number; /** Nome acessível da barra (lido por leitor de tela), ex.: \"Aderência à CP-014\". */ rotulo: string; /** Valor máximo. Padrão: 100. */ max?: number;",
+    "Rotulo": "/** Texto curto em fonte mono: datas, contagens, origem do dado. */ children: React.ReactNode;",
+    "Nota": "/** Parágrafo de nota, em texto de baixa ênfase. */ children: React.ReactNode;",
+    "Eixos": "/** Eixos de transformação do projeto, na ordem em que aparecem. */ eixos: (\"ambiental\" | \"economico\" | \"social\")[];",
+    "Ciclo": "/** Índice da última etapa vencida, de 0 (Problema) a 5 (Resultado). */ ate: number;"
+  },
+  "provider": { "component": "RaizPlataforma" }
+}
