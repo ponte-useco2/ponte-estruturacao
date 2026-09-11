@@ -92,7 +92,7 @@ export function chaveJanela(o: Pick<Oportunidade, "canal" | "natureza" | "codigo
   return `${o.canal}|${o.natureza}|${[...o.codigos].sort().join(",")}`;
 }
 
-function abertasDe(payload: Payload): Record<string, JanelaMemoria> {
+function abertasDe(payload: Pick<Payload, "gerado_em" | "oportunidades">): Record<string, JanelaMemoria> {
   const abertas: Record<string, JanelaMemoria> = {};
   for (const o of payload.oportunidades) {
     const chave = chaveJanela(o);
@@ -133,7 +133,10 @@ function ordenar(a: Mudanca, b: Mudanca): number {
   return (b.limiar ?? 0) - (a.limiar ?? 0);
 }
 
-export function calcularDiff(anterior: EstadoProcessado | null, atual: Payload): ResultadoDiff {
+export function calcularDiff(
+  anterior: EstadoProcessado | null,
+  atual: Pick<Payload, "gerado_em" | "oportunidades">,
+): ResultadoDiff {
   const abertas = abertasDe(atual);
 
   if (anterior === null) {

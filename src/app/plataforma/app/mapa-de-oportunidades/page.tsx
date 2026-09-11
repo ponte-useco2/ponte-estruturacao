@@ -1,0 +1,47 @@
+import type { Metadata } from "next";
+import { after } from "next/server";
+import { lerCatalogo } from "@/lib/oportunidades/catalogo.server";
+import { lerCentral } from "@/lib/oportunidades/notificacoes.server";
+import { sincronizarCentral } from "@/lib/oportunidades/sincronizar.server";
+import { visitanteAtual } from "@/lib/supabase-auth";
+import { MapaClient } from "./MapaClient";
+
+export const metadata: Metadata = {
+  title: "Mapa de Oportunidades · PONTE",
+  robots: { index: false, follow: false },
+};
+
+/**
+ * O portão de acesso que decide a RESPOSTA vem do layout do segmento. A página
+ * lê — e decide o que a tela pode afirmar.
+ */
+export default async function MapaDeOportunidadesPage() {
+  // No App Router, layout e página renderizam em PARALELO: o redirect do layout
+  // decide o que volta ao navegador, mas não impede esta função de rodar. Sem
+  // esta checagem, uma visita anônima lia a central vazia pela RLS, concluía que
+  // havia publicação pendente e disparava a sincronização com a chave de serviço.
+  // Achado ao verificar o build no navegador, em 11/09/2026.
+  const visitante = await visitanteAtual();
+  if (!visitante || visitante.status !== "aprovado") return null;
+
+  const [catalogo, central] = await Promise.all([lerCatalogo(), lerCentral()]);
+
+  // Publicação nova no disco que a central ainda não processou. Sincroniza DEPOIS
+  // de responder, para não prender quem abriu a aba — e a tela avisa que há
+  // processamento pendente, em vez de fingir que está em dia.
+  const pendente =
+    central.status === "ok" &&
+    catalogo !== null &&
+    (central.ultimaProcessada === null || catalogo.gerado_em > central.ultimaProcessada);
+
+  if (pendente) {
+    after(async () => {
+      await sincronizarCentral();
+    });
+  }
+
+  // O instante vem do servidor: calcular frescor com o relógio do navegador faria
+  // servidor e cliente discordarem na hidratação, e o relógio do cliente é o menos
+  // confiável dos dois.
+  return <MapaClient central={central} pendente={pendente} agoraIso={new Date().toISOString()} />;
+}

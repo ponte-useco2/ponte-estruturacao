@@ -42,6 +42,9 @@ const AMBIENTES = [
 /** Abas de primeiro nível. Início é o herói do 1c; Grafo fecha a fila. */
 const ABAS = [
   { nome: "Início", href: BASE, exata: true },
+  // Logo depois de Início, e não no fim: é a aba de consulta diária — o que
+  // mudou no catálogo desde a última visita. Grafo continua fechando a fila.
+  { nome: "Mapa de Oportunidades", href: `${BASE}/mapa-de-oportunidades`, exata: false },
   ...AMBIENTES.map((a) => ({ nome: a.nome, href: a.href, num: a.num, exata: false })),
   { nome: "Grafo", href: `${BASE}/grafo`, exata: false },
 ] as const;

@@ -1,0 +1,90 @@
+/**
+ * Leitura da central de notificações para quem está logado.
+ *
+ * Usa o cliente da SESSÃO, não o de serviço: aqui a RLS é a barreira de verdade.
+ * Mesmo que esta função esquecesse de filtrar por usuário, o banco só devolveria
+ * as linhas da própria pessoa — e só se ela estiver aprovada.
+ */
+import { authConfigurada, clienteSessao } from "@/lib/supabase-auth";
+import type { TipoMudanca } from "./diff";
+import type { ItemCentral } from "./central";
+import { ehEsquemaAusente } from "./esquema";
+
+/** Acima disto a tela avisa que não está mostrando tudo, em vez de cortar calada. */
+export const LIMITE_ITENS = 500;
+
+export type LeituraCentral =
+  | { status: "ok"; itens: ItemCentral[]; truncada: boolean; ultimaProcessada: string | null }
+  | { status: "nao_ativada" }
+  | { status: "erro" };
+
+interface LinhaNotificacao {
+  id: number;
+  lida_em: string | null;
+  arquivada_em: string | null;
+  mudanca: {
+    tipo: TipoMudanca;
+    chave: string;
+    programa: string;
+    orgao: string;
+    fecha: string;
+    limiar: number | null;
+    antes: string | null;
+    depois: string | null;
+    publicacao: { gerado_em: string } | null;
+  } | null;
+}
+
+export async function lerCentral(): Promise<LeituraCentral> {
+  // Sem Supabase configurado não há central. Criar o cliente assim lançaria
+  // exceção em vez de responder.
+  if (!authConfigurada()) return { status: "nao_ativada" };
+  const db = await clienteSessao();
+  const [notificacoes, publicacao] = await Promise.all([
+    db
+      .from("oport_notificacao")
+      .select(
+        "id, lida_em, arquivada_em, mudanca:oport_mudanca(tipo, chave, programa, orgao, fecha, limiar, antes, depois, publicacao:oport_publicacao(gerado_em))",
+      )
+      .order("criado_em", { ascending: false })
+      .limit(LIMITE_ITENS + 1),
+    db.from("oport_publicacao").select("gerado_em").order("gerado_em", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  const erro = notificacoes.error ?? publicacao.error;
+  if (erro) {
+    if (ehEsquemaAusente(erro.code)) return { status: "nao_ativada" };
+    console.error("lerCentral:", erro.message);
+    return { status: "erro" };
+  }
+
+  const linhas = (notificacoes.data ?? []) as unknown as LinhaNotificacao[];
+  const itens: ItemCentral[] = [];
+  for (const l of linhas.slice(0, LIMITE_ITENS)) {
+    // Sem a mudança não há o que mostrar. Com a RLS, isso só acontece se a pessoa
+    // perdeu a aprovação entre as duas leituras.
+    if (!l.mudanca) continue;
+    const m = l.mudanca;
+    itens.push({
+      id: String(l.id),
+      tipo: m.tipo,
+      chave: m.chave,
+      programa: m.programa,
+      orgao: m.orgao,
+      fecha: m.fecha,
+      limiar: m.limiar ?? undefined,
+      antes: m.antes ?? undefined,
+      depois: m.depois ?? undefined,
+      publicado_em: m.publicacao?.gerado_em ?? "",
+      lida_em: l.lida_em,
+      arquivada_em: l.arquivada_em,
+    });
+  }
+
+  return {
+    status: "ok",
+    itens,
+    truncada: linhas.length > LIMITE_ITENS,
+    ultimaProcessada: (publicacao.data as { gerado_em: string } | null)?.gerado_em ?? null,
+  };
+}

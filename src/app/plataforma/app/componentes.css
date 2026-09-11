@@ -330,3 +330,37 @@
   .pa-root .pa-oportunidade-lado { align-items: flex-start; text-align: left; }
   .pa-root .pa-perfil-convite { flex-wrap: wrap; }
 }
+
+/* ------------------------------------------------ mapa de oportunidades (central de notificações)
+   Só layout e estado. Cores vêm dos tokens e das classes que o app já tem —
+   .pa-cartao, .pa-chip, .pa-tag, .pa-origem, .pa-escuro —, sem hex novo. */
+.pa-root .pa-mapa-controles { display: flex; flex-wrap: wrap; gap: 1rem 1.6rem; margin-bottom: 0.9rem; }
+.pa-root .pa-mapa .pa-chip { min-height: 36px; cursor: pointer; }
+/* O rádio fica visualmente oculto dentro do chip: o foco precisa aparecer no chip. */
+.pa-root .pa-mapa .pa-chip:focus-visible,
+.pa-root .pa-mapa .pa-chip:focus-within { outline: 2px solid var(--pa-brand); outline-offset: 2px; }
+
+/* Sempre presente, altura reservada: aparecer só com seleção empurrava a lista. */
+.pa-root .pa-mapa-lote {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  min-height: 56px; margin-bottom: 0.9rem; padding: 0.5rem 0.8rem;
+}
+.pa-root .pa-mapa .pa-btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.pa-root .pa-mapa .pa-btn:focus-visible { outline: 2px solid var(--pa-brand); outline-offset: 2px; }
+/* A área de clique é o rótulo inteiro, com pelo menos 36px — não os 17px da caixa. */
+.pa-root .pa-mapa-selecao { min-width: 36px; min-height: 36px; align-items: center; }
+.pa-root .pa-mapa-selecao input { margin-top: 0; }
+
+.pa-root .pa-mapa-desfazer {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.55rem 0.8rem; margin-bottom: 0.9rem;
+}
+
+/* Não lida: ponto na cor da marca, título mais forte e texto para leitor de
+   tela. Nunca a cor de perigo, que é reservada a prazo correndo. */
+.pa-root .pa-mapa-marca-nao-lida {
+  display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--pa-brand-2);
+}
+.pa-root .pa-mapa-nao-lida .pa-oportunidade-titulo { font-weight: 800; }
+.pa-root .pa-mapa-descricao { font-size: 0.9rem; color: var(--pa-text); }
+.pa-root .pa-mapa-vazio-titulo { font-size: 1.05rem; }

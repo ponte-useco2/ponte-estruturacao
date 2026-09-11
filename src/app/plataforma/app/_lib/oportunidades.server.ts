@@ -1,25 +1,20 @@
 /**
  * Leitura do único dado real do app. Só pode ser importado por Server
- * Component — o `node:fs` abaixo quebra o bundle do cliente se vazar.
+ * Component — o `node:fs` por trás quebra o bundle do cliente se vazar.
  *
- * Fronteira do Contrato de Dados v1.0: o site lê `public/dados/oportunidades.json`
- * já publicado pelo pipeline. Nada aqui fala com o Transferegov, nem recalcula
- * `urgente`, `nova`, `aderente` ou `dias_restantes`.
+ * Fronteira do Contrato de Dados v1.0: o app lê o catálogo já publicado pelo
+ * pipeline. Nada aqui fala com o Transferegov, nem recalcula `urgente`, `nova`,
+ * `aderente` ou `dias_restantes`.
+ *
+ * O caminho do arquivo mora em `lib/oportunidades/catalogo.server.ts`, e só lá.
+ * Este leitor tinha a própria cópia, que ficou para trás quando o arquivo saiu
+ * de `public/dados` em 02/09/2026 — e o Descobrir passou a mostrar "dados
+ * indisponíveis" em silêncio desde então.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { CONTRATO_MAJOR, type PayloadOportunidades } from "./tipos";
+import { lerCatalogo } from "@/lib/oportunidades/catalogo.server";
+import type { PayloadOportunidades } from "./tipos";
 
 export async function lerOportunidades(): Promise<PayloadOportunidades | null> {
-  try {
-    const arquivo = path.join(process.cwd(), "public", "dados", "oportunidades.json");
-    const bruto = await fs.readFile(arquivo, "utf-8");
-    const d = JSON.parse(bruto) as PayloadOportunidades;
-    const [major] = String(d.versao ?? "").split(".");
-    if (parseInt(major, 10) !== CONTRATO_MAJOR) return null;
-    return d;
-  } catch {
-    return null;
-  }
+  return lerCatalogo();
 }
