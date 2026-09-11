@@ -5,7 +5,10 @@ import { clienteSessao } from "@/lib/supabase-auth";
  * Retorno do Google.
  *
  * O Supabase manda o visitante de volta para cá com um `code` na URL. Aqui
- * ele vira sessão em cookie httpOnly.
+ * ele vira sessão, guardada em cookie. O cookie NÃO é httpOnly: é o padrão do
+ * @supabase/ssr, e os botões de entrar e sair usam o cliente do navegador, que
+ * precisa lê-lo. A política de privacidade deixou de prometer httpOnly em
+ * 11/09/2026; se isto mudar, ela muda junto.
  *
  * O `next` é validado contra caminho interno: aceitar qualquer valor faria
  * desta rota um redirecionador aberto — bastaria divulgar o nosso link de
