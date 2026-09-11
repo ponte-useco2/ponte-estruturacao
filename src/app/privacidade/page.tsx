@@ -17,9 +17,9 @@ export const metadata: Metadata = {
  * existe mais é pior do que nenhuma, porque vicia o consentimento de quem a
  * leu antes de entregar o dado.
  *
- * Última conferência contra o código: 02/09/2026.
+ * Última conferência contra o código: 11/09/2026 (cookies e regras do banco).
  */
-const ATUALIZADO = "2 de setembro de 2026";
+const ATUALIZADO = "11 de setembro de 2026";
 
 export default function PrivacidadePage() {
   return (
@@ -95,10 +95,9 @@ export default function PrivacidadePage() {
         <h2>Cookies</h2>
         <p>
           Usamos apenas cookies necessários ao funcionamento: os que mantêm sua
-          sessão nas áreas reservadas. São cookies{" "}
-          <code>httpOnly</code> — não podem ser lidos por scripts da página — e
-          expiram automaticamente. Não há cookies de publicidade nem de
-          analytics de terceiros.
+          sessão nas áreas reservadas. São criados pelo serviço de autenticação
+          (Supabase) para manter você conectado. Não há cookies de publicidade
+          nem de analytics de terceiros.
         </p>
 
         <h2>Com quem os dados são compartilhados</h2>
@@ -177,12 +176,12 @@ export default function PrivacidadePage() {
 
         <h2>Segurança</h2>
         <p>
-          As áreas reservadas usam sessão em cookie <code>httpOnly</code> e
-          controle de acesso no servidor. O banco de dados aplica regras que
-          impedem leitura direta pelo navegador: todo acesso passa pelo servidor
-          do site. Nenhuma medida elimina completamente o risco, e se ocorrer
-          incidente com risco relevante aos titulares, comunicaremos os
-          afetados e a Autoridade Nacional de Proteção de Dados.
+          As áreas reservadas têm controle de acesso no servidor, e o banco de
+          dados aplica regras linha a linha: uma pessoa logada só alcança os
+          próprios registros. Os dados de outras pessoas e o registro de uso só
+          são lidos pelo servidor do site. Nenhuma medida elimina completamente
+          o risco, e se ocorrer incidente com risco relevante aos titulares,
+          comunicaremos os afetados e a Autoridade Nacional de Proteção de Dados.
         </p>
 
         <h2>Menores de idade</h2>
