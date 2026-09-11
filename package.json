@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "ops": "node ops-graph/src/cli.mjs",
-    "ops:test": "node --test ops-graph/test/graph.test.mjs"
+    "ops:test": "node --test ops-graph/test/graph.test.mjs",
+    "test:oportunidades": "node --test \"src/lib/oportunidades/*.test.ts\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
