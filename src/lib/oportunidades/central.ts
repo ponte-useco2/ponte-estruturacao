@@ -206,3 +206,75 @@ export function mensagemVazio(p: {
     afirmaCalmaria: true,
   };
 }
+
+/**
+ * O universo do catálogo, para a tela poder falar do que NÃO virou aviso.
+ *
+ * "Nenhuma notificação por ler" sem isto lê como "nada acontecendo"; com isto,
+ * a tela diz que as janelas abertas continuam lá.
+ */
+export interface ResumoCatalogo {
+  total: number;
+  /** Janelas que fecham dentro do primeiro corte de prazo. */
+  fecham7: number;
+  /** Data do corte de 7 dias, em AAAA-MM-DD. */
+  ate: string;
+  /** Janelas sem tema declarado na fonte — explica os zeros do seletor. */
+  semTema: number;
+}
+
+export interface GrupoPrazo {
+  id: string;
+  titulo: string;
+  itens: ItemCentral[];
+  naoLidas: number;
+  /** O grupo mais longo nasce recolhido: é o maior e o menos urgente. */
+  recolhido: boolean;
+}
+
+/** Cortes de prazo, em dias. Os dois primeiros espelham as marcas que geram aviso. */
+export const CORTES_PRAZO = [7, 30, 90] as const;
+
+function somaDias(agora: Date, dias: number): string {
+  const d = new Date(agora.getTime());
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Agrupa por prazo, preservando a ordem recebida dentro de cada grupo.
+ *
+ * A faixa relativa nomeia o grupo ("em até 7 dias") e a data absoluta o define
+ * ("até 18/09/2026") — contagem relativa sozinha erra quando o dado é de ontem.
+ * Grupo vazio não aparece: cabeçalho sem item é ruído.
+ */
+export function agruparPorPrazo(itens: ItemCentral[], agora: Date): GrupoPrazo[] {
+  const [c7, c30, c90] = CORTES_PRAZO.map((d) => somaDias(agora, d));
+  const grupos: GrupoPrazo[] = [
+    { id: "ate7", titulo: `Fecha em até 7 dias · até ${formatarData(c7)}`, itens: [], naoLidas: 0, recolhido: false },
+    { id: "ate30", titulo: `Fecha em 8 a 30 dias · até ${formatarData(c30)}`, itens: [], naoLidas: 0, recolhido: false },
+    { id: "ate90", titulo: `Fecha em 31 a 90 dias · até ${formatarData(c90)}`, itens: [], naoLidas: 0, recolhido: false },
+    { id: "depois", titulo: `Fecha depois de ${formatarData(c90)}`, itens: [], naoLidas: 0, recolhido: true },
+  ];
+
+  for (const i of itens) {
+    const g = i.fecha <= c7 ? grupos[0] : i.fecha <= c30 ? grupos[1] : i.fecha <= c90 ? grupos[2] : grupos[3];
+    g.itens.push(i);
+    if (!i.lida_em) g.naoLidas += 1;
+  }
+
+  return grupos.filter((g) => g.itens.length > 0);
+}
+
+/**
+ * Códigos do programa, tirados da chave `canal|natureza|códigos`.
+ *
+ * O Transferegov não tem endereço por programa — é sistema com POST e sessão.
+ * O caminho honesto é copiar o código e abrir a consulta, como o painel público
+ * já faz.
+ */
+export function codigosDaChave(chave: string): string[] {
+  const partes = chave.split("|");
+  if (partes.length < 3) return [];
+  return partes[2].split(",").map((c) => c.trim()).filter(Boolean);
+}

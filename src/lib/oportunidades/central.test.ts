@@ -10,6 +10,8 @@ import {
   frescorDoDado,
   mensagemVazio,
   ordenarPorUrgencia,
+  agruparPorPrazo,
+  codigosDaChave,
   type ItemCentral,
 } from "./central.ts";
 
@@ -127,4 +129,51 @@ test("descrição usa data absoluta e concorda em número", () => {
     "Prazo mudou de 30/09/2026 para 15/10/2026",
   );
   assert.equal(formatarData("2026-09-14"), "14/09/2026");
+});
+
+const AGORA = new Date("2026-09-11T12:00:00Z");
+
+test("agrupa por prazo em quatro cortes, com data absoluta no título", () => {
+  const g = agruparPorPrazo(
+    [
+      item("a", { fecha: "2026-09-14" }),
+      item("b", { fecha: "2026-09-30" }),
+      item("c", { fecha: "2026-11-30" }),
+      item("d", { fecha: "2027-03-01" }),
+    ],
+    AGORA,
+  );
+  assert.deepEqual(g.map((x) => x.id), ["ate7", "ate30", "ate90", "depois"]);
+  assert.equal(g[0].titulo, "Fecha em até 7 dias · até 18/09/2026");
+  assert.equal(g[3].titulo, "Fecha depois de 10/12/2026");
+});
+
+test("grupo sem item não aparece, e o mais longo nasce recolhido", () => {
+  const g = agruparPorPrazo([item("a", { fecha: "2026-09-14" }), item("d", { fecha: "2027-03-01" })], AGORA);
+  assert.deepEqual(g.map((x) => x.id), ["ate7", "depois"]);
+  assert.equal(g[0].recolhido, false);
+  assert.equal(g[1].recolhido, true);
+});
+
+test("o grupo conta as não lidas dele, não as da tela inteira", () => {
+  const g = agruparPorPrazo(
+    [
+      item("a", { fecha: "2026-09-14" }),
+      item("b", { fecha: "2026-09-15", lida_em: "2026-09-11T10:00:00Z" }),
+      item("c", { fecha: "2027-01-01" }),
+    ],
+    AGORA,
+  );
+  assert.equal(g[0].itens.length, 2);
+  assert.equal(g[0].naoLidas, 1);
+});
+
+test("a ordem recebida é preservada dentro do grupo", () => {
+  const g = agruparPorPrazo([item("z", { fecha: "2026-09-13" }), item("a", { fecha: "2026-09-12" })], AGORA);
+  assert.deepEqual(g[0].itens.map((i) => i.id), ["z", "a"]);
+});
+
+test("o código do programa sai da chave", () => {
+  assert.deepEqual(codigosDaChave("emenda|Consórcio Público|09001,09002"), ["09001", "09002"]);
+  assert.deepEqual(codigosDaChave("chave quebrada"), []);
 });

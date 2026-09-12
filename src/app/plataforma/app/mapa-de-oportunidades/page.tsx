@@ -41,6 +41,22 @@ export default async function MapaDeOportunidadesPage() {
     });
   }
 
+  // O universo do catálogo: quantas janelas existem, quantas fecham na semana e
+  // quantas não têm tema. Sem isso a tela não consegue dizer que as janelas
+  // continuam lá quando a fila de avisos está vazia.
+  const agora = new Date();
+  const ate = new Date(agora.getTime());
+  ate.setUTCDate(ate.getUTCDate() + 7);
+  const ateIso = ate.toISOString().slice(0, 10);
+  const resumoCatalogo = catalogo
+    ? {
+        total: catalogo.oportunidades.length,
+        fecham7: catalogo.oportunidades.filter((o) => o.fecha <= ateIso).length,
+        ate: ateIso,
+        semTema: catalogo.oportunidades.filter((o) => (o.temas ?? []).length === 0).length,
+      }
+    : null;
+
   // O instante vem do servidor: calcular frescor com o relógio do navegador faria
   // servidor e cliente discordarem na hidratação, e o relógio do cliente é o menos
   // confiável dos dois.
@@ -50,7 +66,8 @@ export default async function MapaDeOportunidadesPage() {
     <MapaClient
       central={central}
       pendente={pendente}
-      agoraIso={new Date().toISOString()}
+      agoraIso={agora.toISOString()}
+      resumoCatalogo={resumoCatalogo}
       preferencias={preferencias}
       opcoes={opcoesDePreferencia(catalogo?.oportunidades ?? [])}
     />

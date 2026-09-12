@@ -40,6 +40,11 @@ import { motivoDaCombinacao, type Preferencias } from "@/lib/oportunidades/adere
 import type { OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
 import { PreferenciasPainel, type Eixo } from "./PreferenciasPainel";
 import {
+  agruparPorPrazo,
+  codigosDaChave,
+  type ResumoCatalogo,
+} from "@/lib/oportunidades/central";
+import {
   alternarPreferencia,
   arquivar,
   desarquivar,
@@ -118,18 +123,27 @@ const ROTULO_PRAZO: Record<TipoMudanca, string> = {
 
 const TIPOS_EM_ORDEM = Object.keys(ROTULO_TIPO) as TipoMudanca[];
 
+/**
+ * O sistema de origem não tem URL por programa: é POST com sessão. O painel
+ * público resolve do mesmo jeito — abre a consulta e a pessoa cola o código.
+ */
+const TRANSFEREGOV_CONSULTA =
+  "https://discricionarias.transferegov.sistema.gov.br/voluntarias/ForwardAction.do?modulo=programa&path=/ConsultarPrograma/ConsultarPrograma.do&Usr=guest&Pwd=guest";
+
 export function MapaClient({
   central,
   pendente,
   agoraIso,
   preferencias,
   opcoes,
+  resumoCatalogo,
 }: {
   central: LeituraCentral;
   pendente: boolean;
   agoraIso: string;
   preferencias: Preferencias;
   opcoes: OpcoesPreferencia;
+  resumoCatalogo: ResumoCatalogo | null;
 }) {
   if (central.status === "nao_ativada") return <NaoAtivada />;
   if (central.status === "erro") return <ErroLeitura />;
@@ -142,6 +156,7 @@ export function MapaClient({
       agoraIso={agoraIso}
       preferencias={preferencias}
       opcoes={opcoes}
+      resumoCatalogo={resumoCatalogo}
     />
   );
 }
@@ -193,6 +208,7 @@ function Central({
   agoraIso,
   preferencias,
   opcoes,
+  resumoCatalogo,
 }: {
   itens: ItemCentral[];
   truncada: boolean;
@@ -201,6 +217,7 @@ function Central({
   agoraIso: string;
   preferencias: Preferencias;
   opcoes: OpcoesPreferencia;
+  resumoCatalogo: ResumoCatalogo | null;
 }) {
   const [aba, setAba] = useState<Aba>("nao_lidas");
   const [tipos, setTipos] = useState<TipoMudanca[]>([]);
@@ -212,6 +229,12 @@ function Central({
   // recusar, volta ao que era e a tela diz que não salvou. Fingir que salvou
   // seria o "sucesso aparente" que o brief proíbe.
   const [prefs, setPrefs] = useState<Preferencias>(preferencias);
+  // Detalhe abre no lugar, um por vez: abrir em página nova tiraria a pessoa da
+  // fila que ela veio ver.
+  const [detalhe, setDetalhe] = useState<string | null>(null);
+  const [gruposAbertos, setGruposAbertos] = useState<ReadonlySet<string>>(() => new Set());
+  // "Ver só essas" do destaque de prazo: recorte, não alarme novo.
+  const [soCurto, setSoCurto] = useState(false);
   const [salvando, iniciarTransicao] = useTransition();
 
   function alternarPreferenciaLocal(eixo: Eixo, valor: string, marcado: boolean, rotulo: string) {
@@ -254,7 +277,18 @@ function Central({
   const refTitulo = useRef<HTMLHeadingElement>(null);
 
   const frescor = useMemo(() => frescorDoDado(ultimaProcessada, new Date(agoraIso)), [ultimaProcessada, agoraIso]);
-  const visiveis = useMemo(() => ordenarPorUrgencia(filtrar(itens, aba, tipos)), [itens, aba, tipos]);
+  const limiteCurto = useMemo(() => {
+    const d = new Date(agoraIso);
+    d.setUTCDate(d.getUTCDate() + 7);
+    return d.toISOString().slice(0, 10);
+  }, [agoraIso]);
+
+  const visiveis = useMemo(() => {
+    const base = ordenarPorUrgencia(filtrar(itens, aba, tipos));
+    return soCurto ? base.filter((i) => i.fecha <= limiteCurto) : base;
+  }, [itens, aba, tipos, soCurto, limiteCurto]);
+
+  const grupos = useMemo(() => agruparPorPrazo(visiveis, new Date(agoraIso)), [visiveis, agoraIso]);
   const porTipo = useMemo(() => contarPorTipo(itens, aba), [itens, aba]);
   const porAba: Record<Aba, number> = {
     nao_lidas: contarNaoLidas(itens),
@@ -298,6 +332,17 @@ function Central({
   function alternarTipo(t: TipoMudanca) {
     setTipos((atual) => (atual.includes(t) ? atual.filter((x) => x !== t) : [...atual, t]));
     limparSelecao("Seleção limpa ao mudar o filtro.");
+  }
+
+  async function copiarCodigo(codigos: string[]) {
+    try {
+      await navigator.clipboard.writeText(codigos.join(" "));
+      setAnuncio(codigos.length === 1 ? "Código copiado." : "Códigos copiados.");
+    } catch {
+      // Sem permissão de área de transferência o código continua na tela para
+      // selecionar à mão — dizer que copiou sem ter copiado seria mentira.
+      setAnuncio("Não consegui copiar. O código está aí ao lado, dá para selecionar.");
+    }
   }
 
   function alternarSelecao(id: string) {
@@ -404,8 +449,32 @@ function Central({
           <p className="pa-sub">
             {porAba.nao_lidas === 1 ? "1 notificação não lida" : `${porAba.nao_lidas} notificações não lidas`}
             {ultimaProcessada ? ` · catálogo processado em ${formatarPublicacao(ultimaProcessada)}` : ""}
+            {resumoCatalogo ? ` · ${resumoCatalogo.total} janelas abertas` : ""}
           </p>
         </div>
+
+        {/* Único destaque em cor de perigo na tela: o resumo do primeiro grupo de
+            prazo. Não é alarme novo — é o mesmo dado, dito uma vez. */}
+        {resumoCatalogo && resumoCatalogo.fecham7 > 0 && (
+          <aside className="pa-cartao pa-mapa-urgente">
+            <span className="pa-mono">Prazo correndo</span>
+            <strong>
+              {resumoCatalogo.fecham7} {resumoCatalogo.fecham7 === 1 ? "janela fecha" : "janelas fecham"} até{" "}
+              {formatarData(resumoCatalogo.ate)}
+            </strong>
+            <button
+              type="button"
+              className="pa-mapa-urgente-link"
+              aria-pressed={soCurto}
+              onClick={() => {
+                setSoCurto((v) => !v);
+                limparSelecao(soCurto ? "Recorte de prazo removido." : "Mostrando só o que fecha nesta semana.");
+              }}
+            >
+              {soCurto ? "Mostrar todos os prazos" : "Ver só essas"}
+            </button>
+          </aside>
+        )}
       </div>
 
       {pendente && (
@@ -442,6 +511,7 @@ function Central({
       <PreferenciasPainel
         preferencias={prefs}
         opcoes={opcoes}
+        resumo={resumoCatalogo}
         salvando={salvando}
         onAlternar={alternarPreferenciaLocal}
         onLimpar={limparPreferenciasLocal}
@@ -497,8 +567,10 @@ function Central({
         )}
       </div>
 
-      {/* Sempre na tela, com altura reservada. Aparecer só com seleção empurrava a
-          lista para baixo do cursor e tirava os botões da ordem de tabulação. */}
+      {/* Altura reservada enquanto houver lista: aparecer só com seleção empurrava
+          a lista para baixo do cursor. Com a fila vazia ela some — a linha "Nada
+          para selecionar" ocupava 56 px para não dizer nada. */}
+      {visiveis.length > 0 && (
       <div className="pa-cartao-plano pa-mapa-lote">
         <label className="pa-check pa-mapa-selecao">
           <input
@@ -522,6 +594,7 @@ function Central({
           </>
         )}
       </div>
+      )}
 
       {desfazer && (
         <div className="pa-escuro pa-mapa-desfazer">
@@ -548,64 +621,183 @@ function Central({
         <div className="pa-cartao pa-pilha">
           <h2 className="pa-mapa-vazio-titulo">{vazio.titulo}</h2>
           <p>{vazio.texto}</p>
+          {/* O vazio deixa de ser beco: as janelas abertas continuam lá, e a tela
+              oferece as saídas que existem. */}
+          {resumoCatalogo && (
+            <p className="pa-mono">
+              As {resumoCatalogo.total} janelas abertas continuam no Descobrir — o que acabou foi a fila de avisos.
+            </p>
+          )}
+          <div className="pa-linha">
+            {resumoCatalogo && resumoCatalogo.fecham7 > 0 && !soCurto && (
+              <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => setSoCurto(true)}>
+                Ver as {resumoCatalogo.fecham7} que fecham até {formatarData(resumoCatalogo.ate)}
+              </button>
+            )}
+            {aba !== "todas" && (
+              <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => trocarAba("todas")}>
+                Ver todas
+              </button>
+            )}
+            {aba !== "arquivadas" && (
+              <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => trocarAba("arquivadas")}>
+                Ver arquivadas
+              </button>
+            )}
+            <Link href="/plataforma/app/descobrir" className="pa-btn pa-btn-pequeno">
+              Ir para o Descobrir
+            </Link>
+          </div>
         </div>
       ) : (
-        <ul className="pa-pilha" aria-label="Notificações">
-          {visiveis.map((i) => {
-            const naoLida = !i.lida_em;
-            // O destaque diz POR QUE combina. Selo sem motivo vira enfeite.
-            const combinacao = motivoDaCombinacao(i, prefs);
-            const acaoLinha: Acao = aba === "arquivadas" ? "desarquivar" : naoLida ? "lida" : "naoLida";
-            const rotuloLinha =
-              aba === "arquivadas" ? "Desarquivar" : naoLida ? "Marcar como lida" : "Marcar como não lida";
+        grupos.map((g) => {
+          const recolhido = g.recolhido && !gruposAbertos.has(g.id);
+          if (recolhido) {
             return (
-              <li key={i.id} className={`pa-cartao pa-oportunidade${naoLida ? " pa-mapa-nao-lida" : ""}`}>
-                <div className="pa-oportunidade-corpo">
-                  <div className="pa-linha">
-                    <label className="pa-check pa-mapa-selecao">
-                      <input
-                        type="checkbox"
-                        checked={selecionadas.has(i.id)}
-                        onChange={() => alternarSelecao(i.id)}
-                      />
-                      <span className="pa-sr">Selecionar: {i.programa}</span>
-                    </label>
-                    <Tag tom={TOM[i.tipo]}>{ROTULO_TIPO[i.tipo]}</Tag>
-                    {combinacao && <Tag tom="aderente">Combina: {combinacao}</Tag>}
-                    {naoLida && (
-                      <span className="pa-mapa-marca-nao-lida">
-                        <span className="pa-sr">Não lida</span>
-                      </span>
-                    )}
-                  </div>
-                  <h2 className="pa-oportunidade-titulo">{i.programa}</h2>
-                  <span className="pa-mono">{i.orgao}</span>
-                  <p className="pa-mapa-descricao">{descrever(i)}</p>
-                </div>
-
-                <div className="pa-oportunidade-lado">
-                  <span className="pa-mono">
-                    {ROTULO_PRAZO[i.tipo]} {formatarData(i.fecha)}
-                  </span>
-                  {i.publicado_em && (
-                    <span className="pa-mono">Publicado em {formatarPublicacao(i.publicado_em)}</span>
-                  )}
-                  <button
-                    type="button"
-                    className="pa-btn pa-btn-pequeno"
-                    aria-disabled={salvando}
-                    aria-label={`${rotuloLinha}: ${i.programa}`}
-                    onClick={() => {
-                      if (!salvando) agir(acaoLinha, [i]);
-                    }}
-                  >
-                    {rotuloLinha}
-                  </button>
-                </div>
-              </li>
+              <div key={g.id} className="pa-tracejado pa-linha pa-mapa-grupo-recolhido">
+                <h2 className="pa-mapa-grupo-titulo">{g.titulo}</h2>
+                <span className="pa-mono">
+                  {g.itens.length} {g.itens.length === 1 ? "aviso" : "avisos"} · {g.naoLidas} não lidas
+                </span>
+                <span className="pa-espaco" />
+                <button
+                  type="button"
+                  className="pa-btn pa-btn-pequeno"
+                  onClick={() => setGruposAbertos((a) => new Set([...a, g.id]))}
+                >
+                  Mostrar grupo
+                </button>
+              </div>
             );
-          })}
-        </ul>
+          }
+
+          return (
+            <section key={g.id} className="pa-mapa-grupo" aria-label={g.titulo}>
+              <div className="pa-linha pa-mapa-grupo-cabeca">
+                <h2 className="pa-mapa-grupo-titulo">{g.titulo}</h2>
+                <span className="pa-mono">
+                  {g.itens.length} {g.itens.length === 1 ? "aviso" : "avisos"}
+                </span>
+                <span className="pa-espaco" />
+                <span className="pa-mono">{g.naoLidas} não lidas</span>
+              </div>
+
+              <ul className="pa-pilha" aria-label={g.titulo}>
+                {g.itens.map((i) => {
+                  const naoLida = !i.lida_em;
+                  // O destaque diz POR QUE combina. Selo sem motivo vira enfeite.
+                  const combinacao = motivoDaCombinacao(i, prefs);
+                  const urgente = g.id === "ate7";
+                  const aberto = detalhe === i.id;
+                  const codigos = codigosDaChave(i.chave);
+                  const acaoLinha: Acao = aba === "arquivadas" ? "desarquivar" : naoLida ? "lida" : "naoLida";
+                  const rotuloLinha =
+                    aba === "arquivadas" ? "Desarquivar" : naoLida ? "Marcar como lida" : "Marcar como não lida";
+                  return (
+                    <li key={i.id}>
+                      <article className={`pa-cartao pa-mapa-item${naoLida ? " pa-mapa-nao-lida" : ""}`}>
+                        <label className="pa-check pa-mapa-selecao">
+                          <input
+                            type="checkbox"
+                            checked={selecionadas.has(i.id)}
+                            onChange={() => alternarSelecao(i.id)}
+                          />
+                          <span className="pa-sr">Selecionar: {i.programa}</span>
+                        </label>
+
+                        <div className="pa-mapa-item-corpo">
+                          <div className="pa-linha">
+                            <Tag tom={TOM[i.tipo]}>{ROTULO_TIPO[i.tipo]}</Tag>
+                            {/* Ponto na cor da marca MAIS rótulo: não lida não pode
+                                depender de peso de fonte nem de cor sozinha. */}
+                            {naoLida && (
+                              <span className="pa-linha pa-mapa-nao-lida-rotulo">
+                                <span className="pa-mapa-marca-nao-lida" />
+                                <span className="pa-mono">não lida</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="pa-oportunidade-titulo">{i.programa}</h3>
+
+                          <div className="pa-linha pa-mapa-meta">
+                            <span className="pa-mono">{i.orgao}</span>
+                            {i.publicado_em && (
+                              <span className="pa-mono">publicado {formatarPublicacao(i.publicado_em)}</span>
+                            )}
+                            {combinacao && (
+                              <span className="pa-tag pa-tag-aderente pa-mapa-combina">Combina: {combinacao}</span>
+                            )}
+                          </div>
+
+                          <p className="pa-mapa-descricao">{descrever(i)}</p>
+
+                          {aberto && (
+                            <div className="pa-cartao-plano pa-mapa-detalhe">
+                              <div className="pa-linha">
+                                <span className="pa-campo-rotulo">
+                                  {codigos.length === 1 ? "Código do programa" : "Códigos do programa"}
+                                </span>
+                                <code className="pa-mapa-codigo">{codigos.join(" · ") || "—"}</code>
+                                {codigos.length > 0 && (
+                                  <button
+                                    type="button"
+                                    className="pa-btn pa-btn-pequeno"
+                                    onClick={() => copiarCodigo(codigos)}
+                                  >
+                                    Copiar código
+                                  </button>
+                                )}
+                                <a
+                                  className="pa-btn pa-btn-pequeno"
+                                  href={TRANSFEREGOV_CONSULTA}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  Abrir consulta no Transferegov
+                                </a>
+                              </div>
+                              <span className="pa-mono">
+                                O Transferegov não tem endereço por programa: a consulta abre e o código é colado lá.
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pa-oportunidade-lado">
+                          <strong className={urgente ? "pa-mapa-prazo-urgente" : "pa-mapa-prazo"}>
+                            {ROTULO_PRAZO[i.tipo]} {formatarData(i.fecha)}
+                          </strong>
+                          <div className="pa-linha">
+                            <button
+                              type="button"
+                              className="pa-btn pa-btn-pequeno"
+                              aria-expanded={aberto}
+                              onClick={() => setDetalhe(aberto ? null : i.id)}
+                            >
+                              {aberto ? "Fechar" : "Detalhes"}
+                            </button>
+                            <button
+                              type="button"
+                              className="pa-btn pa-btn-pequeno"
+                              aria-disabled={salvando}
+                              aria-label={`${rotuloLinha}: ${i.programa}`}
+                              onClick={() => {
+                                if (!salvando) agir(acaoLinha, [i]);
+                              }}
+                            >
+                              {rotuloLinha}
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })
       )}
     </div>
   );
