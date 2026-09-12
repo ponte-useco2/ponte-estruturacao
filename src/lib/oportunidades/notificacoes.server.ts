@@ -9,6 +9,7 @@ import { authConfigurada, clienteSessao } from "@/lib/supabase-auth";
 import type { TipoMudanca } from "./diff";
 import type { ItemCentral } from "./central";
 import { ehEsquemaAusente } from "./esquema";
+import { PREFERENCIAS_VAZIAS, type Preferencias } from "./aderencia.ts";
 
 /** Acima disto a tela avisa que não está mostrando tudo, em vez de cortar calada. */
 export const LIMITE_ITENS = 500;
@@ -36,6 +37,33 @@ interface LinhaNotificacao {
     canal: string | null;
     publicacao: { gerado_em: string } | null;
   } | null;
+}
+
+/**
+ * As preferências de quem está lendo. A RLS já limita à própria linha; sem
+ * linha, ninguém marcou nada ainda, e isso não é erro.
+ *
+ * Falha de leitura devolve "sem preferência": a central precisa abrir mesmo
+ * quando o destaque não pode ser calculado. Deixar de destacar é perda pequena;
+ * deixar de mostrar o que mudou é o contrário do que esta tela existe para fazer.
+ */
+export async function lerPreferencias(): Promise<Preferencias> {
+  if (!authConfigurada()) return PREFERENCIAS_VAZIAS;
+
+  const db = await clienteSessao();
+  const { data, error } = await db.from("oport_preferencia").select("temas, orgaos, naturezas").maybeSingle();
+
+  if (error) {
+    if (!ehEsquemaAusente(error.code)) console.error("lerPreferencias:", error.message);
+    return PREFERENCIAS_VAZIAS;
+  }
+
+  const linha = data as { temas: string[] | null; orgaos: string[] | null; naturezas: string[] | null } | null;
+  return {
+    temas: linha?.temas ?? [],
+    orgaos: linha?.orgaos ?? [],
+    naturezas: linha?.naturezas ?? [],
+  };
 }
 
 export async function lerCentral(): Promise<LeituraCentral> {

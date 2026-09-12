@@ -36,7 +36,18 @@ import {
 } from "@/lib/oportunidades/central";
 import type { LeituraCentral } from "@/lib/oportunidades/notificacoes.server";
 import { Tag } from "../_componentes/primitivos";
-import { arquivar, desarquivar, marcarLidas, marcarNaoLidas, type ResultadoAcao } from "./acoes";
+import { motivoDaCombinacao, type Preferencias } from "@/lib/oportunidades/aderencia";
+import type { OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
+import { PreferenciasPainel, type Eixo } from "./PreferenciasPainel";
+import {
+  alternarPreferencia,
+  arquivar,
+  desarquivar,
+  limparPreferencias,
+  marcarLidas,
+  marcarNaoLidas,
+  type ResultadoAcao,
+} from "./acoes";
 
 type Acao = "lida" | "naoLida" | "arquivar" | "desarquivar";
 
@@ -111,10 +122,14 @@ export function MapaClient({
   central,
   pendente,
   agoraIso,
+  preferencias,
+  opcoes,
 }: {
   central: LeituraCentral;
   pendente: boolean;
   agoraIso: string;
+  preferencias: Preferencias;
+  opcoes: OpcoesPreferencia;
 }) {
   if (central.status === "nao_ativada") return <NaoAtivada />;
   if (central.status === "erro") return <ErroLeitura />;
@@ -125,6 +140,8 @@ export function MapaClient({
       ultimaProcessada={central.ultimaProcessada}
       pendente={pendente}
       agoraIso={agoraIso}
+      preferencias={preferencias}
+      opcoes={opcoes}
     />
   );
 }
@@ -174,12 +191,16 @@ function Central({
   ultimaProcessada,
   pendente,
   agoraIso,
+  preferencias,
+  opcoes,
 }: {
   itens: ItemCentral[];
   truncada: boolean;
   ultimaProcessada: string | null;
   pendente: boolean;
   agoraIso: string;
+  preferencias: Preferencias;
+  opcoes: OpcoesPreferencia;
 }) {
   const [aba, setAba] = useState<Aba>("nao_lidas");
   const [tipos, setTipos] = useState<TipoMudanca[]>([]);
@@ -187,7 +208,46 @@ function Central({
   const [desfazer, setDesfazer] = useState<{ acao: Acao; ids: string[]; texto: string } | null>(null);
   const [anuncio, setAnuncio] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  // A escolha aparece na hora e a lista se reorganiza junto; se o servidor
+  // recusar, volta ao que era e a tela diz que não salvou. Fingir que salvou
+  // seria o "sucesso aparente" que o brief proíbe.
+  const [prefs, setPrefs] = useState<Preferencias>(preferencias);
   const [salvando, iniciarTransicao] = useTransition();
+
+  function alternarPreferenciaLocal(eixo: Eixo, valor: string, marcado: boolean, rotulo: string) {
+    const anterior = prefs;
+    const conjunto = new Set(prefs[eixo]);
+    if (marcado) conjunto.add(valor);
+    else conjunto.delete(valor);
+    setPrefs({ ...prefs, [eixo]: [...conjunto] });
+    setErro(null);
+
+    iniciarTransicao(async () => {
+      const r = await alternarPreferencia(eixo, valor, marcado);
+      if (!r.ok) {
+        setPrefs(anterior);
+        setErro(r.erro ?? "Não foi possível salvar.");
+        return;
+      }
+      setAnuncio(`${rotulo} ${marcado ? "marcado" : "desmarcado"}.`);
+    });
+  }
+
+  function limparPreferenciasLocal() {
+    const anterior = prefs;
+    setPrefs({ temas: [], orgaos: [], naturezas: [] });
+    setErro(null);
+
+    iniciarTransicao(async () => {
+      const r = await limparPreferencias();
+      if (!r.ok) {
+        setPrefs(anterior);
+        setErro(r.erro ?? "Não foi possível salvar.");
+        return;
+      }
+      setAnuncio("Preferências apagadas.");
+    });
+  }
 
   const refTodas = useRef<HTMLInputElement>(null);
   const refDesfazer = useRef<HTMLButtonElement>(null);
@@ -379,6 +439,14 @@ function Central({
         </p>
       )}
 
+      <PreferenciasPainel
+        preferencias={prefs}
+        opcoes={opcoes}
+        salvando={salvando}
+        onAlternar={alternarPreferenciaLocal}
+        onLimpar={limparPreferenciasLocal}
+      />
+
       <div className="pa-mapa-controles">
         <fieldset className="pa-fieldset">
           <legend className="pa-mono">Mostrar</legend>
@@ -485,6 +553,8 @@ function Central({
         <ul className="pa-pilha" aria-label="Notificações">
           {visiveis.map((i) => {
             const naoLida = !i.lida_em;
+            // O destaque diz POR QUE combina. Selo sem motivo vira enfeite.
+            const combinacao = motivoDaCombinacao(i, prefs);
             const acaoLinha: Acao = aba === "arquivadas" ? "desarquivar" : naoLida ? "lida" : "naoLida";
             const rotuloLinha =
               aba === "arquivadas" ? "Desarquivar" : naoLida ? "Marcar como lida" : "Marcar como não lida";
@@ -501,6 +571,7 @@ function Central({
                       <span className="pa-sr">Selecionar: {i.programa}</span>
                     </label>
                     <Tag tom={TOM[i.tipo]}>{ROTULO_TIPO[i.tipo]}</Tag>
+                    {combinacao && <Tag tom="aderente">Combina: {combinacao}</Tag>}
                     {naoLida && (
                       <span className="pa-mapa-marca-nao-lida">
                         <span className="pa-sr">Não lida</span>

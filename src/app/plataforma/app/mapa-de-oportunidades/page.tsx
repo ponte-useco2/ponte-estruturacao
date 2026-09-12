@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { after } from "next/server";
 import { lerCatalogo } from "@/lib/oportunidades/catalogo.server";
-import { lerCentral } from "@/lib/oportunidades/notificacoes.server";
+import { lerCentral, lerPreferencias } from "@/lib/oportunidades/notificacoes.server";
+import { opcoesDePreferencia } from "@/lib/oportunidades/opcoes";
 import { sincronizarCentral } from "@/lib/oportunidades/sincronizar.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { MapaClient } from "./MapaClient";
@@ -24,7 +25,7 @@ export default async function MapaDeOportunidadesPage() {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
 
-  const [catalogo, central] = await Promise.all([lerCatalogo(), lerCentral()]);
+  const [catalogo, central, preferencias] = await Promise.all([lerCatalogo(), lerCentral(), lerPreferencias()]);
 
   // Publicação nova no disco que a central ainda não processou. Sincroniza DEPOIS
   // de responder, para não prender quem abriu a aba — e a tela avisa que há
@@ -43,5 +44,15 @@ export default async function MapaDeOportunidadesPage() {
   // O instante vem do servidor: calcular frescor com o relógio do navegador faria
   // servidor e cliente discordarem na hidratação, e o relógio do cliente é o menos
   // confiável dos dois.
-  return <MapaClient central={central} pendente={pendente} agoraIso={new Date().toISOString()} />;
+  // As opções vêm do catálogo de hoje: oferecer órgão que não está em janela
+  // nenhuma é prometer um destaque que nunca apareceria.
+  return (
+    <MapaClient
+      central={central}
+      pendente={pendente}
+      agoraIso={new Date().toISOString()}
+      preferencias={preferencias}
+      opcoes={opcoesDePreferencia(catalogo?.oportunidades ?? [])}
+    />
+  );
 }

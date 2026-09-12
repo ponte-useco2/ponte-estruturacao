@@ -17,9 +17,9 @@ export const metadata: Metadata = {
  * existe mais é pior do que nenhuma, porque vicia o consentimento de quem a
  * leu antes de entregar o dado.
  *
- * Última conferência contra o código: 11/09/2026 (cookies e regras do banco).
+ * Última conferência contra o código: 12/09/2026 (central de avisos e preferências).
  */
-const ATUALIZADO = "11 de setembro de 2026";
+const ATUALIZADO = "12 de setembro de 2026";
 
 export default function PrivacidadePage() {
   return (
@@ -82,6 +82,35 @@ export default function PrivacidadePage() {
           usa as ferramentas. <strong>Base legal:</strong> consentimento (art.
           7º, I) para o cadastro, e legítimo interesse (art. 7º, IX) no controle
           de acesso e na segurança da área reservada.
+        </p>
+
+        <h3>Central de avisos do Mapa de Oportunidades</h3>
+        <p>
+          Na plataforma, a central de avisos mostra o que mudou nas janelas de
+          convênio desde a sua última visita. Para isso guardamos, ligado à sua
+          conta, <strong>quais avisos você recebeu, quais leu e quais arquivou</strong>.
+        </p>
+        <p>
+          Se quiser, você pode marcar na própria central{" "}
+          <strong>o que prefere acompanhar</strong> — temas, órgãos ou o tipo de
+          instituição que pode se candidatar. Usamos essas escolhas só para
+          destacar as janelas que combinam com elas. Nada vem marcado, e sem
+          escolha sua nada é guardado.
+        </p>
+        <p>
+          <strong>O que não fazemos.</strong> Não deduzimos seus interesses do
+          que você abre, filtra ou busca: vale só o que você marcou. Não usamos
+          suas escolhas para lhe oferecer serviços. A PONTE pode contar quantas
+          pessoas acompanham cada assunto, sem identificar ninguém e só a partir
+          de um número mínimo de pessoas, para decidir o que priorizar.
+        </p>
+        <p>
+          <strong>Finalidade:</strong> mostrar o que mudou e destacar o que
+          combina com as suas escolhas. <strong>Base legal:</strong>{" "}
+          consentimento (art. 7º, I) — o do cadastro, para os avisos; e o que
+          você dá ao marcar uma preferência, que se revoga desmarcando.{" "}
+          <strong>Guarda:</strong> enquanto sua conta existir. Desmarcar apaga a
+          escolha; pedir a exclusão apaga avisos, escolhas e histórico de uso.
         </p>
 
         <h3>O que não coletamos</h3>

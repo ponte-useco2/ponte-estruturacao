@@ -364,3 +364,26 @@
 .pa-root .pa-mapa-nao-lida .pa-oportunidade-titulo { font-weight: 800; }
 .pa-root .pa-mapa-descricao { font-size: 0.9rem; color: var(--pa-text); }
 .pa-root .pa-mapa-vazio-titulo { font-size: 1.05rem; }
+
+/* --------------------------------------------------------------------------
+   Painel de preferências da aba Mapa de Oportunidades (12/09/2026).
+   Fechado por padrão: são dezenas de opções, e a lista de avisos é o que a
+   pessoa veio ver. Só tokens, nenhuma cor nova.
+   -------------------------------------------------------------------------- */
+.pa-root .pa-mapa-prefs { padding: 0.9rem 1rem; }
+
+.pa-root .pa-mapa-prefs > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--pa-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pa-muted);
+}
+
+.pa-root .pa-mapa-prefs[open] > summary { margin-bottom: 0.9rem; }
+.pa-root .pa-mapa-prefs > summary:focus-visible { outline: 2px solid var(--pa-brand-2); outline-offset: 3px; }
+.pa-root .pa-mapa-prefs .pa-nota { margin: 0; }

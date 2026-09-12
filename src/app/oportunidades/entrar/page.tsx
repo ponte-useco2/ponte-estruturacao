@@ -91,9 +91,16 @@ export default async function EntrarPage({
             que busca.
           </p>
           <p>
+            <strong>Na central de avisos da plataforma.</strong> Quais avisos
+            você leu ou arquivou e, só se você marcar, o que prefere
+            acompanhar. Suas escolhas servem para destacar janelas para você;
+            não deduzimos interesse do seu uso.
+          </p>
+          <p>
             <strong>Por que.</strong> Para controlar quem tem acesso a uma área
-            reservada, e para entender quais linhas de fomento interessam a
-            quem usa o painel — o que orienta o que a PONTE prioriza.
+            reservada, para mostrar o que mudou desde a sua última visita, e
+            para entender quais linhas de fomento interessam a quem usa o
+            painel — o que orienta o que a PONTE prioriza.
           </p>
           <p>
             <strong>O que não coletamos.</strong> Endereço IP e identificação
