@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ContaMenu } from "./ContaMenu";
+import { lerContexto } from "@/lib/oportunidades/organizacao.server";
 
 /**
  * Moldura do Mapa de Oportunidades — o produto, não o protótipo.
@@ -15,7 +16,7 @@ import { ContaMenu } from "./ContaMenu";
  * É componente de SERVIDOR: sem abas, nada aqui depende de `usePathname`. Só o
  * menu de conta é cliente, porque abre, fecha e encerra sessão.
  */
-export function MapaFrame({
+export async function MapaFrame({
   children,
   email,
   nome,
@@ -24,6 +25,11 @@ export function MapaFrame({
   email: string;
   nome: string | null;
 }) {
+  // A moldura lê o contexto de organização porque é ela que mostra qual está
+  // ativa e oferece a troca. A página lê de novo, para saber se convida a
+  // declarar: são duas responsabilidades distintas, e a leitura é barata.
+  const { ativa, todas } = await lerContexto();
+
   return (
     // `pa-root` é a raiz do design system: declara os alias de token e o reset.
     // `mp-root` ajusta o que é desta moldura — ver mapa.css.
@@ -41,7 +47,7 @@ export function MapaFrame({
 
           <div className="pa-espaco" />
 
-          <ContaMenu email={email} nome={nome} />
+          <ContaMenu email={email} nome={nome} organizacoes={todas} ativa={ativa} />
         </div>
       </header>
 

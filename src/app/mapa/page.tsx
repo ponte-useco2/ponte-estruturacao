@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { after } from "next/server";
 import { lerCatalogo } from "@/lib/oportunidades/catalogo.server";
+import { lerContexto } from "@/lib/oportunidades/organizacao.server";
 import { lerCentral, lerPreferencias, lerTentativasFalhas, registrarVisita } from "@/lib/oportunidades/notificacoes.server";
 import { opcoesDePreferencia } from "@/lib/oportunidades/opcoes";
 import { sincronizarCentral } from "@/lib/oportunidades/sincronizar.server";
@@ -27,12 +29,13 @@ export default async function MapaDeOportunidadesPage() {
 
   // `registrarVisita` devolve a marca ANTERIOR e só então carimba a de agora: é a
   // anterior que posiciona a divisória na lista.
-  const [catalogo, central, preferencias, visitaAnterior, tentativas] = await Promise.all([
+  const [catalogo, central, preferencias, visitaAnterior, tentativas, contexto] = await Promise.all([
     lerCatalogo(),
     lerCentral(),
     lerPreferencias(),
     registrarVisita(visitante.id),
     lerTentativasFalhas(),
+    lerContexto(),
   ]);
 
   // Publicação nova no disco que a central ainda não processou. Sincroniza DEPOIS
@@ -71,15 +74,35 @@ export default async function MapaDeOportunidadesPage() {
   // As opções vêm do catálogo de hoje: oferecer órgão que não está em janela
   // nenhuma é prometer um destaque que nunca apareceria.
   return (
-    <MapaClient
-      central={central}
-      pendente={pendente}
-      agoraIso={agora.toISOString()}
-      resumoCatalogo={resumoCatalogo}
-      visitaAnterior={visitaAnterior}
-      tentativas={tentativas}
-      preferencias={preferencias}
-      opcoes={opcoesDePreferencia(catalogo?.oportunidades ?? [])}
-    />
+    <>
+      {/* Convite, não bloqueio. O filtro por elegibilidade só chega com o
+          catálogo v2; exigir hoje um cadastro cujo benefício ainda não existe
+          seria cobrar adiantado. A frase diz o que muda e quando. */}
+      {contexto.ativa === null && (
+        <div className="pa-pagina">
+          <aside className="pa-cartao pa-cartao-plano mp-convite">
+            <p>
+              O Mapa ainda não sabe que tipo de agente você é. Quando o catálogo multifonte entrar,
+              é isso que vai separar o que a sua entidade pode pleitear do que não pode.
+            </p>
+            <span className="pa-espaco" />
+            <Link href="/mapa/conta/organizacao" className="pa-btn pa-btn-pequeno">
+              Declarar a entidade
+            </Link>
+          </aside>
+        </div>
+      )}
+
+      <MapaClient
+        central={central}
+        pendente={pendente}
+        agoraIso={agora.toISOString()}
+        resumoCatalogo={resumoCatalogo}
+        visitaAnterior={visitaAnterior}
+        tentativas={tentativas}
+        preferencias={preferencias}
+        opcoes={opcoesDePreferencia(catalogo?.oportunidades ?? [])}
+      />
+    </>
   );
 }

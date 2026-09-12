@@ -13,13 +13,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { ROTULO_AGENTE, type Organizacao } from "@/lib/oportunidades/organizacao";
+import { trocarOrganizacao } from "../conta/organizacao/acoes";
 
 function inicial(nome: string | null, email: string): string {
   const base = (nome ?? email).trim();
   return (base[0] ?? "?").toUpperCase();
 }
 
-export function ContaMenu({ email, nome }: { email: string; nome: string | null }) {
+export function ContaMenu({
+  email,
+  nome,
+  organizacoes,
+  ativa,
+}: {
+  email: string;
+  nome: string | null;
+  organizacoes: Organizacao[];
+  ativa: Organizacao | null;
+}) {
   const pathname = usePathname() ?? "/mapa";
 
   // Guarda em QUAL rota o menu foi aberto: navegar muda o pathname e o menu
@@ -77,13 +89,44 @@ export function ContaMenu({ email, nome }: { email: string; nome: string | null 
         title={email}
       >
         <span aria-hidden="true">{inicial(nome, email)}</span>
-        <span className="pa-esconde-mobile mp-conta-nome">{nome ?? email}</span>
+        {/* A entidade ativa vence o nome da pessoa no chip: quem cuida de várias
+            precisa saber, de relance, em qual está trabalhando. */}
+        <span className="pa-esconde-mobile mp-conta-nome">{ativa?.nome ?? nome ?? email}</span>
       </button>
 
       {aberto && (
         <div className="pa-menu">
           <p className="pa-mono pa-menu-grupo">Conta</p>
           <p className="mp-conta-email">{email}</p>
+
+          <div className="pa-menu-sep" />
+          <p className="pa-mono pa-menu-grupo">Organização</p>
+
+          {organizacoes.length === 0 ? (
+            <Link href="/mapa/conta/organizacao">Declarar a entidade</Link>
+          ) : (
+            <>
+              {organizacoes.map((o) => (
+                // Um formulário por entidade, e não um select: trocar é ação de
+                // servidor (grava cookie e revalida), e assim funciona antes de
+                // o JavaScript carregar.
+                <form key={o.id} action={trocarOrganizacao} className="mp-org-troca">
+                  <input type="hidden" name="organizacao_id" value={o.id} />
+                  <button
+                    type="submit"
+                    className="mp-org-botao"
+                    aria-current={o.id === ativa?.id}
+                    disabled={o.id === ativa?.id}
+                  >
+                    <span>{o.nome}</span>
+                    <span className="pa-espaco" />
+                    <span className="mp-org-tipo">{ROTULO_AGENTE[o.tipo]}</span>
+                  </button>
+                </form>
+              ))}
+              <Link href="/mapa/conta/organizacao">Acrescentar outra</Link>
+            </>
+          )}
 
           <div className="pa-menu-sep" />
           <Link href="/privacidade">Aviso de privacidade</Link>

@@ -188,3 +188,45 @@
 .pa-root .pa-mapa-divisor .pa-mono { color: var(--pa-brand-2); }
 .pa-root .pa-mapa-divisor-traco { height: 1px; flex: 1; background: var(--pa-border); }
 .pa-root .pa-mapa-divisor-forte { background: var(--pa-brand-2); opacity: 0.45; }
+/* --------------------------------------------------------------------------
+   Conta e organização (12/09/2026).
+
+   O tipo de agente é o único campo que muda o que o Mapa mostra, então ocupa a
+   maior parte da tela e vem em colunas: doze opções em lista única viram
+   rolagem, e rolagem esconde metade das escolhas.
+   -------------------------------------------------------------------------- */
+.pa-root .mp-tipos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.1rem;
+  margin-top: 0.6rem;
+}
+.pa-root .mp-tipo-grupo { display: flex; flex-direction: column; gap: 0.3rem; }
+/* Alvo de toque inteiro, não só o círculo do rádio. */
+.pa-root .mp-tipo { min-height: 44px; padding: 0.35rem 0.45rem; border-radius: var(--pa-r); }
+.pa-root .mp-tipo:hover { background: var(--pa-surface-2); }
+.pa-root .mp-tipo:focus-within { outline: 2px solid var(--pa-brand-2); outline-offset: 1px; }
+.pa-root .mp-tipo > span { display: flex; flex-direction: column; gap: 0.1rem; }
+.pa-root .mp-tipo-exemplo { font-size: 0.78rem; color: var(--pa-muted); line-height: 1.35; }
+
+.pa-root .mp-ficha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.9rem;
+  align-items: end;
+}
+
+/* A organização ativa dentro do menu de conta. Botão, porque troca de fato. */
+.pa-root .mp-org-troca { display: contents; }
+.pa-root .mp-org-botao {
+  display: flex; align-items: baseline; gap: 0.55rem; width: 100%; text-align: left;
+  padding: 0.5rem 0.6rem; border-radius: var(--pa-r); font-size: 0.88rem; min-height: 40px;
+}
+.pa-root .mp-org-botao:hover { background: var(--pa-surface-2); }
+.pa-root .mp-org-botao[aria-current="true"] { background: var(--pa-brand); color: #fff; }
+.pa-root .mp-org-botao[aria-current="true"] .mp-org-tipo { color: #9dc6b6; }
+.pa-root .mp-org-tipo { font-family: var(--pa-mono); font-size: 0.66rem; color: var(--pa-brand-2); flex: none; }
+
+/* Convite discreto para declarar a entidade. Não é alerta: nada está errado. */
+.pa-root .mp-convite { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; }
+.pa-root .mp-convite p { font-size: 0.88rem; }
