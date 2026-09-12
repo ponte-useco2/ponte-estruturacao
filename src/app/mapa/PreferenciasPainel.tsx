@@ -165,17 +165,36 @@ export function PreferenciasPainel({
         {GRUPOS.map(({ eixo, titulo }) => {
           const lista: OpcaoContada[] = opcoes[eixo];
           const escolhidos = preferencias[eixo];
+
+          // Subtema fica guardado atrás do pai: as verticais de fomento da Finep
+          // — subvenção econômica, bioeconomia, descarbonização — só aparecem
+          // com Inovação marcado. Sem isso a coluna teria 29 caixas de uma vez,
+          // e as verticais só fazem sentido para quem já decidiu que quer
+          // inovação. A BUSCA também as revela, para quem sabe o que procura
+          // chegar lá sem marcar o pai antes.
+          const disponiveis = filtro
+            ? lista
+            : lista.filter(
+                (o) =>
+                  o.pai === undefined ||
+                  escolhidos.includes(o.pai) ||
+                  // Vertical marcada continua à vista mesmo se o pai for
+                  // desmarcado depois: escolha guardada que some da tela é
+                  // estado invisível, e estado invisível ninguém desfaz.
+                  escolhidos.includes(o.valor),
+              );
+
           const casaram = filtro
-            ? lista.filter((o) => semAcento(o.rotulo).includes(filtro))
+            ? disponiveis.filter((o) => semAcento(o.rotulo).includes(filtro))
             : expandidas.has(eixo)
-              ? lista
-              : lista.slice(0, VISIVEIS_POR_COLUNA);
-          const restantes = filtro ? 0 : lista.length - casaram.length;
+              ? disponiveis
+              : disponiveis.slice(0, VISIVEIS_POR_COLUNA);
+          const restantes = filtro ? 0 : disponiveis.length - casaram.length;
 
           return (
             <fieldset key={eixo} className="pa-fieldset pa-mapa-col">
               <legend className="pa-campo-rotulo">
-                {titulo} <span className="pa-mono">{lista.length}</span>
+                {titulo} <span className="pa-mono">{disponiveis.length}</span>
               </legend>
 
               {casaram.length === 0 && <span className="pa-mono">Nada com esse nome aqui.</span>}
@@ -183,7 +202,10 @@ export function PreferenciasPainel({
               {casaram.map((o) => {
                 const marcado = escolhidos.includes(o.valor);
                 return (
-                  <label key={o.valor} className="pa-check pa-mapa-opcao">
+                  <label
+                    key={o.valor}
+                    className={`pa-check pa-mapa-opcao${o.pai === undefined ? "" : " pa-mapa-subtema"}`}
+                  >
                     <span className="pa-mapa-opcao-nome">
                       <input
                         type="checkbox"

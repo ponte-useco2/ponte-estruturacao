@@ -35,8 +35,19 @@ export function OrganizacaoForm() {
 
         <div className="mp-tipos">
           {agentesPorGrupo().map((g) => (
-            <div key={g.grupo} className="mp-tipo-grupo">
-              <p className="pa-mono">{g.rotulo}</p>
+            // `role="group"` com rótulo: sem isso o leitor de tela anuncia doze
+            // rádios em fila, e "Estado" sozinho não diz se é ente federativo
+            // ou situação de algo. O agrupamento visual precisa existir também
+            // para quem não vê o agrupamento.
+            <div
+              key={g.grupo}
+              className="mp-tipo-grupo"
+              role="group"
+              aria-labelledby={`grupo-${g.grupo}`}
+            >
+              <p className="pa-mono" id={`grupo-${g.grupo}`}>
+                {g.rotulo}
+              </p>
               {g.agentes.map((a) => (
                 <label key={a.id} className="pa-check mp-tipo">
                   <input

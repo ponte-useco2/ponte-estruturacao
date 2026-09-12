@@ -11,12 +11,17 @@
  * algum tema, e esconder isso seria vender relevância que o dado não tem.
  */
 import type { Oportunidade } from "./contrato";
-import { TEMAS, temasDaJanela } from "./temas.ts";
+import { TEMAS, comAscendentes, temasDaJanela } from "./temas.ts";
 
 export interface OpcaoContada {
   valor: string;
   rotulo: string;
   janelas: number;
+  /**
+   * Presente só nos subtemas. A tela usa isto para guardá-los atrás do pai:
+   * as verticais de fomento da Finep só aparecem com Inovação marcado.
+   */
+  pai?: string;
 }
 
 export interface OpcoesPreferencia {
@@ -44,10 +49,19 @@ function ordenar(contagem: Map<string, number>): OpcaoContada[] {
 }
 
 export function opcoesDePreferencia(janelas: JanelaComEixos[]): OpcoesPreferencia {
-  const porTema = contar(janelas.flatMap((j) => temasDaJanela(j.temas)));
+  // `comAscendentes` faz a contagem SUBIR: janela marcada só como `bioeconomia`
+  // entra também na conta de Inovação. Sem isso, o assunto amplo apareceria com
+  // menos janelas do que de fato alcança, e a contagem — que existe justamente
+  // para impedir escolha às cegas — enganaria.
+  const porTema = contar(janelas.flatMap((j) => comAscendentes(temasDaJanela(j.temas))));
 
   return {
-    temas: TEMAS.map((t) => ({ valor: t.id, rotulo: t.rotulo, janelas: porTema.get(t.id) ?? 0 })),
+    temas: TEMAS.map((t) => ({
+      valor: t.id,
+      rotulo: t.rotulo,
+      janelas: porTema.get(t.id) ?? 0,
+      ...(t.pai === undefined ? {} : { pai: t.pai }),
+    })),
     orgaos: ordenar(contar(janelas.map((j) => j.orgao))),
     naturezas: ordenar(contar(janelas.map((j) => j.natureza))),
   };

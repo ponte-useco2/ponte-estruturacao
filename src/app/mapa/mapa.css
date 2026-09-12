@@ -153,7 +153,18 @@
 .pa-root .pa-mapa-col { gap: 0.15rem; }
 .pa-root .pa-mapa-opcao { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 36px; }
 .pa-root .pa-mapa-opcao-nome { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
-.pa-root .pa-mapa-opcao-nome > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* QUEBRA, não trunca. Os nomes de órgão chegam a 77 caracteres e três dos
+   maiores começam com "MINISTÉRIO DO" — truncados nesta coluna viravam
+   "MINISTÉRIO DO…", indistinguíveis justamente na hora de escolher qual
+   acompanhar. Achado em 12/09/2026 pela regra crítica "Essential Text
+   Truncation" de docs/referencia/ui-ux/ux-guidelines.csv: nome que distingue
+   precisa de acesso completo, e uniformizar cartão não é razão para negá-lo. */
+.pa-root .pa-mapa-opcao-nome > span { overflow-wrap: anywhere; }
+/* Com rótulo de duas linhas, caixa e contagem alinham pelo topo, não pelo meio:
+   caixa flutuando no centro de um rótulo alto perde a relação visual. */
+.pa-root .pa-mapa-opcao { align-items: flex-start; }
+.pa-root .pa-mapa-opcao-nome { align-items: flex-start; }
+.pa-root .pa-mapa-opcao > .pa-mono { padding-top: 0.2rem; }
 .pa-root .pa-mapa-mostrar-resto { align-self: flex-start; margin-top: 0.2rem; }
 
 .pa-root .pa-mapa-lote { position: sticky; top: calc(var(--pa-top-total) + 0.4rem); z-index: 20; }
@@ -220,7 +231,7 @@
 .pa-root .mp-org-troca { display: contents; }
 .pa-root .mp-org-botao {
   display: flex; align-items: baseline; gap: 0.55rem; width: 100%; text-align: left;
-  padding: 0.5rem 0.6rem; border-radius: var(--pa-r); font-size: 0.88rem; min-height: 40px;
+  padding: 0.5rem 0.6rem; border-radius: var(--pa-r); font-size: 0.88rem; min-height: 44px;
 }
 .pa-root .mp-org-botao:hover { background: var(--pa-surface-2); }
 .pa-root .mp-org-botao[aria-current="true"] { background: var(--pa-brand); color: #fff; }
@@ -230,3 +241,11 @@
 /* Convite discreto para declarar a entidade. Não é alerta: nada está errado. */
 .pa-root .mp-convite { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; }
 .pa-root .mp-convite p { font-size: 0.88rem; }
+
+/* Subtema: as verticais de fomento, recuadas sob Inovação. O traço à esquerda
+   mostra o pertencimento sem precisar de outra caixa em volta. */
+.pa-root .pa-mapa-subtema {
+  margin-left: 0.55rem;
+  padding-left: 0.65rem;
+  border-left: 2px solid var(--pa-brand-soft);
+}

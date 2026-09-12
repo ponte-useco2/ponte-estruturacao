@@ -1,0 +1,783 @@
+{
+ "version": "2.0",
+ "change_mode": "incremental",
+ "generated_at": "2026-09-10T16:34:08+00:00",
+ "sources": [
+  {
+   "id": "cnpq",
+   "name": "CNPq",
+   "url": "https://www.gov.br/cnpq/pt-br/chamadas/abertas-para-submissao",
+   "status": "healthy",
+   "checked_at": "2026-09-10T16:33:19+00:00",
+   "last_success_at": "2026-09-10T16:33:19+00:00",
+   "last_change_at": "2026-09-03T16:34:20+00:00",
+   "opportunity_count": 7,
+   "consecutive_errors": 0,
+   "error": null
+  },
+  {
+   "id": "fapesq",
+   "name": "FAPESQ-PB",
+   "url": "https://fapesq.rpp.br/editais/2026/editais-2026",
+   "status": "healthy",
+   "checked_at": "2026-09-10T16:33:18+00:00",
+   "last_success_at": "2026-09-10T16:33:18+00:00",
+   "last_change_at": "2026-08-20T12:32:07+00:00",
+   "opportunity_count": 3,
+   "consecutive_errors": 0,
+   "error": null
+  },
+  {
+   "id": "finep",
+   "name": "Finep",
+   "url": "https://www.finep.gov.br/oportunidades",
+   "status": "healthy",
+   "checked_at": "2026-09-10T16:33:23+00:00",
+   "last_success_at": "2026-09-10T16:33:23+00:00",
+   "last_change_at": "2026-09-10T16:33:23+00:00",
+   "opportunity_count": 11,
+   "consecutive_errors": 0,
+   "error": null
+  },
+  {
+   "id": "transferegov",
+   "name": "TransfereGov",
+   "url": "https://repositorio.dados.gov.br/seges/detru/",
+   "status": "healthy",
+   "checked_at": "2026-09-10T16:33:32+00:00",
+   "last_success_at": "2026-09-10T16:33:32+00:00",
+   "last_change_at": "2026-09-10T16:33:32+00:00",
+   "opportunity_count": 147,
+   "consecutive_errors": 0,
+   "error": null
+  }
+ ],
+ "summary": {
+  "monitored": 171,
+  "open": 165,
+  "urgent": 41,
+  "new": 18,
+  "changed": 0,
+  "closed": 3,
+  "unchanged": 150,
+  "priority_a": 6,
+  "stale_sources": 0
+ },
+ "opportunities": [
+  {
+   "id": "transferegov-903a9f369f75-proposta",
+   "source": {
+    "id": "transferegov",
+    "name": "TransfereGov",
+    "official": true,
+    "url": "https://repositorio.dados.gov.br/seges/detru/",
+    "checked_at": "2026-09-10T16:33:32+00:00",
+    "stale": false
+   },
+   "external_id": "903a9f369f75-proposta",
+   "title": "SENAD - Programa Território Seguro, Amazônia Soberana: Proteção da Amazônia e da Faixa de Fronteira – Eixo 6 – FIIS",
+   "description": null,
+   "funder": "MINISTERIO DA JUSTICA E SEGURANCA PUBLICA",
+   "instrument": {
+    "type": "convenio",
+    "repayable": false
+   },
+   "status": "open",
+   "dates": {
+    "published": "2026-07-20",
+    "deadline": "2026-09-10"
+   },
+   "eligibility": {
+    "organization_types": [
+     "estado"
+    ],
+    "geography": [
+     "PB"
+    ]
+   },
+   "themes": [],
+   "funding": {
+    "program_budget": null
+   },
+   "documents": [],
+   "changes": [],
+   "change_status": "new",
+   "matching": {
+    "eligible": true,
+    "ponte_score": 60,
+    "portfolio_tags": [
+     "clima",
+     "energia",
+     "cidades",
+     "esg",
+     "impacto_social",
+     "territorio",
+     "politicas_publicas"
+    ],
+    "matches": [
+     {
+      "portfolio_id": "ponte-clima",
+      "portfolio_name": "PONTE — Clima, Energia e Cidades",
+      "score": 60,
+      "reasons": [
+       "proponente: estado",
+       "território compatível"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-impacto-publico",
+      "portfolio_name": "PONTE — Desenvolvimento Territorial e Impacto",
+      "score": 60,
+      "reasons": [
+       "proponente: estado",
+       "território compatível"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "transferegov-7bb9c38d13a7-emenda",
+   "source": {
+    "id": "transferegov",
+    "name": "TransfereGov",
+    "official": true,
+    "url": "https://repositorio.dados.gov.br/seges/detru/",
+    "checked_at": "2026-09-10T16:33:32+00:00",
+    "stale": false
+   },
+   "external_id": "7bb9c38d13a7-emenda",
+   "title": "Emenda de Comissao - Publico",
+   "description": null,
+   "funder": "MINISTERIO DA CULTURA",
+   "instrument": {
+    "type": "convenio",
+    "repayable": false
+   },
+   "status": "open",
+   "dates": {
+    "published": "2026-05-04",
+    "deadline": "2026-09-11"
+   },
+   "eligibility": {
+    "organization_types": [
+     "municipio"
+    ],
+    "geography": [
+     "PB"
+    ]
+   },
+   "themes": [],
+   "funding": {
+    "program_budget": null
+   },
+   "documents": [],
+   "changes": [],
+   "change_status": "unchanged",
+   "matching": {
+    "eligible": true,
+    "ponte_score": 60,
+    "portfolio_tags": [
+     "clima",
+     "energia",
+     "cidades",
+     "esg",
+     "impacto_social",
+     "territorio",
+     "politicas_publicas"
+    ],
+    "matches": [
+     {
+      "portfolio_id": "ponte-clima",
+      "portfolio_name": "PONTE — Clima, Energia e Cidades",
+      "score": 60,
+      "reasons": [
+       "proponente: municipio",
+       "território compatível"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-impacto-publico",
+      "portfolio_name": "PONTE — Desenvolvimento Territorial e Impacto",
+      "score": 60,
+      "reasons": [
+       "proponente: municipio",
+       "território compatível"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "transferegov-9772f02b3bb4-emenda",
+   "source": {
+    "id": "transferegov",
+    "name": "TransfereGov",
+    "official": true,
+    "url": "https://repositorio.dados.gov.br/seges/detru/",
+    "checked_at": "2026-09-10T16:33:32+00:00",
+    "stale": false
+   },
+   "external_id": "9772f02b3bb4-emenda",
+   "title": "Apoio Familiar e Comunitário - fortalecendo redes socioassistenciais!",
+   "description": null,
+   "funder": "MINISTERIO DA EDUCACAO",
+   "instrument": {
+    "type": "convenio",
+    "repayable": false
+   },
+   "status": "open",
+   "dates": {
+    "published": "2026-05-11",
+    "deadline": "2026-09-11"
+   },
+   "eligibility": {
+    "organization_types": [
+     "osc"
+    ],
+    "geography": [
+     "PB"
+    ]
+   },
+   "themes": [
+    "socioassist"
+   ],
+   "funding": {
+    "program_budget": null
+   },
+   "documents": [],
+   "changes": [],
+   "change_status": "new",
+   "matching": {
+    "eligible": true,
+    "ponte_score": 60,
+    "portfolio_tags": [
+     "clima",
+     "energia",
+     "cidades",
+     "esg",
+     "impacto_social",
+     "territorio",
+     "politicas_publicas"
+    ],
+    "matches": [
+     {
+      "portfolio_id": "ponte-clima",
+      "portfolio_name": "PONTE — Clima, Energia e Cidades",
+      "score": 60,
+      "reasons": [
+       "proponente: osc",
+       "território compatível"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-impacto-publico",
+      "portfolio_name": "PONTE — Desenvolvimento Territorial e Impacto",
+      "score": 60,
+      "reasons": [
+       "proponente: osc",
+       "território compatível"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "finep-749717",
+   "source": {
+    "id": "finep",
+    "name": "Finep",
+    "official": true,
+    "url": "https://www.finep.gov.br/e/chamada-publica/222684/749717",
+    "checked_at": "2026-09-10T16:33:23+00:00",
+    "stale": false
+   },
+   "external_id": "749717",
+   "title": "Conhecimento Brasil",
+   "description": "O Ministério da Ciência, Tecnologia e Inovação (MCTI) e a Financiadora de Estudos e Projetos (Finep) tornam pública a presente Seleção, cujo objetivo é conceder recursos de subvenção econômica para viabilizar: (i) a repatriação de pesquisadores e profissionais técnicos especializados, brasileiros, que estejam trabalhando em outro país no momento de submissão da proposta e que tenham disponibilidade para voltar a trabalhar no Brasil e se dedicar às atividades previstas no plano de trabalho; e/ou (ii) a fixação de pesquisadores doutores, brasileiros, que não estejam trabalhando em atividades de P,D&I em empresa brasileira no momento de submissão da proposta, e que tenham disponibilidade de se dedicar às atividades previstas no plano de trabalho, para serem contratados por empresas brasileiras. Os projetos submetidos deverão indicar especificamente os pesquisadores e/ou profissionais técnicos especializados a serem contratados demonstrando como eles irão atuar dentro da Estratégia de Inovação da empresa beneficiária. O projeto deve estar relacionado a pelo menos uma das missões da Nova Indústria Brasil (NIB), conforme estabelecido na Resolução MDIC/CNDI/01/2023, de 6 de julho de 2023. O valor solicitado à Finep/FNDCT em cada proposta deverá, obrigatoriamente, ser de no mínimo R$ 3.000.000,00 (três milhões de reais) e de, no máximo, R$ 30.000.000,00 (trinta milhões de reais). WEBINAR No dia 03/08/2026, às 15h, a Finep realizou um webinar sobre a Chamada Conhecimento Brasil em formato virtual. O objetivo foi apresentar a Chamada Pública e esclarecer dúvidas relacionadas à submissão de propostas. Veja aqui a apresentação. Prazo para envio das propostas alterado para 11/09/2026, 18h00 (horário de Brasília) Dúvidas a respeito do conteúdo do subprograma deverão ser dirigidas exclusivamente para o endereço eletrônico cp_conhecimentobrasil@finep.gov.br.",
+   "funder": "Finep / FNDCT",
+   "instrument": {
+    "type": "subvencao_economica",
+    "repayable": false
+   },
+   "status": "open",
+   "dates": {
+    "published": "2024-08-07",
+    "deadline": "2026-09-11"
+   },
+   "eligibility": {
+    "organization_types": [
+     "empresa"
+    ],
+    "geography": [
+     "BR"
+    ]
+   },
+   "themes": [
+    "tecnologias_digitais_e_conectividade",
+    "tic",
+    "transformacao_digital",
+    "energia_e_transicao_sustentavel",
+    "energia",
+    "agro_bioeconomia_e_alimentos",
+    "bioeconomia",
+    "agroindustria",
+    "saude_e_ciencias_da_vida",
+    "saude",
+    "cidades_e_desenvolvimento_urbano",
+    "mobilidade_e_logistica",
+    "mobilidade",
+    "espaco_defesa_e_seguranca",
+    "educacao_cultura_e_sociedade",
+    "cultura",
+    "educacao",
+    "conhecimento_brasil"
+   ],
+   "funding": {
+    "program_budget": null
+   },
+   "documents": [
+    {
+     "title": "aqui",
+     "url": "https://www.finep.gov.br/documents/d/global/chamada-conhecimento-brasil-webinar-pdf",
+     "published": null
+    }
+   ],
+   "changes": [],
+   "change_status": "unchanged",
+   "matching": {
+    "eligible": true,
+    "ponte_score": 100,
+    "portfolio_tags": [
+     "bioeconomia",
+     "agtech",
+     "saude",
+     "pdi",
+     "inovacao",
+     "ia",
+     "saas",
+     "transformacao_digital",
+     "clima",
+     "energia",
+     "cidades",
+     "esg"
+    ],
+    "matches": [
+     {
+      "portfolio_id": "ponte-bioeconomia",
+      "portfolio_name": "PONTE — Bioeconomia, Agro e Saúde",
+      "score": 100,
+      "reasons": [
+       "proponente: empresa",
+       "território compatível",
+       "temas: agroindustria, bioeconomia, saude"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-inovacao",
+      "portfolio_name": "PONTE — Inovação e Transformação Digital",
+      "score": 90,
+      "reasons": [
+       "proponente: empresa",
+       "território compatível",
+       "temas: tic, transformacao_digital"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-clima",
+      "portfolio_name": "PONTE — Clima, Energia e Cidades",
+      "score": 75,
+      "reasons": [
+       "proponente: empresa",
+       "território compatível",
+       "temas: energia"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "cnpq-24-2026",
+   "source": {
+    "id": "cnpq",
+    "name": "CNPq",
+    "official": true,
+    "url": "https://www.gov.br/cnpq/pt-br/chamadas/todas-as-chamadas/chamadas-2026/chamada-no-24-2026/chamada-publica-cnpq-N-24-2026",
+    "checked_at": "2026-09-10T16:33:19+00:00",
+    "stale": false
+   },
+   "external_id": "24-2026",
+   "title": "Chamada CNPq/CT-Biotec/FNDCT/MCTI Nº 24/2026 - Apoio à Pesquisa, Desenvolvimento e Inovação em Biotecnologia",
+   "description": null,
+   "funder": "CNPq",
+   "instrument": {
+    "type": "bolsa",
+    "repayable": false
+   },
+   "status": "open",
+   "dates": {
+    "published": "2026-08-03",
+    "deadline": "2026-09-18"
+   },
+   "eligibility": {
+    "organization_types": [
+     "pesquisador",
+     "ict",
+     "universidade"
+    ],
+    "geography": [
+     "BR"
+    ]
+   },
+   "themes": [
+    "biotecnologia",
+    "inovacao",
+    "saude"
+   ],
+   "funding": {
+    "program_budget": null
+   },
+   "documents": [
+    {
+     "title": "Chamada CNPq/CT-Biotec/FNDCT/MCTI Nº 24/2026 - Apoio à Pesquisa, Desenvolvimento e Inovação em Biotecnologia",
+     "url": "https://www.gov.br/cnpq/pt-br/chamadas/todas-as-chamadas/chamadas-2026/chamada-no-24-2026/chamada-publica-cnpq-N-24-2026",
+     "published": null
+    },
+    {
+     "title": "Compartilhe por Facebook",
+     "url": "http://www.facebook.com/sharer.php?u=https://www.gov.br/cnpq/pt-br/chamadas/todas-as-chamadas/chamadas-2026/chamada-no-24-2026/chamada-publica-cnpq-N-24-2026",
+     "published": null
+    },
+    {
+     "title": "Compartilhe por Twitter",
+     "url": "https://twitter.com/share?text=Chamada%20CNPq/CT-Biotec/FNDCT/MCTI%20N%C2%BA%2024/2026%20-%20Apoio%20%C3%A0%20Pesquisa%2C%20Desenvolvimento%20e%20Inova%C3%A7%C3%A3o%20em%20Biotecnologia&url=https://www.gov.br/cnpq/resolveuid/1d96b0b3d6df4f4baa56a4d650b47f42",
+     "published": null
+    },
+    {
+     "title": "Compartilhe por LinkedIn",
+     "url": "https://www.linkedin.com/shareArticle?mini=true&url=https://www.gov.br/cnpq/pt-br/chamadas/todas-as-chamadas/chamadas-2026/chamada-no-24-2026/chamada-publica-cnpq-N-24-2026&title=Chamada%20CNPq/CT-Biotec/FNDCT/MCTI%20N%C2%BA%2024/2026%20-%20Apoio%20%C3%A0%20Pesquisa%2C%20Desenvolvimento%20e%20Inova%C3%A7%C3%A3o%20em%20Biotecnologia",
+     "published": null
+    },
+    {
+     "title": "Compartilhe por WhatsApp",
+     "url": "https://api.whatsapp.com/send?text=https://www.gov.br/cnpq/pt-br/chamadas/todas-as-chamadas/chamadas-2026/chamada-no-24-2026/chamada-publica-cnpq-N-24-2026",
+     "published": null
+    },
+    {
+     "title": "link para Copiar para área de transferência",
+     "url": "https://www.gov.br/cnpq/pt-br/chamadas/todas-as-chamadas/chamadas-2026/chamada-no-24-2026/chamada-publica-cnpq-N-24-2026",
+     "published": null
+    },
+    {
+     "title": "Chamada",
+     "url": "https://www.gov.br/cnpq/pt-br/chamadas/todas-as-chamadas/chamadas-2026/chamada-no-24-2026/Chamada_24_2026.pdf",
+     "published": null
+    }
+   ],
+   "changes": [],
+   "change_status": "unchanged",
+   "matching": {
+    "eligible": true,
+    "ponte_score": 90,
+    "portfolio_tags": [
+     "bioeconomia",
+     "agtech",
+     "saude",
+     "pdi",
+     "inovacao",
+     "ia",
+     "saas",
+     "transformacao_digital",
+     "clima",
+     "energia",
+     "cidades",
+     "esg",
+     "impacto_social",
+     "territorio",
+     "politicas_publicas"
+    ],
+    "matches": [
+     {
+      "portfolio_id": "ponte-bioeconomia",
+      "portfolio_name": "PONTE — Bioeconomia, Agro e Saúde",
+      "score": 90,
+      "reasons": [
+       "proponente: ict, pesquisador, universidade",
+       "território compatível",
+       "temas: biotecnologia, saude"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-inovacao",
+      "portfolio_name": "PONTE — Inovação e Transformação Digital",
+      "score": 75,
+      "reasons": [
+       "proponente: ict, universidade",
+       "território compatível",
+       "temas: inovacao"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-clima",
+      "portfolio_name": "PONTE — Clima, Energia e Cidades",
+      "score": 60,
+      "reasons": [
+       "proponente: ict, universidade",
+       "território compatível"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-impacto-publico",
+      "portfolio_name": "PONTE — Desenvolvimento Territorial e Impacto",
+      "score": 60,
+      "reasons": [
+       "proponente: universidade",
+       "território compatível"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "fapesq-58-2026",
+   "source": {
+    "id": "fapesq",
+    "name": "FAPESQ-PB",
+    "official": true,
+    "url": "https://fapesq.rpp.br/editais/2026/edital-no-58-2026-2013-processo-seletivo-para-contratacao-de-coordenadores-audiovisuais-equipe-tecnica-e-cadastro-de-reserva-cr-dos-nucleos-de-inovacao-estadual-da-paraiba-nie-pb",
+    "checked_at": "2026-09-10T16:33:18+00:00",
+    "stale": false
+   },
+   "external_id": "58-2026",
+   "title": "EDITAL Nº 58/2026 – PROCESSO SELETIVO PARA CONTRATAÇÃO DE COORDENADORES AUDIOVISUAIS, EQUIPE TÉCNICA E CADASTRO DE RESERVA (CR) DOS NÚCLEOS DE INOVAÇÃO ESTADUAL DA PARAÍBA(NIE-PB)",
+   "description": null,
+   "funder": "FAPESQ-PB",
+   "instrument": {
+    "type": "bolsa",
+    "repayable": false
+   },
+   "status": "unknown",
+   "dates": {
+    "published": null,
+    "deadline": null
+   },
+   "eligibility": {
+    "organization_types": [
+     "empresa",
+     "pesquisador",
+     "pessoa_fisica"
+    ],
+    "geography": [
+     "PB",
+     "BR"
+    ]
+   },
+   "themes": [
+    "inovacao",
+    "saude",
+    "agroindustria",
+    "tecnologia"
+   ],
+   "funding": {
+    "program_budget": null
+   },
+   "documents": [
+    {
+     "title": "EDITAL Nº 58/2026 – PROCESSO SELETIVO PARA CONTRATAÇÃO DE COORDENADORES AUDIOVISUAIS, EQUIPE TÉCNICA E CADASTRO DE RESERVA (CR) DOS NÚCLEOS DE INOVAÇÃO ESTADUAL DA PARAÍBA(NIE-PB)",
+     "url": "https://fapesq.rpp.br/editais/2026/edital-no-58-2026-2013-processo-seletivo-para-contratacao-de-coordenadores-audiovisuais-equipe-tecnica-e-cadastro-de-reserva-cr-dos-nucleos-de-inovacao-estadual-da-paraiba-nie-pb",
+     "published": null
+    },
+    {
+     "title": "EDITAL Nº 58/2026 – SELEÇÃO DE EQUIPE TÉCNICA E FORMAÇÃO DE CADASTRO DE RESERVA (CR) PARA OS NÚCLEOS DE INOVAÇÃO ESTADUAL DA PARAÍBA (NIE-PB)",
+     "url": "https://fapesq.rpp.br/editais/editais-2026/03_07_26-edital-58-2026-see-fapesq-pb-selecao-de-equipe-tecnica-e-formacao-de-cadastro-de-reserva-cr-para-os-nucleos-de-inovacao-estadual-da-paraiba-nie-pb.pdf",
+     "published": null
+    },
+    {
+     "title": "EDITAL Nº 58/2026 –SELEÇÃO DE EQUIPE TÉCNICA E FORMAÇÃO DE CADASTRO DE RESERVA (CR) PARA OS NÚCLEOS DE INOVAÇÃO ESTADUAL DA PARAÍBA (Retificado em 20/07/26, Itens 3; 5.1; e 12.5)",
+     "url": "https://fapesq.rpp.br/editais/editais-2026/20_07_26-edital-58-2026-see-fapesq-pb-selecao-de-equipe-tecnica-e-formacao-de-cadastro-de-reserva-para-os-nucleos-de-inovacao-estadual-da-paraiba-retificado-em-20-07-26.pdf",
+     "published": null
+    },
+    {
+     "title": "EDITAL Nº58/2026 – SELEÇÃO DE EQUIPE TÉCNICA E FORMAÇÃO DE CADASTRO DE RESERVA (CR) PARA OS NÚCLEOS DE INOVAÇÃO ESTADUAL DA PARAÍBA (NIE-PB) (Resultado Interposição Pós Recurso)",
+     "url": "https://fapesq.rpp.br/editais/recurso-homologacao-das-inscricoes-edital-58-2026-see-fapesq-pb-selecao-equipe-tecnica-para-nucleos-de-inovacao-da-paraiba.pdf",
+     "published": null
+    }
+   ],
+   "changes": [],
+   "change_status": "unchanged",
+   "matching": {
+    "eligible": true,
+    "ponte_score": 90,
+    "portfolio_tags": [
+     "bioeconomia",
+     "agtech",
+     "saude",
+     "pdi",
+     "inovacao",
+     "ia",
+     "saas",
+     "transformacao_digital",
+     "clima",
+     "energia",
+     "cidades",
+     "esg"
+    ],
+    "matches": [
+     {
+      "portfolio_id": "ponte-bioeconomia",
+      "portfolio_name": "PONTE — Bioeconomia, Agro e Saúde",
+      "score": 90,
+      "reasons": [
+       "proponente: empresa, pesquisador",
+       "território compatível",
+       "temas: agroindustria, saude"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-inovacao",
+      "portfolio_name": "PONTE — Inovação e Transformação Digital",
+      "score": 75,
+      "reasons": [
+       "proponente: empresa",
+       "território compatível",
+       "temas: inovacao"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-clima",
+      "portfolio_name": "PONTE — Clima, Energia e Cidades",
+      "score": 60,
+      "reasons": [
+       "proponente: empresa",
+       "território compatível"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "finep-1019381",
+   "source": {
+    "id": "finep",
+    "name": "Finep",
+    "official": true,
+    "url": "https://www.finep.gov.br/e/chamada-publica/222684/1019381",
+    "checked_at": "2026-09-10T16:33:23+00:00",
+    "stale": false
+   },
+   "external_id": "1019381",
+   "title": "5ª Chamada Pública Conjunta - Finep e Conselho Norueguês de Pesquisa (RCN)",
+   "description": "O Conselho Norueguês de Pesquisa (RCN) e a Financiadora de Estudos e Projetos (Finep) instituem a quinta chamada pública conjunta Finep-RCN em 2026, para apoio de projetos a serem iniciados em 2027, com a observância dos termos e procedimentos adiante estabelecidos. Alinhados com o acordo BN21 (Brasil-Noruega Século XXI), a Finep e o RCN lançam esta chamada conjunta com vistas a aumentar a colaboração entre a Noruega e o Brasil por meio de parcerias entre instituições científicas e tecnológicas e empresas de ambos os países para o desenvolvimento de produtos, processos e serviços inovadores com potencial de comercialização nas áreas de Petróleo, Energia Ambientalmente Amigável e Transporte Marítimo Verde. A iniciativa integra a Rede Eureka, a maior rede pública internacional de cooperação em pesquisa e inovação, presente em mais de 45 países. O processo seletivo de que trata esta CHAMADA PÚBLICA CONJUNTA é divido em duas etapas: Internacional e Nacional. Os critérios da Etapa Internacional são apresentados no sítio eletrônico da Rede Eureka. Na Etapa Internacional, os consórcios deverão submeter a proposta completa em inglês por meio da plataforma Eureka. Os projetos serão avaliados conjuntamente pela Finep e pelo RCN quanto à elegibilidade, mérito técnico-científico, potencial de mercado, impactos econômicos, sociais e ambientais, qualidade das parcerias e viabilidade de execução. As propostas aprovadas receberão o Selo Eureka. Na Etapa Nacional, apenas os projetos contemplados com o Selo Eureka poderão apresentar à Finep o detalhamento da parcela brasileira do projeto, em português, por meio da Plataforma de Apoio e Financiamento . Os recursos da Finep serão direcionados às ICTs brasileiras participantes dos projetos. As empresas atuarão como parceiras cofinanciadoras, realizando aportes financeiros e/ou não financeiros equivalentes a, no mínimo, 20% do valor total da proposta. Do lado norueguês, o RCN apoiará as ICTs norueguesas. Cronograma Etapa Internacional Prazo para conclusão do cadastro das instituições brasileiras na Plataforma de Apoio e Financiamento da Finep: 9 de setembro de 2026; Prazo para submissão da proposta na plataforma Eureka: 16 de setembro de 2026; Decisão conjunta Finep/RCN e divulgação dos projetos contemplados com o Selo Eureka: 6 de novembro de 2026. Etapa Nacional Início do envio das propostas nacionais à Finep: 9 de novembro de 2026; Prazo final para submissão: 16 de dezembro de 2026; Divulgação do resultado final: 26 de fevereiro de 2027. O documento “Instruções para as ICTS e Empresas Brasileiras - Anexo Finep – Etapa Internacional”, presente na lista de documentos abaixo, traz o detalhamento da Chamada Pública Conjunta no que diz respeito às condições de apoio da Finep às ICTs e as empresas brasileiras. Quaisquer dúvidas podem ser esclarecidas através do e-mail: cp_Eureka_Brasil-Noruega@finep.gov.br",
+   "funder": "Finep / FNDCT",
+   "instrument": {
+    "type": "contratacao_pdi",
+    "repayable": false
+   },
+   "status": "closed",
+   "dates": {
+    "published": "2026-08-05",
+    "deadline": "2026-09-09"
+   },
+   "eligibility": {
+    "organization_types": [
+     "empresa",
+     "ict"
+    ],
+    "geography": [
+     "BR"
+    ]
+   },
+   "themes": [
+    "tecnologias_digitais_e_conectividade",
+    "tic",
+    "transformacao_digital",
+    "energia_e_transicao_sustentavel",
+    "energia",
+    "meio_ambiente_agua_e_clima",
+    "sustentabilidade",
+    "clima",
+    "seguranca_hidrica",
+    "mobilidade_e_logistica",
+    "mobilidade",
+    "energia_e_transicao_energetica",
+    "descarbonizacao",
+    "5a_chamada_publica_conjunta_finep_e_conselho_noruegues_de_pesquisa_rcn"
+   ],
+   "funding": {
+    "program_budget": null
+   },
+   "documents": [
+    {
+     "title": "Rede Eureka",
+     "url": "https://www.eurekanetwork.org/programmes-and-calls/network-projects/brazil-and-norway-call-for-rd-projects-june-2026/",
+     "published": null
+    },
+    {
+     "title": "Plataforma de Apoio e Financiamento",
+     "url": "https://financiamento.finep.gov.br",
+     "published": null
+    }
+   ],
+   "changes": [
+    {
+     "detected_at": "2026-09-10T16:34:08+00:00",
+     "field": "status",
+     "before": "open",
+     "after": "closed",
+     "impact_days": null,
+     "source_document": "https://financiamento.finep.gov.br"
+    }
+   ],
+   "change_status": "closed",
+   "matching": {
+    "eligible": true,
+    "ponte_score": 100,
+    "portfolio_tags": [
+     "clima",
+     "energia",
+     "cidades",
+     "esg",
+     "inovacao",
+     "ia",
+     "saas",
+     "transformacao_digital",
+     "bioeconomia",
+     "agtech",
+     "saude",
+     "pdi"
+    ],
+    "matches": [
+     {
+      "portfolio_id": "ponte-clima",
+      "portfolio_name": "PONTE — Clima, Energia e Cidades",
+      "score": 100,
+      "reasons": [
+       "proponente: empresa, ict",
+       "território compatível",
+       "temas: descarbonizacao, energia, seguranca_hidrica, sustentabilidade"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-inovacao",
+      "portfolio_name": "PONTE — Inovação e Transformação Digital",
+      "score": 90,
+      "reasons": [
+       "proponente: empresa, ict",
+       "território compatível",
+       "temas: tic, transformacao_digital"
+      ]
+     },
+     {
+      "portfolio_id": "ponte-bioeconomia",
+      "portfolio_name": "PONTE — Bioeconomia, Agro e Saúde",
+      "score": 60,
+      "reasons": [
+       "proponente: empresa, ict",
+       "território compatível"
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

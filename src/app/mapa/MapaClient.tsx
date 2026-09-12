@@ -36,6 +36,7 @@ import {
 } from "@/lib/oportunidades/central";
 import type { LeituraCentral, TentativaFalha } from "@/lib/oportunidades/notificacoes.server";
 import { Tag } from "../_design/primitivos";
+import { subtemasDe } from "@/lib/oportunidades/temas";
 import { motivoDaCombinacao, type Preferencias } from "@/lib/oportunidades/aderencia";
 import type { OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
 import { PreferenciasPainel, type Eixo } from "./PreferenciasPainel";
@@ -248,6 +249,24 @@ function Central({
   const [soCurto, setSoCurto] = useState(false);
   const [salvando, iniciarTransicao] = useTransition();
 
+  /**
+   * Marcar Inovação REVELA dez verticais na coluna de temas. Quem enxerga vê
+   * a lista crescer; quem usa leitor de tela não veria nada — o anúncio é o que
+   * torna a revelação perceptível para os dois. Achado na auditoria de
+   * acessibilidade de 12/09/2026, no mesmo dia em que o subfiltro entrou.
+   */
+  function anuncioDePreferencia(eixo: Eixo, valor: string, rotulo: string, marcado: boolean): string {
+    const base = `${rotulo} ${marcado ? "marcado" : "desmarcado"}.`;
+    if (eixo !== "temas") return base;
+
+    const filhos = subtemasDe(valor).length;
+    if (filhos === 0) return base;
+
+    return marcado
+      ? `${base} ${filhos} assuntos específicos de ${rotulo} ficaram disponíveis na lista.`
+      : `${base} Os ${filhos} assuntos específicos de ${rotulo} saíram da lista.`;
+  }
+
   function alternarPreferenciaLocal(eixo: Eixo, valor: string, marcado: boolean, rotulo: string) {
     const anterior = prefs;
     const conjunto = new Set(prefs[eixo]);
@@ -263,7 +282,7 @@ function Central({
         setErro(r.erro ?? "Não foi possível salvar.");
         return;
       }
-      setAnuncio(`${rotulo} ${marcado ? "marcado" : "desmarcado"}.`);
+      setAnuncio(anuncioDePreferencia(eixo, valor, rotulo, marcado));
     });
   }
 

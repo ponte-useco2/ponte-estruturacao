@@ -87,6 +87,12 @@ export function ContaMenu({
         aria-haspopup="true"
         onClick={() => setAbertoEm(aberto ? null : pathname)}
         title={email}
+        // Nome explícito, e não o conteúdo: no celular `pa-esconde-mobile` é
+        // `display: none !important`, e o que sobra dentro do botão é a inicial
+        // marcada como `aria-hidden`. Sem este rótulo, quem usa leitor de tela
+        // no telefone ouve "botão" e mais nada. O mesmo vale para o chip de
+        // perfil do protótipo, de onde este componente veio.
+        aria-label={ativa ? `Conta e organização: ${ativa.nome}` : `Conta: ${email}`}
       >
         <span aria-hidden="true">{inicial(nome, email)}</span>
         {/* A entidade ativa vence o nome da pessoa no chip: quem cuida de várias
