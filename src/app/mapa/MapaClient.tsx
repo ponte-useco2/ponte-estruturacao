@@ -35,7 +35,7 @@ import {
   type ItemCentral,
 } from "@/lib/oportunidades/central";
 import type { LeituraCentral, TentativaFalha } from "@/lib/oportunidades/notificacoes.server";
-import { Tag } from "../_componentes/primitivos";
+import { Tag } from "../_design/primitivos";
 import { motivoDaCombinacao, type Preferencias } from "@/lib/oportunidades/aderencia";
 import type { OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
 import { PreferenciasPainel, type Eixo } from "./PreferenciasPainel";
@@ -178,10 +178,10 @@ function NaoAtivada() {
           As tabelas que guardam o que mudou no catálogo ainda não existem no banco. Até lá nada é
           registrado — e esta tela não vai fingir que está tudo em dia.
         </p>
-        <p>As janelas abertas continuam disponíveis no Descobrir.</p>
+        <p>As janelas abertas continuam disponíveis no painel de oportunidades.</p>
         <div className="pa-linha">
-          <Link href="/plataforma/app/descobrir" className="pa-btn">
-            Ir para o Descobrir
+          <Link href="/oportunidades" className="pa-btn">
+            Ver as janelas abertas
           </Link>
         </div>
       </div>
@@ -644,7 +644,7 @@ function Central({
               oferece as saídas que existem. */}
           {resumoCatalogo && (
             <p className="pa-mono">
-              As {resumoCatalogo.total} janelas abertas continuam no Descobrir — o que acabou foi a fila de avisos.
+              As {resumoCatalogo.total} janelas abertas continuam no painel — o que acabou foi a fila de avisos.
             </p>
           )}
           <div className="pa-linha">
@@ -663,8 +663,8 @@ function Central({
                 Ver arquivadas
               </button>
             )}
-            <Link href="/plataforma/app/descobrir" className="pa-btn pa-btn-pequeno">
-              Ir para o Descobrir
+            <Link href="/oportunidades" className="pa-btn pa-btn-pequeno">
+              Ver as janelas abertas
             </Link>
           </div>
         </div>

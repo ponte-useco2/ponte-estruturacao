@@ -22,7 +22,7 @@ export interface ResultadoAcao {
 
 type Campo = "lida_em" | "arquivada_em";
 
-const ROTA = "/plataforma/app/mapa-de-oportunidades";
+const ROTA = "/mapa";
 const LIMITE_POR_ACAO = 500;
 
 function idsValidos(ids: unknown): ids is string[] {

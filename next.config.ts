@@ -125,6 +125,27 @@ const nextConfig: NextConfig = {
        */
       { source: "/hub-bananeiras", destination: "/", permanent: true },
       { source: "/hub-bananeiras/:path*", destination: "/", permanent: true },
+
+      /**
+       * Mapa de Oportunidades emancipado em 12/09/2026.
+       *
+       * Nasceu como aba de `/plataforma/app`, cuja moldura declara "protótipo ·
+       * sem login real". Sobre ele isso era falso — é a única superfície com
+       * login real, RLS, dado oficial e cron —, então mudou-se para `/mapa`,
+       * com moldura própria.
+       *
+       * O endereço antigo circulou por poucos dias, mas circulou: está no guia
+       * do projeto e em e-mail de convite. 301 aqui, e não `redirect()` dentro
+       * de uma página, porque o redirecionamento não pode depender de renderizar
+       * um segmento que já não existe.
+       *
+       * `/oportunidades` e `/plataforma/app/descobrir` NÃO redirecionam ainda:
+       * eles entregam hoje a lista filtrável do catálogo inteiro, que o `/mapa`
+       * só passa a cobrir na fase do contrato v2. Apontar agora tiraria função
+       * de quem usa.
+       */
+      { source: "/plataforma/app/mapa-de-oportunidades", destination: "/mapa", permanent: true },
+      { source: "/plataforma/app/mapa-de-oportunidades/:path*", destination: "/mapa", permanent: true },
     ];
   },
 };

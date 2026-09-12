@@ -1,68 +1,20 @@
 /**
- * Peças pequenas repetidas em várias telas. Sem estado — podem ser usadas
- * tanto por Server quanto por Client Component.
+ * Primitivos do protótipo.
+ *
+ * O que é vocabulário compartilhado — `Tag`, `Barra`, `Rotulo`, `Nota` —
+ * mudou-se para `_design/primitivos` em 12/09/2026, quando o Mapa de
+ * Oportunidades saiu de dentro do protótipo e passou a precisar das mesmas
+ * peças sem herdar o resto. Continuam reexportados daqui para que as oito telas
+ * que já os importavam não mudem uma linha.
+ *
+ * Fica aqui o que depende do DOMÍNIO do protótipo: eixos de transformação e o
+ * ciclo problema → resultado.
  */
 
-import type { ReactNode } from "react";
+import { Tag } from "../../../_design/primitivos";
 import type { EixoTransformacao } from "../_lib/tipos";
 
-type TomTag =
-  | "neutro"
-  | "urgente"
-  | "aderente"
-  | "nova"
-  | "proto"
-  | "forte"
-  | EixoTransformacao;
-
-const CLASSE_TAG: Record<TomTag, string> = {
-  neutro: "",
-  urgente: " pa-tag-urgente",
-  aderente: " pa-tag-aderente",
-  nova: " pa-tag-nova",
-  proto: " pa-tag-proto",
-  forte: " pa-tag-forte",
-  ambiental: " pa-tag-ambiental",
-  economico: " pa-tag-economico",
-  social: " pa-tag-social",
-};
-
-export function Tag({ tom = "neutro", children }: { tom?: TomTag; children: ReactNode }) {
-  return <span className={`pa-tag${CLASSE_TAG[tom]}`}>{children}</span>;
-}
-
-/** Barra de progresso com semântica de progressbar para leitor de tela. */
-export function Barra({
-  valor,
-  rotulo,
-  max = 100,
-}: {
-  valor: number;
-  rotulo: string;
-  max?: number;
-}) {
-  const pct = Math.max(0, Math.min(100, (valor / max) * 100));
-  return (
-    <div
-      className="pa-barra"
-      role="progressbar"
-      aria-valuenow={valor}
-      aria-valuemin={0}
-      aria-valuemax={max}
-      aria-label={rotulo}
-    >
-      <span style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
-export function Rotulo({ children }: { children: ReactNode }) {
-  return <span className="pa-mono">{children}</span>;
-}
-
-export function Nota({ children }: { children: ReactNode }) {
-  return <p className="pa-nota">{children}</p>;
-}
+export { Tag, Barra, Rotulo, Nota } from "../../../_design/primitivos";
 
 const NOME_EIXO: Record<EixoTransformacao, string> = {
   ambiental: "Ambiental",

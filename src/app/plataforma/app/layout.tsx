@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AppFrame } from "./_componentes/AppFrame";
 import { visitanteAtual, authConfigurada } from "@/lib/supabase-auth";
-import "./estilos.css";
-import "./componentes.css";
+import "../../_design/estilos.css";
+import "../../_design/componentes.css";
 
 /**
  * `noindex`: o app é um protótipo com dados ilustrativos. Quem indexa
