@@ -31,6 +31,9 @@ interface LinhaNotificacao {
     limiar: number | null;
     antes: string | null;
     depois: string | null;
+    temas: string[] | null;
+    natureza: string | null;
+    canal: string | null;
     publicacao: { gerado_em: string } | null;
   } | null;
 }
@@ -44,7 +47,7 @@ export async function lerCentral(): Promise<LeituraCentral> {
     db
       .from("oport_notificacao")
       .select(
-        "id, lida_em, arquivada_em, mudanca:oport_mudanca(tipo, chave, programa, orgao, fecha, limiar, antes, depois, publicacao:oport_publicacao(gerado_em))",
+        "id, lida_em, arquivada_em, mudanca:oport_mudanca(tipo, chave, programa, orgao, fecha, limiar, antes, depois, temas, natureza, canal, publicacao:oport_publicacao(gerado_em))",
       )
       .order("criado_em", { ascending: false })
       .limit(LIMITE_ITENS + 1),
@@ -75,6 +78,11 @@ export async function lerCentral(): Promise<LeituraCentral> {
       limiar: m.limiar ?? undefined,
       antes: m.antes ?? undefined,
       depois: m.depois ?? undefined,
+      // Linhas gravadas antes de oport_4 não têm os eixos. A chave é
+      // `canal|natureza|códigos`, e é de lá que os dois voltam.
+      temas: m.temas ?? [],
+      natureza: m.natureza ?? m.chave.split("|")[1] ?? "",
+      canal: (m.canal ?? m.chave.split("|")[0]) as ItemCentral["canal"],
       publicado_em: m.publicacao?.gerado_em ?? "",
       lida_em: l.lida_em,
       arquivada_em: l.arquivada_em,

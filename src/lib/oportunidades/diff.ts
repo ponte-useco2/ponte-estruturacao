@@ -18,7 +18,7 @@
  * Regra do contrato respeitada: `dias_restantes` é usado como publicado, nunca
  * recalculado a partir de `fecha`.
  */
-import type { Oportunidade, Payload } from "./contrato";
+import type { Canal, Oportunidade, Payload } from "./contrato";
 
 /** Marcas de prazo que geram aviso, em dias restantes. */
 export const LIMIARES = [7, 3, 1] as const;
@@ -39,6 +39,14 @@ export interface Mudanca {
   orgao: string;
   /** Data de fechamento vigente — a nova, em `prazo_alterado`. ISO AAAA-MM-DD. */
   fecha: string;
+  /**
+   * Eixos da janela, copiados do catálogo. Viajam na mudança porque a
+   * aderência é calculada na LEITURA, contra a preferência de cada pessoa, e a
+   * janela pode já ter saído do catálogo quando alguém abrir a central.
+   */
+  temas: string[];
+  natureza: string;
+  canal: Canal;
   /** Só em `fechando`: qual marca foi cruzada. */
   limiar?: number;
   /** Só em `prazo_alterado` e `situacao_mudou`. */
@@ -53,6 +61,13 @@ export interface JanelaMemoria {
   fecha: string;
   dias_restantes: number;
   situacao: string;
+  /**
+   * Opcionais porque o estado gravado antes de 12/09/2026 não os tem. Quando
+   * faltam, `eixosDe` recupera canal e natureza da própria chave.
+   */
+  temas?: string[];
+  natureza?: string;
+  canal?: Canal;
 }
 
 /** O que o sistema processou por último. `null` antes da primeira execução. */
@@ -108,9 +123,26 @@ function abertasDe(payload: Pick<Payload, "gerado_em" | "oportunidades">): Recor
       fecha: o.fecha,
       dias_restantes: o.dias_restantes,
       situacao: o.situacao ?? "",
+      temas: o.temas ?? [],
+      natureza: o.natureza,
+      canal: o.canal,
     };
   }
   return abertas;
+}
+
+/**
+ * Eixos de uma janela guardada no estado. A chave é `canal|natureza|códigos`,
+ * então mesmo o estado gravado antes de 12/09/2026 entrega canal e natureza —
+ * só os temas se perdem, e janela sem tema é o caso mais comum.
+ */
+function eixosDe(chave: string, j: JanelaMemoria): { temas: string[]; natureza: string; canal: Canal } {
+  const [canal, natureza] = chave.split("|");
+  return {
+    temas: j.temas ?? [],
+    natureza: j.natureza ?? natureza ?? "",
+    canal: j.canal ?? (canal as Canal),
+  };
 }
 
 const ORDEM: Record<TipoMudanca, number> = {
@@ -164,7 +196,7 @@ export function calcularDiff(
 
   for (const [chave, j] of Object.entries(abertas)) {
     const antes = anterior.abertas[chave];
-    const base = { chave, programa: j.programa, orgao: j.orgao, fecha: j.fecha };
+    const base = { chave, programa: j.programa, orgao: j.orgao, fecha: j.fecha, ...eixosDe(chave, j) };
 
     if (!antes) {
       // Janela que já chega perto do prazo gera só "nova": nenhum cruzamento de
@@ -196,7 +228,7 @@ export function calcularDiff(
   for (const [chave, j] of Object.entries(anterior.abertas)) {
     if (Object.hasOwn(abertas, chave)) continue;
     saidas.add(chave);
-    const base = { chave, programa: j.programa, orgao: j.orgao, fecha: j.fecha };
+    const base = { chave, programa: j.programa, orgao: j.orgao, fecha: j.fecha, ...eixosDe(chave, j) };
     // Queda de volume, sozinha, NÃO é sinal de problema: em 07/09/2026 sumiram
     // 15 janelas num dia, e todas tinham fechado no prazo. O que separa
     // encerramento de falha é a data: sair no prazo é esperado; sair antes
