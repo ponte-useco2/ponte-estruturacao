@@ -44,7 +44,7 @@ const { RaizPlataforma, Tag, Barra, Nota, Rotulo } = window.PlataformaPonte;
 | Cartões | `pa-cartao`, `pa-cartao-plano`, `pa-cartao-titulo`, `pa-cartao-link`, `pa-escuro` |
 | Oportunidade | `pa-oportunidade`, `pa-oportunidade-corpo`, `pa-oportunidade-titulo`, `pa-oportunidade-detalhe`, `pa-oportunidade-lado`, `pa-origem` |
 | Controles | `pa-btn`, `pa-btn-primario`, `pa-btn-pequeno`, `pa-btn-bloco`, `pa-btn-perigo`, `pa-chips`, `pa-chip`, `pa-chip-contagem`, `pa-fieldset`, `pa-check`, `pa-campo`, `pa-campo-rotulo`, `pa-input`, `pa-select`, `pa-textarea` |
-| Mapa de Oportunidades | `pa-mapa`, `pa-mapa-controles`, `pa-mapa-lote`, `pa-mapa-selecao`, `pa-mapa-desfazer`, `pa-mapa-nao-lida`, `pa-mapa-marca-nao-lida`, `pa-mapa-descricao`, `pa-mapa-vazio-titulo`, `pa-vazio` |
+| Mapa de Oportunidades | `pa-mapa`, `pa-mapa-controles`, `pa-mapa-prefs` (o painel de preferências, um `<details>`), `pa-mapa-lote`, `pa-mapa-selecao`, `pa-mapa-desfazer`, `pa-mapa-nao-lida`, `pa-mapa-marca-nao-lida`, `pa-mapa-descricao`, `pa-mapa-vazio-titulo`, `pa-vazio` |
 | Texto e apoio | `pa-mono`, `pa-nota`, `pa-ressalva`, `pa-sr` (só para leitor de tela), `pa-esconde-mobile` |
 
 Antes de estilizar, leia `styles.css` e `_ds_bundle.css`: estão ali todas as classes `pa-*`, seus estados e as
