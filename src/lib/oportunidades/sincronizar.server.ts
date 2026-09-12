@@ -27,7 +27,47 @@ export type ResultadoSincronizacao =
   | { status: "nao_ativada" }
   | { status: "erro"; mensagem: string };
 
-export async function sincronizarCentral(): Promise<ResultadoSincronizacao> {
+export type OrigemSincronizacao = "cron" | "aba";
+
+/**
+ * Registra a tentativa, tenha ela dado certo ou não.
+ *
+ * Falha de sincronização que só aparece no log do servidor é falha que a tela
+ * não consegue contar para quem está lendo — e foi isso que obrigou a central a
+ * dizer "não foi possível verificar" sem saber quando tentou.
+ *
+ * O registro nunca derruba a sincronização: se ele falhar, o que importa já
+ * aconteceu.
+ */
+async function registrarTentativa(
+  origem: OrigemSincronizacao,
+  iniciadaEm: string,
+  r: ResultadoSincronizacao,
+): Promise<void> {
+  if (!authConfigurada()) return;
+
+  const linha = {
+    iniciada_em: iniciadaEm,
+    origem,
+    resultado: r.status,
+    publicacao: r.status === "aplicada" || r.status === "sem_novidade" ? r.publicacao : null,
+    mudancas: r.status === "aplicada" ? r.mudancas : null,
+    notificacoes: r.status === "aplicada" ? r.notificacoes : null,
+    mensagem: r.status === "erro" ? r.mensagem : null,
+  };
+
+  const { error } = await clienteServidor().from("oport_sincronizacao").insert(linha);
+  if (error && !ehEsquemaAusente(error.code)) console.error("registrarTentativa:", error.message);
+}
+
+export async function sincronizarCentral(origem: OrigemSincronizacao = "cron"): Promise<ResultadoSincronizacao> {
+  const iniciadaEm = new Date().toISOString();
+  const r = await executarSincronizacao();
+  await registrarTentativa(origem, iniciadaEm, r);
+  return r;
+}
+
+async function executarSincronizacao(): Promise<ResultadoSincronizacao> {
   if (!authConfigurada()) return { status: "nao_ativada" };
 
   const catalogo = await lerCatalogo();

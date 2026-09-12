@@ -278,3 +278,26 @@ export function codigosDaChave(chave: string): string[] {
   if (partes.length < 3) return [];
   return partes[2].split(",").map((c) => c.trim()).filter(Boolean);
 }
+
+/**
+ * Onde entra a divisória "desde a sua última visita".
+ *
+ * Devolve o índice do primeiro item publicado ANTES da visita anterior — ou
+ * `null` quando a divisória não ajudaria: sem visita anterior, com tudo novo,
+ * ou com tudo velho. Régua no topo ou no rodapé da lista é enfeite.
+ */
+export function indiceDivisor(itens: ItemCentral[], visitaAnterior: string | null): number | null {
+  if (!visitaAnterior) return null;
+
+  const corte = paraInstante(visitaAnterior);
+  if (corte === null) return null;
+
+  const antesDaVisita = (i: ItemCentral) => {
+    const t = paraInstante(i.publicado_em);
+    return t !== null && t < corte;
+  };
+
+  const indice = itens.findIndex(antesDaVisita);
+  if (indice <= 0) return null;
+  return indice;
+}

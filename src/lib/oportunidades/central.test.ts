@@ -12,6 +12,7 @@ import {
   ordenarPorUrgencia,
   agruparPorPrazo,
   codigosDaChave,
+  indiceDivisor,
   type ItemCentral,
 } from "./central.ts";
 
@@ -176,4 +177,25 @@ test("a ordem recebida é preservada dentro do grupo", () => {
 test("o código do programa sai da chave", () => {
   assert.deepEqual(codigosDaChave("emenda|Consórcio Público|09001,09002"), ["09001", "09002"]);
   assert.deepEqual(codigosDaChave("chave quebrada"), []);
+});
+
+const VISITA = "2026-09-10T09:12:00";
+
+test("a divisória entra antes do primeiro item anterior à visita", () => {
+  const itens = [
+    item("novo", { publicado_em: "2026-09-11T13:38:00" }),
+    item("velho", { publicado_em: "2026-09-09T13:38:00" }),
+  ];
+  assert.equal(indiceDivisor(itens, VISITA), 1);
+});
+
+test("sem visita anterior, sem divisória", () => {
+  assert.equal(indiceDivisor([item("a")], null), null);
+});
+
+test("tudo novo ou tudo velho não ganha divisória", () => {
+  const todosNovos = [item("a", { publicado_em: "2026-09-11T13:38:00" })];
+  const todosVelhos = [item("b", { publicado_em: "2026-09-01T13:38:00" })];
+  assert.equal(indiceDivisor(todosNovos, VISITA), null);
+  assert.equal(indiceDivisor(todosVelhos, VISITA), null);
 });

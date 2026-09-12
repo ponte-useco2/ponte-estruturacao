@@ -34,7 +34,7 @@ import {
   type Aba,
   type ItemCentral,
 } from "@/lib/oportunidades/central";
-import type { LeituraCentral } from "@/lib/oportunidades/notificacoes.server";
+import type { LeituraCentral, TentativaFalha } from "@/lib/oportunidades/notificacoes.server";
 import { Tag } from "../_componentes/primitivos";
 import { motivoDaCombinacao, type Preferencias } from "@/lib/oportunidades/aderencia";
 import type { OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
@@ -42,6 +42,7 @@ import { PreferenciasPainel, type Eixo } from "./PreferenciasPainel";
 import {
   agruparPorPrazo,
   codigosDaChave,
+  indiceDivisor,
   type ResumoCatalogo,
 } from "@/lib/oportunidades/central";
 import {
@@ -137,6 +138,8 @@ export function MapaClient({
   preferencias,
   opcoes,
   resumoCatalogo,
+  visitaAnterior,
+  tentativas,
 }: {
   central: LeituraCentral;
   pendente: boolean;
@@ -144,6 +147,8 @@ export function MapaClient({
   preferencias: Preferencias;
   opcoes: OpcoesPreferencia;
   resumoCatalogo: ResumoCatalogo | null;
+  visitaAnterior: string | null;
+  tentativas: TentativaFalha[];
 }) {
   if (central.status === "nao_ativada") return <NaoAtivada />;
   if (central.status === "erro") return <ErroLeitura />;
@@ -157,6 +162,8 @@ export function MapaClient({
       preferencias={preferencias}
       opcoes={opcoes}
       resumoCatalogo={resumoCatalogo}
+      visitaAnterior={visitaAnterior}
+      tentativas={tentativas}
     />
   );
 }
@@ -209,6 +216,8 @@ function Central({
   preferencias,
   opcoes,
   resumoCatalogo,
+  visitaAnterior,
+  tentativas,
 }: {
   itens: ItemCentral[];
   truncada: boolean;
@@ -218,6 +227,8 @@ function Central({
   preferencias: Preferencias;
   opcoes: OpcoesPreferencia;
   resumoCatalogo: ResumoCatalogo | null;
+  visitaAnterior: string | null;
+  tentativas: TentativaFalha[];
 }) {
   const [aba, setAba] = useState<Aba>("nao_lidas");
   const [tipos, setTipos] = useState<TipoMudanca[]>([]);
@@ -491,8 +502,16 @@ function Central({
         <p className="pa-origem">
           <Tag tom="proto">Dado antigo</Tag>
           <span>
-            A última publicação processada é de {formatarPublicacao(ultimaProcessada ?? "")}, há mais de{" "}
-            {HORAS_DADO_VELHO} horas. Prazos podem ter mudado sem aparecer aqui.
+            Não conseguimos ler o catálogo desde {formatarPublicacao(ultimaProcessada ?? "")}, há mais de{" "}
+            {HORAS_DADO_VELHO} horas. Janelas podem ter aberto, mudado de prazo ou fechado sem aparecer aqui.
+            {tentativas.length > 0 && (
+              <>
+                {" "}
+                {tentativas.length === 1 ? "A tentativa de " : "As tentativas de "}
+                {tentativas.map((t) => formatarPublicacao(t.quando)).join(" e ")}
+                {tentativas.length === 1 ? " falhou." : " falharam."}
+              </>
+            )}
           </span>
         </p>
       )}
@@ -683,7 +702,8 @@ function Central({
               </div>
 
               <ul className="pa-pilha" aria-label={g.titulo}>
-                {g.itens.map((i) => {
+                {g.itens.map((i, indice) => {
+                  const divisor = indice === indiceDivisor(g.itens, visitaAnterior);
                   const naoLida = !i.lida_em;
                   // O destaque diz POR QUE combina. Selo sem motivo vira enfeite.
                   const combinacao = motivoDaCombinacao(i, prefs);
@@ -695,6 +715,15 @@ function Central({
                     aba === "arquivadas" ? "Desarquivar" : naoLida ? "Marcar como lida" : "Marcar como não lida";
                   return (
                     <li key={i.id}>
+                      {/* A divisória só existe quando ajuda: com item novo acima e
+                          item anterior à visita abaixo. */}
+                      {divisor && visitaAnterior && (
+                        <div className="pa-linha pa-mapa-divisor">
+                          <span className="pa-mapa-divisor-traco pa-mapa-divisor-forte" />
+                          <span className="pa-mono">↑ desde a sua última visita · {formatarPublicacao(visitaAnterior)}</span>
+                          <span className="pa-mapa-divisor-traco" />
+                        </div>
+                      )}
                       <article className={`pa-cartao pa-mapa-item${naoLida ? " pa-mapa-nao-lida" : ""}`}>
                         <label className="pa-check pa-mapa-selecao">
                           <input

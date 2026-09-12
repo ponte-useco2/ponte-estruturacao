@@ -5,7 +5,7 @@
  * Mesmo que esta função esquecesse de filtrar por usuário, o banco só devolveria
  * as linhas da própria pessoa — e só se ela estiver aprovada.
  */
-import { authConfigurada, clienteSessao } from "@/lib/supabase-auth";
+import { authConfigurada, clienteServidor, clienteSessao } from "@/lib/supabase-auth";
 import type { TipoMudanca } from "./diff";
 import type { ItemCentral } from "./central";
 import { ehEsquemaAusente } from "./esquema";
@@ -64,6 +64,56 @@ export async function lerPreferencias(): Promise<Preferencias> {
     orgaos: linha?.orgaos ?? [],
     naturezas: linha?.naturezas ?? [],
   };
+}
+
+/**
+ * Marca que a aba foi aberta e devolve a marca ANTERIOR — é ela que posiciona a
+ * divisória "desde a sua última visita".
+ *
+ * Usa a chave de serviço porque `oport_acesso` não é escrita por usuário: a
+ * linha de acesso é decisão da diretoria, e deixar o navegador escrever nela
+ * seria abrir a porta que a oport_2 fechou.
+ */
+export async function registrarVisita(userId: string): Promise<string | null> {
+  if (!authConfigurada()) return null;
+
+  const { data, error } = await clienteServidor().rpc("oport_registrar_visita", { p_id: userId });
+  if (error) {
+    if (!ehEsquemaAusente(error.code)) console.error("registrarVisita:", error.message);
+    return null;
+  }
+  return (data as string | null) ?? null;
+}
+
+export interface TentativaFalha {
+  quando: string;
+  mensagem: string | null;
+}
+
+/**
+ * As últimas tentativas de sincronização que falharam.
+ *
+ * Serve à tela de dado velho: "tentamos às 13:31 e às 13:34, e falhou". Sem
+ * isso, o silêncio da fila fica indistinguível de calmaria.
+ */
+export async function lerTentativasFalhas(): Promise<TentativaFalha[]> {
+  if (!authConfigurada()) return [];
+
+  const db = await clienteSessao();
+  const { data, error } = await db
+    .from("oport_sincronizacao")
+    .select("iniciada_em, mensagem")
+    .eq("resultado", "erro")
+    .order("iniciada_em", { ascending: false })
+    .limit(3);
+
+  if (error) {
+    if (!ehEsquemaAusente(error.code)) console.error("lerTentativasFalhas:", error.message);
+    return [];
+  }
+
+  const linhas = (data ?? []) as { iniciada_em: string; mensagem: string | null }[];
+  return linhas.map((l) => ({ quando: l.iniciada_em, mensagem: l.mensagem }));
 }
 
 export async function lerCentral(): Promise<LeituraCentral> {

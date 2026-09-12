@@ -449,3 +449,8 @@
   .pa-root .pa-mapa-item { flex-wrap: wrap; }
   .pa-root .pa-mapa-item .pa-oportunidade-lado { align-items: flex-start; text-align: left; width: 100%; }
 }
+/* Divisória "desde a sua última visita" (12/09/2026). */
+.pa-root .pa-mapa-divisor { gap: 0.6rem; margin: 0.9rem 0 0.75rem; }
+.pa-root .pa-mapa-divisor .pa-mono { color: var(--pa-brand-2); }
+.pa-root .pa-mapa-divisor-traco { height: 1px; flex: 1; background: var(--pa-border); }
+.pa-root .pa-mapa-divisor-forte { background: var(--pa-brand-2); opacity: 0.45; }
