@@ -1,14 +1,17 @@
-# Sincroniza src/dados/oportunidades.json a partir do repositório que
-# processa os dados: diretoriajnconsulting-dotcom/jn-portal-oportunidades.
+# Sincroniza os catálogos de oportunidades a partir do repositório que processa
+# os dados: diretoriajnconsulting-dotcom/jn-portal-oportunidades.
+#
+#   src/dados/oportunidades.json     contrato v1.1 — Transferegov, avisos da central
+#   src/dados/oportunidades-v2.json  contrato v2.0 — multifonte, elegibilidade
 #
 # Divisão de responsabilidade:
-#   jn-portal  → baixa 215 MB da origem, processa com DuckDB, publica o contrato
-#   este repo  → copia 60 KB e deixa a Vercel servir do CDN
+#   jn-portal  → baixa 215 MB da origem, processa com DuckDB, publica os contratos
+#   este repo  → copia o resultado já validado e deixa a Vercel servir
 #
 # Não duplicamos o processamento. Um lugar só faz o trabalho pesado; aqui só
 # consumimos o resultado já validado contra o schema.
 #
-# Ordem garantida por AVISO, não por relógio.
+# ------------------------------------------------ ordem garantida por AVISO
 #
 # Antes, os dois lados se coordenavam por horário: o jn-portal às 12:30 UTC e
 # este às 14:15, na esperança de que 1h45 bastasse. Mas o GitHub adia execução
@@ -20,6 +23,33 @@
 #
 # Agora o jn-portal dispara `repository_dispatch` ao terminar, e o `schedule`
 # abaixo vira rede de segurança para o caso do aviso não sair.
+#
+# ------------------------------------------------ frescor garantido por COMMIT
+#
+# O aviso garante a ordem em que os JOBS começam. Não garantia o frescor dos
+# BYTES baixados — e o buraco era o mesmo que o aviso existe para fechar.
+#
+# Até 12/09/2026 o download era por nome de branch
+# (`.../jn-portal-oportunidades/main/...`). O raw.githubusercontent.com serve
+# esse endereço atrás de Varnish com `Cache-Control: max-age=300`, medido nessa
+# data. O radar faz `push` e dispara o aviso segundos depois; esta sincronização
+# começava a tempo de receber do cache a versão ANTERIOR — um catálogo válido,
+# que passava na validação e terminava com sucesso. Exatamente o "arquivo de
+# ontem com sucesso" descrito acima, por outro caminho.
+#
+# Agora o SHA atual do `main` do radar é resolvido pela API — que não passa por
+# esse cache — e os dois arquivos são baixados POR COMMIT. Conteúdo num SHA é
+# imutável: guardar em cache o que nunca muda é sempre correto. De quebra, v1.1
+# e v2 saem garantidamente da mesma execução do radar.
+#
+# ------------------------------------------------ o v2 não derruba o v1.1
+#
+# O v1.1 alimenta hoje o Mapa em produção e os avisos da central. O v2 é novo.
+# Uma falha só no v2 NÃO pode impedir o v1.1 de publicar — seria trocar um
+# recurso que funciona por um que ainda nem tem tela. Por isso o passo do v2 tem
+# `continue-on-error`, o commit publica o que passou, e um último passo deixa a
+# execução VERMELHA se o v2 falhou. Publicar o que é bom e ficar vermelho pelo
+# que não é: nunca "sucesso aparente".
 
 name: Sincroniza oportunidades
 
@@ -43,7 +73,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FONTE: https://raw.githubusercontent.com/diretoriajnconsulting-dotcom/jn-portal-oportunidades/main/public/data/oportunidades.json
+  RADAR: diretoriajnconsulting-dotcom/jn-portal-oportunidades
 
 jobs:
   sincronizar:
@@ -61,17 +91,37 @@ jobs:
 
       - run: pip install jsonschema
 
-      - name: Baixar o contrato publicado
+      # A API responde o `main` atual; o raw.githubusercontent.com, por branch,
+      # pode responder o de até 5 minutos atrás. Ver o cabeçalho deste arquivo.
+      - name: Fixar o commit do radar
+        id: radar
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -fsSL "$FONTE" -o /tmp/oportunidades.json
+          sha=$(gh api "repos/$RADAR/commits/main" --jq .sha)
+          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::SHA do radar inválido: '$sha'"
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Radar fixado em $sha"
+
+      # ------------------------------------------------------------ v1.1
+      - name: Baixar o contrato v1.1
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/$RADAR/${{ steps.radar.outputs.sha }}/public/data/oportunidades.json" \
+            -o /tmp/oportunidades.json
           echo "Baixados $(wc -c < /tmp/oportunidades.json) bytes"
 
-      - name: Validar antes de aceitar
+      - name: Validar o v1.1 antes de aceitar
         run: |
           python - <<'EOF'
           import json, sys, jsonschema
-          schema  = json.load(open("docs/oportunidades.schema.json"))
-          payload = json.load(open("/tmp/oportunidades.json"))
+          # `encoding` explícito: sem ele o `open` usa o encoding do locale, e o
+          # contrato tem acento. No runner o locale é UTF-8; explícito não
+          # depende disso.
+          schema  = json.load(open("docs/oportunidades.schema.json", encoding="utf-8"))
+          payload = json.load(open("/tmp/oportunidades.json", encoding="utf-8"))
 
           # Major incompatível = o front recusaria renderizar. Falha aqui, antes
           # de publicar, para não trocar um dado bom por um que quebra a página.
@@ -90,19 +140,78 @@ jobs:
                 f"UF={payload['uf']}, defasada={payload['origem']['defasada']}")
           EOF
 
-      - name: Publicar
+      - name: Publicar o v1.1
         run: |
           mkdir -p src/dados
           cp /tmp/oportunidades.json src/dados/oportunidades.json
 
+      # ------------------------------------------------------------ v2
+      # `continue-on-error`: falhar aqui não impede o commit do v1.1. O último
+      # passo deste job é quem torna a falha visível.
+      - name: Baixar e validar o catálogo v2
+        id: v2
+        continue-on-error: true
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/$RADAR/${{ steps.radar.outputs.sha }}/public/data/funding-opportunities-v2.json" \
+            -o /tmp/oportunidades-v2.json
+          echo "Baixados $(wc -c < /tmp/oportunidades-v2.json) bytes"
+
+          python - <<'EOF'
+          import json, sys, jsonschema
+          # Cópia de schema/funding-opportunity-2.0.schema.json do radar. Draft
+          # 2020-12: `jsonschema.validate` escolhe o validador pelo `$schema`.
+          schema  = json.load(open("docs/oportunidades-v2.schema.json", encoding="utf-8"))
+          payload = json.load(open("/tmp/oportunidades-v2.json", encoding="utf-8"))
+
+          major = str(payload.get("version", "")).split(".")[0]
+          if major != "2":
+              print(f"::error::Catálogo v2 com major {major} (espera 2.x)")
+              sys.exit(1)
+
+          try:
+              jsonschema.validate(payload, schema)
+          except jsonschema.ValidationError as e:
+              print(f"::error::Catálogo v2 viola o contrato: {e.message}")
+              sys.exit(1)
+
+          # Fonte com problema não reprova: o contrato prevê o caso e a tela é
+          # obrigada a avisar. Aqui só fica registrado no log da execução.
+          problema = [s["id"] for s in payload["sources"] if s["status"] != "healthy"]
+          if problema:
+              print(f"::warning::Fontes fora do ar ou defasadas no v2: {', '.join(problema)}")
+
+          s = payload["summary"]
+          print(f"OK — {s['monitored']} monitoradas, {s['open']} abertas, "
+                f"{len(payload['sources'])} fontes, modo={payload['change_mode']}")
+          EOF
+
+      - name: Publicar o v2
+        if: steps.v2.outcome == 'success'
+        run: cp /tmp/oportunidades-v2.json src/dados/oportunidades-v2.json
+
+      # ------------------------------------------------------------ commit
       - name: Commit se mudou
+        env:
+          SHA_RADAR: ${{ steps.radar.outputs.sha }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/dados/oportunidades.json
+          # Pasta inteira, e não arquivo por arquivo: se o v2 falhou na primeira
+          # execução, `oportunidades-v2.json` ainda não existe, e `git add` de um
+          # caminho inexistente derrubaria o commit do v1.1.
+          git add src/dados/
           if git diff --staged --quiet; then
-            echo "Dado idêntico ao publicado — nada a fazer."
+            echo "Dados idênticos aos publicados — nada a fazer."
           else
-            git commit -m "chore(dados): sincroniza oportunidades $(date -u +%F) [skip ci]"
+            git commit -m "chore(dados): sincroniza oportunidades $(date -u +%F) [skip ci]" \
+                       -m "Radar em $SHA_RADAR"
             git push
           fi
+
+      # Por último, depois de o v1.1 já estar publicado: um v2 que falhou deixa a
+      # execução vermelha em vez de sumir num `continue-on-error`.
+      - name: Falhar se o v2 não passou
+        if: steps.v2.outcome == 'failure'
+        run: |
+          echo "::error::O catálogo v2 não foi publicado nesta execução. O v1.1 foi. Ver o passo 'Baixar e validar o catálogo v2'."
+          exit 1
