@@ -1,108 +1,90 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { after } from "next/server";
-import { lerCatalogo } from "@/lib/oportunidades/catalogo.server";
+import { lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server";
+import { montarCatalogo } from "@/lib/oportunidades/catalogo-v2";
+import { hojeLocal } from "@/lib/oportunidades/contrato-v2";
+import { lerPreferencias } from "@/lib/oportunidades/notificacoes.server";
+import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
-import { lerCentral, lerPreferencias, lerTentativasFalhas, registrarVisita } from "@/lib/oportunidades/notificacoes.server";
-import { opcoesDePreferencia } from "@/lib/oportunidades/opcoes";
-import { sincronizarCentral } from "@/lib/oportunidades/sincronizar.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
-import { MapaClient } from "./MapaClient";
+import { CatalogoClient } from "./CatalogoClient";
 
 export const metadata: Metadata = {
-  title: "Mapa de Oportunidades · PONTE",
+  title: "Janelas · Mapa de Oportunidades · PONTE",
   robots: { index: false, follow: false },
 };
 
 /**
- * O portão de acesso que decide a RESPOSTA vem do layout do segmento. A página
- * lê — e decide o que a tela pode afirmar.
+ * A tela de entrada do Mapa: as janelas que a entidade de quem olha pode
+ * pleitear, das quatro fontes do catálogo v2.
+ *
+ * Até 12/09/2026 o `/mapa` era a central de avisos, que foi para `/mapa/avisos`.
+ * A troca foi decisão do titular: a fila de avisos só enche quando algo muda, e
+ * passou a maior parte dos dias vazia — quem abria o Mapa caía numa tela sem
+ * nada. O catálogo é o mapa propriamente dito.
+ *
+ * Os avisos continuam no contrato v1.1 com a chave atual, e o re-chaveamento
+ * espera a correção do id do Transferegov no radar (ver o guia, seção 3g).
  */
-export default async function MapaDeOportunidadesPage() {
-  // No App Router, layout e página renderizam em PARALELO: o redirect do layout
-  // decide o que volta ao navegador, mas não impede esta função de rodar. Sem
-  // esta checagem, uma visita anônima lia a central vazia pela RLS, concluía que
-  // havia publicação pendente e disparava a sincronização com a chave de serviço.
-  // Achado ao verificar o build no navegador, em 11/09/2026.
+export default async function JanelasPage() {
+  // Layout e página renderizam em paralelo: o redirect do layout decide a
+  // resposta, mas não impede esta função de rodar. Mesmo guarda da central.
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
 
-  // `registrarVisita` devolve a marca ANTERIOR e só então carimba a de agora: é a
-  // anterior que posiciona a divisória na lista.
-  const [catalogo, central, preferencias, visitaAnterior, tentativas, contexto] = await Promise.all([
-    lerCatalogo(),
-    lerCentral(),
-    lerPreferencias(),
-    registrarVisita(visitante.id),
-    lerTentativasFalhas(),
+  const [leitura, contexto, preferencias] = await Promise.all([
+    lerCatalogoV2(),
     lerContexto(),
+    lerPreferencias(),
   ]);
 
-  // Publicação nova no disco que a central ainda não processou. Sincroniza DEPOIS
-  // de responder, para não prender quem abriu a aba — e a tela avisa que há
-  // processamento pendente, em vez de fingir que está em dia.
-  const pendente =
-    central.status === "ok" &&
-    catalogo !== null &&
-    (central.ultimaProcessada === null || catalogo.gerado_em > central.ultimaProcessada);
+  // O instante vem do servidor: calcular "hoje" no navegador faria servidor e
+  // cliente discordarem na hidratação, e o relógio do cliente é o menos confiável.
+  const hoje = hojeLocal(new Date());
 
-  if (pendente) {
-    after(async () => {
-      await sincronizarCentral("aba");
-    });
+  if (leitura.estado !== "ok") {
+    return <CatalogoIndisponivel estado={leitura.estado} />;
   }
 
-  // O universo do catálogo: quantas janelas existem, quantas fecham na semana e
-  // quantas não têm tema. Sem isso a tela não consegue dizer que as janelas
-  // continuam lá quando a fila de avisos está vazia.
-  const agora = new Date();
-  const ate = new Date(agora.getTime());
-  ate.setUTCDate(ate.getUTCDate() + 7);
-  const ateIso = ate.toISOString().slice(0, 10);
-  const resumoCatalogo = catalogo
-    ? {
-        total: catalogo.oportunidades.length,
-        fecham7: catalogo.oportunidades.filter((o) => o.fecha <= ateIso).length,
-        ate: ateIso,
-        semTema: catalogo.oportunidades.filter((o) => (o.temas ?? []).length === 0).length,
-      }
-    : null;
+  const ativa = contexto.ativa;
+  // A geografia é da entidade; os temas, da pessoa — o corte da oport_6.
+  const quem = ativa ? { tipo: ativa.tipo, uf: ativa.uf, temas: preferencias.temas } : null;
+  const vista = montarCatalogo(leitura.payload, quem, hoje);
 
-  // O instante vem do servidor: calcular frescor com o relógio do navegador faria
-  // servidor e cliente discordarem na hidratação, e o relógio do cliente é o menos
-  // confiável dos dois.
-  // As opções vêm do catálogo de hoje: oferecer órgão que não está em janela
-  // nenhuma é prometer um destaque que nunca apareceria.
   return (
-    <>
-      {/* Convite, não bloqueio. O filtro por elegibilidade só chega com o
-          catálogo v2; exigir hoje um cadastro cujo benefício ainda não existe
-          seria cobrar adiantado. A frase diz o que muda e quando. */}
-      {contexto.ativa === null && (
-        <div className="pa-pagina">
-          <aside className="pa-cartao pa-cartao-plano mp-convite">
-            <p>
-              O Mapa ainda não sabe que tipo de agente você é. Quando o catálogo multifonte entrar,
-              é isso que vai separar o que a sua entidade pode pleitear do que não pode.
-            </p>
-            <span className="pa-espaco" />
-            <Link href="/mapa/conta/organizacao" className="pa-btn pa-btn-pequeno">
-              Declarar a entidade
-            </Link>
-          </aside>
-        </div>
-      )}
+    <CatalogoClient
+      vista={vista}
+      entidade={ativa ? { nome: ativa.nome, tipo: ROTULO_AGENTE[ativa.tipo], uf: ativa.uf } : null}
+      seguindoTemas={preferencias.temas.length > 0}
+    />
+  );
+}
 
-      <MapaClient
-        central={central}
-        pendente={pendente}
-        agoraIso={agora.toISOString()}
-        resumoCatalogo={resumoCatalogo}
-        visitaAnterior={visitaAnterior}
-        tentativas={tentativas}
-        preferencias={preferencias}
-        opcoes={opcoesDePreferencia(catalogo?.oportunidades ?? [])}
-      />
-    </>
+/**
+ * Dois estados distintos, com duas frases distintas. "Ainda não publicado" é
+ * esperado durante a implantação; "indisponível" é defeito, porque a Action
+ * valida antes de aceitar o arquivo.
+ */
+function CatalogoIndisponivel({ estado }: { estado: "ausente" | "invalido" }) {
+  const ausente = estado === "ausente";
+  return (
+    <div className="pa-pagina pa-pagina-estreita">
+      <div className="pa-pilha">
+        <p className="pa-kicker">Janelas abertas</p>
+        <h1 className="pa-titulo">
+          {ausente ? "O catálogo multifonte ainda não foi publicado" : "O catálogo está indisponível agora"}
+        </h1>
+        <p>
+          {ausente
+            ? "Ele passa a existir na próxima sincronização com o radar, que roda todo dia. Enquanto isso, os avisos do Transferegov continuam funcionando."
+            : "O arquivo do catálogo não pôde ser lido. A equipe é avisada pelo registro do servidor. Os avisos do Transferegov continuam funcionando."}
+        </p>
+        <div className="pa-linha">
+          <Link href="/mapa/avisos" className="pa-btn">
+            Ver os avisos
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

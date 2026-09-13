@@ -35,11 +35,12 @@ import {
   type ItemCentral,
 } from "@/lib/oportunidades/central";
 import type { LeituraCentral, TentativaFalha } from "@/lib/oportunidades/notificacoes.server";
-import { Tag } from "../_design/primitivos";
+import { Tag } from "../../_design/primitivos";
+import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
 import { subtemasDe } from "@/lib/oportunidades/temas";
 import { motivoDaCombinacao, type Preferencias } from "@/lib/oportunidades/aderencia";
 import type { OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
-import { PreferenciasPainel, type Eixo } from "./PreferenciasPainel";
+import { PreferenciasPainel, type Eixo } from "../PreferenciasPainel";
 import {
   agruparPorPrazo,
   codigosDaChave,
@@ -54,7 +55,7 @@ import {
   marcarLidas,
   marcarNaoLidas,
   type ResultadoAcao,
-} from "./acoes";
+} from "../acoes";
 
 type Acao = "lida" | "naoLida" | "arquivar" | "desarquivar";
 
@@ -125,12 +126,6 @@ const ROTULO_PRAZO: Record<TipoMudanca, string> = {
 
 const TIPOS_EM_ORDEM = Object.keys(ROTULO_TIPO) as TipoMudanca[];
 
-/**
- * O sistema de origem não tem URL por programa: é POST com sessão. O painel
- * público resolve do mesmo jeito — abre a consulta e a pessoa cola o código.
- */
-const TRANSFEREGOV_CONSULTA =
-  "https://discricionarias.transferegov.sistema.gov.br/voluntarias/ForwardAction.do?modulo=programa&path=/ConsultarPrograma/ConsultarPrograma.do&Usr=guest&Pwd=guest";
 
 export function MapaClient({
   central,

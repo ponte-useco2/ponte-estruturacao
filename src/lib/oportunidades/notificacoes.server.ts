@@ -174,3 +174,30 @@ export async function lerCentral(): Promise<LeituraCentral> {
     ultimaProcessada: (publicacao.data as { gerado_em: string } | null)?.gerado_em ?? null,
   };
 }
+
+/**
+ * Quantos avisos não lidos e não arquivados a pessoa tem — o número da aba.
+ *
+ * `head: true` com `count: "exact"`: pede só a contagem, sem trazer linha
+ * nenhuma. A moldura chama isto em toda tela do `/mapa`, então precisa ser
+ * barato. A RLS limita às linhas da própria pessoa.
+ *
+ * Falha devolve null, não zero: "0 não lidas" afirmaria que está tudo lido, e
+ * a verdade é que não foi possível contar. A aba mostra o nome sem número.
+ */
+export async function contarNaoLidas(): Promise<number | null> {
+  if (!authConfigurada()) return null;
+
+  const db = await clienteSessao();
+  const { count, error } = await db
+    .from("oport_notificacao")
+    .select("id", { count: "exact", head: true })
+    .is("lida_em", null)
+    .is("arquivada_em", null);
+
+  if (error) {
+    if (!ehEsquemaAusente(error.code)) console.error("contarNaoLidas:", error.message);
+    return null;
+  }
+  return count ?? 0;
+}

@@ -22,6 +22,12 @@ export interface ResultadoAcao {
 
 type Campo = "lida_em" | "arquivada_em";
 
+/**
+ * `/mapa` com escopo de LAYOUT, e não de página: desde 12/09/2026 o segmento tem
+ * duas telas — o catálogo em `/mapa` e a central em `/mapa/avisos` — e as duas
+ * dependem destas ações. A preferência de temas muda o destaque dos avisos E a
+ * aderência do catálogo; revalidar só uma deixaria a outra mostrando o antes.
+ */
 const ROTA = "/mapa";
 const LIMITE_POR_ACAO = 500;
 
@@ -52,7 +58,7 @@ async function marcar(ids: unknown, campo: Campo, ligar: boolean): Promise<Resul
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
-  revalidatePath(ROTA);
+  revalidatePath(ROTA, "layout");
   return { ok: true };
 }
 
@@ -153,7 +159,7 @@ export async function alternarPreferencia(eixo: unknown, valor: unknown, marcado
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
-  revalidatePath(ROTA);
+  revalidatePath(ROTA, "layout");
   return { ok: true };
 }
 
@@ -170,6 +176,6 @@ export async function limparPreferencias(): Promise<ResultadoAcao> {
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
-  revalidatePath(ROTA);
+  revalidatePath(ROTA, "layout");
   return { ok: true };
 }

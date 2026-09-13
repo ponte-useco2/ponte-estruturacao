@@ -12,12 +12,27 @@
    inteiro para não mudar um pixel.
    ===================================================================== */
 
-/* A moldura do protótipo tem duas linhas no topo — identidade e abas — e
-   reserva a segunda em `--pa-abas`. Esta moldura tem uma linha só. Sem zerar,
-   a barra de lote grudada (`.pa-mapa-lote`, que se posiciona por
-   `--pa-top-total`) flutuaria 38px abaixo de onde deve. */
-.mp-root {
-  --pa-abas: 0px;
+/* Até 12/09/2026 esta moldura tinha uma linha só no topo, e zerava `--pa-abas`
+   para a barra de lote grudada (`.pa-mapa-lote`, posicionada por
+   `--pa-top-total`) não flutuar 38px abaixo do lugar. Com Janelas e Avisos, a
+   linha de abas voltou — e o valor de `.pa-root` volta a valer. Zerar agora
+   faria a barra grudar ATRÁS das abas. */
+
+/* Contagem de não lidos na aba Avisos. Cor da marca, nunca a de perigo: não
+   lido não é urgente. */
+.mp-aba-contagem {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--pa-brand-2);
+  color: #fff;
+  font-family: var(--pa-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* Nome longo no chip de conta não pode empurrar o cabeçalho. */
@@ -249,3 +264,92 @@
   padding-left: 0.65rem;
   border-left: 2px solid var(--pa-brand-soft);
 }
+
+/* ==========================================================================
+   Janelas — o catálogo multifonte (12/09/2026).
+   Só tokens; a cor de perigo aparece em dois lugares: prazo urgente e a faixa
+   de fonte fora do ar. Em mais nenhum.
+   ========================================================================== */
+
+/* Regra 1 do contrato: fonte com problema é nomeada, em faixa que não se confunde
+   com o resto da página. */
+.pa-root .mp-fontes-faixa {
+  display: flex; flex-direction: column; gap: 0.3rem;
+  padding: 0.7rem 0.9rem; margin-bottom: 1rem;
+  border-color: #e2c3bd; background: #f6e6e3;
+}
+.pa-root .mp-fontes-faixa .pa-mono { color: var(--pa-danger); }
+.pa-root .mp-fontes-faixa p { color: var(--pa-text); font-size: 0.9rem; }
+
+/* Ponto ao lado do nome da fonte no chip. O significado vai no texto `pa-sr`;
+   o ponto é só o sinal visual. */
+.pa-root .mp-fonte-alerta {
+  display: inline-block; width: 7px; height: 7px; border-radius: 999px;
+  background: var(--pa-danger); margin-left: 0.1rem;
+}
+
+.pa-root .mp-filtros { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 1rem; }
+.pa-root .mp-busca { max-width: 420px; }
+.pa-root .mp-filtros .pa-chip { min-height: 36px; }
+
+/* Subfiltro recuado sob o assunto pai, com o mesmo traço do subtema no painel de
+   preferências: pertencimento sem outra caixa em volta. */
+.pa-root .mp-subfiltro {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  margin-top: 0.55rem; margin-left: 0.55rem; padding-left: 0.75rem;
+  border-left: 2px solid var(--pa-brand-soft);
+}
+
+.pa-root .mp-resultado { margin-bottom: 0.7rem; min-height: 36px; }
+.pa-root .mp-vazio { padding: 1.2rem 1rem; }
+
+.pa-root .mp-janela {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem; align-items: start; padding: 0.95rem 1.05rem;
+}
+.pa-root .mp-janela-corpo { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.pa-root .mp-janela-etiquetas { gap: 0.35rem; flex-wrap: wrap; }
+.pa-root .mp-janela-titulo { font-size: 1rem; line-height: 1.3; overflow-wrap: anywhere; }
+.pa-root .mp-janela-financiador { font-size: 0.86rem; color: var(--pa-muted); overflow-wrap: anywhere; }
+.pa-root .mp-janela-temas { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.pa-root .mp-janela-motivos { font-size: 0.84rem; color: var(--pa-muted); }
+.pa-root .mp-janela-motivos .pa-mono { margin-right: 0.3rem; }
+
+.pa-root .mp-janela-lado {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 0.55rem;
+  text-align: right; min-width: 170px;
+}
+.pa-root .mp-prazo { font-size: 0.9rem; font-weight: 600; color: var(--pa-text); }
+.pa-root .mp-prazo-urgente { color: var(--pa-danger); }
+
+.pa-root .mp-procedencia { margin-top: 1.4rem; }
+
+@media (max-width: 720px) {
+  .pa-root .mp-janela { grid-template-columns: minmax(0, 1fr); }
+  .pa-root .mp-janela-lado { align-items: flex-start; text-align: left; min-width: 0; }
+}
+
+/* --------------------------------------------------------------------------
+   Abas no celular (12/09/2026).
+
+   O design system esconde `.pa-abas` abaixo de 860px e zera `--pa-abas`: o
+   protótipo tem seis ambientes e troca a linha de cima por uma barra inferior
+   (`.pa-bottom`). Esta moldura NÃO tem barra inferior — e, reusando as abas sem
+   a contraparte, o celular e o tablet ficaram sem caminho nenhum entre Janelas
+   e Avisos. Achado medindo a página a 375px: a aba tinha altura zero.
+
+   Duas abas cabem em qualquer largura, então a linha de cima fica: um só
+   modelo de navegação em todos os tamanhos, sem metamorfose entre breakpoints.
+
+   Especificidade e ordem: `.mp-root .pa-abas` tem duas classes e vence o
+   `display: none`; `.mp-root` vem depois de `.pa-root` na cascata (este arquivo
+   é importado por último) e devolve a altura à barra de lote grudada.
+   -------------------------------------------------------------------------- */
+.mp-root .pa-abas { display: flex; }
+.mp-root { --pa-abas: 38px; }
+
+/* A ação do cartão é o que se toca com o dedo. `pa-btn-pequeno` tem 32px —
+   passa no mínimo do WCAG 2.2 AA (24px), mas fica abaixo dos 44px que o
+   projeto adota nos alvos novos. Medido a 375px em 12/09/2026. Escopado no
+   catálogo para não mudar o botão pequeno do design system inteiro. */
+.pa-root .mp-janela-lado .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
