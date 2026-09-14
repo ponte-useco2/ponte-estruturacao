@@ -7,7 +7,7 @@
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
-import type { LinhaResumo, ParametrosPainel } from "./painel";
+import { anoPadrao, type LinhaDesfecho, type LinhaEtapa, type LinhaResumo, type ParametrosPainel } from "./painel";
 
 export interface ExecucaoPainel {
   id: number;
@@ -98,9 +98,20 @@ export type LeituraPainel =
       /** Só na suspensiva: os já vencidos, em lista à parte (ver `lerPainel`). */
       vencidos: ConvenioPainel[];
       municipios: MunicipioPainel[];
+      /** Só em tempos: linhas de órgão (sempre) e de programa (na dimensão programa). */
+      etapas: LinhaEtapa[];
+      /** Só em aprovação: total, órgãos e programas do ano. */
+      desfechos: LinhaDesfecho[];
+      /** Só em aprovação: o ano efetivamente consultado. */
+      ano: number | null;
     };
 
+/** O que as visões que não usam uma lista devolvem nela. */
+const VAZIO = { porOrgao: [], convenios: [], vencidos: [], municipios: [], etapas: [], desfechos: [], ano: null };
+
 export const LIMITE_LISTA = 50;
+/** Programas na matriz de tempos: os de mais assinaturas na janela. */
+export const LIMITE_PROGRAMAS = 40;
 export const LIMITE_MUNICIPIOS = 100;
 export const LIMITE_VENCIDOS = 20;
 /** Órgãos na tabela; a lista do filtro usa o mesmo recorte com folga. */
@@ -127,6 +138,91 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
   if (!execucao) return { estado: "sem_execucao" };
 
   const resumo = db.rpc("painel_resumo", { p_uf: p.uf, p_orgao: p.orgao });
+  const recorte = p.uf ?? "BR";
+
+  if (p.visao === "tempos") {
+    // Órgãos sempre (tabela ou lista do filtro). Programas: os de mais assinaturas na
+    // janela, e depois todas as etapas só deles — a tabela inteira passa de mil linhas.
+    const orgaos = db
+      .from("painel_etapa_tempo")
+      .select("*")
+      .eq("execucao_id", execucao.id)
+      .eq("recorte", recorte)
+      .eq("dimensao", "orgao")
+      .limit(1000);
+    let topo = db
+      .from("painel_etapa_tempo")
+      .select("chave")
+      .eq("execucao_id", execucao.id)
+      .eq("recorte", recorte)
+      .eq("dimensao", "programa")
+      .eq("etapa", "envio_assinatura")
+      .order("n", { ascending: false })
+      .limit(LIMITE_PROGRAMAS);
+    if (p.orgao) topo = topo.eq("orgao_sup", p.orgao);
+    const [r, o, t] = await Promise.all([
+      resumo,
+      orgaos,
+      p.dimensao === "programa" ? topo : Promise.resolve({ data: [], error: null }),
+    ]);
+    let erro = r.error ?? o.error ?? t.error;
+    let programas: LinhaEtapa[] = [];
+    const chaves = ((t.data ?? []) as { chave: string }[]).map((x) => x.chave);
+    if (!erro && chaves.length > 0) {
+      const pr = await db
+        .from("painel_etapa_tempo")
+        .select("*")
+        .eq("execucao_id", execucao.id)
+        .eq("recorte", recorte)
+        .eq("dimensao", "programa")
+        .in("chave", chaves)
+        .limit(1000);
+      erro = pr.error;
+      programas = (pr.data ?? []) as LinhaEtapa[];
+    }
+    if (erro) {
+      console.error("lerPainel:", erro.message);
+      return { estado: "erro", mensagem: erro.message };
+    }
+    return {
+      estado: "ok",
+      execucao,
+      resumo: (r.data ?? []) as LinhaResumo[],
+      ...VAZIO,
+      etapas: [...((o.data ?? []) as LinhaEtapa[]), ...programas],
+    };
+  }
+
+  if (p.visao === "aprovacao") {
+    const ano = p.ano ?? anoPadrao(execucao.referencia);
+    const base = () =>
+      db.from("painel_programa_desfecho").select("*").eq("execucao_id", execucao.id).eq("uf", recorte).eq("ano_envio", ano);
+    let programas = base().not("cod_programa", "is", null).order("enviadas", { ascending: false }).limit(LIMITE_LISTA);
+    if (p.orgao) programas = programas.eq("orgao_sup", p.orgao);
+    let total = base().is("cod_programa", null);
+    total = p.orgao ? total.eq("orgao_sup", p.orgao) : total.is("orgao_sup", null);
+    const [r, t, o, pr] = await Promise.all([
+      resumo,
+      total,
+      base().is("cod_programa", null).not("orgao_sup", "is", null).order("enviadas", { ascending: false }).limit(LIMITE_ORGAOS),
+      programas,
+    ]);
+    const erro = r.error ?? t.error ?? o.error ?? pr.error;
+    if (erro) {
+      console.error("lerPainel:", erro.message);
+      return { estado: "erro", mensagem: erro.message };
+    }
+    // Com órgão escolhido, a linha "total" é a do órgão: marca como total para a tela.
+    const totais = ((t.data ?? []) as LinhaDesfecho[]).map((x) => ({ ...x, orgao_sup: null }));
+    return {
+      estado: "ok",
+      execucao,
+      resumo: (r.data ?? []) as LinhaResumo[],
+      ...VAZIO,
+      ano,
+      desfechos: [...totais, ...((o.data ?? []) as LinhaDesfecho[]), ...((pr.data ?? []) as LinhaDesfecho[])],
+    };
+  }
 
   if (p.visao === "municipios") {
     let q = db
@@ -148,9 +244,7 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
       estado: "ok",
       execucao,
       resumo: (r.data ?? []) as LinhaResumo[],
-      porOrgao: [],
-      convenios: [],
-      vencidos: [],
+      ...VAZIO,
       municipios: (m.data ?? []) as MunicipioPainel[],
     };
   }
@@ -223,5 +317,8 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
     convenios: (c.data ?? []) as unknown as ConvenioPainel[],
     vencidos: (v.data ?? []) as unknown as ConvenioPainel[],
     municipios: [],
+    etapas: [],
+    desfechos: [],
+    ano: null,
   };
 }

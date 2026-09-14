@@ -7,8 +7,9 @@
  */
 import { UFS } from "./organizacao.ts";
 
-export type Visao = "suspensiva" | "nunca" | "vigencia" | "contas" | "saldo" | "municipios";
+export type Visao = "suspensiva" | "nunca" | "vigencia" | "contas" | "saldo" | "municipios" | "tempos" | "aprovacao";
 export type LadoContas = "atrasada" | "negativo" | "tce" | "concedente";
+export type DimensaoTempo = "orgao" | "programa";
 
 export interface DefinicaoVisao {
   id: Visao;
@@ -55,7 +56,22 @@ export const VISOES: DefinicaoVisao[] = [
     titulo: "Municípios que mais precisam de ajuda",
     pergunta: "Prefeituras com convênio travado em mais de uma frente. Lista de prospecção, não ranking.",
   },
+  {
+    id: "tempos",
+    rotulo: "Tempos",
+    titulo: "Tempo de cada etapa",
+    pergunta: "Quanto leva do envio da proposta ao dinheiro na conta e à conclusão, e de quem é a vez, por ministério e programa.",
+  },
+  {
+    id: "aprovacao",
+    rotulo: "Aprovação",
+    titulo: "Aprovação e rejeição por programa",
+    pergunta: "O que aconteceu com as propostas enviadas no ano, programa a programa, com as reprovações em lote e o impedimento técnico.",
+  },
 ];
+
+/** Primeiro ano com dado de proposta no painel (o job grava a partir dele). */
+export const ANO_MINIMO_ENVIO = 2019;
 
 const IDS_VISAO = VISOES.map((v) => v.id) as string[];
 export const LADOS_CONTAS: LadoContas[] = ["atrasada", "negativo", "tce", "concedente"];
@@ -80,6 +96,10 @@ export interface ParametrosPainel {
   /** Null = todos os órgãos. Não se aplica a municípios. */
   orgao: string | null;
   lado: LadoContas;
+  /** Só em tempos. */
+  dimensao: DimensaoTempo;
+  /** Só em aprovação. Null = o ano anterior ao do dado, decidido no servidor. */
+  ano: number | null;
 }
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -90,6 +110,7 @@ export function parametrosPainel(sp: Record<string, string | string[] | undefine
   const uf = um(sp.uf)?.toUpperCase() ?? null;
   const orgao = um(sp.orgao)?.trim();
   const lado = um(sp.lado);
+  const ano = Number(um(sp.ano));
   const v = (IDS_VISAO.includes(visao ?? "") ? visao : "suspensiva") as Visao;
   return {
     visao: v,
@@ -97,20 +118,177 @@ export function parametrosPainel(sp: Record<string, string | string[] | undefine
     // Órgão é texto livre do arquivo: limita o tamanho e ignora em municípios.
     orgao: v !== "municipios" && orgao ? orgao.slice(0, 200) : null,
     lado: (LADOS_CONTAS as string[]).includes(lado ?? "") ? (lado as LadoContas) : "atrasada",
+    dimensao: um(sp.dimensao) === "programa" ? "programa" : "orgao",
+    ano: Number.isInteger(ano) && ano >= ANO_MINIMO_ENVIO && ano <= 2100 ? ano : null,
   };
 }
 
-/** Monta a URL mantendo os outros parâmetros. Trocar de visão limpa o órgão e o lado. */
+/** Monta a URL mantendo os outros parâmetros. Trocar de visão limpa o que era só da visão anterior. */
 export function urlPainel(atual: ParametrosPainel, muda: Partial<ParametrosPainel>): string {
   const trocouVisao = muda.visao !== undefined && muda.visao !== atual.visao;
-  const p = { ...atual, ...(trocouVisao ? { orgao: null, lado: "atrasada" as LadoContas } : {}), ...muda };
+  const limpa = trocouVisao ? { orgao: null, lado: "atrasada" as LadoContas, dimensao: "orgao" as DimensaoTempo, ano: null } : {};
+  const p = { ...atual, ...limpa, ...muda };
   const q = new URLSearchParams();
   if (p.visao !== "suspensiva") q.set("visao", p.visao);
   if (p.uf) q.set("uf", p.uf);
   if (p.orgao && p.visao !== "municipios") q.set("orgao", p.orgao);
   if (p.visao === "contas" && p.lado !== "atrasada") q.set("lado", p.lado);
+  if (p.visao === "tempos" && p.dimensao !== "orgao") q.set("dimensao", p.dimensao);
+  if (p.visao === "aprovacao" && p.ano !== null) q.set("ano", String(p.ano));
   const s = q.toString();
   return s ? `/mapa/painel?${s}` : "/mapa/painel";
+}
+
+// ============================ ETAPAS E DESFECHOS ============================
+
+export const ETAPAS_CAMINHO = [
+  "envio_aprovacao",
+  "aprovacao_assinatura",
+  "assinatura_desembolso",
+  "desembolso_conclusao",
+] as const;
+export const ETAPAS_VEZ = ["vez_concedente", "vez_proponente", "espera_assinatura"] as const;
+
+export const ROTULO_ETAPA: Record<string, string> = {
+  envio_aprovacao: "Envio → aprovação",
+  aprovacao_assinatura: "Aprovação → assinatura",
+  envio_assinatura: "Envio → assinatura",
+  assinatura_desembolso: "Assinatura → 1º desembolso",
+  desembolso_conclusao: "1º desembolso → conclusão",
+  vez_concedente: "Com o concedente",
+  vez_proponente: "Com o proponente",
+  espera_assinatura: "Aprovado, esperando assinar",
+};
+
+/** Chave da linha que soma todos os órgãos, gravada pelo job. */
+export const CHAVE_TODOS = "__todos__";
+/** A janela das medianas no job: etapas que terminaram nos últimos 36 meses. */
+export const DIAS_JANELA_TEMPO = 1095;
+
+/** Primeiro dia da janela, em ISO, para a nota de método. */
+export function inicioJanela(referencia: string): string {
+  const d = new Date(`${referencia.slice(0, 10)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - DIAS_JANELA_TEMPO);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Abaixo disso a mediana de um órgão oscila demais para comparar; a tela mostra "—". */
+export const MINIMO_MEDICOES = 10;
+/** Mediana a partir de 1,5 vez a do recorte inteiro é marcada como lenta. */
+export const FATOR_LENTO = 1.5;
+
+/** Uma linha de `painel_etapa_tempo`: uma etapa de um órgão ou programa, num recorte. */
+export interface LinhaEtapa {
+  recorte: string;
+  dimensao: DimensaoTempo;
+  chave: string;
+  rotulo: string | null;
+  orgao_sup: string | null;
+  etapa: string;
+  n: number;
+  mediana: number | null;
+  p90: number | null;
+  em_aberto: number;
+  idade_mediana_aberto: number | null;
+}
+
+/** Uma linha de `painel_programa_desfecho`. Sem programa = soma do órgão; sem os dois = soma do recorte. */
+export interface LinhaDesfecho {
+  cod_programa: string | null;
+  programa: string | null;
+  orgao_sup: string | null;
+  ano_envio: number;
+  uf: string;
+  enviadas: number;
+  assinadas: number;
+  reprovadas: number;
+  reprovadas_lote: number;
+  impedimento: number;
+  impedimento_lote: number;
+  eliminadas: number;
+  abertas_concedente: number;
+  limbo: number;
+  abertas_proponente: number;
+  aguardando_assinatura: number;
+  com_emenda: number;
+  assinadas_com_emenda: number;
+  valor_pedido: number;
+}
+
+export interface LinhaMatriz {
+  chave: string;
+  rotulo: string;
+  orgao_sup: string | null;
+  etapas: Partial<Record<string, LinhaEtapa>>;
+  /** Assinaturas medidas na janela: é o volume que ordena a matriz. */
+  volume: number;
+}
+
+/** Agrupa as linhas de uma dimensão por órgão ou programa, das de mais volume para as de menos. */
+export function matrizEtapas(linhas: LinhaEtapa[], dimensao: DimensaoTempo): LinhaMatriz[] {
+  const m = new Map<string, LinhaMatriz>();
+  for (const l of linhas) {
+    if (l.dimensao !== dimensao || l.chave === CHAVE_TODOS) continue;
+    let g = m.get(l.chave);
+    if (!g) {
+      g = { chave: l.chave, rotulo: l.rotulo ?? l.chave, orgao_sup: l.orgao_sup, etapas: {}, volume: 0 };
+      m.set(l.chave, g);
+    }
+    g.etapas[l.etapa] = l;
+    if (l.etapa === "envio_assinatura") g.volume = l.n;
+  }
+  return [...m.values()].sort((a, b) => b.volume - a.volume || a.rotulo.localeCompare(b.rotulo, "pt-BR"));
+}
+
+/** As etapas do recorte inteiro, ou de um órgão, para os cartões. */
+export function etapasDe(linhas: LinhaEtapa[], chave: string): Partial<Record<string, LinhaEtapa>> {
+  return Object.fromEntries(
+    linhas.filter((l) => l.dimensao === "orgao" && l.chave === chave).map((l) => [l.etapa, l]),
+  );
+}
+
+/** Mediana confiável o bastante para mostrar, ou null. */
+export function medianaComparavel(l: LinhaEtapa | undefined): number | null {
+  return l && l.n >= MINIMO_MEDICOES ? l.mediana : null;
+}
+
+export function maisLento(mediana: number | null, referencia: number | null): boolean {
+  return mediana !== null && referencia !== null && referencia > 0 && mediana >= referencia * FATOR_LENTO;
+}
+
+/** Sem ano na URL, o ano anterior ao do dado: o corrente ainda está no começo e quase nada teve desfecho. */
+export function anoPadrao(referencia: string): number {
+  return Number(referencia.slice(0, 4)) - 1;
+}
+
+/** Os anos de envio que o painel tem, do mais recente ao mais antigo. */
+export function anosEnvio(referencia: string): number[] {
+  const ultimo = Number(referencia.slice(0, 4));
+  const anos: number[] = [];
+  for (let a = ultimo; a >= ANO_MINIMO_ENVIO; a--) anos.push(a);
+  return anos;
+}
+
+/** Enviadas que ainda não tiveram desfecho: com o concedente, com o proponente ou esperando assinar. */
+export function semDesfecho(d: LinhaDesfecho): number {
+  return d.abertas_concedente + d.abertas_proponente + d.aguardando_assinatura;
+}
+
+/** Canceladas pelo proponente e convênios anulados: o que sobra das enviadas. */
+export function canceladas(d: LinhaDesfecho): number {
+  return Math.max(d.enviadas - d.assinadas - d.reprovadas - d.impedimento - d.eliminadas - semDesfecho(d), 0);
+}
+
+/** "56 dias", "1 dia", "—". Mediana vem com uma casa; a tela arredonda. */
+export function diasPorExtenso(dias: number | null | undefined): string {
+  if (dias === null || dias === undefined || !Number.isFinite(dias)) return "—";
+  const d = Math.round(dias);
+  return `${d.toLocaleString("pt-BR")} ${d === 1 ? "dia" : "dias"}`;
+}
+
+/** Fração de `parte` em `total`, pronta para `percentual`; null sem total. */
+export function fracao(parte: number, total: number): number | null {
+  return total > 0 ? parte / total : null;
 }
 
 // ============================ RÓTULOS ============================

@@ -7,14 +7,19 @@ import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { UFS } from "@/lib/oportunidades/organizacao";
 import {
+  CHAVE_TODOS,
   DESCRICAO_SINAL,
+  ETAPAS_CAMINHO,
   ETAPAS_LICITACAO,
+  ETAPAS_VEZ,
   EXIGENCIAS,
   FAIXAS_SALDO,
   FAIXAS_SUSPENSIVA,
   FAIXAS_VIGENCIA,
   GRUPOS_SUSPENSIVA,
   LADOS_CONTAS,
+  MINIMO_MEDICOES,
+  ROTULO_ETAPA,
   ROTULO_ETAPA_LICITACAO,
   ROTULO_EXIGENCIA,
   ROTULO_FAIXA_SALDO,
@@ -26,14 +31,26 @@ import {
   ROTULO_SINAL_CURTO,
   SINAIS,
   VISOES,
+  anosEnvio,
+  canceladas,
   definicao,
+  diasPorExtenso,
+  etapasDe,
   exigenciasDe,
+  fracao,
   idadePorExtenso,
+  inicioJanela,
+  maisLento,
+  matrizEtapas,
+  medianaComparavel,
   percentual,
   prazoPorExtenso,
   resumoDe,
+  semDesfecho,
   sinaisDe,
   urlPainel,
+  type LinhaDesfecho,
+  type LinhaEtapa,
   type ParametrosPainel,
   type Visao,
 } from "@/lib/oportunidades/painel";
@@ -53,7 +70,8 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
 
   const r = (v: Visao) => resumoDe(leitura.resumo, v);
   const contas = r("contas");
-  const contadores: Record<Visao, number> = {
+  // Tempos e aprovação não são contagem de convênios: o chip vai sem número.
+  const contadores: Partial<Record<Visao, number>> = {
     suspensiva: r("suspensiva")("total").n,
     nunca: r("nunca")("total").n,
     vigencia: r("vigencia")("total").n,
@@ -61,6 +79,12 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
     saldo: r("saldo")("parado").n,
     municipios: leitura.resumo.filter((l) => l.visao === "municipios").reduce((s, l) => s + l.n, 0),
   };
+  const orgaos =
+    p.visao === "tempos"
+      ? matrizEtapas(leitura.etapas, "orgao").map((o) => o.chave)
+      : p.visao === "aprovacao"
+        ? leitura.desfechos.filter((d) => d.cod_programa === null && d.orgao_sup !== null).map((d) => d.orgao_sup as string)
+        : leitura.porOrgao.map((o) => o.orgao);
 
   return (
     <div className="pa-pagina mp-radar mp-painel">
@@ -82,12 +106,12 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
             aria-current={p.visao === v.id ? "page" : undefined}
           >
             {v.rotulo}
-            <span className="pa-chip-contagem">{n(contadores[v.id])}</span>
+            {contadores[v.id] !== undefined && <span className="pa-chip-contagem">{n(contadores[v.id] ?? 0)}</span>}
           </Link>
         ))}
       </nav>
 
-      <Filtros p={p} orgaos={leitura.porOrgao} />
+      <Filtros p={p} orgaos={orgaos} />
 
       <section aria-labelledby="painel-visao" className="mp-radar-secao">
         <h2 id="painel-visao" className="mp-radar-h2">
@@ -102,6 +126,8 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         {p.visao === "contas" && <Contas p={p} leitura={leitura} />}
         {p.visao === "saldo" && <Saldo p={p} leitura={leitura} />}
         {p.visao === "municipios" && <Municipios leitura={leitura} />}
+        {p.visao === "tempos" && <Tempos p={p} leitura={leitura} />}
+        {p.visao === "aprovacao" && <Aprovacao p={p} leitura={leitura} />}
       </section>
     </div>
   );
@@ -588,10 +614,397 @@ function Municipios({ leitura }: { leitura: LeituraOk }) {
   );
 }
 
+function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
+  const onde = p.uf ?? "Brasil";
+  const todos = etapasDe(leitura.etapas, CHAVE_TODOS);
+  const foco = p.orgao ? etapasDe(leitura.etapas, p.orgao) : todos;
+  const linhas = matrizEtapas(leitura.etapas, p.dimensao);
+  const colunas = [...ETAPAS_CAMINHO, "vez_concedente"];
+  const porPrograma = p.dimensao === "programa";
+
+  return (
+    <>
+      <div className="pa-grade pa-grade-4 mp-painel-cartoes">
+        {ETAPAS_CAMINHO.map((e) => (
+          <CartaoTempo key={e} rotulo={ROTULO_ETAPA[e]} linha={foco[e]} />
+        ))}
+      </div>
+      <p className="pa-nota">
+        Mediana das etapas que terminaram desde {formatarData(inicioJanela(leitura.execucao.referencia))}, nos últimos 36
+        meses: metade levou menos que isso. Aprovação é o plano de trabalho aprovado; assinatura, a data formal do
+        convênio; conclusão, a prestação de contas aprovada. &ldquo;Ainda nesta etapa&rdquo; conta, nas etapas de proposta,
+        só as enviadas na mesma janela; nas de convênio, os que estão nela hoje.
+      </p>
+
+      <div className="mp-radar-recorte">
+        <h3 className="mp-radar-h3">De quem é a vez, do envio à assinatura</h3>
+        <div className="mp-tabela-rolagem">
+          <table className="mp-tabela">
+            <thead>
+              <tr>
+                <th scope="col">Com quem estava</th>
+                <th scope="col" className="mp-num">Mediana</th>
+                <th scope="col" className="mp-num">9 em cada 10 em até</th>
+                <th scope="col" className="mp-num">Assinadas medidas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {["envio_assinatura", ...ETAPAS_VEZ].map((e) => {
+                const l = foco[e];
+                const m = medianaComparavel(l);
+                return (
+                  <tr key={e}>
+                    <th scope="row">{e === "envio_assinatura" ? <strong>Tempo total</strong> : ROTULO_ETAPA[e]}</th>
+                    <td className="mp-num">{diasPorExtenso(m)}</td>
+                    <td className="mp-num">{m === null ? "—" : diasPorExtenso(l?.p90)}</td>
+                    <td className="mp-num">{n(l?.n ?? 0)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="pa-nota">
+          Nas propostas assinadas na janela, o tempo somado em análise do concedente, em complementação pelo proponente e
+          aprovada esperando a assinatura. As medianas não se somam: cada uma é o meio da sua própria distribuição.
+        </p>
+      </div>
+
+      <nav aria-label="Comparar por" className="pa-chips mp-painel-lados">
+        {(["orgao", "programa"] as const).map((d) => (
+          <Link
+            key={d}
+            href={urlPainel(p, { dimensao: d })}
+            className={`pa-chip${p.dimensao === d ? " pa-ativo" : ""}`}
+            aria-current={p.dimensao === d ? "true" : undefined}
+          >
+            {d === "orgao" ? "Por ministério" : "Por programa"}
+          </Link>
+        ))}
+      </nav>
+
+      <Lista
+        titulo={
+          porPrograma
+            ? `Mediana em dias, nos ${linhas.length} programas com mais assinaturas${p.orgao ? " do órgão" : ""}`
+            : "Mediana em dias, por órgão concedente"
+        }
+        vazio={`Nenhum ${porPrograma ? "programa" : "órgão"} com medição neste recorte.`}
+      >
+        {linhas.length > 0 && (
+          <table className="mp-tabela mp-painel-matriz">
+            <thead>
+              <tr>
+                <th scope="col">{porPrograma ? "Programa" : "Órgão"}</th>
+                {colunas.map((e) => (
+                  <th key={e} scope="col" className="mp-num">
+                    {ROTULO_ETAPA[e]}
+                  </th>
+                ))}
+                <th scope="col" className="mp-num">Assinadas na janela</th>
+                <th scope="col" className="mp-num">Propostas sem desfecho</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map((l) => (
+                <tr key={l.chave} className={!porPrograma && l.chave === p.orgao ? "mp-painel-foco" : undefined}>
+                  <th scope="row">
+                    {porPrograma ? (
+                      <>
+                        <span className="mp-tabela-principal mp-painel-programa">{l.rotulo}</span>
+                        <span className="mp-tabela-secundario">
+                          cód. {l.chave} <CopiarNumero numero={l.chave} de="programa" />
+                          {!p.orgao && l.orgao_sup ? ` · ${l.orgao_sup}` : ""}
+                        </span>
+                      </>
+                    ) : (
+                      <Link href={urlPainel(p, { dimensao: "programa", orgao: l.chave })}>{l.rotulo}</Link>
+                    )}
+                  </th>
+                  {colunas.map((e) => {
+                    const m = medianaComparavel(l.etapas[e]);
+                    return (
+                      <td key={e} className="mp-num">
+                        {m === null ? (
+                          "—"
+                        ) : (
+                          <span className={maisLento(m, medianaComparavel(todos[e])) ? "mp-painel-urgente" : undefined}>
+                            {n(Math.round(m))}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="mp-num">{n(l.volume)}</td>
+                  <td className="mp-num">{n(l.etapas.envio_assinatura?.em_aberto ?? 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Lista>
+      <p className="pa-nota">
+        Em destaque, a mediana 1,5 vez ou mais a de {p.uf ? `todos os órgãos em ${onde}` : "todos os órgãos do Brasil"}.
+        &ldquo;—&rdquo; quando há menos de {MINIMO_MEDICOES} medições.{" "}
+        {porPrograma ? "O código é o que se digita na consulta de programas do Transferegov." : "O nome do órgão abre os programas dele."}
+      </p>
+    </>
+  );
+}
+
+function CartaoTempo({ rotulo, linha }: { rotulo: string; linha: LinhaEtapa | undefined }) {
+  const mediana = medianaComparavel(linha);
+  return (
+    <article className="pa-cartao mp-painel-cartao">
+      <h3 className="pa-mono">{rotulo}</h3>
+      <p className="pa-numero">{diasPorExtenso(mediana)}</p>
+      <p className="mp-painel-valor">
+        {mediana === null ? `menos de ${MINIMO_MEDICOES} medições` : `9 em cada 10 em até ${diasPorExtenso(linha?.p90)}`}
+      </p>
+      {linha && linha.em_aberto > 0 && (
+        <p className="pa-nota">
+          {n(linha.em_aberto)} ainda nesta etapa · metade há mais de{" "}
+          {idadePorExtenso(Math.round(linha.idade_mediana_aberto ?? 0))}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
+  const ano = leitura.ano ?? 0;
+  const anoDado = Number(leitura.execucao.referencia.slice(0, 4));
+  const total = leitura.desfechos.find((d) => d.cod_programa === null && d.orgao_sup === null);
+  const orgaos = leitura.desfechos.filter((d) => d.cod_programa === null && d.orgao_sup !== null);
+  const programas = leitura.desfechos.filter((d) => d.cod_programa !== null);
+  const historico = Number(leitura.execucao.contagens.propostas_impedimento_historico ?? 0);
+
+  return (
+    <>
+      <nav aria-label="Ano do primeiro envio" className="pa-chips mp-painel-lados mp-painel-anos">
+        {anosEnvio(leitura.execucao.referencia).map((a) => (
+          <Link
+            key={a}
+            href={urlPainel(p, { ano: a })}
+            className={`pa-chip${a === ano ? " pa-ativo" : ""}`}
+            aria-current={a === ano ? "true" : undefined}
+          >
+            {a}
+            {a === anoDado ? " · parcial" : ""}
+          </Link>
+        ))}
+      </nav>
+
+      {!total ? (
+        <p className="pa-cartao pa-cartao-plano">Nenhuma proposta enviada em {ano} neste recorte.</p>
+      ) : (
+        <>
+          <div className="pa-grade pa-grade-4 mp-painel-cartoes">
+            <Cartao rotulo={`Enviadas em ${ano}`} quantidade={total.enviadas} valor={total.valor_pedido} legenda="pedidos" />
+            <Cartao
+              rotulo="Assinadas"
+              quantidade={total.assinadas}
+              nota={`${percentual(fracao(total.assinadas, total.enviadas))} das enviadas`}
+            />
+            <Cartao
+              rotulo="Reprovadas"
+              quantidade={total.reprovadas}
+              tom="urgente"
+              nota={`${percentual(fracao(total.reprovadas, total.enviadas))} das enviadas · ${n(total.reprovadas_lote)} em lote`}
+            />
+            <Cartao
+              rotulo="Impedimento técnico"
+              quantidade={total.impedimento}
+              tom="urgente"
+              nota={`${percentual(fracao(total.impedimento, total.enviadas))} das enviadas · ${n(total.impedimento_lote)} em lote`}
+            />
+          </div>
+          {ano >= anoDado - 1 && semDesfecho(total) > 0 && (
+            <p className="pa-nota">
+              <strong>Ano ainda aberto:</strong> {n(semDesfecho(total))} propostas de {ano} seguem sem desfecho. As taxas
+              deste ano mudam até elas terminarem.
+            </p>
+          )}
+
+          <div className="pa-grade pa-grade-2 mp-painel-duas">
+            <div className="mp-radar-recorte">
+              <h3 className="mp-radar-h3">Onde está cada proposta hoje</h3>
+              <div className="mp-tabela-rolagem">
+                <table className="mp-tabela">
+                  <thead>
+                    <tr>
+                      <th scope="col">Desfecho</th>
+                      <th scope="col" className="mp-num">Propostas</th>
+                      <th scope="col" className="mp-num">Das enviadas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(
+                      [
+                        ["Assinadas", total.assinadas],
+                        ["Reprovadas", total.reprovadas],
+                        ["↳ em lote", total.reprovadas_lote],
+                        ["Impedimento técnico", total.impedimento],
+                        ["↳ em lote", total.impedimento_lote],
+                        ["Eliminadas em chamamento público", total.eliminadas],
+                        ["Em análise no concedente", total.abertas_concedente],
+                        ["↳ sem análise há +1 ano", total.limbo],
+                        ["Em complementação pelo proponente", total.abertas_proponente],
+                        ["Aprovadas, esperando assinatura", total.aguardando_assinatura],
+                        ["Canceladas ou anuladas", canceladas(total)],
+                      ] as const
+                    ).map(([rotulo, q], i) => (
+                      <tr key={i}>
+                        <th scope="row" className={rotulo.startsWith("↳") ? "mp-painel-sublinha" : undefined}>
+                          {rotulo}
+                        </th>
+                        <td className="mp-num">{n(q)}</td>
+                        <td className="mp-num">{percentual(fracao(q, total.enviadas))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="mp-radar-recorte">
+              <h3 className="mp-radar-h3">Com e sem emenda parlamentar</h3>
+              <div className="mp-tabela-rolagem">
+                <table className="mp-tabela">
+                  <thead>
+                    <tr>
+                      <th scope="col">Origem</th>
+                      <th scope="col" className="mp-num">Enviadas</th>
+                      <th scope="col" className="mp-num">Assinadas</th>
+                      <th scope="col" className="mp-num">Taxa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(
+                      [
+                        ["Com emenda", total.com_emenda, total.assinadas_com_emenda],
+                        ["Sem emenda", total.enviadas - total.com_emenda, total.assinadas - total.assinadas_com_emenda],
+                      ] as const
+                    ).map(([rotulo, env, ass]) => (
+                      <tr key={rotulo}>
+                        <th scope="row">{rotulo}</th>
+                        <td className="mp-num">{n(env)}</td>
+                        <td className="mp-num">{n(ass)}</td>
+                        <td className="mp-num">{percentual(fracao(ass, env))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <p className="pa-nota">
+            Cada proposta conta uma vez, no ano do primeiro envio, pelo desfecho de hoje. <strong>Em lote</strong> são 100 ou
+            mais no mesmo dia pelo mesmo órgão: é o encerramento de um edital, não análise de mérito.
+            {historico > 0 && (
+              <>
+                {" "}
+                Em todo o arquivo, de qualquer ano, {n(historico)} propostas estão hoje como &ldquo;Rejeitados por
+                impedimento técnico&rdquo;; aqui entram só as enviadas desde 2019.
+              </>
+            )}
+          </p>
+        </>
+      )}
+
+      {!p.orgao && orgaos.length > 0 && (
+        <div className="mp-radar-recorte">
+          <h3 className="mp-radar-h3">Por órgão concedente</h3>
+          <p className="pa-nota">Os {Math.min(ORGAOS_NA_TABELA, orgaos.length)} com mais propostas enviadas. O nome filtra os programas.</p>
+          <div className="mp-tabela-rolagem">
+            <TabelaDesfechos
+              linhas={orgaos.slice(0, ORGAOS_NA_TABELA)}
+              cabeca="Órgão"
+              linha={(d) => <Link href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</Link>}
+            />
+          </div>
+        </div>
+      )}
+
+      <Lista
+        titulo={`Programas com mais propostas enviadas em ${ano}`}
+        vazio="Nenhum programa com proposta enviada neste recorte."
+      >
+        {programas.length > 0 && (
+          <TabelaDesfechos
+            linhas={programas}
+            cabeca="Programa"
+            linha={(d) => (
+              <>
+                <span className="mp-tabela-principal mp-painel-programa">{d.programa ?? "—"}</span>
+                <span className="mp-tabela-secundario">
+                  cód. {d.cod_programa} <CopiarNumero numero={d.cod_programa ?? ""} de="programa" />
+                  {!p.orgao && d.orgao_sup ? ` · ${d.orgao_sup}` : ""}
+                </span>
+              </>
+            )}
+            valor
+          />
+        )}
+      </Lista>
+    </>
+  );
+}
+
+function TabelaDesfechos({
+  linhas,
+  cabeca,
+  linha,
+  valor,
+}: {
+  linhas: LinhaDesfecho[];
+  cabeca: string;
+  linha: (d: LinhaDesfecho) => ReactNode;
+  /** Com a coluna do valor pedido. */
+  valor?: boolean;
+}) {
+  const taxa = (parte: number, d: LinhaDesfecho, lote?: number) => (
+    <td className="mp-num">
+      <span className="mp-tabela-principal">{percentual(fracao(parte, d.enviadas))}</span>
+      <span className="mp-tabela-secundario">
+        {n(parte)}
+        {lote ? ` · ${n(lote)} em lote` : ""}
+      </span>
+    </td>
+  );
+  return (
+    <table className="mp-tabela">
+      <thead>
+        <tr>
+          <th scope="col">{cabeca}</th>
+          <th scope="col" className="mp-num">Enviadas</th>
+          <th scope="col" className="mp-num">Assinadas</th>
+          <th scope="col" className="mp-num">Reprovadas</th>
+          <th scope="col" className="mp-num">Impedimento</th>
+          <th scope="col" className="mp-num">Sem desfecho</th>
+          {valor && <th scope="col" className="mp-num">Pedido</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {linhas.map((d) => (
+          <tr key={`${d.orgao_sup}|${d.cod_programa}`}>
+            <th scope="row">{linha(d)}</th>
+            <td className="mp-num">{n(d.enviadas)}</td>
+            {taxa(d.assinadas, d)}
+            {taxa(d.reprovadas, d, d.reprovadas_lote)}
+            {taxa(d.impedimento, d, d.impedimento_lote)}
+            {taxa(semDesfecho(d), d)}
+            {valor && <td className="mp-num">{moedaCurta(d.valor_pedido)}</td>}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ============================================================================ peças
 
-function Filtros({ p, orgaos }: { p: ParametrosPainel; orgaos: LinhaOrgao[] }) {
-  const opcoes = orgaos.map((o) => o.orgao);
+function Filtros({ p, orgaos }: { p: ParametrosPainel; orgaos: string[] }) {
+  const opcoes = [...orgaos];
   if (p.orgao && !opcoes.includes(p.orgao)) opcoes.unshift(p.orgao);
   return (
     <div className="mp-filtros mp-radar-filtros">
@@ -599,6 +1012,8 @@ function Filtros({ p, orgaos }: { p: ParametrosPainel; orgaos: LinhaOrgao[] }) {
       <form method="get" action="/mapa/painel" className="pa-linha mp-radar-uf mp-painel-filtros">
         {p.visao !== "suspensiva" && <input type="hidden" name="visao" value={p.visao} />}
         {p.visao === "contas" && p.lado !== "atrasada" && <input type="hidden" name="lado" value={p.lado} />}
+        {p.visao === "tempos" && p.dimensao !== "orgao" && <input type="hidden" name="dimensao" value={p.dimensao} />}
+        {p.visao === "aprovacao" && p.ano !== null && <input type="hidden" name="ano" value={p.ano} />}
         <label htmlFor="painel-uf" className="pa-campo-rotulo">
           Onde
         </label>

@@ -461,3 +461,9 @@
 }
 .pa-root .mp-painel-legenda dt { font-weight: 600; font-size: 0.86rem; }
 .pa-root .mp-painel-legenda dd { margin: 0; font-size: 0.8rem; color: var(--pa-muted); }
+
+/* Parte B — tempos e aprovação. Os nomes das etapas são longos: na matriz, o
+   cabeçalho quebra em vez de alargar cada coluna até a largura do rótulo. */
+.pa-root .mp-painel-matriz thead th.mp-num { white-space: normal; min-width: 6.5rem; vertical-align: bottom; }
+.pa-root .mp-painel-foco th, .pa-root .mp-painel-foco td { background: var(--pa-surface-2); }
+.pa-root .mp-tabela tbody th.mp-painel-sublinha { padding-left: 1.6rem; font-weight: 400; color: var(--pa-muted); }
