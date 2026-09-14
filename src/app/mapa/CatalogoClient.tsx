@@ -8,7 +8,7 @@
  * se recalcula prazo, elegibilidade nem contagem.
  */
 
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   SEM_FILTRO,
@@ -23,6 +23,7 @@ import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { CONDICAO_CANAL, ORDEM_CANAL, ROTULO_CANAL, type CanalV2 } from "@/lib/oportunidades/contrato-v2";
 import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe } from "@/lib/oportunidades/temas";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
+import { copiarTexto } from "@/lib/area-de-transferencia";
 import { Tag } from "../_design/primitivos";
 
 interface Entidade {
@@ -353,28 +354,34 @@ function JanelaCartao({
   const edital = j.documentos[0];
   const combinaTema = j.aderencia?.motivos.some((m) => m.startsWith("combina")) ?? false;
   const [copia, setCopia] = useState<"copiado" | "falhou" | null>(null);
+  const codigoRef = useRef<HTMLElement>(null);
 
-  async function copiarEConsultar(e: MouseEvent<HTMLAnchorElement>) {
-    // Ctrl, Shift ou botão do meio: a pessoa escolheu como abrir o link. Deixa o
-    // navegador fazer e não copia nada por trás.
-    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault();
+  /**
+   * Copiar e abrir são dois botões, não um. Até 14/09/2026 era um só, que copiava
+   * e abria a consulta em seguida; quando o navegador recusou a cópia, a aba do
+   * Transferegov abriu mesmo assim, por cima do aviso de falha, e a pessoa chegou
+   * ao formulário vazio sem saber por quê. Separados, o resultado da cópia fica à
+   * vista antes de sair da página.
+   */
+  async function copiar() {
     const codigo = j.codigos[0];
-    try {
-      await navigator.clipboard.writeText(codigo);
+    if (await copiarTexto(codigo)) {
       setCopia("copiado");
-      anunciar(
-        `Código ${codigo} copiado. Na consulta do Transferegov, cole no campo Código do Programa e clique em Consultar.`,
-      );
-    } catch {
-      // Sem permissão de área de transferência o código continua no cartão para
-      // selecionar à mão — dizer que copiou sem ter copiado seria mentira.
-      setCopia("falhou");
-      anunciar("Não consegui copiar o código. Ele está no cartão, dá para selecionar.");
+      anunciar(`Código ${codigo} copiado. Abra a consulta do Transferegov, cole em Código do Programa e clique em Consultar.`);
+      return;
     }
-    // Copia ANTES de abrir, como a tela antiga de /oportunidades: com a aba nova
-    // na frente, o documento perde o foco e o navegador recusa a escrita.
-    window.open(TRANSFEREGOV_CONSULTA, "_blank", "noopener,noreferrer");
+    // Sem cópia, o código fica SELECIONADO no cartão: um Ctrl+C resolve. Dizer que
+    // copiou sem ter copiado seria mentira.
+    const alvo = codigoRef.current;
+    const selecao = window.getSelection();
+    if (alvo && selecao) {
+      const trecho = document.createRange();
+      trecho.selectNodeContents(alvo);
+      selecao.removeAllRanges();
+      selecao.addRange(trecho);
+    }
+    setCopia("falhou");
+    anunciar(`O navegador bloqueou a cópia. O código ${codigo} ficou selecionado no cartão: use Ctrl+C.`);
   }
 
   return (
@@ -393,8 +400,8 @@ function JanelaCartao({
         {j.codigos.length > 0 && (
           <p className="mp-janela-codigo">
             <span className="pa-mono">{j.codigos.length === 1 ? "Código do programa" : "Códigos do programa"}</span>
-            {j.codigos.map((c) => (
-              <code key={c} className="pa-mapa-codigo">
+            {j.codigos.map((c, i) => (
+              <code key={c} ref={i === 0 ? codigoRef : undefined} className="pa-mapa-codigo">
                 {c}
               </code>
             ))}
@@ -430,26 +437,22 @@ function JanelaCartao({
           </a>
         ) : j.fonteId === "transferegov" && j.codigos.length > 0 ? (
           // Janela do Transferegov não traz documento, e o Transferegov não tem
-          // endereço por programa: a consulta abre vazia. O código vem do v1
-          // (`codigos-transferegov.ts`), e o botão copia antes de abrir.
+          // endereço por programa: a consulta SEMPRE abre vazia, e o código é colado
+          // lá. O código vem do v1 (`codigos-transferegov.ts`).
           <>
-            <a
-              className="pa-btn pa-btn-pequeno"
-              href={TRANSFEREGOV_CONSULTA}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={copiarEConsultar}
-            >
-              Copiar código e consultar
-              <span className="pa-sr"> no Transferegov: {j.titulo} (abre em nova aba)</span>
+            <button type="button" className="pa-btn pa-btn-pequeno" onClick={copiar}>
+              {copia === "copiado" ? "Código copiado ✓" : "Copiar código"}
+              <span className="pa-sr"> do programa {j.titulo}</span>
+            </button>
+            <a className="pa-btn pa-btn-pequeno" href={TRANSFEREGOV_CONSULTA} target="_blank" rel="noopener noreferrer">
+              Abrir consulta
+              <span className="pa-sr"> do Transferegov (abre em nova aba)</span>
             </a>
             {copia !== null && (
               <p className="pa-mono mp-janela-copiado">
                 {copia === "falhou"
-                  ? "Não copiou · selecione o código no cartão"
-                  : j.codigos.length > 1
-                    ? "1º código copiado · cole em Código do Programa"
-                    : "Copiado · cole em Código do Programa"}
+                  ? "O navegador bloqueou a cópia. O código ficou selecionado: aperte Ctrl+C."
+                  : `${j.codigos.length > 1 ? "Copiado o 1º código. " : ""}Na consulta, cole em “Código do Programa” e clique em Consultar.`}
               </p>
             )}
           </>

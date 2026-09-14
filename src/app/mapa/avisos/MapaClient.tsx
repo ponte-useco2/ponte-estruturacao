@@ -37,6 +37,7 @@ import {
 import type { LeituraCentral, TentativaFalha } from "@/lib/oportunidades/notificacoes.server";
 import { Tag } from "../../_design/primitivos";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
+import { copiarTexto } from "@/lib/area-de-transferencia";
 import { subtemasDe } from "@/lib/oportunidades/temas";
 import { motivoDaCombinacao, type Preferencias } from "@/lib/oportunidades/aderencia";
 import type { OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
@@ -360,10 +361,11 @@ function Central({
   }
 
   async function copiarCodigo(codigos: string[]) {
-    try {
-      await navigator.clipboard.writeText(codigos.join(" "));
+    // `copiarTexto`, e não `navigator.clipboard` direto: a API assíncrona sozinha
+    // foi recusada pelo navegador nas Janelas em 14/09/2026.
+    if (await copiarTexto(codigos.join(" "))) {
       setAnuncio(codigos.length === 1 ? "Código copiado." : "Códigos copiados.");
-    } catch {
+    } else {
       // Sem permissão de área de transferência o código continua na tela para
       // selecionar à mão — dizer que copiou sem ter copiado seria mentira.
       setAnuncio("Não consegui copiar. O código está aí ao lado, dá para selecionar.");
