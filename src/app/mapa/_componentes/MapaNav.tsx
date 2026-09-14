@@ -18,6 +18,7 @@ const ABAS = [
   // Uso interno da PONTE. Esconder a aba é conveniência; quem protege é a página,
   // que confere o administrador no servidor antes de ler qualquer dado.
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true },
+  { href: "/mapa/painel", nome: "Painel", exata: false, admin: true },
 ] as const;
 
 export function MapaNav({ naoLidas, admin }: { naoLidas: number | null; admin: boolean }) {

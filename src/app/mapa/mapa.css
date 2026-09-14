@@ -411,3 +411,53 @@
 .pa-root .mp-tabela-principal { display: block; overflow-wrap: anywhere; }
 .pa-root .mp-tabela-secundario { display: block; font-weight: 400; font-size: 0.8rem; color: var(--pa-muted); }
 .pa-root .mp-nowrap { white-space: nowrap; }
+
+/* ==========================================================================
+   Painel de execução da PONTE (14/09/2026). Mesma família do Radar: números à
+   direita, tabelas que rolam dentro da caixa, filtros por link e GET.
+   ========================================================================== */
+.pa-root .mp-painel-visoes { margin-bottom: 0.8rem; }
+.pa-root .mp-painel-visoes .pa-chip,
+.pa-root .mp-painel-lados .pa-chip { min-height: 44px; display: inline-flex; align-items: center; gap: 0.45rem; }
+.pa-root .mp-painel-lados { margin-top: 1.4rem; }
+.pa-root .mp-painel-filtros { flex-wrap: wrap; }
+/* Nome de ministério é longo: o select não pode empurrar a página para o lado. */
+.pa-root .mp-painel-orgao { max-width: min(28rem, 100%); }
+
+.pa-root .mp-painel-cartoes { margin-top: 0.8rem; }
+.pa-root .mp-painel-cartao { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; }
+.pa-root .mp-painel-cartao h3 { margin: 0; }
+.pa-root .mp-painel-valor { font-size: 0.9rem; color: var(--pa-muted); margin: 0; }
+/* Urgência pela borda e pelo texto, não só pela cor de fundo. */
+.pa-root .mp-painel-cartao-urgente { border-left: 3px solid var(--pa-danger); }
+.pa-root .mp-painel-urgente { color: var(--pa-danger); font-weight: 600; }
+.pa-root .mp-painel-duas { align-items: start; }
+/* Nas tabelas lado a lado o rótulo é curto: a largura mínima do Radar (16rem)
+   empurrava a coluna de valor para fora da caixa. */
+.pa-root .mp-painel-duas .mp-tabela tbody th { min-width: 0; }
+
+.pa-root .mp-painel-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+.pa-root .mp-painel-contagem-sinais {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 1.6rem; height: 1.6rem;
+  border-radius: 999px; background: var(--pa-brand); color: #fff; font-size: 0.8rem;
+}
+/* Nome de programa do SICONV chega a 300 caracteres; três linhas bastam para reconhecer. */
+.pa-root .mp-painel-programa,
+.pa-root .mp-painel-objeto {
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; max-width: 34rem;
+}
+.pa-root .mp-painel-programa { -webkit-line-clamp: 3; }
+.pa-root .mp-painel-objeto { -webkit-line-clamp: 2; }
+
+.pa-root .mp-painel-copiar {
+  font: inherit; font-size: 0.74rem; min-height: 28px; padding: 0 0.45rem; margin-left: 0.25rem;
+  border: 1px solid var(--pa-border); border-radius: 999px; background: var(--pa-surface); color: var(--pa-text);
+  cursor: pointer; white-space: nowrap;
+}
+.pa-root .mp-painel-copiar:hover { background: var(--pa-surface-2); }
+
+.pa-root .mp-painel-legenda {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.6rem 1rem; margin: 1rem 0 0;
+}
+.pa-root .mp-painel-legenda dt { font-weight: 600; font-size: 0.86rem; }
+.pa-root .mp-painel-legenda dd { margin: 0; font-size: 0.8rem; color: var(--pa-muted); }
