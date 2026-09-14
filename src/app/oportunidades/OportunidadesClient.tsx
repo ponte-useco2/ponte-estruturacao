@@ -29,6 +29,7 @@ import { useRegistro } from "./usar-registro";
  */
 import {
   CONTRATO_MAJOR,
+  rotuloCanal,
   type Oportunidade,
   type Payload,
   type PropostaRecente,
@@ -649,7 +650,7 @@ export function OportunidadesClient({
 
   // Contagem por chip (a partir do array bruto, não recontar depois de filtro)
   const cntNat: Record<string, number> = {};
-  const cntCanal: Record<string, number> = { proposta: 0, emenda: 0 };
+  const cntCanal: Record<string, number> = { proposta: 0, emenda: 0, beneficiario_especifico: 0 };
   const cntOrg: Record<string, number> = {};
   for (const o of payload.oportunidades) {
     cntNat[o.natureza] = (cntNat[o.natureza] || 0) + 1;
@@ -805,10 +806,10 @@ export function OportunidadesClient({
                     key={c}
                     className="op-chip"
                     aria-pressed={pressed}
-                    aria-label={`${c}, ${n} programas`}
+                    aria-label={`${rotuloCanal(c)}, ${n} programas`}
                     onClick={() => toggleChip(filtroCanal, setFiltroCanal, c)}
                   >
-                    {c === "proposta" ? "Proposta" : "Emenda"}{" "}
+                    {rotuloCanal(c)}{" "}
                     <span className="op-chip-count">({n})</span>
                   </button>
                 );
@@ -900,7 +901,9 @@ export function OportunidadesClient({
                       aria-pressed={filtroCanal.length === 0}
                       onClick={() => setFiltroCanal([])}
                     >
-                      Todas ({cntCanal.proposta + cntCanal.emenda})
+                      {/* Soma o array inteiro, e não canal por canal: somar só
+                          proposta + emenda escondia o terceiro canal do total. */}
+                      Todas ({payload.oportunidades.length})
                     </button>
                     <button
                       className="op-seg-btn"
@@ -916,6 +919,15 @@ export function OportunidadesClient({
                     >
                       Emenda ({cntCanal.emenda})
                     </button>
+                    {cntCanal.beneficiario_especifico > 0 && (
+                      <button
+                        className="op-seg-btn"
+                        aria-pressed={filtroCanal.length === 1 && filtroCanal[0] === "beneficiario_especifico"}
+                        onClick={() => setFiltroCanal(["beneficiario_especifico"])}
+                      >
+                        Beneficiário específico ({cntCanal.beneficiario_especifico})
+                      </button>
+                    )}
                   </div>
                 }
               />
@@ -1120,7 +1132,7 @@ function OportunidadeRow({ o, termo = "" }: { o: Oportunidade; termo?: string })
           <span className="op-prog-ader">aderente · {o.temas.join(", ")}</span>
         )}
         <span className="op-prog-meta op-prog-meta-extra">
-          Canal: {o.canal === "proposta" ? "Proposta" : "Emenda"} · {o.propostas_recebidas} propostas recebidas
+          Canal: {rotuloCanal(o.canal)} · {o.propostas_recebidas} propostas recebidas
         </span>
         <LinkTransferegov codigo={o.codigos[0]} />
       </td>
@@ -1130,7 +1142,7 @@ function OportunidadeRow({ o, termo = "" }: { o: Oportunidade; termo?: string })
       <td className="op-natureza" data-lbl="Quem pode">
         {o.natureza}
       </td>
-      <td className="op-col-canal">{o.canal === "proposta" ? "Proposta" : "Emenda"}</td>
+      <td className="op-col-canal">{rotuloCanal(o.canal)}</td>
       <td className="op-fecha">
         <span className={"op-dias" + (o.urgente ? " urg" : "")}>{formatBR(o.fecha)}</span>
         <span className="op-dias-sub">

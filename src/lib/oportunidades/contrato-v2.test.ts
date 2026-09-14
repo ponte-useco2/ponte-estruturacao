@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   DIAS_URGENTE,
+  canalDaOportunidade,
   comoPayloadV2,
   diasAte,
   ehAberta,
@@ -165,4 +166,41 @@ test("a vertical de inovação do CNPq alcança quem segue Inovação", () => {
   const a = avaliar(j, { tipo: "ict", uf: "PB", temas: ["inovacao"] });
   // 40 elegibilidade + 20 abrangência nacional (BR) + 15 um tema = 75
   assert.equal(a.pontuacao, 75);
+});
+
+// =============================================================================
+// Canal — campo do 2.1, com a regra de transição para arquivos 2.0
+// =============================================================================
+
+test("arquivo 2.0: o canal do Transferegov sai do sufixo do id", () => {
+  // O fixture é do catálogo de 10/09/2026, ainda sem o campo `channel`.
+  assert.equal(porId("transferegov-903a9f369f75-proposta").channel, undefined);
+  assert.equal(canalDaOportunidade(porId("transferegov-903a9f369f75-proposta")), "voluntaria");
+  assert.equal(canalDaOportunidade(porId("transferegov-7bb9c38d13a7-emenda")), "emenda_parlamentar");
+});
+
+test("arquivo 2.0: as outras fontes são chamada pública", () => {
+  assert.equal(canalDaOportunidade(porId("finep-749717")), "chamada_publica");
+  assert.equal(canalDaOportunidade(porId("cnpq-24-2026")), "chamada_publica");
+});
+
+test("arquivo 2.1: o campo manda, e o sufixo do id é ignorado", () => {
+  const o = { ...porId("transferegov-903a9f369f75-proposta"), channel: "beneficiario_especifico" as const };
+  assert.equal(canalDaOportunidade(o), "beneficiario_especifico");
+});
+
+test("arquivo 2.1 com canal nulo não é adivinhado pelo id", () => {
+  const o = { ...porId("transferegov-7bb9c38d13a7-emenda"), channel: null };
+  assert.equal(canalDaOportunidade(o), null);
+});
+
+test("sufixo desconhecido devolve null em vez de chutar", () => {
+  const o = { ...porId("transferegov-903a9f369f75-proposta"), id: "transferegov-abc-outra-coisa" };
+  assert.equal(canalDaOportunidade(o), null);
+});
+
+test("arquivo 2.0: sufixo de beneficiário específico em forma de slug", () => {
+  // O radar gera `transferegov-<hash>-beneficiario-especifico`, com hífen.
+  const o = { ...porId("transferegov-903a9f369f75-proposta"), id: "transferegov-171dee925082-beneficiario-especifico" };
+  assert.equal(canalDaOportunidade(o), "beneficiario_especifico");
 });

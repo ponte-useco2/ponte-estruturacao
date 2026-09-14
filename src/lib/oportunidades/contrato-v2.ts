@@ -46,6 +46,20 @@ export type StatusV2 = "open" | "closed" | "scheduled" | "unknown";
 export type SituacaoMudanca = "baseline" | "new" | "changed" | "closed" | "unchanged";
 export type SaudeFonte = "healthy" | "stale" | "error";
 export type CampoMudanca = "title" | "status" | "dates.deadline" | "funding.program_budget";
+
+/**
+ * Por onde a proposta entra. Campo do contrato 2.1.
+ *
+ *   voluntaria               qualquer proponente elegível propõe por conta própria
+ *   emenda_parlamentar       só com emenda destinada por parlamentar
+ *   beneficiario_especifico  só quem o órgão concedente indicou
+ *   chamada_publica          edital aberto de Finep, CNPq, FAPESQ
+ *
+ * Os três primeiros são as três janelas de datas do SICONV. O último é o que as
+ * outras fontes publicam: edital competitivo, aberto a quem cumpre os
+ * requisitos.
+ */
+export type CanalV2 = "voluntaria" | "emenda_parlamentar" | "beneficiario_especifico" | "chamada_publica";
 export type TipoInstrumento =
   | "subvencao_economica"
   | "convenio"
@@ -103,6 +117,8 @@ export interface OportunidadeV2 {
   description: string | null;
   funder: string;
   instrument: { type: TipoInstrumento; repayable: boolean | null };
+  /** Contrato 2.1. Ausente em arquivos 2.0 — ver `canalDaOportunidade`. */
+  channel?: CanalV2 | null;
   status: StatusV2;
   dates: { published: string | null; deadline: string | null };
   eligibility: { organization_types: string[]; geography: string[] };
@@ -256,3 +272,51 @@ export const ROTULO_SAUDE: Record<SaudeFonte, string> = {
   stale: "desatualizada",
   error: "com falha na última leitura",
 };
+
+// ============================ CANAL ============================
+
+/**
+ * O canal da oportunidade.
+ *
+ * Com contrato 2.1, é o campo `channel`, e ponto.
+ *
+ * Com contrato 2.0 — o que está publicado até o radar passar a emitir o campo —,
+ * a regra de TRANSIÇÃO é esta: o Transferegov carimba o canal no fim do `id`
+ * (`transferegov-<hash>-proposta`, `-emenda`), porque o adaptador monta o `id`
+ * como `<identidade>-<canal>`. As outras fontes só publicam edital aberto.
+ *
+ * Ler pedaço de `id` é frágil, e por isso fica restrito a arquivo SEM o campo.
+ * Remover esta regra quando nenhum arquivo 2.0 estiver mais em circulação.
+ * Sufixo desconhecido devolve null: melhor "canal não informado" do que chutar.
+ */
+export function canalDaOportunidade(o: Pick<OportunidadeV2, "id" | "source" | "channel">): CanalV2 | null {
+  if (o.channel !== undefined) return o.channel;
+  if (o.source.id !== "transferegov") return "chamada_publica";
+  if (o.id.endsWith("-proposta")) return "voluntaria";
+  if (o.id.endsWith("-emenda")) return "emenda_parlamentar";
+  // Slug: o `stable_id` do radar troca `_` por `-`. Achado pelo teste do adaptador.
+  if (o.id.endsWith("-beneficiario-especifico")) return "beneficiario_especifico";
+  return null;
+}
+
+export const ROTULO_CANAL: Record<CanalV2, string> = {
+  voluntaria: "Proposta voluntária",
+  emenda_parlamentar: "Emenda parlamentar",
+  beneficiario_especifico: "Beneficiário específico",
+  chamada_publica: "Chamada pública",
+};
+
+/**
+ * A condição de cada canal, em linguagem de gente. É o que impede o cartão de
+ * prometer o que a entidade não pode fazer sozinha: uma janela de emenda
+ * aceita o tipo de proponente, mas só recebe proposta de quem tem emenda.
+ */
+export const CONDICAO_CANAL: Record<CanalV2, string> = {
+  voluntaria: "Qualquer proponente elegível pode propor.",
+  emenda_parlamentar: "Só recebe proposta de quem tem emenda parlamentar destinada.",
+  beneficiario_especifico: "Só recebe proposta de quem o órgão concedente indicou.",
+  chamada_publica: "Edital aberto a quem cumpre os requisitos.",
+};
+
+/** Ordem de exibição: do mais aberto ao mais restrito. */
+export const ORDEM_CANAL: CanalV2[] = ["voluntaria", "chamada_publica", "emenda_parlamentar", "beneficiario_especifico"];

@@ -8,9 +8,11 @@
 import {
   ROTULO_INSTRUMENTO,
   ROTULO_SAUDE,
+  canalDaOportunidade,
   diasAte,
   ehAberta,
   urgente,
+  type CanalV2,
   type OportunidadeV2,
   type PayloadV2,
   type SaudeFonte,
@@ -25,6 +27,8 @@ export interface JanelaVista {
   fonteId: string;
   fonteNome: string;
   instrumento: string;
+  /** Null quando o arquivo não informa e o `id` não permite deduzir. */
+  canal: CanalV2 | null;
   prazo: string | null;
   diasRestantes: number | null;
   urgente: boolean;
@@ -96,6 +100,7 @@ function vista(o: OportunidadeV2, hojeIso: string, aderencia: Aderencia | null):
     fonteId: o.source.id,
     fonteNome: o.source.name,
     instrumento: ROTULO_INSTRUMENTO[o.instrument.type] ?? o.instrument.type,
+    canal: canalDaOportunidade(o),
     prazo: o.dates.deadline,
     diasRestantes: diasAte(o.dates.deadline, hojeIso),
     urgente: urgente(o, hojeIso),
@@ -161,11 +166,12 @@ export function montarCatalogo(payload: PayloadV2, quem: Perguntante | null, hoj
  */
 export interface FiltrosCatalogo {
   fontes: string[];
+  canais: CanalV2[];
   assuntos: string[];
   busca: string;
 }
 
-export const SEM_FILTRO: FiltrosCatalogo = { fontes: [], assuntos: [], busca: "" };
+export const SEM_FILTRO: FiltrosCatalogo = { fontes: [], canais: [], assuntos: [], busca: "" };
 
 function semAcento(s: string): string {
   return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -208,6 +214,9 @@ export function filtrarJanelas(janelas: JanelaVista[], f: FiltrosCatalogo): Jane
   return janelas.filter(
     (j) =>
       (f.fontes.length === 0 || f.fontes.includes(j.fonteId)) &&
+      // Janela sem canal conhecido só aparece sem filtro de canal: incluí-la em
+      // qualquer escolha afirmaria um canal que o dado não informa.
+      (f.canais.length === 0 || (j.canal !== null && f.canais.includes(j.canal))) &&
       alcancaAssunto(j.temas, assuntos) &&
       (termo === "" || semAcento(`${j.titulo} ${j.financiador}`).includes(termo)),
   );
@@ -222,6 +231,15 @@ export function contarPorAssunto(janelas: JanelaVista[]): Map<string, number> {
   const contagem = new Map<string, number>();
   for (const j of janelas) {
     for (const id of comAscendentes(j.temas)) contagem.set(id, (contagem.get(id) ?? 0) + 1);
+  }
+  return contagem;
+}
+
+/** Quantas janelas da entidade chegam por cada canal. Mesma base das outras contagens. */
+export function contarPorCanal(janelas: JanelaVista[]): Map<CanalV2, number> {
+  const contagem = new Map<CanalV2, number>();
+  for (const j of janelas) {
+    if (j.canal !== null) contagem.set(j.canal, (contagem.get(j.canal) ?? 0) + 1);
   }
   return contagem;
 }

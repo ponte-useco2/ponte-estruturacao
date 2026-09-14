@@ -210,3 +210,56 @@ test(
     assert.equal(prorrogacoes, 4, "o histórico tem 4 prorrogações que o id do contrato transformaria em encerrada + nova");
   },
 );
+
+// =============================================================================
+// Canal nunca visto — contrato 1.2 (13/09/2026)
+// =============================================================================
+
+test("canal que o sistema nunca viu entra como linha de base, sem avisar", () => {
+  // O caso real: o radar passa a publicar `beneficiario_especifico` e 113
+  // janelas — muitas abertas há meses — chegam de uma vez.
+  const antes = calcularDiff(null, publicacao("2026-09-13T12:00:00", [janela("A"), janela("B", { canal: "emenda" })]));
+  const depois = calcularDiff(
+    antes.proximoEstado,
+    publicacao("2026-09-14T12:00:00", [
+      janela("A"),
+      janela("B", { canal: "emenda" }),
+      janela("C", { canal: "beneficiario_especifico" }),
+      janela("D", { canal: "beneficiario_especifico" }),
+    ]),
+  );
+  assert.deepEqual(tipos(depois), [], "nenhuma 'nova' para o canal que acabou de aparecer");
+  const chaves = Object.keys(depois.proximoEstado.abertas);
+  assert.equal(chaves.filter((k) => k.startsWith("beneficiario_especifico|")).length, 2, "mas o estado as registra");
+});
+
+test("da publicação seguinte em diante, o canal é conhecido e janela nova avisa", () => {
+  const p1 = calcularDiff(null, publicacao("2026-09-13T12:00:00", [janela("A")]));
+  const p2 = calcularDiff(
+    p1.proximoEstado,
+    publicacao("2026-09-14T12:00:00", [janela("A"), janela("C", { canal: "beneficiario_especifico" })]),
+  );
+  const p3 = calcularDiff(
+    p2.proximoEstado,
+    publicacao("2026-09-15T12:00:00", [
+      janela("A"),
+      janela("C", { canal: "beneficiario_especifico" }),
+      janela("E", { canal: "beneficiario_especifico" }),
+    ]),
+  );
+  assert.deepEqual(tipos(p3), ["nova"]);
+  assert.equal(p3.mudancas[0].canal, "beneficiario_especifico");
+});
+
+test("canal conhecido com zero janelas abertas continua conhecido", () => {
+  // Em algum dia pode não haver proposta voluntária aberta. A primeira que abrir
+  // depois disso é novidade de verdade, e precisa avisar.
+  const p1 = calcularDiff(null, publicacao("2026-09-10T12:00:00", [janela("V"), janela("B", { canal: "emenda" })]));
+  const p2 = calcularDiff(p1.proximoEstado, publicacao("2026-09-30T12:00:00", [janela("B", { canal: "emenda" })]));
+  assert.ok(p2.proximoEstado.saidas.some((k) => k.startsWith("proposta|")), "a voluntária fechada ficou em saidas");
+  const p3 = calcularDiff(
+    p2.proximoEstado,
+    publicacao("2026-10-01T12:00:00", [janela("B", { canal: "emenda" }), janela("V2")]),
+  );
+  assert.deepEqual(tipos(p3), ["nova"], "voluntária nova depois de um dia sem nenhuma");
+});

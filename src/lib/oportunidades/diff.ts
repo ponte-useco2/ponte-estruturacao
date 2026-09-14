@@ -194,9 +194,29 @@ export function calcularDiff(
   const mudancas: Mudanca[] = [];
   let removidas = 0;
 
+  // Canais que este sistema JÁ viu. `abertas` ∪ `saidas` guarda toda chave que
+  // já passou por aqui — uma janela que fecha vai para `saidas` e fica —, então
+  // um canal conhecido continua conhecido mesmo num dia em que tiver zero
+  // janelas abertas.
+  //
+  // Existe por causa do contrato 1.2, que trouxe o canal
+  // `beneficiario_especifico`. Na primeira publicação com ele, 113 janelas —
+  // muitas abertas há meses — chegariam de uma vez, e sem isto viraria "janela
+  // nova" para todo mundo. Canal nunca visto entra como linha de base: grava o
+  // estado, não avisa. Da publicação seguinte em diante, é canal conhecido.
+  const canaisConhecidos = new Set(
+    [...Object.keys(anterior.abertas), ...anterior.saidas].map((chave) => chave.split("|")[0]),
+  );
+
   for (const [chave, j] of Object.entries(abertas)) {
     const antes = anterior.abertas[chave];
     const base = { chave, programa: j.programa, orgao: j.orgao, fecha: j.fecha, ...eixosDe(chave, j) };
+
+    // `size > 0`: estado sem chave nenhuma não conhece canal nenhum, e tratar
+    // tudo como linha de base ali engoliria as novidades de verdade.
+    if (!antes && canaisConhecidos.size > 0 && !canaisConhecidos.has(base.canal)) {
+      continue;
+    }
 
     if (!antes) {
       // Janela que já chega perto do prazo gera só "nova": nenhum cruzamento de

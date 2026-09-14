@@ -13,12 +13,14 @@ import Link from "next/link";
 import {
   SEM_FILTRO,
   contarPorAssunto,
+  contarPorCanal,
   filtrarJanelas,
   type CatalogoVista,
   type FiltrosCatalogo,
   type JanelaVista,
 } from "@/lib/oportunidades/catalogo-v2";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { CONDICAO_CANAL, ORDEM_CANAL, ROTULO_CANAL, type CanalV2 } from "@/lib/oportunidades/contrato-v2";
 import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe } from "@/lib/oportunidades/temas";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
 import { Tag } from "../_design/primitivos";
@@ -37,7 +39,17 @@ function prazoPorExtenso(j: JanelaVista): string {
   return `Faltam ${j.diasRestantes} dias · fecha em ${data}`;
 }
 
-function alternar(lista: string[], valor: string): string[] {
+/**
+ * O tipo de agente no meio de uma frase. `toLowerCase()` puro transformava
+ * "ICT" em "ict", e "Outro" virava "para outro".
+ */
+function tipoNaFrase(tipo: string): string {
+  if (tipo === "Outro") return "outros proponentes";
+  if (/^[A-ZÀ-Ý]{2,}$/.test(tipo)) return tipo;
+  return tipo.charAt(0).toLowerCase() + tipo.slice(1);
+}
+
+function alternar<T extends string>(lista: T[], valor: T): T[] {
   return lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor];
 }
 
@@ -63,7 +75,11 @@ export function CatalogoClient({
   // fileira de zeros é ruído que empurra os que importam para baixo.
   const raizes = TEMAS_RAIZ.filter((t) => (porAssunto.get(t.id) ?? 0) > 0);
 
-  const filtrando = filtros.fontes.length > 0 || filtros.assuntos.length > 0 || filtros.busca.trim() !== "";
+  const filtrando =
+    filtros.fontes.length > 0 ||
+    filtros.canais.length > 0 ||
+    filtros.assuntos.length > 0 ||
+    filtros.busca.trim() !== "";
 
   function alternarAssunto(id: string) {
     setFiltros((f) => {
@@ -78,7 +94,14 @@ export function CatalogoClient({
     });
   }
 
-  const titulo = entidade ? `O que ${entidade.nome} pode pleitear` : "Janelas abertas";
+  const porCanal = useMemo(() => contarPorCanal(vista.janelas), [vista.janelas]);
+  const canaisPresentes = ORDEM_CANAL.filter((c) => (porCanal.get(c) ?? 0) > 0);
+
+  // Até 13/09/2026 o título era "O que [entidade] pode pleitear". Deixou de ser
+  // verdade quando ficou claro que, das janelas do Transferegov, as de emenda e
+  // as de beneficiário específico aceitam o TIPO de proponente mas não recebem
+  // proposta de qualquer um. O canal agora está em cada cartão, com a condição.
+  const titulo = entidade ? `Janelas abertas para ${tipoNaFrase(entidade.tipo)}` : "Janelas abertas";
 
   return (
     <div className="pa-pagina mp-catalogo">
@@ -90,7 +113,7 @@ export function CatalogoClient({
             {entidade && vista.paraEntidade ? (
               <>
                 {vista.paraEntidade.elegiveis} {vista.paraEntidade.elegiveis === 1 ? "janela aceita" : "janelas aceitam"}{" "}
-                {entidade.tipo.toLowerCase()}
+                {tipoNaFrase(entidade.tipo)}
                 {vista.paraEntidade.urgentes > 0 && <> · {vista.paraEntidade.urgentes} fecham em até 15 dias</>}
                 {/* Regra 2 do contrato: o universo é dito como universo. */}
                 {" "}· de {vista.universo.abertasHoje} abertas hoje em todo o catálogo
@@ -184,6 +207,32 @@ export function CatalogoClient({
             ))}
           </div>
         </fieldset>
+
+        {canaisPresentes.length > 1 && (
+          <fieldset className="pa-fieldset">
+            <legend className="pa-mono">Como propor</legend>
+            <div className="pa-chips">
+              {canaisPresentes.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className="pa-chip"
+                  aria-pressed={filtros.canais.includes(c)}
+                  // A condição vai no título do botão E no cartão: aqui ajuda a
+                  // escolher, lá ajuda a não se enganar depois de escolhido.
+                  title={CONDICAO_CANAL[c]}
+                  onClick={() => setFiltros((x) => ({ ...x, canais: alternar<CanalV2>(x.canais, c) }))}
+                >
+                  {ROTULO_CANAL[c]}
+                  <span className="pa-chip-contagem">
+                    <span className="pa-sr">, </span>
+                    {porCanal.get(c) ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         {raizes.length > 0 && (
           <fieldset className="pa-fieldset">
@@ -294,12 +343,13 @@ function JanelaCartao({ janela: j, mostrarMotivos }: { janela: JanelaVista; most
       <div className="mp-janela-corpo">
         <div className="pa-linha mp-janela-etiquetas">
           <Tag>{j.fonteNome}</Tag>
-          <Tag>{j.instrumento}</Tag>
+          {j.canal !== null ? <Tag tom="forte">{ROTULO_CANAL[j.canal]}</Tag> : <Tag>{j.instrumento}</Tag>}
           {combinaTema && <Tag tom="aderente">Combina com o que você acompanha</Tag>}
         </div>
 
         <h2 className="pa-oportunidade-titulo mp-janela-titulo">{j.titulo}</h2>
         <p className="mp-janela-financiador">{j.financiador}</p>
+        {j.canal !== null && <p className="mp-janela-condicao">{CONDICAO_CANAL[j.canal]}</p>}
 
         {j.temas.length > 0 && (
           <p className="pa-mono mp-janela-temas">{j.temas.map((t) => ROTULO_TEMA[t] ?? t).join(" · ")}</p>

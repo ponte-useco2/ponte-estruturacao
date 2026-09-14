@@ -7,6 +7,7 @@ import {
   alcancaAssunto,
   assuntosEfetivos,
   contarPorAssunto,
+  contarPorCanal,
   filtrarJanelas,
   montarCatalogo,
 } from "./catalogo-v2.ts";
@@ -170,4 +171,40 @@ test("com o subfiltro, a lista de fato estreita", () => {
 
   const refinado = filtrarJanelas(janelas, { ...SEM_FILTRO, assuntos: ["inovacao", "bioeconomia"] });
   assert.deepEqual(refinado.map((j) => j.id), ["bio"], "o subfiltro estreita para a vertical");
+});
+
+// =============================================================================
+// Canal
+// =============================================================================
+
+test("cada janela sai com o seu canal", () => {
+  const c = montarCatalogo(FIXTURE, null, ANTES);
+  const porId = Object.fromEntries(c.janelas.map((j) => [j.id, j.canal]));
+  assert.equal(porId["transferegov-903a9f369f75-proposta"], "voluntaria");
+  assert.equal(porId["transferegov-7bb9c38d13a7-emenda"], "emenda_parlamentar");
+  assert.equal(porId["finep-749717"], "chamada_publica");
+});
+
+test("filtro por canal", () => {
+  const c = montarCatalogo(FIXTURE, null, ANTES);
+  const emenda = filtrarJanelas(c.janelas, { ...SEM_FILTRO, canais: ["emenda_parlamentar"] });
+  assert.ok(emenda.length > 0);
+  assert.ok(emenda.every((j) => j.canal === "emenda_parlamentar"));
+  const varios = filtrarJanelas(c.janelas, { ...SEM_FILTRO, canais: ["voluntaria", "chamada_publica"] });
+  assert.ok(varios.every((j) => j.canal === "voluntaria" || j.canal === "chamada_publica"));
+});
+
+test("janela sem canal conhecido só aparece sem filtro de canal", () => {
+  const janelas = montarCatalogo(FIXTURE, null, ANTES).janelas.map((j, i) => (i === 0 ? { ...j, canal: null } : j));
+  assert.equal(filtrarJanelas(janelas, SEM_FILTRO).length, janelas.length, "sem filtro, fica");
+  for (const canal of ["voluntaria", "emenda_parlamentar", "beneficiario_especifico", "chamada_publica"] as const) {
+    assert.ok(!filtrarJanelas(janelas, { ...SEM_FILTRO, canais: [canal] }).some((j) => j.canal === null));
+  }
+});
+
+test("a contagem por canal soma o total de janelas com canal", () => {
+  const c = montarCatalogo(FIXTURE, null, ANTES);
+  const n = contarPorCanal(c.janelas);
+  const soma = [...n.values()].reduce((a, b) => a + b, 0);
+  assert.equal(soma, c.janelas.filter((j) => j.canal !== null).length);
 });

@@ -20,7 +20,34 @@
 
 export const CONTRATO_MAJOR = 1;
 
-export type Canal = "proposta" | "emenda";
+/**
+ * Canal da janela — por onde a proposta entra no Transferegov.
+ *
+ * O SICONV tem TRÊS janelas de datas por programa, e até o contrato 1.1 o radar
+ * lia duas: `RECEB_PROP` (virou `proposta`) e `EMENDA_PAR` (`emenda`). A de
+ * `BENEF_ESP` ficava de fora — 113 janelas abertas na Paraíba em 13/09/2026,
+ * que nenhuma tela mostrava. O contrato 1.2 acrescenta `beneficiario_especifico`.
+ *
+ * `proposta` NÃO foi renomeado para "voluntária": o valor entra na chave do diff
+ * (`canal|natureza|códigos`), e renomear trocaria a identidade de 41 janelas de
+ * uma vez. O nome certo fica no rótulo.
+ */
+export type Canal = "proposta" | "emenda" | "beneficiario_especifico";
+
+/**
+ * Rótulo único do canal. Antes havia `c === "proposta" ? "Proposta" : "Emenda"`
+ * em quatro lugares — e o terceiro canal apareceria rotulado como "Emenda".
+ * O `?? c` protege contra um canal que o contrato ainda não conheça.
+ */
+export const ROTULO_CANAL_V1: Record<Canal, string> = {
+  proposta: "Proposta voluntária",
+  emenda: "Emenda parlamentar",
+  beneficiario_especifico: "Beneficiário específico",
+};
+
+export function rotuloCanal(c: string): string {
+  return (ROTULO_CANAL_V1 as Record<string, string>)[c] ?? c;
+}
 
 export interface Oportunidade {
   id: string;

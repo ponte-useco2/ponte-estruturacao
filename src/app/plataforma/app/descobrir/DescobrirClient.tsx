@@ -21,6 +21,7 @@ import { useSearchParams } from "next/navigation";
 import { useSessaoObrigatoria } from "../_lib/sessao";
 import { PROJETOS, perfilPor } from "../_lib/fixtures";
 import type { Oportunidade, PayloadOportunidades } from "../_lib/tipos";
+import { rotuloCanal } from "@/lib/oportunidades/contrato";
 import { formatBR, formatISOTimestamp, rotuloDias } from "../_lib/datas";
 import { Tag } from "../_componentes/primitivos";
 import { Gravador } from "../_componentes/Gravador";
@@ -233,7 +234,7 @@ export function DescobrirClient({ payload }: { payload: PayloadOportunidades | n
                 aria-pressed={canais.includes(c)}
                 onClick={() => alternar(canais, setCanais, c)}
               >
-                {c === "proposta" ? "Proposta" : "Emenda"}
+                {rotuloCanal(c)}
               </button>
             ))}
           </div>

@@ -353,3 +353,7 @@
    projeto adota nos alvos novos. Medido a 375px em 12/09/2026. Escopado no
    catálogo para não mudar o botão pequeno do design system inteiro. */
 .pa-root .mp-janela-lado .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* Condição do canal no cartão. Cor de texto, não secundária: é o que decide se a
+   entidade consegue propor, e não pode passar por metadado. */
+.pa-root .mp-janela-condicao { font-size: 0.86rem; color: var(--pa-text); }
