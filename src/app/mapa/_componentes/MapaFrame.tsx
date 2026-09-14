@@ -4,6 +4,7 @@ import { ContaMenu } from "./ContaMenu";
 import { MapaNav } from "./MapaNav";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
 import { contarNaoLidas } from "@/lib/oportunidades/notificacoes.server";
+import { ehAdministrador } from "@/lib/supabase-auth";
 
 /**
  * Moldura do Mapa de Oportunidades — o produto, não o protótipo.
@@ -53,7 +54,7 @@ export async function MapaFrame({
           <ContaMenu email={email} nome={nome} organizacoes={todas} ativa={ativa} />
         </div>
 
-        <MapaNav naoLidas={naoLidas} />
+        <MapaNav naoLidas={naoLidas} admin={ehAdministrador(email)} />
       </header>
 
       <main className="pa-main">{children}</main>

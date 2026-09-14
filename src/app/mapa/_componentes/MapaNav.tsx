@@ -13,16 +13,19 @@ import { usePathname } from "next/navigation";
 const ABAS = [
   // `exata`: sem ela, "/mapa" casaria como prefixo de "/mapa/avisos" e as duas
   // abas apareceriam ativas ao mesmo tempo.
-  { href: "/mapa", nome: "Janelas", exata: true },
-  { href: "/mapa/avisos", nome: "Avisos", exata: false },
+  { href: "/mapa", nome: "Janelas", exata: true, admin: false },
+  { href: "/mapa/avisos", nome: "Avisos", exata: false, admin: false },
+  // Uso interno da PONTE. Esconder a aba é conveniência; quem protege é a página,
+  // que confere o administrador no servidor antes de ler qualquer dado.
+  { href: "/mapa/radar", nome: "Radar", exata: false, admin: true },
 ] as const;
 
-export function MapaNav({ naoLidas }: { naoLidas: number | null }) {
+export function MapaNav({ naoLidas, admin }: { naoLidas: number | null; admin: boolean }) {
   const pathname = usePathname() ?? "/mapa";
 
   return (
     <nav className="pa-abas" aria-label="Mapa de Oportunidades">
-      {ABAS.map((aba) => {
+      {ABAS.filter((aba) => admin || !aba.admin).map((aba) => {
         const atual = aba.exata ? pathname === aba.href : pathname.startsWith(aba.href);
         const contagem = aba.href === "/mapa/avisos" && naoLidas !== null && naoLidas > 0 ? naoLidas : null;
         return (

@@ -357,3 +357,50 @@
 /* Condição do canal no cartão. Cor de texto, não secundária: é o que decide se a
    entidade consegue propor, e não pode passar por metadado. */
 .pa-root .mp-janela-condicao { font-size: 0.86rem; color: var(--pa-text); }
+
+/* ==========================================================================
+   Radar da PONTE (14/09/2026). Uso interno: tabelas densas, números à direita.
+   ========================================================================== */
+.pa-root .mp-radar-cabeca { margin-bottom: 1rem; }
+.pa-root .mp-radar-secao { margin-top: 2rem; }
+.pa-root .mp-radar-h2 { font-size: 1.15rem; margin-bottom: 0.5rem; }
+.pa-root .mp-radar-h3 { font-size: 1rem; }
+.pa-root .mp-radar-filtros { gap: 0.7rem; }
+.pa-root .mp-radar-uf { gap: 0.5rem; align-items: center; }
+.pa-root .mp-radar-uf .pa-select { width: auto; min-height: 44px; }
+.pa-root .mp-radar-uf .pa-btn { min-height: 44px; }
+.pa-root .mp-radar-filtros .pa-chip { min-height: 44px; display: inline-flex; align-items: center; }
+
+.pa-root .mp-radar-placar { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.9rem 1rem; }
+.pa-root .mp-radar-janelas { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.4rem 0 0; }
+.pa-root .mp-radar-janela { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; }
+.pa-root .mp-radar-janela dd { margin: 0; display: flex; flex-direction: column; align-items: flex-end; }
+.pa-root .mp-radar-variacao { font-size: 0.8rem; }
+/* Subir e cair não são "bom" e "ruim" — mais propostas é mais disputa. Por isso
+   nenhuma das duas usa a cor de perigo: só a marca, e o texto diz o sinal. */
+.pa-root .mp-radar-subiu { color: var(--pa-brand-2); }
+.pa-root .mp-radar-caiu { color: var(--pa-muted); }
+.pa-root .mp-radar-igual { color: var(--pa-muted); }
+
+.pa-root .mp-radar-recorte { margin-top: 1.2rem; }
+
+/* Tabela larga rola dentro da própria caixa; a página nunca rola na horizontal. */
+.pa-root .mp-tabela-rolagem {
+  overflow-x: auto; margin-top: 0.5rem;
+  border: 1px solid var(--pa-border); border-radius: var(--pa-r); background: var(--pa-surface);
+}
+.pa-root .mp-tabela { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.pa-root .mp-tabela th, .pa-root .mp-tabela td {
+  padding: 0.5rem 0.7rem; text-align: left; vertical-align: top;
+  border-bottom: 1px solid var(--pa-border);
+}
+.pa-root .mp-tabela thead th {
+  font-family: var(--pa-mono); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--pa-muted); background: var(--pa-surface-2); white-space: nowrap;
+}
+.pa-root .mp-tabela tbody th { font-weight: 600; color: var(--pa-text); min-width: 16rem; }
+.pa-root .mp-tabela tbody tr:last-child th, .pa-root .mp-tabela tbody tr:last-child td { border-bottom: 0; }
+.pa-root .mp-tabela .mp-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pa-root .mp-tabela-principal { display: block; overflow-wrap: anywhere; }
+.pa-root .mp-tabela-secundario { display: block; font-weight: 400; font-size: 0.8rem; color: var(--pa-muted); }
+.pa-root .mp-nowrap { white-space: nowrap; }
