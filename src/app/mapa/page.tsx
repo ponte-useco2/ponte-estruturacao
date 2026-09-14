@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server";
+import { lerCatalogo, lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server";
 import { montarCatalogo } from "@/lib/oportunidades/catalogo-v2";
+import { codigosPorJanela } from "@/lib/oportunidades/codigos-transferegov";
 import { hojeLocal } from "@/lib/oportunidades/contrato-v2";
 import { lerPreferencias } from "@/lib/oportunidades/notificacoes.server";
 import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
@@ -32,8 +33,11 @@ export default async function JanelasPage() {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
 
-  const [leitura, contexto, preferencias] = await Promise.all([
+  const [leitura, catalogoV1, contexto, preferencias] = await Promise.all([
     lerCatalogoV2(),
+    // Só pelos códigos do Transferegov, que o v2 não traz. Sem o v1, o cartão
+    // perde o código e continua com o botão da consulta.
+    lerCatalogo(),
     lerContexto(),
     lerPreferencias(),
   ]);
@@ -49,7 +53,8 @@ export default async function JanelasPage() {
   const ativa = contexto.ativa;
   // A geografia é da entidade; os temas, da pessoa — o corte da oport_6.
   const quem = ativa ? { tipo: ativa.tipo, uf: ativa.uf, temas: preferencias.temas } : null;
-  const vista = montarCatalogo(leitura.payload, quem, hoje);
+  const codigos = catalogoV1 ? codigosPorJanela(leitura.payload, catalogoV1) : new Map<string, string[]>();
+  const vista = montarCatalogo(leitura.payload, quem, hoje, codigos);
 
   return (
     <CatalogoClient

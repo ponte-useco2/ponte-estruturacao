@@ -358,6 +358,13 @@
    entidade consegue propor, e não pode passar por metadado. */
 .pa-root .mp-janela-condicao { font-size: 0.86rem; color: var(--pa-text); }
 
+/* Código do programa do Transferegov (14/09/2026). É o que a pessoa digita na
+   consulta pública, então um clique seleciona o código inteiro — sem arrastar
+   o mouse sobre 13 dígitos quando a área de transferência é recusada. */
+.pa-root .mp-janela-codigo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.6rem; font-size: 0.86rem; }
+.pa-root .mp-janela-codigo .pa-mapa-codigo { user-select: all; color: var(--pa-text); }
+.pa-root .mp-janela-copiado { max-width: 190px; text-transform: none; letter-spacing: 0; color: var(--pa-muted); }
+
 /* ==========================================================================
    Radar da PONTE (14/09/2026). Uso interno: tabelas densas, números à direita.
    ========================================================================== */

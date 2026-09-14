@@ -8,7 +8,7 @@
  * se recalcula prazo, elegibilidade nem contagem.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import {
   SEM_FILTRO,
@@ -63,6 +63,7 @@ export function CatalogoClient({
   seguindoTemas: boolean;
 }) {
   const [filtros, setFiltros] = useState<FiltrosCatalogo>(SEM_FILTRO);
+  const [anuncio, setAnuncio] = useState("");
 
   const visiveis = useMemo(() => filtrarJanelas(vista.janelas, filtros), [vista.janelas, filtros]);
 
@@ -292,6 +293,12 @@ export function CatalogoClient({
         )}
       </div>
 
+      {/* Uma região só para as cópias de código: dividir a da contagem faria o
+          leitor de tela ouvir "Código copiado" no lugar de "12 janelas". */}
+      <p className="pa-sr" role="status" aria-atomic="true">
+        {anuncio}
+      </p>
+
       <div className="pa-linha mp-resultado">
         {/* Região viva sempre presente: só o texto muda, para ser lida. */}
         <p role="status" aria-atomic="true" className="pa-mono">
@@ -320,7 +327,7 @@ export function CatalogoClient({
         <ul className="pa-pilha mp-janelas">
           {visiveis.map((j) => (
             <li key={j.id}>
-              <JanelaCartao janela={j} mostrarMotivos={entidade !== null} />
+              <JanelaCartao janela={j} mostrarMotivos={entidade !== null} anunciar={setAnuncio} />
             </li>
           ))}
         </ul>
@@ -334,9 +341,41 @@ export function CatalogoClient({
   );
 }
 
-function JanelaCartao({ janela: j, mostrarMotivos }: { janela: JanelaVista; mostrarMotivos: boolean }) {
+function JanelaCartao({
+  janela: j,
+  mostrarMotivos,
+  anunciar,
+}: {
+  janela: JanelaVista;
+  mostrarMotivos: boolean;
+  anunciar: (mensagem: string) => void;
+}) {
   const edital = j.documentos[0];
   const combinaTema = j.aderencia?.motivos.some((m) => m.startsWith("combina")) ?? false;
+  const [copia, setCopia] = useState<"copiado" | "falhou" | null>(null);
+
+  async function copiarEConsultar(e: MouseEvent<HTMLAnchorElement>) {
+    // Ctrl, Shift ou botão do meio: a pessoa escolheu como abrir o link. Deixa o
+    // navegador fazer e não copia nada por trás.
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    const codigo = j.codigos[0];
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopia("copiado");
+      anunciar(
+        `Código ${codigo} copiado. Na consulta do Transferegov, cole no campo Código do Programa e clique em Consultar.`,
+      );
+    } catch {
+      // Sem permissão de área de transferência o código continua no cartão para
+      // selecionar à mão — dizer que copiou sem ter copiado seria mentira.
+      setCopia("falhou");
+      anunciar("Não consegui copiar o código. Ele está no cartão, dá para selecionar.");
+    }
+    // Copia ANTES de abrir, como a tela antiga de /oportunidades: com a aba nova
+    // na frente, o documento perde o foco e o navegador recusa a escrita.
+    window.open(TRANSFEREGOV_CONSULTA, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <article className="pa-cartao mp-janela">
@@ -350,6 +389,17 @@ function JanelaCartao({ janela: j, mostrarMotivos }: { janela: JanelaVista; most
         <h2 className="pa-oportunidade-titulo mp-janela-titulo">{j.titulo}</h2>
         <p className="mp-janela-financiador">{j.financiador}</p>
         {j.canal !== null && <p className="mp-janela-condicao">{CONDICAO_CANAL[j.canal]}</p>}
+
+        {j.codigos.length > 0 && (
+          <p className="mp-janela-codigo">
+            <span className="pa-mono">{j.codigos.length === 1 ? "Código do programa" : "Códigos do programa"}</span>
+            {j.codigos.map((c) => (
+              <code key={c} className="pa-mapa-codigo">
+                {c}
+              </code>
+            ))}
+          </p>
+        )}
 
         {j.temas.length > 0 && (
           <p className="pa-mono mp-janela-temas">{j.temas.map((t) => ROTULO_TEMA[t] ?? t).join(" · ")}</p>
@@ -378,11 +428,34 @@ function JanelaCartao({ janela: j, mostrarMotivos }: { janela: JanelaVista; most
             Ver edital
             <span className="pa-sr"> de {j.titulo} (abre em nova aba)</span>
           </a>
+        ) : j.fonteId === "transferegov" && j.codigos.length > 0 ? (
+          // Janela do Transferegov não traz documento, e o Transferegov não tem
+          // endereço por programa: a consulta abre vazia. O código vem do v1
+          // (`codigos-transferegov.ts`), e o botão copia antes de abrir.
+          <>
+            <a
+              className="pa-btn pa-btn-pequeno"
+              href={TRANSFEREGOV_CONSULTA}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={copiarEConsultar}
+            >
+              Copiar código e consultar
+              <span className="pa-sr"> no Transferegov: {j.titulo} (abre em nova aba)</span>
+            </a>
+            {copia !== null && (
+              <p className="pa-mono mp-janela-copiado">
+                {copia === "falhou"
+                  ? "Não copiou · selecione o código no cartão"
+                  : j.codigos.length > 1
+                    ? "1º código copiado · cole em Código do Programa"
+                    : "Copiado · cole em Código do Programa"}
+              </p>
+            )}
+          </>
         ) : j.fonteId === "transferegov" ? (
-          // Achado ao renderizar com o catálogo real: janela do Transferegov não
-          // traz documento, e os 40 cartões de um município ficavam sem ação
-          // nenhuma. O v2 descarta o código do programa, então não há "copiar
-          // código" como na central — a busca na consulta é pelo nome.
+          // Sem código (v1 ausente ou sem par): fica a consulta, e a busca é pelo
+          // nome. Antes de 14/09/2026 era o único caminho.
           <a
             className="pa-btn pa-btn-pequeno"
             href={TRANSFEREGOV_CONSULTA}

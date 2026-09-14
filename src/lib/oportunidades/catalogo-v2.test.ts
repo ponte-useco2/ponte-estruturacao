@@ -208,3 +208,16 @@ test("a contagem por canal soma o total de janelas com canal", () => {
   const soma = [...n.values()].reduce((a, b) => a + b, 0);
   assert.equal(soma, c.janelas.filter((j) => j.canal !== null).length);
 });
+
+test("códigos do programa: chegam ao cartão pelo id, e sem índice ficam vazios", () => {
+  const codigos = new Map([["transferegov-7bb9c38d13a7-emenda", ["2040820260007"]]]);
+  const com = montarCatalogo(FIXTURE, null, ANTES, codigos);
+  assert.deepEqual(com.janelas.find((j) => j.id === "transferegov-7bb9c38d13a7-emenda")?.codigos, ["2040820260007"]);
+  assert.ok(
+    com.janelas.filter((j) => j.id !== "transferegov-7bb9c38d13a7-emenda").every((j) => j.codigos.length === 0),
+    "janela fora do índice não herda código de ninguém",
+  );
+
+  const sem = montarCatalogo(FIXTURE, null, ANTES);
+  assert.ok(sem.janelas.every((j) => j.codigos.length === 0));
+});

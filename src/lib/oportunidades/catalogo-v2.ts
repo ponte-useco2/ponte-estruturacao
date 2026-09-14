@@ -37,6 +37,11 @@ export interface JanelaVista {
   /** Null quando ninguém declarou entidade: sem quem pergunta, não há aderência. */
   aderencia: Aderencia | null;
   documentos: { titulo: string; url: string }[];
+  /**
+   * Códigos do programa no Transferegov, para digitar na consulta pública. Vazio
+   * nas outras fontes e quando o v1 não casou (ver `codigos-transferegov.ts`).
+   */
+  codigos: string[];
   /** `source.stale`: o dado desta janela é o da última leitura boa da fonte. */
   fonteDefasada: boolean;
 }
@@ -92,7 +97,7 @@ function ordenar(a: JanelaVista, b: JanelaVista): number {
   return a.titulo.localeCompare(b.titulo, "pt-BR");
 }
 
-function vista(o: OportunidadeV2, hojeIso: string, aderencia: Aderencia | null): JanelaVista {
+function vista(o: OportunidadeV2, hojeIso: string, aderencia: Aderencia | null, codigos: string[]): JanelaVista {
   return {
     id: o.id,
     titulo: o.title,
@@ -107,18 +112,30 @@ function vista(o: OportunidadeV2, hojeIso: string, aderencia: Aderencia | null):
     temas: janelaDoV2(o).temas,
     aderencia,
     documentos: o.documents.map((d) => ({ titulo: d.title, url: d.url })),
+    codigos,
     fonteDefasada: o.source.stale,
   };
 }
 
-export function montarCatalogo(payload: PayloadV2, quem: Perguntante | null, hojeIso: string): CatalogoVista {
+/**
+ * `codigos`: id da oportunidade → códigos do programa, montado no servidor por
+ * `codigosPorJanela`. Chega pronto porque o casamento usa `node:crypto`, e este
+ * módulo também roda no navegador (os filtros).
+ */
+export function montarCatalogo(
+  payload: PayloadV2,
+  quem: Perguntante | null,
+  hojeIso: string,
+  codigos: ReadonlyMap<string, string[]> = new Map(),
+): CatalogoVista {
   const abertas = payload.opportunities.filter((o) => ehAberta(o, hojeIso));
 
   const janelas: JanelaVista[] = [];
   let foraDoTipo = 0;
   for (const o of abertas) {
+    const codigosDaJanela = codigos.get(o.id) ?? [];
     if (quem === null) {
-      janelas.push(vista(o, hojeIso, null));
+      janelas.push(vista(o, hojeIso, null, codigosDaJanela));
       continue;
     }
     const a = avaliar(janelaDoV2(o), quem);
@@ -126,7 +143,7 @@ export function montarCatalogo(payload: PayloadV2, quem: Perguntante | null, hoj
       foraDoTipo++;
       continue;
     }
-    janelas.push(vista(o, hojeIso, a));
+    janelas.push(vista(o, hojeIso, a, codigosDaJanela));
   }
   janelas.sort(ordenar);
 
