@@ -35,6 +35,12 @@ import {
   resumoDe,
   sinaisDe,
   urlPainel,
+  TIPOS_MUDANCA,
+  definicaoMudanca,
+  descreverMudanca,
+  diaDoDado,
+  ordenarContagens,
+  somaPorGrupo,
 } from "./painel.ts";
 
 const PADRAO = {
@@ -48,7 +54,61 @@ const PADRAO = {
   assinadoDe: null,
   assinadoAte: null,
   movimento: null,
+  dias: 1,
+  tipo: null,
 };
+
+test("mudanças: período, tipo e município só nessa visão; valor fora da lista cai no padrão", () => {
+  const p = parametrosPainel({ visao: "mudancas", dias: "7", tipo: "primeiro_desembolso", municipio: "2507507", orgao: "X" });
+  assert.deepEqual([p.dias, p.tipo, p.municipio, p.uf, p.orgao], [7, "primeiro_desembolso", "2507507", "PB", null]);
+  assert.equal(urlPainel(p, {}), "/mapa/painel?visao=mudancas&uf=PB&municipio=2507507&dias=7&tipo=primeiro_desembolso");
+  assert.equal(urlPainel(p, { dias: 1, tipo: null }), "/mapa/painel?visao=mudancas&uf=PB&municipio=2507507");
+  // Trocar de visão leva o município para as de convênio e larga período e tipo.
+  assert.equal(urlPainel(p, { visao: "nunca" }), "/mapa/painel?visao=nunca&uf=PB&municipio=2507507");
+  assert.equal(urlPainel(p, { visao: "tempos" }), "/mapa/painel?visao=tempos&uf=PB");
+  const fora = parametrosPainel({ visao: "mudancas", dias: "3", tipo: "inventado" });
+  assert.deepEqual([fora.dias, fora.tipo], [1, null]);
+  const outra = parametrosPainel({ visao: "saldo", dias: "7", tipo: "saldo_parado" });
+  assert.deepEqual([outra.dias, outra.tipo], [1, null]);
+  assert.equal(parametrosPainel({}).visao, "suspensiva");
+});
+
+test("mudanças: tipos únicos com rótulo, grupos e ordem", () => {
+  assert.equal(new Set(TIPOS_MUDANCA.map((t) => t.tipo)).size, TIPOS_MUDANCA.length);
+  assert.ok(TIPOS_MUDANCA.every((t) => t.rotulo && ["avanco", "alerta", "registro"].includes(t.grupo)));
+  assert.equal(definicaoMudanca("novo_do_job").rotulo, "novo_do_job");
+  const linhas = [
+    { tipo: "proposta_enviada", n: 5, valor: null },
+    { tipo: "novo_do_job", n: 1, valor: null },
+    { tipo: "tce_instaurada", n: 2, valor: 10 },
+    { tipo: "suspensiva_retirada", n: 3, valor: 30 },
+  ];
+  assert.deepEqual(ordenarContagens(linhas).map((l) => l.tipo), ["suspensiva_retirada", "tce_instaurada", "proposta_enviada", "novo_do_job"]);
+  assert.deepEqual(somaPorGrupo(linhas), { avanco: 3, alerta: 2, registro: 6 });
+});
+
+test("mudanças: o dia do dado é o de Brasília", () => {
+  assert.equal(diaDoDado("2026-09-15T00:51:02+00:00"), "14/09/2026");
+  assert.equal(diaDoDado("2026-09-14T18:51:02-03:00"), "14/09/2026");
+  assert.equal(diaDoDado(null), "—");
+  assert.equal(diaDoDado("lixo"), "—");
+});
+
+test("mudanças: a frase de cada tipo", () => {
+  const d = (tipo: string, antes: string | null, depois: string | null) => descreverMudanca({ tipo, antes, depois });
+  assert.equal(d("vigencia_prorrogada", "2026-10-01", "2027-10-01"), "de 01/10/2026 para 01/10/2027");
+  assert.equal(d("suspensiva_retirada", "2026-10-01", null), "o prazo era 01/10/2026");
+  assert.equal(d("suspensiva_retirada", null, null), "");
+  assert.equal(d("suspensiva_vencida", null, "2026-09-14"), "prazo 14/09/2026");
+  assert.equal(d("vigencia_em_risco", null, "2027-01-20"), "fim em 20/01/2027");
+  assert.equal(d("contas_rejeitadas", "Prestação de Contas em Análise", "Prestação de Contas Rejeitada"),
+    "Prestação de Contas em Análise → Prestação de Contas Rejeitada");
+  assert.equal(d("saiu_acompanhamento", "Em execução", null), "Em execução → fora do arquivo");
+  assert.equal(d("proposta_assinada", "aberta_concedente", "assinada"), "Em análise no concedente → Assinada");
+  assert.equal(d("proposta_enviada", null, "aberta_concedente"), "Em análise no concedente");
+  assert.equal(d("primeiro_desembolso", null, null), "");
+  assert.equal(d("convenio_novo", null, "Em execução"), "Em execução");
+});
 
 test("movimentação: só nas visões de convênio, valor fora da lista cai fora, e segue na URL", () => {
   const p = parametrosPainel({ visao: "fisico", movimento: "parado_1ano", municipio: "2507507" });

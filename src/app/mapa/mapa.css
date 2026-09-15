@@ -479,6 +479,11 @@
 .pa-root .mp-painel-csv { min-height: 44px; display: inline-flex; align-items: center; }
 .pa-root .mp-painel-motivo { white-space: normal; max-width: 12rem; margin-left: auto; }
 .pa-root .mp-painel-nota-larga { grid-column: 1 / -1; }
+/* Mudanças: o tipo e o programa com largura própria, para a linha não virar uma coluna
+   estreita e alta no celular (a tabela rola de lado, como as outras). */
+.pa-root .mp-painel-mudancas td:nth-child(2) { min-width: 14rem; }
+.pa-root .mp-painel-mudancas td:nth-child(3) { min-width: 16rem; }
+.pa-root .mp-painel-mudancas .pa-tag { white-space: normal; }
 .pa-root .mp-painel-ficha-link .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
 .pa-root .mp-painel-taxa { font-size: 0.78rem; color: var(--pa-muted); }
 .pa-root .mp-painel-sinais {

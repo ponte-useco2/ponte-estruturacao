@@ -8,6 +8,7 @@
 import { UFS } from "./organizacao.ts";
 
 export type Visao =
+  | "mudancas"
   | "suspensiva"
   | "nunca"
   | "vigencia"
@@ -31,6 +32,13 @@ export interface DefinicaoVisao {
 }
 
 export const VISOES: DefinicaoVisao[] = [
+  {
+    id: "mudancas",
+    rotulo: "O que mudou",
+    titulo: "O que mudou desde o dado anterior",
+    pergunta:
+      "Suspensivas retiradas, primeiros desembolsos, contas enviadas ou rejeitadas e propostas com desfecho, comparando cada retrato do Transferegov com o anterior.",
+  },
   {
     id: "suspensiva",
     rotulo: "Suspensiva",
@@ -156,6 +164,157 @@ export function ehVisaoConvenio(v: Visao): boolean {
   return VISOES_CONVENIO.includes(v);
 }
 
+/** As visões com filtro de município: as de convênio e a de mudanças. */
+export function aceitaMunicipio(v: Visao): boolean {
+  return ehVisaoConvenio(v) || v === "mudancas";
+}
+
+// ============================ MUDANÇAS ============================
+
+/** Avanço destrava; alerta pede ação; registro é contexto. */
+export type GrupoMudanca = "avanco" | "alerta" | "registro";
+
+export interface DefinicaoMudanca {
+  tipo: string;
+  rotulo: string;
+  grupo: GrupoMudanca;
+  alvo: "convenio" | "proposta";
+}
+
+/** Os tipos que o job grava (painel_execucao/mudancas.py), na ordem de leitura da tela e do e-mail. */
+export const TIPOS_MUDANCA: DefinicaoMudanca[] = [
+  { tipo: "suspensiva_retirada", rotulo: "Suspensiva retirada", grupo: "avanco", alvo: "convenio" },
+  { tipo: "primeiro_desembolso", rotulo: "Primeiro desembolso", grupo: "avanco", alvo: "convenio" },
+  { tipo: "proposta_assinada", rotulo: "Proposta assinada", grupo: "avanco", alvo: "proposta" },
+  { tipo: "proposta_aprovada", rotulo: "Proposta aprovada, esperando assinatura", grupo: "avanco", alvo: "proposta" },
+  { tipo: "vigencia_prorrogada", rotulo: "Vigência em risco prorrogada", grupo: "avanco", alvo: "convenio" },
+  { tipo: "saldo_voltou", rotulo: "Saldo parado voltou a mexer", grupo: "avanco", alvo: "convenio" },
+  { tipo: "contas_enviadas", rotulo: "Contas enviadas para análise", grupo: "avanco", alvo: "convenio" },
+  { tipo: "contas_aprovadas", rotulo: "Contas aprovadas ou concluídas", grupo: "avanco", alvo: "convenio" },
+  { tipo: "suspensiva_vencida", rotulo: "Prazo da suspensiva venceu", grupo: "alerta", alvo: "convenio" },
+  { tipo: "vigencia_vencida", rotulo: "Vigência venceu com execução baixa", grupo: "alerta", alvo: "convenio" },
+  { tipo: "vigencia_em_risco", rotulo: "Vigência entrou em risco", grupo: "alerta", alvo: "convenio" },
+  { tipo: "contas_abertas", rotulo: "Prazo de prestar contas começou", grupo: "alerta", alvo: "convenio" },
+  { tipo: "contas_devolvidas", rotulo: "Contas devolvidas para complementação", grupo: "alerta", alvo: "convenio" },
+  { tipo: "contas_rejeitadas", rotulo: "Contas rejeitadas ou inadimplência", grupo: "alerta", alvo: "convenio" },
+  { tipo: "tce_instaurada", rotulo: "TCE instaurada", grupo: "alerta", alvo: "convenio" },
+  { tipo: "saldo_parado", rotulo: "Saldo completou 1 ano parado", grupo: "alerta", alvo: "convenio" },
+  { tipo: "financeiro_sem_fisico", rotulo: "Dinheiro saiu e a obra não andou", grupo: "alerta", alvo: "convenio" },
+  { tipo: "proposta_negada", rotulo: "Proposta reprovada, com impedimento ou eliminada", grupo: "alerta", alvo: "proposta" },
+  { tipo: "proposta_complementacao", rotulo: "Proposta voltou para complementação", grupo: "alerta", alvo: "proposta" },
+  { tipo: "proposta_enviada", rotulo: "Proposta enviada", grupo: "registro", alvo: "proposta" },
+  { tipo: "convenio_novo", rotulo: "Convênio entrou no painel", grupo: "registro", alvo: "convenio" },
+  { tipo: "convenio_encerrado", rotulo: "Convênio anulado, rescindido ou cancelado", grupo: "registro", alvo: "convenio" },
+  { tipo: "saiu_acompanhamento", rotulo: "Saiu do acompanhamento", grupo: "registro", alvo: "convenio" },
+];
+
+export const ROTULO_GRUPO_MUDANCA: Record<GrupoMudanca, string> = {
+  avanco: "Avanços",
+  alerta: "Alertas",
+  registro: "Registro",
+};
+
+const MUDANCA_POR_TIPO = new Map(TIPOS_MUDANCA.map((d) => [d.tipo, d]));
+
+export function definicaoMudanca(tipo: string): DefinicaoMudanca {
+  return MUDANCA_POR_TIPO.get(tipo) ?? { tipo, rotulo: tipo, grupo: "registro", alvo: "convenio" };
+}
+
+export type DiasMudanca = 1 | 7 | 30;
+export const DIAS_MUDANCA: DiasMudanca[] = [1, 7, 30];
+export const ROTULO_DIAS_MUDANCA: Record<DiasMudanca, string> = {
+  1: "Último dado",
+  7: "Últimos 7 dias",
+  30: "Últimos 30 dias",
+};
+
+/** Uma linha de `painel_mudanca`, como as funções da `oport_11` devolvem. */
+export interface MudancaPainel {
+  dado_ate_anterior: string;
+  dado_ate: string;
+  alvo: "convenio" | "proposta";
+  tipo: string;
+  chave: string;
+  numero: string | null;
+  uf: string | null;
+  cod_ibge: string | null;
+  municipio: string | null;
+  proponente: string | null;
+  tipo_agente: string | null;
+  orgao_sup: string | null;
+  programa: string | null;
+  objeto: string | null;
+  antes: string | null;
+  depois: string | null;
+  valor: number | null;
+}
+
+/** Uma linha de `painel_mudancas_resumo`. */
+export interface ContagemMudanca {
+  tipo: string;
+  n: number;
+  valor: number | null;
+  desde: string | null;
+  ate: string | null;
+}
+
+function dataBr(iso: string | null): string {
+  const m = iso ? /^(\d{4})-(\d{2})-(\d{2})/.exec(iso) : null;
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "—";
+}
+
+const DIA_BRASILIA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Recife", day: "2-digit", month: "2-digit", year: "numeric" });
+
+/** O dia do dado no horário de Brasília: o carimbo das 21h51 em Brasília já é o dia seguinte em UTC. */
+export function diaDoDado(instante: string | null | undefined): string {
+  const d = instante ? new Date(instante) : null;
+  return d && !Number.isNaN(d.getTime()) ? DIA_BRASILIA.format(d) : "—";
+}
+
+/** O detalhe de uma mudança numa linha: de onde para onde, com a data quando é prazo. */
+export function descreverMudanca(m: Pick<MudancaPainel, "tipo" | "antes" | "depois">): string {
+  const desfecho = (d: string | null) => (d ? (ROTULO_DESFECHO[d] ?? d) : "—");
+  switch (m.tipo) {
+    case "suspensiva_retirada":
+      return m.antes ? `o prazo era ${dataBr(m.antes)}` : "";
+    case "suspensiva_vencida":
+      return `prazo ${dataBr(m.depois)}`;
+    case "vigencia_prorrogada":
+      return `de ${dataBr(m.antes)} para ${dataBr(m.depois)}`;
+    case "vigencia_vencida":
+    case "vigencia_em_risco":
+      return `fim em ${dataBr(m.depois)}`;
+    case "contas_abertas":
+    case "contas_enviadas":
+    case "contas_devolvidas":
+    case "contas_rejeitadas":
+    case "tce_instaurada":
+    case "contas_aprovadas":
+    case "convenio_encerrado":
+    case "saiu_acompanhamento":
+      return m.antes || m.depois ? `${m.antes ?? "—"} → ${m.depois ?? "fora do arquivo"}` : "";
+    case "convenio_novo":
+      return m.depois ?? "";
+    case "proposta_enviada":
+      return desfecho(m.depois);
+    default:
+      return m.antes || m.depois ? `${desfecho(m.antes)} → ${desfecho(m.depois)}` : "";
+  }
+}
+
+/** Soma as contagens por grupo, para os cartões. */
+export function somaPorGrupo(linhas: Pick<ContagemMudanca, "tipo" | "n" | "valor">[]): Record<GrupoMudanca, number> {
+  const soma: Record<GrupoMudanca, number> = { avanco: 0, alerta: 0, registro: 0 };
+  for (const l of linhas) soma[definicaoMudanca(l.tipo).grupo] += l.n;
+  return soma;
+}
+
+/** As contagens na ordem de TIPOS_MUDANCA; tipos desconhecidos (job mais novo que o site) vão para o fim. */
+export function ordenarContagens<T extends Pick<ContagemMudanca, "tipo">>(linhas: T[]): T[] {
+  const ordem = new Map(TIPOS_MUDANCA.map((d, i) => [d.tipo, i]));
+  return [...linhas].sort((a, b) => (ordem.get(a.tipo) ?? 999) - (ordem.get(b.tipo) ?? 999) || a.tipo.localeCompare(b.tipo));
+}
+
 /** Os dois primeiros dígitos do código IBGE do município são a UF. */
 const UF_POR_CODIGO: Record<string, string> = {
   "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP", "17": "TO",
@@ -199,16 +358,20 @@ export interface ParametrosPainel {
    * Em tempos, o ano em que a etapa terminou (null = janela dos últimos 36 meses).
    */
   ano: number | null;
-  /** Só nas visões de convênio. Código IBGE; quando presente, a UF é a dele. */
+  /** Nas visões de convênio e em mudanças. Código IBGE; quando presente, a UF é a dele. */
   municipio: string | null;
   /** Só nas visões de convênio. Anos inclusivos da assinatura; null = sem limite. */
   assinadoDe: number | null;
   assinadoAte: number | null;
   /** Só nas visões de convênio. */
   movimento: Movimento | null;
+  /** Só em mudanças: o último dado, ou os últimos 7 ou 30 dias. */
+  dias: DiasMudanca;
+  /** Só em mudanças: um tipo de TIPOS_MUDANCA, ou todos. */
+  tipo: string | null;
 }
 
-const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+const um =(v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 function anoValido(v: string | undefined, minimo: number): number | null {
   const n = Number(v);
@@ -235,17 +398,20 @@ export function parametrosPainel(sp: Record<string, string | string[] | undefine
   const v = (IDS_VISAO.includes(visao ?? "") ? visao : "suspensiva") as Visao;
   const uf = ufUrl && (UFS as readonly string[]).includes(ufUrl) ? ufUrl : null;
   const convenio = ehVisaoConvenio(v);
+  const mudancas = v === "mudancas";
   // Município só vale na UF dele. Se a URL traz outra UF, a pessoa trocou a UF no
   // formulário com o município antigo ainda no seletor: vale a UF.
   const ibge = um(sp.municipio)?.trim() ?? null;
-  const ufMunicipio = convenio ? ufDoIbge(ibge) : null;
+  const ufMunicipio = aceitaMunicipio(v) ? ufDoIbge(ibge) : null;
   const municipio = ufMunicipio && (uf === null || uf === ufMunicipio) ? ibge : null;
   const [assinadoDe, assinadoAte] = convenio ? periodo(sp) : [null, null];
+  const dias = Number(um(sp.dias));
+  const tipo = um(sp.tipo) ?? "";
   return {
     visao: v,
     uf: municipio ? ufMunicipio : uf,
-    // Órgão é texto livre do arquivo: limita o tamanho e ignora em municípios.
-    orgao: v !== "municipios" && orgao ? orgao.slice(0, 200) : null,
+    // Órgão é texto livre do arquivo: limita o tamanho e ignora em municípios e mudanças.
+    orgao: v !== "municipios" && !mudancas && orgao ? orgao.slice(0, 200) : null,
     lado: (LADOS_CONTAS as string[]).includes(lado ?? "") ? (lado as LadoContas) : "atrasada",
     dimensao: um(sp.dimensao) === "programa" ? "programa" : "orgao",
     ano: v === "aprovacao" || v === "tempos" ? anoValido(um(sp.ano), ANO_MINIMO_ENVIO) : null,
@@ -253,6 +419,8 @@ export function parametrosPainel(sp: Record<string, string | string[] | undefine
     assinadoDe,
     assinadoAte,
     movimento: convenio ? movimentoDe(um(sp.movimento)) : null,
+    dias: mudancas && (DIAS_MUDANCA as number[]).includes(dias) ? (dias as DiasMudanca) : 1,
+    tipo: mudancas && MUDANCA_POR_TIPO.has(tipo) ? tipo : null,
   };
 }
 
@@ -262,17 +430,24 @@ export function parametrosPainel(sp: Record<string, string | string[] | undefine
  */
 export function urlPainel(atual: ParametrosPainel, muda: Partial<ParametrosPainel>): string {
   const trocouVisao = muda.visao !== undefined && muda.visao !== atual.visao;
-  const limpa = trocouVisao ? { orgao: null, lado: "atrasada" as LadoContas, dimensao: "orgao" as DimensaoTempo, ano: null } : {};
+  const limpa = trocouVisao
+    ? { orgao: null, lado: "atrasada" as LadoContas, dimensao: "orgao" as DimensaoTempo, ano: null, tipo: null }
+    : {};
   const p = { ...atual, ...limpa, ...muda };
   // Trocar a UF solta o município, que era de outra.
   if (p.municipio && ufDoIbge(p.municipio) !== p.uf) p.municipio = null;
   const q = new URLSearchParams();
   if (p.visao !== "suspensiva") q.set("visao", p.visao);
   if (p.uf) q.set("uf", p.uf);
-  if (p.orgao && p.visao !== "municipios") q.set("orgao", p.orgao);
+  if (p.orgao && p.visao !== "municipios" && p.visao !== "mudancas") q.set("orgao", p.orgao);
   if (p.visao === "contas" && p.lado !== "atrasada") q.set("lado", p.lado);
   if (p.visao === "tempos" && p.dimensao !== "orgao") q.set("dimensao", p.dimensao);
   if ((p.visao === "aprovacao" || p.visao === "tempos") && p.ano !== null) q.set("ano", String(p.ano));
+  if (p.visao === "mudancas") {
+    if (p.municipio) q.set("municipio", p.municipio);
+    if (p.dias !== 1) q.set("dias", String(p.dias));
+    if (p.tipo) q.set("tipo", p.tipo);
+  }
   if (ehVisaoConvenio(p.visao)) {
     if (p.municipio) q.set("municipio", p.municipio);
     if (p.assinadoDe !== null) q.set("assinado_de", String(p.assinadoDe));

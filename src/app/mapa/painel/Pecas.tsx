@@ -11,11 +11,15 @@ import {
   ROTULO_FONTE_MOVIMENTACAO,
   ROTULO_GRUPO_SUSPENSIVA,
   ROTULO_MOTIVO_ADITIVO,
+  definicaoMudanca,
+  descreverMudanca,
+  diaDoDado,
   exigenciasDe,
   idadePorExtenso,
   percentual,
   prazoPorExtenso,
   urlFicha,
+  type MudancaPainel,
 } from "@/lib/oportunidades/painel";
 import type { ConvenioPainel } from "@/lib/oportunidades/painel.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -336,6 +340,55 @@ export function TabelaSaldo({ linhas, naFicha }: TabelaProps) {
             <td className="mp-num">{moedaCurta(c.rendimento_implicito)}</td>
           </tr>
         ))}
+      </tbody>
+    </table>
+  );
+}
+
+const TOM_GRUPO = { avanco: "aderente", alerta: "urgente", registro: "neutro" } as const;
+
+/** O que mudou, uma linha por evento. Com `comData`, a coluna do dia (períodos de mais de um dia). */
+export function TabelaMudancas({ linhas, naFicha, comData }: { linhas: MudancaPainel[]; naFicha?: boolean; comData?: boolean }) {
+  return (
+    <table className="mp-tabela mp-painel-mudancas">
+      <thead>
+        <tr>
+          <th scope="col">Quem</th>
+          <th scope="col">O que mudou</th>
+          <th scope="col">Programa e objeto</th>
+          <th scope="col" className="mp-num">Valor</th>
+          {comData && <th scope="col">Dado de</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {linhas.map((m) => {
+          const def = definicaoMudanca(m.tipo);
+          const lugar = `${m.municipio ?? "—"}/${m.uf ?? "—"}`;
+          const frase = descreverMudanca(m);
+          return (
+            <tr key={`${m.dado_ate}-${m.tipo}-${m.chave}`}>
+              <th scope="row">
+                <span className="mp-tabela-principal">{m.proponente ?? "—"}</span>
+                <span className="mp-tabela-secundario">
+                  {!naFicha && m.cod_ibge ? <Link href={urlFicha({ ibge: m.cod_ibge })}>{lugar}</Link> : lugar} ·{" "}
+                  {m.alvo === "proposta" ? "proposta" : "convênio"} nº {m.numero ?? m.chave}{" "}
+                  {m.numero && <CopiarNumero numero={m.numero} />}
+                </span>
+              </th>
+              <td>
+                <Tag tom={TOM_GRUPO[def.grupo]}>{def.rotulo}</Tag>
+                {frase && <span className="mp-tabela-secundario">{frase}</span>}
+              </td>
+              <td>
+                <span className="mp-tabela-principal mp-painel-programa">{m.programa ?? "—"}</span>
+                <span className="mp-tabela-secundario">{m.orgao_sup ?? "—"}</span>
+                {m.objeto && <span className="mp-tabela-secundario mp-painel-objeto">{m.objeto}</span>}
+              </td>
+              <td className="mp-num">{moedaCurta(m.valor)}</td>
+              {comData && <td>{diaDoDado(m.dado_ate)}</td>}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

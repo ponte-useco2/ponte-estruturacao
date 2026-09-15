@@ -113,11 +113,14 @@ export async function visitanteAtual(): Promise<Visitante | null> {
 }
 
 /** E-mails que administram as aprovações. Lista curta, em env var. */
-export function ehAdministrador(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const lista = (process.env.OPORTUNIDADES_ADMINS || "")
+export function administradores(): string[] {
+  return (process.env.OPORTUNIDADES_ADMINS || "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  return lista.includes(email.toLowerCase());
+}
+
+export function ehAdministrador(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return administradores().includes(email.toLowerCase());
 }

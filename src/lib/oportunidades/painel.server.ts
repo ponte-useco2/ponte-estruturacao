@@ -13,12 +13,14 @@ import {
   anoPadrao,
   datasAssinatura,
   ehVisaoConvenio,
+  type ContagemMudanca,
   type LadoContas,
   type LinhaAditivoMotivo,
   type LinhaDesfecho,
   type LinhaEtapa,
   type LinhaResumo,
   type Movimento,
+  type MudancaPainel,
   type ParametrosFicha,
   type ParametrosPainel,
   type PropostaPainel,
@@ -133,6 +135,9 @@ export type LeituraPainel =
       opcoesMunicipio: OpcaoMunicipio[];
       /** Só na vigência: aditivos de vigência do recorte por motivo, nos últimos anos. */
       aditivosMotivo: LinhaAditivoMotivo[];
+      /** Só em mudanças: a lista (filtrada pelo tipo) e as contagens por tipo do período. */
+      mudancas: MudancaPainel[];
+      contagensMudanca: ContagemMudanca[];
     };
 
 export interface OpcaoMunicipio {
@@ -153,9 +158,13 @@ const VAZIO = {
   ano: null,
   opcoesMunicipio: [],
   aditivosMotivo: [],
+  mudancas: [],
+  contagensMudanca: [],
 };
 
 export const LIMITE_LISTA = 50;
+/** Mudanças numa página: a lista é de leitura diária, não de exportação. */
+export const LIMITE_MUDANCAS = 100;
 /** Programas na matriz de tempos: os de mais assinaturas na janela. */
 export const LIMITE_PROGRAMAS = 40;
 export const LIMITE_MUNICIPIOS = 100;
@@ -387,6 +396,33 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
     };
   }
 
+  if (p.visao === "mudancas") {
+    const filtrosMudanca = semNulos({ p_dias: p.dias, p_uf: p.uf, p_ibge: p.municipio });
+    const [r, c, l, m] = await Promise.all([
+      resumo,
+      db.rpc("painel_mudancas_resumo", filtrosMudanca),
+      db.rpc("painel_mudancas", { ...filtrosMudanca, ...semNulos({ p_tipo: p.tipo }), p_limite: LIMITE_MUDANCAS }),
+      p.uf ? db.rpc("painel_municipios", { p_uf: p.uf }) : Promise.resolve({ data: [], error: null }),
+    ]);
+    // Sem a oport_11 as funções não existem: o resto do painel segue, e a visão avisa.
+    const semTabela = (e: { code?: string } | null) => e !== null && ehEsquemaAusente(e.code);
+    const erro = r.error ?? (semTabela(c.error) ? null : c.error) ?? (semTabela(l.error) ? null : l.error);
+    if (erro) {
+      console.error("lerPainel:", erro.message);
+      return { estado: "erro", mensagem: erro.message };
+    }
+    if (m.error) console.error("lerPainel (municípios):", m.error.message);
+    return {
+      estado: "ok",
+      execucao,
+      resumo: (r.data ?? []) as LinhaResumo[],
+      ...VAZIO,
+      opcoesMunicipio: m.error ? [] : ((m.data ?? []) as OpcaoMunicipio[]),
+      contagensMudanca: c.error ? [] : ((c.data ?? []) as ContagemMudanca[]),
+      mudancas: l.error ? [] : ((l.data ?? []) as MudancaPainel[]),
+    };
+  }
+
   if (p.visao === "municipios") {
     let q = db
       .from("painel_municipio")
@@ -549,6 +585,9 @@ function semNulos<T extends Record<string, unknown>>(o: T): Partial<T> {
 export const LIMITE_FICHA_CONVENIOS = 50;
 export const LIMITE_FICHA_PROPOSTAS = 50;
 export const LIMITE_FICHA_RECENTES = 30;
+export const LIMITE_FICHA_MUDANCAS = 30;
+/** A ficha mostra a última semana de mudanças do município. */
+export const DIAS_FICHA_MUDANCAS = 7;
 
 const COLUNAS_PROPOSTA =
   "id_proposta, nr_proposta, proponente, tipo_agente, orgao_sup, cod_programa, programa, objeto, valor_repasse, " +
@@ -570,6 +609,7 @@ export interface FichaMunicipio {
   semDesfecho: PropostaPainel[];
   negadas: PropostaPainel[];
   assinadas: PropostaPainel[];
+  mudancas: MudancaPainel[];
 }
 
 export type LeituraFicha =
@@ -612,6 +652,11 @@ export async function lerFichaMunicipio(f: ParametrosFicha): Promise<LeituraFich
     return b;
   };
 
+  // Fora do Promise.all das outras: sem a oport_11 a função não existe, e a ficha segue sem o bloco.
+  const mudancas = db.rpc(
+    "painel_mudancas",
+    semNulos({ p_dias: DIAS_FICHA_MUDANCAS, p_ibge: f.ibge, p_agente: agente, p_limite: LIMITE_FICHA_MUDANCAS }),
+  );
   const leituras = await Promise.all([
     db.from("painel_municipio").select("*").eq("execucao_id", execucao.id).eq("cod_ibge", f.ibge).limit(1),
     db.rpc(
@@ -652,6 +697,8 @@ export async function lerFichaMunicipio(f: ParametrosFicha): Promise<LeituraFich
     console.error("lerFichaMunicipio:", erro.message);
     return { estado: "erro", mensagem: erro.message };
   }
+  const m = await mudancas;
+  if (m.error) console.error("lerFichaMunicipio (mudanças):", m.error.message);
   const [sinais, resumo, suspensiva, nunca, vigencia, contas, saldo, fisico, porAno, semDesfecho, negadas, assinadas, nomeP, nomeC] =
     leituras.map((l) => (l.data ?? []) as unknown[]);
   const municipio = (sinais as MunicipioPainel[])[0] ?? null;
@@ -677,5 +724,6 @@ export async function lerFichaMunicipio(f: ParametrosFicha): Promise<LeituraFich
     semDesfecho: semDesfecho as PropostaPainel[],
     negadas: negadas as PropostaPainel[],
     assinadas: assinadas as PropostaPainel[],
+    mudancas: m.error ? [] : ((m.data ?? []) as MudancaPainel[]),
   };
 }

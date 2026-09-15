@@ -36,6 +36,14 @@ import {
   ROTULO_MOTIVO_ADITIVO,
   ROTULO_MOVIMENTO,
   VISOES,
+  DIAS_MUDANCA,
+  ROTULO_DIAS_MUDANCA,
+  ROTULO_GRUPO_MUDANCA,
+  aceitaMunicipio,
+  definicaoMudanca,
+  diaDoDado,
+  ordenarContagens,
+  somaPorGrupo,
   anosAssinatura,
   anosEnvio,
   somaMotivos,
@@ -72,6 +80,7 @@ import {
   Lista,
   TabelaContas,
   TabelaFisico,
+  TabelaMudancas,
   TabelaNunca,
   TabelaSaldo,
   TabelaSuspensiva,
@@ -87,6 +96,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
   const nomeMunicipio = p.municipio
     ? (leitura.opcoesMunicipio.find((m) => m.cod_ibge === p.municipio)?.municipio ??
       leitura.convenios.find((c) => c.cod_ibge === p.municipio)?.municipio ??
+      leitura.mudancas.find((m) => m.cod_ibge === p.municipio)?.municipio ??
       `IBGE ${p.municipio}`)
     : null;
   const onde = nomeMunicipio ? `${nomeMunicipio}/${p.uf}` : (p.uf ?? "Brasil");
@@ -144,6 +154,8 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
           {p.orgao ? ` · ${p.orgao}` : ""}
           {periodo ? ` · ${periodo}` : ""}
           {p.movimento && ehVisaoConvenio(p.visao) ? ` · ${ROTULO_MOVIMENTO[p.movimento]}` : ""}
+          {p.visao === "mudancas" ? ` · ${ROTULO_DIAS_MUDANCA[p.dias].toLowerCase()}` : ""}
+          {p.visao === "mudancas" && p.tipo ? ` · ${definicaoMudanca(p.tipo).rotulo}` : ""}
         </h2>
         <p className="pa-sub">{def.pergunta}</p>
         {p.municipio && (
@@ -157,6 +169,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
           </p>
         )}
 
+        {p.visao === "mudancas" && <Mudancas p={p} leitura={leitura} />}
         {p.visao === "suspensiva" && <Suspensiva p={p} leitura={leitura} />}
         {p.visao === "nunca" && <NuncaDesembolsado p={p} leitura={leitura} />}
         {p.visao === "vigencia" && <Vigencia p={p} leitura={leitura} />}
@@ -172,6 +185,119 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
 }
 
 // ============================================================================ visões
+
+function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
+  const c = leitura.execucao.contagens;
+  const contagens = ordenarContagens(leitura.contagensMudanca);
+  const grupos = somaPorGrupo(contagens);
+  // Instantes em ISO com fusos diferentes não se comparam como texto: compara o tempo.
+  const extremo = (campo: "desde" | "ate", menor: boolean) =>
+    contagens.reduce<string | null>((m, l) => {
+      const v = l[campo];
+      if (!v) return m;
+      return !m || (menor ? Date.parse(v) < Date.parse(m) : Date.parse(v) > Date.parse(m)) ? v : m;
+    }, null);
+  const desde = extremo("desde", true);
+  const ate = extremo("ate", false) ?? leitura.execucao.dado_ate;
+  const total = contagens.reduce((s, l) => s + l.n, 0);
+  const mostrados = p.tipo ? (contagens.find((l) => l.tipo === p.tipo)?.n ?? 0) : total;
+
+  return (
+    <>
+      <nav aria-label="Período das mudanças" className="pa-chips mp-painel-lados">
+        {DIAS_MUDANCA.map((d) => (
+          <Link
+            key={d}
+            href={urlPainel(p, { dias: d })}
+            className={`pa-chip${p.dias === d ? " pa-ativo" : ""}`}
+            aria-current={p.dias === d ? "true" : undefined}
+          >
+            {ROTULO_DIAS_MUDANCA[d]}
+          </Link>
+        ))}
+      </nav>
+
+      {c.mudancas_acima_do_teto === true && (
+        <p className="pa-cartao pa-cartao-plano">
+          A última execução encontrou {n(Number(c.mudancas_total ?? 0))} mudanças, acima do teto de gravação. Isso costuma ser
+          troca de regra ou arquivo com defeito: as contagens ficaram registradas, as linhas não.
+        </p>
+      )}
+      {(c.mudancas_desde ?? null) === null && total === 0 && (
+        <p className="pa-cartao pa-cartao-plano">
+          As mudanças começam a aparecer na próxima execução do painel: a comparação precisa de um retrato anterior gravado.
+        </p>
+      )}
+
+      <div className="pa-grade pa-grade-3 mp-painel-cartoes">
+        <Cartao rotulo={ROTULO_GRUPO_MUDANCA.avanco} quantidade={grupos.avanco} nota="O que destravou: suspensiva, dinheiro, assinatura." />
+        <Cartao rotulo={ROTULO_GRUPO_MUDANCA.alerta} quantidade={grupos.alerta} tom="urgente" nota="O que pede ação: prazo vencido, contas, parado." />
+        <Cartao rotulo={ROTULO_GRUPO_MUDANCA.registro} quantidade={grupos.registro} nota="Contexto: propostas enviadas, entradas e saídas." />
+      </div>
+      {total > 0 && (
+        <p className="pa-nota">
+          {desde ? `Comparação do dado de ${diaDoDado(desde)} ` : "Comparação "}com o de {diaDoDado(ate)}.
+          Só passagens de limite contam: a troca de faixa que o calendário faz sozinha não é mudança.
+        </p>
+      )}
+
+      {contagens.length > 0 && (
+        <div className="mp-radar-recorte">
+          <h3 className="mp-radar-h3">Por tipo</h3>
+          <div className="mp-tabela-rolagem">
+            <table className="mp-tabela">
+              <thead>
+                <tr>
+                  <th scope="col">Mudança</th>
+                  <th scope="col">Grupo</th>
+                  <th scope="col" className="mp-num">Quantas</th>
+                  <th scope="col" className="mp-num">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contagens.map((l) => {
+                  const def = definicaoMudanca(l.tipo);
+                  const ativo = p.tipo === l.tipo;
+                  return (
+                    <tr key={l.tipo}>
+                      <th scope="row">
+                        <Link href={urlPainel(p, { tipo: ativo ? null : l.tipo })} aria-current={ativo ? "true" : undefined}>
+                          {ativo ? <strong>{def.rotulo}</strong> : def.rotulo}
+                        </Link>
+                      </th>
+                      <td>{ROTULO_GRUPO_MUDANCA[def.grupo]}</td>
+                      <td className="mp-num">{n(l.n)}</td>
+                      <td className="mp-num">{moedaCurta(l.valor)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {p.tipo && (
+            <p className="pa-nota">
+              <Link href={urlPainel(p, { tipo: null })}>Ver todos os tipos</Link>
+            </p>
+          )}
+        </div>
+      )}
+
+      <Lista
+        titulo={`${
+          mostrados > leitura.mudancas.length ? `As ${n(leitura.mudancas.length)} primeiras, de ${n(mostrados)}` : "Uma a uma"
+        }${p.dias > 1 ? ", do dado mais recente e pelo valor" : ", pelo valor"}`}
+        vazio="Nenhuma mudança neste recorte e período."
+      >
+        {leitura.mudancas.length > 0 && <TabelaMudancas linhas={leitura.mudancas} comData={p.dias > 1} />}
+      </Lista>
+      <p className="pa-nota">
+        Valor é o repasse do convênio ou da proposta; no primeiro desembolso, o desembolsado; no saldo, o saldo em conta; na
+        vigência, o que falta desembolsar. Proposta enviada é a que entrou no painel com envio de até 7 dias antes do dado
+        anterior. As mudanças ficam guardadas por 60 dias.
+      </p>
+    </>
+  );
+}
 
 function Suspensiva({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
   const r = resumoDe(leitura.resumo, "suspensiva");
@@ -1058,6 +1184,8 @@ function Filtros({
         {p.visao === "contas" && p.lado !== "atrasada" && <input type="hidden" name="lado" value={p.lado} />}
         {p.visao === "tempos" && p.dimensao !== "orgao" && <input type="hidden" name="dimensao" value={p.dimensao} />}
         {(p.visao === "aprovacao" || p.visao === "tempos") && p.ano !== null && <input type="hidden" name="ano" value={p.ano} />}
+        {p.visao === "mudancas" && p.dias !== 1 && <input type="hidden" name="dias" value={p.dias} />}
+        {p.visao === "mudancas" && p.tipo && <input type="hidden" name="tipo" value={p.tipo} />}
         <label htmlFor="painel-uf" className="pa-campo-rotulo">
           Onde
         </label>
@@ -1069,7 +1197,7 @@ function Filtros({
             </option>
           ))}
         </select>
-        {convenio && p.uf && municipios.length > 0 && (
+        {aceitaMunicipio(p.visao) && p.uf && municipios.length > 0 && (
           <>
             <label htmlFor="painel-municipio" className="pa-campo-rotulo">
               Município
@@ -1084,7 +1212,7 @@ function Filtros({
             </select>
           </>
         )}
-        {p.visao !== "municipios" && (
+        {p.visao !== "municipios" && p.visao !== "mudancas" && (
           <>
             <label htmlFor="painel-orgao" className="pa-campo-rotulo">
               Órgão

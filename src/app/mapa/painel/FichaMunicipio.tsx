@@ -27,7 +27,13 @@ import {
   type Sinal,
   type Visao,
 } from "@/lib/oportunidades/painel";
-import { LIMITE_FICHA_CONVENIOS, type FichaMunicipio, type MunicipioPainel } from "@/lib/oportunidades/painel.server";
+import {
+  DIAS_FICHA_MUDANCAS,
+  LIMITE_FICHA_CONVENIOS,
+  LIMITE_FICHA_MUDANCAS,
+  type FichaMunicipio,
+  type MunicipioPainel,
+} from "@/lib/oportunidades/painel.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Tag } from "../../_design/primitivos";
 import { CopiarNumero } from "./CopiarNumero";
@@ -37,6 +43,7 @@ import {
   Lista,
   TabelaContas,
   TabelaFisico,
+  TabelaMudancas,
   TabelaNunca,
   TabelaSaldo,
   TabelaSuspensiva,
@@ -135,6 +142,29 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
       </div>
 
       {f.quem === "prefeitura" && <Sinais sinais={ficha.sinais} />}
+
+      <section aria-labelledby="ficha-mudancas" className="mp-radar-secao">
+        <h2 id="ficha-mudancas" className="mp-radar-h2">
+          O que mudou nos últimos {DIAS_FICHA_MUDANCAS} dias
+          {ficha.mudancas.length >= LIMITE_FICHA_MUDANCAS ? ` · as ${n(ficha.mudancas.length)} mais recentes` : ""}
+        </h2>
+        {ficha.mudancas.length === 0 ? (
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhuma mudança {f.quem === "prefeitura" ? "da prefeitura " : ""}nos convênios e propostas acompanhados.
+          </p>
+        ) : (
+          <>
+            <p className="pa-nota">
+              <Link href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
+                Ver no painel, com a contagem por tipo
+              </Link>
+            </p>
+            <div className="mp-tabela-rolagem">
+              <TabelaMudancas linhas={ficha.mudancas} naFicha comData />
+            </div>
+          </>
+        )}
+      </section>
 
       <section aria-labelledby="ficha-convenios" className="mp-radar-secao">
         <div className="mp-painel-lista-cabeca">
