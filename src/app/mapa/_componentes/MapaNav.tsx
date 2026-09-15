@@ -10,11 +10,30 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const ABAS = [
+interface Aba {
+  href: string;
+  nome: string;
+  exata: boolean;
+  admin: boolean;
+  municipio: boolean;
+  /** Outras rotas que acendem esta aba. */
+  tambem?: readonly string[];
+}
+
+const ABAS: readonly Aba[] = [
   // `exata`: sem ela, "/mapa" casaria como prefixo de "/mapa/avisos" e as duas
   // abas apareceriam ativas ao mesmo tempo.
   { href: "/mapa", nome: "Janelas", exata: true, admin: false, municipio: false },
   { href: "/mapa/avisos", nome: "Avisos", exata: false, admin: false, municipio: false },
+  // As páginas abertas a partir da busca não têm aba própria: acendem a da busca.
+  {
+    href: "/mapa/busca",
+    nome: "Busca",
+    exata: false,
+    admin: false,
+    municipio: false,
+    tambem: ["/mapa/instrumento/", "/mapa/proposta/", "/mapa/municipio/"],
+  },
   // Só para quem está numa organização de município. A página confere o vínculo
   // confirmado e explica o que falta; a aba só evita mostrar a porta a quem não é prefeitura.
   { href: "/mapa/meu-municipio", nome: "Meu município", exata: false, admin: false, municipio: true },
@@ -22,7 +41,7 @@ const ABAS = [
   // que confere o administrador no servidor antes de ler qualquer dado.
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
   { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
-] as const;
+];
 
 export function MapaNav({
   naoLidas,
@@ -39,7 +58,9 @@ export function MapaNav({
   return (
     <nav className="pa-abas" aria-label="Mapa de Oportunidades">
       {ABAS.filter((aba) => (admin || !aba.admin) && (municipio || !aba.municipio)).map((aba) => {
-        const atual = aba.exata ? pathname === aba.href : pathname.startsWith(aba.href);
+        const atual = aba.exata
+          ? pathname === aba.href
+          : pathname.startsWith(aba.href) || (aba.tambem ?? []).some((p) => pathname.startsWith(p));
         const contagem = aba.href === "/mapa/avisos" && naoLidas !== null && naoLidas > 0 ? naoLidas : null;
         return (
           <Link

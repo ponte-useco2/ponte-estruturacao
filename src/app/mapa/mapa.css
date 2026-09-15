@@ -488,6 +488,60 @@
 .pa-root .mp-pix-planos th[scope="row"] { min-width: 16rem; }
 .pa-root .mp-pix-planos td:last-child { min-width: 9rem; }
 .pa-root .mp-pix-ressalvas { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.4rem; }
+
+/* ---------------------------------------------------------------- busca, instrumento, investimentos (onda 6) */
+.pa-root .mp-busca-form { display: grid; gap: 0.8rem; margin-bottom: 1rem; }
+.pa-root .mp-busca-termo { display: grid; gap: 0.3rem; }
+.pa-root .mp-busca-termo .pa-input { min-height: 44px; font-size: 1rem; }
+.pa-root .mp-busca-campo { display: inline-flex; flex-direction: column; gap: 0.2rem; }
+.pa-root .mp-busca-form .pa-btn { min-height: 44px; align-self: flex-end; }
+.pa-root .mp-busca-tabela th[scope="row"] { min-width: 13rem; }
+.pa-root .mp-busca-tabela td:nth-child(2) { min-width: 18rem; }
+.pa-root .mp-busca-tabela td:nth-child(3) { min-width: 10rem; }
+.pa-root .mp-busca-paginas { margin-top: 1rem; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.pa-root .mp-busca-paginas .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
+
+.pa-root .mp-instrumento-prazos {
+  margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.6rem 1.2rem;
+}
+.pa-root .mp-instrumento-prazos dt { font-size: 0.72rem; color: var(--pa-muted); }
+.pa-root .mp-instrumento-prazos dd { margin: 0.15rem 0 0; }
+.pa-root .mp-linha-ano { border-top: 1px solid var(--pa-border); padding: 0.4rem 0; }
+.pa-root .mp-linha-ano > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.pa-root .mp-linha { list-style: none; margin: 0; padding: 0; }
+.pa-root .mp-linha-evento {
+  display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 0.2rem 0.8rem; align-items: baseline;
+  padding: 0.45rem 0 0.45rem 0.7rem; border-left: 3px solid var(--pa-border);
+}
+.pa-root .mp-linha-situacao { border-left-color: var(--pa-brand-2); }
+.pa-root .mp-linha-desembolso, .pa-root .mp-linha-pagamento, .pa-root .mp-linha-tributo { border-left-color: var(--pa-economic); }
+.pa-root .mp-linha-aditivo, .pa-root .mp-linha-prorrogacao { border-left-color: var(--pa-social); }
+.pa-root .mp-linha-data { font-size: 0.78rem; color: var(--pa-muted); }
+.pa-root .mp-linha-valor { white-space: nowrap; }
+@media (max-width: 560px) {
+  .pa-root .mp-linha-evento { grid-template-columns: 1fr auto; }
+  .pa-root .mp-linha-data { grid-column: 1 / -1; }
+}
+
+/* Barras decorativas: o número está sempre em texto ao lado. */
+.pa-root .mp-barra { display: block; height: 8px; margin-top: 0.3rem; background: var(--pa-brand-soft); border-radius: 4px; overflow: hidden; }
+.pa-root .mp-barra-cheia { display: block; height: 100%; background: var(--pa-brand-2); border-radius: 4px; }
+.pa-root .mp-barras th[scope="row"] { min-width: 14rem; }
+.pa-root .mp-temas-grafico { margin: 0.8rem 0; }
+.pa-root .mp-temas-grafico > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.pa-root .mp-barras-lista { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
+.pa-root .mp-barra-botao {
+  width: 100%; min-height: 44px; display: grid; grid-template-columns: minmax(9rem, 14rem) 1fr 2.5rem; gap: 0.6rem;
+  align-items: center; background: none; border: 1px solid transparent; border-radius: var(--pa-r); padding: 0.2rem 0.4rem;
+  text-align: left; color: inherit; font: inherit; cursor: pointer;
+}
+.pa-root .mp-barra-botao:hover { border-color: var(--pa-border); }
+.pa-root .mp-barra-botao[aria-pressed="true"] { border-color: var(--pa-brand-2); background: var(--pa-brand-soft); }
+.pa-root .mp-barra-botao .mp-barra { margin-top: 0; }
+@media (max-width: 560px) {
+  .pa-root .mp-barra-botao { grid-template-columns: 1fr 2.5rem; }
+  .pa-root .mp-barra-botao .mp-barra { grid-column: 1 / -1; grid-row: 2; }
+}
 .pa-root .mp-painel-ficha-link .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
 .pa-root .mp-painel-taxa { font-size: 0.78rem; color: var(--pa-muted); }
 .pa-root .mp-painel-sinais {

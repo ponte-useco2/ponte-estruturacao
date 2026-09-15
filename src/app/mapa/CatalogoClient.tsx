@@ -21,7 +21,7 @@ import {
 } from "@/lib/oportunidades/catalogo-v2";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { CONDICAO_CANAL, ORDEM_CANAL, ROTULO_CANAL, type CanalV2 } from "@/lib/oportunidades/contrato-v2";
-import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe } from "@/lib/oportunidades/temas";
+import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe, type Tema } from "@/lib/oportunidades/temas";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
 import { copiarTexto } from "@/lib/area-de-transferencia";
 import { Tag } from "../_design/primitivos";
@@ -294,6 +294,8 @@ export function CatalogoClient({
         )}
       </div>
 
+      {raizes.length > 1 && <JanelasPorTema raizes={raizes} porAssunto={porAssunto} marcados={filtros.assuntos} alternar={alternarAssunto} />}
+
       {/* Uma região só para as cópias de código: dividir a da contagem faria o
           leitor de tela ouvir "Código copiado" no lugar de "12 janelas". */}
       <p className="pa-sr" role="status" aria-atomic="true">
@@ -339,6 +341,51 @@ export function CatalogoClient({
         {formatarData(vista.hoje)}, no horário da Paraíba.
       </p>
     </div>
+  );
+}
+
+/**
+ * As janelas abertas por tema, em barras. As mesmas contagens dos chips de assunto, em outra
+ * forma: quem olha vê de relance onde há mais oportunidade. Clicar numa barra marca o assunto.
+ * Uma janela com dois temas conta nos dois, então as barras não somam o total.
+ */
+function JanelasPorTema({
+  raizes,
+  porAssunto,
+  marcados,
+  alternar,
+}: {
+  raizes: Tema[];
+  porAssunto: Map<string, number>;
+  marcados: string[];
+  alternar: (id: string) => void;
+}) {
+  const ordenadas = [...raizes].sort((a, b) => (porAssunto.get(b.id) ?? 0) - (porAssunto.get(a.id) ?? 0));
+  const maior = Math.max(1, ...ordenadas.map((t) => porAssunto.get(t.id) ?? 0));
+  return (
+    <details className="pa-cartao mp-temas-grafico">
+      <summary className="pa-mono">Janelas abertas por tema</summary>
+      <p className="pa-nota">Uma janela com dois temas conta nos dois. Clique num tema para filtrar a lista.</p>
+      <ul className="mp-barras-lista">
+        {ordenadas.map((t) => {
+          const qtd = porAssunto.get(t.id) ?? 0;
+          return (
+            <li key={t.id}>
+              <button type="button" className="mp-barra-botao" aria-pressed={marcados.includes(t.id)} onClick={() => alternar(t.id)}>
+                <span className="mp-barra-rotulo">{t.rotulo}</span>
+                <span className="mp-barra" aria-hidden="true">
+                  <span className="mp-barra-cheia" style={{ width: `${(qtd / maior) * 100}%` }} />
+                </span>
+                <span className="mp-num">
+                  {qtd}
+                  <span className="pa-sr"> {qtd === 1 ? "janela" : "janelas"}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
   );
 }
 
