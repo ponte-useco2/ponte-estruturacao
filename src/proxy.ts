@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { CABECALHO_CAMINHO } from "@/lib/oportunidades/destino";
 
 /**
  * Proxy (ex-middleware, convenção Next 16).
@@ -53,8 +54,18 @@ async function renovarSessao(req: NextRequest, res: NextResponse) {
   await supabase.auth.getUser();
 }
 
+/**
+ * Além de renovar, guarda o caminho pedido num cabeçalho da requisição.
+ *
+ * Layout do App Router não recebe o caminho; sem isto, o `/mapa` mandava todo mundo
+ * para `?next=/mapa` e o link direto para uma ficha se perdia no login. O valor é
+ * sempre sobrescrito aqui (quem mandar o cabeçalho de fora não o escolhe) e ainda é
+ * validado por `destinoSeguro` antes de virar redirecionamento.
+ */
 export async function proxy(req: NextRequest) {
-  const res = NextResponse.next({ request: req });
+  const cabecalhos = new Headers(req.headers);
+  cabecalhos.set(CABECALHO_CAMINHO, req.nextUrl.pathname + req.nextUrl.search);
+  const res = NextResponse.next({ request: { headers: cabecalhos } });
   await renovarSessao(req, res);
   return res;
 }
@@ -64,6 +75,8 @@ export const config = {
     // Só os dois segmentos com Supabase Auth. As rotas removidas
     // (/conecta-impact-go, /hub-bananeiras) são redirects 301 declarados em
     // next.config.ts e não precisam passar por aqui.
+    // Mapa de Oportunidades: renova a sessão e guarda o caminho pedido (ver acima).
+    "/mapa/:path*",
     "/plataforma/app/:path*",
     "/oportunidades/:path*",
   ],

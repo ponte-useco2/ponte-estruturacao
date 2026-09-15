@@ -51,19 +51,26 @@ import {
   n,
 } from "./Pecas";
 
-export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMunicipio }) {
+/**
+ * `cliente`: a prefeitura vendo a própria ficha (/mapa/meu-municipio). Sem links para o
+ * painel interno, sem CSV e sem "todos os proponentes" — o que ela vê é o que é dela.
+ */
+export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFicha; ficha: FichaMunicipio; cliente?: boolean }) {
   const nome = ficha.nome ?? `IBGE ${f.ibge}`;
   const r = (v: Visao) => resumoDe(ficha.resumo, v);
   const contas = r("contas");
   const periodo = periodoPorExtenso(f.assinadoDe, f.assinadoAte);
   const anoMinimoPropostas = Number(ficha.execucao.referencia.slice(0, 4)) - 2;
-  // Link para a mesma visão no painel, já filtrada por este município e período.
+  // Link para a mesma visão no painel, já filtrada por este município e período. O
+  // cliente não tem painel: sem link.
   const noPainel = (visao: Visao) =>
-    urlPainel(parametrosPainel({ visao, municipio: f.ibge }), {
-      assinadoDe: f.assinadoDe,
-      assinadoAte: f.assinadoAte,
-      movimento: f.movimento,
-    });
+    cliente
+      ? undefined
+      : urlPainel(parametrosPainel({ visao, municipio: f.ibge }), {
+          assinadoDe: f.assinadoDe,
+          assinadoAte: f.assinadoAte,
+          movimento: f.movimento,
+        });
   const semConvenio = [ficha.suspensiva, ficha.nunca, ficha.vigencia, ficha.contas, ficha.saldo, ficha.fisico].every(
     (l) => l.length === 0,
   );
@@ -72,7 +79,13 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
     <div className="pa-pagina mp-radar mp-painel">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <Link href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · ficha do município
+          {cliente ? (
+            "Meu município · ficha da prefeitura"
+          ) : (
+            <>
+              <Link href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · ficha do município
+            </>
+          )}
         </p>
         <h1 className="pa-titulo">
           {nome}/{f.uf}
@@ -83,22 +96,28 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
         </p>
       </div>
 
-      <nav aria-label="Quais proponentes" className="pa-chips mp-painel-lados mp-painel-quem">
-        {(["prefeitura", "todos"] as const).map((q) => (
-          <Link
-            key={q}
-            href={urlFicha(f, { quem: q })}
-            className={`pa-chip${f.quem === q ? " pa-ativo" : ""}`}
-            aria-current={f.quem === q ? "true" : undefined}
-          >
-            {q === "prefeitura" ? "Prefeitura" : "Todos os proponentes no município"}
-          </Link>
-        ))}
-      </nav>
+      {!cliente && (
+        <nav aria-label="Quais proponentes" className="pa-chips mp-painel-lados mp-painel-quem">
+          {(["prefeitura", "todos"] as const).map((q) => (
+            <Link
+              key={q}
+              href={urlFicha(f, { quem: q })}
+              className={`pa-chip${f.quem === q ? " pa-ativo" : ""}`}
+              aria-current={f.quem === q ? "true" : undefined}
+            >
+              {q === "prefeitura" ? "Prefeitura" : "Todos os proponentes no município"}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <div className="mp-filtros mp-radar-filtros">
-        <form method="get" action={`/mapa/painel/municipio/${f.ibge}`} className="pa-linha mp-radar-uf mp-painel-filtros">
-          {f.quem !== "prefeitura" && <input type="hidden" name="quem" value={f.quem} />}
+        <form
+          method="get"
+          action={cliente ? "/mapa/meu-municipio" : `/mapa/painel/municipio/${f.ibge}`}
+          className="pa-linha mp-radar-uf mp-painel-filtros"
+        >
+          {!cliente && f.quem !== "prefeitura" && <input type="hidden" name="quem" value={f.quem} />}
           <label htmlFor="ficha-movimento" className="pa-campo-rotulo">
             Movimentação
           </label>
@@ -154,11 +173,13 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
           </p>
         ) : (
           <>
-            <p className="pa-nota">
-              <Link href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
-                Ver no painel, com a contagem por tipo
-              </Link>
-            </p>
+            {!cliente && (
+              <p className="pa-nota">
+                <Link href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
+                  Ver no painel, com a contagem por tipo
+                </Link>
+              </p>
+            )}
             <div className="mp-tabela-rolagem">
               <TabelaMudancas linhas={ficha.mudancas} naFicha comData />
             </div>
@@ -172,7 +193,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
             Convênios que travam{periodo ? ` · ${periodo}` : ""}
             {f.movimento ? ` · ${ROTULO_MOVIMENTO[f.movimento]}` : ""}
           </h2>
-          {!semConvenio && <BotaoCsv href={urlExportarFicha(f)} rotulo="Baixar os convênios (CSV)" />}
+          {!cliente && !semConvenio && <BotaoCsv href={urlExportarFicha(f)} rotulo="Baixar os convênios (CSV)" />}
         </div>
         <div className="pa-grade pa-grade-3 mp-painel-cartoes">
           <Cartao rotulo="Suspensiva pendente" quantidade={r("suspensiva")("total").n} valor={r("suspensiva")("total").valor} legenda="de repasse" />
@@ -227,7 +248,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
       <section aria-labelledby="ficha-propostas" className="mp-radar-secao">
         <div className="mp-painel-lista-cabeca">
           <h2 id="ficha-propostas" className="mp-radar-h2">Propostas</h2>
-          {ficha.porAno.length > 0 && <BotaoCsv href={urlExportarFicha(f, "propostas")} rotulo="Baixar as propostas (CSV)" />}
+          {!cliente && ficha.porAno.length > 0 && <BotaoCsv href={urlExportarFicha(f, "propostas")} rotulo="Baixar as propostas (CSV)" />}
         </div>
         <p className="pa-sub">
           Enviadas desde {anoMinimoPropostas}, e as mais antigas ainda sem desfecho que se mexeram no último ano. O filtro
@@ -350,7 +371,8 @@ function Bloco({
   titulo: string;
   linhas: number;
   total?: number;
-  href: string;
+  /** Sem href (visão do cliente), sem o link para o painel. */
+  href?: string;
   children: ReactNode;
 }) {
   if (linhas === 0) return null;
@@ -366,9 +388,11 @@ function Bloco({
             ? ` · os ${n(linhas)} primeiros`
             : ""}
       </h3>
-      <p className="pa-nota">
-        <Link href={href}>Ver no painel, com os números por órgão</Link>
-      </p>
+      {href && (
+        <p className="pa-nota">
+          <Link href={href}>Ver no painel, com os números por órgão</Link>
+        </p>
+      )}
       <div className="mp-tabela-rolagem">{children}</div>
     </div>
   );

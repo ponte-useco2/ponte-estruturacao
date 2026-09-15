@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { destinoSeguro } from "@/lib/oportunidades/destino";
 import { clienteSessao } from "@/lib/supabase-auth";
 
 /**
@@ -19,11 +20,7 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get("code");
   const erro = searchParams.get("error_description") || searchParams.get("error");
 
-  const pedido = searchParams.get("next") || "/oportunidades";
-  const destino =
-    pedido.startsWith("/") && !pedido.startsWith("//") && !pedido.includes("://")
-      ? pedido
-      : "/oportunidades";
+  const destino = destinoSeguro(searchParams.get("next"));
 
   if (erro) {
     const url = new URL("/oportunidades/entrar", origin);

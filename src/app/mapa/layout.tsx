@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { MapaFrame } from "./_componentes/MapaFrame";
+import { CABECALHO_CAMINHO, destinoSeguro } from "@/lib/oportunidades/destino";
 import { authConfigurada, visitanteAtual } from "@/lib/supabase-auth";
 import "../_design/estilos.css";
 import "../_design/componentes.css";
@@ -26,13 +28,17 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function MapaLayout({ children }: { children: React.ReactNode }) {
+  // Volta para onde a pessoa ia (a ficha, o painel), não para a raiz do Mapa.
+  const pedido = destinoSeguro((await headers()).get(CABECALHO_CAMINHO), "/mapa");
+  const next = encodeURIComponent(pedido.startsWith("/mapa") ? pedido : "/mapa");
+
   // Sem Supabase configurado, a porta fecha. Nunca abre por omissão.
   if (!authConfigurada()) {
-    redirect("/oportunidades/entrar?erro=config&next=/mapa");
+    redirect(`/oportunidades/entrar?erro=config&next=${next}`);
   }
 
   const visitante = await visitanteAtual();
-  if (!visitante) redirect("/oportunidades/entrar?next=/mapa");
+  if (!visitante) redirect(`/oportunidades/entrar?next=${next}`);
   if (visitante.status !== "aprovado") redirect("/oportunidades/aguardando");
 
   return (

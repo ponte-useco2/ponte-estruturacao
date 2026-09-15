@@ -13,20 +13,32 @@ import { usePathname } from "next/navigation";
 const ABAS = [
   // `exata`: sem ela, "/mapa" casaria como prefixo de "/mapa/avisos" e as duas
   // abas apareceriam ativas ao mesmo tempo.
-  { href: "/mapa", nome: "Janelas", exata: true, admin: false },
-  { href: "/mapa/avisos", nome: "Avisos", exata: false, admin: false },
+  { href: "/mapa", nome: "Janelas", exata: true, admin: false, municipio: false },
+  { href: "/mapa/avisos", nome: "Avisos", exata: false, admin: false, municipio: false },
+  // Só para quem está numa organização de município. A página confere o vínculo
+  // confirmado e explica o que falta; a aba só evita mostrar a porta a quem não é prefeitura.
+  { href: "/mapa/meu-municipio", nome: "Meu município", exata: false, admin: false, municipio: true },
   // Uso interno da PONTE. Esconder a aba é conveniência; quem protege é a página,
   // que confere o administrador no servidor antes de ler qualquer dado.
-  { href: "/mapa/radar", nome: "Radar", exata: false, admin: true },
-  { href: "/mapa/painel", nome: "Painel", exata: false, admin: true },
+  { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
+  { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
 ] as const;
 
-export function MapaNav({ naoLidas, admin }: { naoLidas: number | null; admin: boolean }) {
+export function MapaNav({
+  naoLidas,
+  admin,
+  municipio = false,
+}: {
+  naoLidas: number | null;
+  admin: boolean;
+  /** A organização ativa é de município: mostra a aba "Meu município". */
+  municipio?: boolean;
+}) {
   const pathname = usePathname() ?? "/mapa";
 
   return (
     <nav className="pa-abas" aria-label="Mapa de Oportunidades">
-      {ABAS.filter((aba) => admin || !aba.admin).map((aba) => {
+      {ABAS.filter((aba) => (admin || !aba.admin) && (municipio || !aba.municipio)).map((aba) => {
         const atual = aba.exata ? pathname === aba.href : pathname.startsWith(aba.href);
         const contagem = aba.href === "/mapa/avisos" && naoLidas !== null && naoLidas > 0 ? naoLidas : null;
         return (

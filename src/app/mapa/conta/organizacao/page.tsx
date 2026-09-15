@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OrganizacaoForm } from "./OrganizacaoForm";
+import { podeVerMunicipio } from "@/lib/oportunidades/cliente";
+import { lerVinculo } from "@/lib/oportunidades/cliente.server";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
 import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
 
@@ -20,6 +22,20 @@ export const metadata: Metadata = {
  */
 export default async function OrganizacaoPage() {
   const { todas } = await lerContexto();
+  // Para prefeituras: a situação do vínculo que libera a ficha em "Meu município".
+  const situacoes = new Map(
+    await Promise.all(
+      todas
+        .filter((o) => o.tipo === "municipio")
+        .map(async (o) => [o.id, podeVerMunicipio("aprovado", o, await lerVinculo(o.id))] as const),
+    ),
+  );
+  const rotuloVinculo = (id: string) => {
+    const s = situacoes.get(id);
+    if (!s) return null;
+    if (s.ok) return <Link href="/mapa/meu-municipio">município confirmado · ver a ficha</Link>;
+    return s.motivo === "sem_ibge" ? "sem município no cadastro" : "município em conferência pela PONTE";
+  };
 
   return (
     <div className="pa-pagina pa-pagina-estreita">
@@ -43,6 +59,7 @@ export default async function OrganizacaoPage() {
                 <span className="pa-tag">{ROTULO_AGENTE[o.tipo]}</span>
                 {o.uf && <span className="pa-mono">{o.uf}</span>}
                 <span className="pa-mono">{o.papel}</span>
+                {situacoes.has(o.id) && <span className="pa-mono">{rotuloVinculo(o.id)}</span>}
               </li>
             ))}
           </ul>

@@ -54,7 +54,11 @@ export async function MapaFrame({
           <ContaMenu email={email} nome={nome} organizacoes={todas} ativa={ativa} />
         </div>
 
-        <MapaNav naoLidas={naoLidas} admin={ehAdministrador(email)} />
+        <MapaNav
+          naoLidas={naoLidas}
+          admin={ehAdministrador(email)}
+          municipio={ativa?.tipo === "municipio" && Boolean(ativa.municipioIbge)}
+        />
       </header>
 
       <main className="pa-main">{children}</main>

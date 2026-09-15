@@ -1,8 +1,22 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { clienteServidor, visitanteAtual, ehAdministrador } from "@/lib/supabase-auth";
+import { listarOrganizacoesMunicipio, type OrganizacaoMunicipio } from "@/lib/oportunidades/cliente.server";
 import { estilosEntrada } from "../estilos-entrada";
 import { LinhaAcesso } from "./LinhaAcesso";
+import { LinhaVinculo } from "./LinhaVinculo";
+
+/** A frase de situação do vínculo, a mesma regra de `podeVerMunicipio`. */
+function situacaoVinculo(o: OrganizacaoMunicipio): { texto: string; confirmado: boolean; podeConfirmar: boolean } {
+  const valido = /^\d{7}$/.test(o.municipioIbge ?? "");
+  if (!valido) return { texto: "Cadastro sem município", confirmado: false, podeConfirmar: false };
+  if (!o.vinculo) return { texto: "Aguardando confirmação", confirmado: false, podeConfirmar: true };
+  if (o.vinculo.municipio_ibge !== o.municipioIbge) {
+    // Tratado como não confirmado: a pessoa não vê a ficha, e o botão reconfirma o IBGE atual.
+    return { texto: `Confirmado para ${o.vinculo.municipio_ibge}; o cadastro mudou`, confirmado: false, podeConfirmar: true };
+  }
+  return { texto: `Confirmado em ${dbr(o.vinculo.confirmado_em)} por ${o.vinculo.confirmado_por}`, confirmado: true, podeConfirmar: false };
+}
 
 export const metadata: Metadata = {
   title: "Acessos — Oportunidades | Ponte",
@@ -70,6 +84,8 @@ export default async function AdminPage() {
     porPessoa.set(e.email, atual);
   }
 
+  const municipios = await listarOrganizacoesMunicipio();
+
   const lista = (acessos || []) as Acesso[];
   const pendentes = lista.filter((a) => a.status === "pendente");
   const aprovados = lista.filter((a) => a.status === "aprovado");
@@ -111,6 +127,42 @@ export default async function AdminPage() {
                     status={a.status}
                   />
                 ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        {municipios !== null && municipios.length > 0 && (
+          <section>
+            <h2 className="op-adm-h2">Prefeituras e o município que representam</h2>
+            <p className="op-entrar-nota" style={{ marginTop: 0, marginBottom: 14 }}>
+              Confirmar libera para os membros a ficha do município em Mapa → Meu município. Confira antes que a
+              organização representa mesmo a prefeitura (e-mail institucional, contato conhecido).
+            </p>
+            <table className="op-adm-tab">
+              <thead>
+                <tr>
+                  <th>Organização e membros</th>
+                  <th>Município</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {municipios.map((o) => {
+                  const s = situacaoVinculo(o);
+                  return (
+                    <LinhaVinculo
+                      key={o.id}
+                      id={o.id}
+                      organizacao={`${o.nome}${o.uf ? ` · ${o.uf}` : ""}`}
+                      municipio={o.municipioIbge ? `${o.nomeMunicipio ?? "IBGE"} ${o.municipioIbge}` : "—"}
+                      membros={o.membros.map((m) => `${m.email} (${m.papel})`).join(", ") || "sem membros"}
+                      situacao={s.texto}
+                      confirmado={s.confirmado}
+                      podeConfirmar={s.podeConfirmar}
+                    />
+                  );
+                })}
               </tbody>
             </table>
           </section>

@@ -1,3 +1,4 @@
+import { destinoSeguro } from "@/lib/oportunidades/destino";
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
@@ -23,7 +24,7 @@ export default async function EntrarPage({
   // Quem já está dentro não precisa ver isto de novo.
   if (authConfigurada()) {
     const v = await visitanteAtual();
-    if (v?.status === "aprovado") redirect("/oportunidades");
+    if (v?.status === "aprovado") redirect(destinoSeguro(next));
     if (v) redirect("/oportunidades/aguardando");
   }
 
