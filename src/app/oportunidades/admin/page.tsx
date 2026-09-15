@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { clienteServidor, visitanteAtual, ehAdministrador } from "@/lib/supabase-auth";
 import { listarOrganizacoesMunicipio, type OrganizacaoMunicipio } from "@/lib/oportunidades/cliente.server";
 import { estilosEntrada } from "../estilos-entrada";
+import { FormNorma, LinhaNorma } from "./FormNorma";
 import { LinhaAcesso } from "./LinhaAcesso";
 import { LinhaVinculo } from "./LinhaVinculo";
 
@@ -86,6 +87,13 @@ export default async function AdminPage() {
 
   const municipios = await listarOrganizacoesMunicipio();
 
+  // Normas do mural (oport_15). Sem a tabela, a seção explica em vez de sumir calada.
+  const normas = await db
+    .from("oport_norma")
+    .select("id, titulo, orgao, publicada_em")
+    .order("publicada_em", { ascending: false })
+    .limit(50);
+
   const lista = (acessos || []) as Acesso[];
   const pendentes = lista.filter((a) => a.status === "pendente");
   const aprovados = lista.filter((a) => a.status === "aprovado");
@@ -167,6 +175,35 @@ export default async function AdminPage() {
             </table>
           </section>
         )}
+
+        <section>
+          <h2 className="op-adm-h2">Normas no mural de avisos</h2>
+          <p className="op-entrar-nota" style={{ marginTop: 0, marginBottom: 14 }}>
+            Aparecem para todos os aprovados em Mapa → Avisos → Normas. Publique só o que muda regra de transferência, com o
+            link do texto oficial.
+          </p>
+          {normas.error ? (
+            <p className="op-entrar-nota">O mural de normas ainda não foi ativado no banco (oport_15).</p>
+          ) : (
+            <>
+              <FormNorma />
+              {(normas.data ?? []).length > 0 && (
+                <table className="op-adm-tab" style={{ marginTop: 18 }}>
+                  <tbody>
+                    {((normas.data ?? []) as { id: number; titulo: string; orgao: string | null; publicada_em: string }[]).map((n) => (
+                      <LinhaNorma
+                        key={n.id}
+                        id={String(n.id)}
+                        titulo={n.titulo}
+                        detalhe={`${n.orgao ? `${n.orgao} · ` : ""}publicada em ${n.publicada_em.split("-").reverse().join("/")}`}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </section>
 
         <section>
           <h2 className="op-adm-h2">Com acesso</h2>
@@ -290,6 +327,18 @@ export default async function AdminPage() {
         .op-adm-btn:disabled { opacity: .5; cursor: not-allowed; }
         .op-adm-btn.sim { border-color: #5C7A5C; color: #40593F; }
         .op-adm-btn.nao { border-color: #C6613F; color: #A44C2E; }
+        .op-adm-norma { display: grid; gap: 12px; font-size: 13.5px; }
+        .op-adm-norma label { display: grid; gap: 4px; font-weight: 600; }
+        .op-adm-norma input:not([type="checkbox"]), .op-adm-norma textarea {
+          font: inherit; font-weight: 400; padding: 8px 10px; border: 1px solid #D6D5CC;
+          border-radius: 6px; background: #fff; color: #2E2C27; min-width: 0;
+        }
+        .op-adm-norma-linha { display: grid; grid-template-columns: 1fr 180px; gap: 12px; }
+        .op-adm-norma fieldset { border: 1px solid #E4E3DC; border-radius: 6px; padding: 8px 12px; }
+        .op-adm-norma legend { font-weight: 600; padding: 0 4px; }
+        .op-adm-norma-temas { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+        .op-adm-norma-temas label { display: inline-flex; gap: 6px; align-items: center; font-weight: 400; }
+        .op-adm-norma .op-adm-btn { margin-left: 0; }
         @media (max-width: 620px) {
           .op-adm-tab, .op-adm-tab tbody, .op-adm-tab tr, .op-adm-tab td { display: block; }
           .op-adm-tab thead { display: none; }
@@ -297,6 +346,7 @@ export default async function AdminPage() {
           .op-adm-tab tr { border-bottom: 1px solid #E4E3DC; padding: 14px 0; }
           .op-adm-acoes { text-align: left; margin-top: 8px; }
           .op-adm-btn { margin: 0 6px 0 0; }
+          .op-adm-norma-linha { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>

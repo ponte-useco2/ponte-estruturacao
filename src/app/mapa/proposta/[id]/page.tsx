@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { lerProposta } from "@/lib/oportunidades/busca.server";
+import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { PropostaConteudo } from "./PropostaConteudo";
@@ -18,7 +20,7 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
 
   const { id } = await params;
   if (!/^\d{1,12}$/.test(id)) notFound();
-  const leitura = await lerProposta(id);
+  const [leitura, seguidas] = await Promise.all([lerProposta(id), lerSeguidas()]);
 
   if (leitura.estado === "nao_encontrado") {
     return (
@@ -38,5 +40,10 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
     );
   }
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker={`Proposta ${id}`} titulo="A proposta está indisponível agora" />;
-  return <PropostaConteudo leitura={leitura} />;
+  return (
+    <PropostaConteudo
+      leitura={leitura}
+      seguindo={seguidas ? seguidas.has(chaveSeguida("proposta", leitura.proposta.id_proposta)) : null}
+    />
+  );
 }

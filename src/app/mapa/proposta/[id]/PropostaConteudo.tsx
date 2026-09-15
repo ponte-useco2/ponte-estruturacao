@@ -15,6 +15,7 @@ import {
 } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { CopiarNumero } from "../../painel/CopiarNumero";
 
 type LeituraOk = Extract<LeituraProposta, { estado: "ok" }>;
@@ -33,7 +34,8 @@ function mediana(linhas: LinhaEtapa[], etapa: string): string {
   return diasPorExtenso(l.mediana);
 }
 
-export function PropostaConteudo({ leitura }: { leitura: LeituraOk }) {
+/** `seguindo`: null quando não dá para saber (sem a oport_15): a estrela não aparece. */
+export function PropostaConteudo({ leitura, seguindo = null }: { leitura: LeituraOk; seguindo?: boolean | null }) {
   const p = leitura.proposta;
   const vez = vezDaProposta(p.desfecho);
   const temas = (p.temas ?? []).filter((t) => ROTULO_TEMA[t]);
@@ -45,6 +47,9 @@ export function PropostaConteudo({ leitura }: { leitura: LeituraOk }) {
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
           Proposta nº {p.nr_proposta ?? p.id_proposta} <CopiarNumero numero={p.nr_proposta ?? p.id_proposta} de="proposta" />
+          {seguindo !== null && (
+            <EstrelaSeguir tipo="proposta" chave={p.id_proposta} nome={`a proposta nº ${p.nr_proposta ?? p.id_proposta}`} seguindo={seguindo} />
+          )}
         </p>
         <h1 className="pa-titulo">{p.programa ?? "Programa não informado"}</h1>
         {p.objeto && <p className="pa-sub">{p.objeto}</p>}

@@ -555,3 +555,33 @@
 .pa-root .mp-painel-sinais li.mp-painel-sinal-aceso { border-left: 3px solid var(--pa-danger); }
 .pa-root .mp-painel-sinal-marca { color: var(--pa-muted); line-height: 1.3; }
 .pa-root .mp-painel-sinal-aceso .mp-painel-sinal-marca { color: var(--pa-danger); }
+
+/* Onda 7 — seguir itens e o mural de avisos. A estrela é botão de alternar
+   (aria-pressed) com área de toque de 44 px, como os outros controles do Mapa. */
+.pa-root .mp-estrela-caixa { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; vertical-align: middle; }
+.pa-root .mp-estrela {
+  font: inherit; font-size: 0.82rem; min-height: 44px; padding: 0 0.7rem; margin-left: 0.25rem;
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: 1px solid var(--pa-border); border-radius: 999px; background: var(--pa-surface); color: var(--pa-text);
+  cursor: pointer; white-space: nowrap; letter-spacing: normal; text-transform: none;
+}
+.pa-root .mp-estrela:hover { background: var(--pa-surface-2); }
+.pa-root .mp-estrela > span[aria-hidden="true"]:first-child { font-size: 1.05rem; line-height: 1; }
+.pa-root .mp-estrela-ativa { border-color: var(--pa-brand); background: var(--pa-brand-soft); color: var(--pa-brand); }
+.pa-root .mp-estrela-compacta { min-width: 44px; justify-content: center; padding: 0; margin-left: 0.1rem; }
+.pa-root .mp-estrela[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
+.pa-root .mp-estrela-erro { font-size: 0.78rem; color: var(--pa-danger); white-space: normal; }
+.pa-root .mp-busca-numero { display: inline-flex; align-items: center; gap: 0.2rem; flex-wrap: wrap; }
+.pa-root .mp-busca-numero .mp-tabela-principal { white-space: nowrap; }
+.pa-root .mp-janela-lado .mp-estrela { margin-left: 0; }
+.pa-root .mp-mural { padding-bottom: 0; }
+.pa-root .mp-mural + .pa-pagina { padding-top: 0.6rem; }
+.pa-root .mp-mural .pa-chip { min-height: 44px; display: inline-flex; align-items: center; text-decoration: none; }
+.pa-root .mp-aviso-item-titulo { margin: 0.2rem 0 0; font-size: 0.86rem; color: var(--pa-muted); overflow-wrap: anywhere; }
+.pa-root .mp-mural + .pa-mapa .pa-mapa-controles > .pa-btn { align-self: flex-end; }
+.pa-root .mp-seguidos { margin-top: 2rem; }
+.pa-root .mp-seguidos ul { list-style: none; margin: 0; padding: 0; }
+.pa-root .mp-seguido { align-items: center; gap: 0.6rem; flex-wrap: wrap; padding: 0.4rem 0.8rem; }
+.pa-root .mp-seguido-titulo { min-width: 0; flex: 1 1 14rem; overflow-wrap: anywhere; }
+.pa-root .mp-normas { list-style: none; margin: 0; padding: 0; }
+.pa-root .mp-itens-nota { margin-bottom: 1rem; }

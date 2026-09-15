@@ -4,6 +4,7 @@ import { lerCatalogo, lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server"
 import { montarCatalogo } from "@/lib/oportunidades/catalogo-v2";
 import { codigosPorJanela } from "@/lib/oportunidades/codigos-transferegov";
 import { hojeLocal } from "@/lib/oportunidades/contrato-v2";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { lerPreferencias } from "@/lib/oportunidades/notificacoes.server";
 import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
@@ -33,13 +34,14 @@ export default async function JanelasPage() {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
 
-  const [leitura, catalogoV1, contexto, preferencias] = await Promise.all([
+  const [leitura, catalogoV1, contexto, preferencias, seguidas] = await Promise.all([
     lerCatalogoV2(),
     // Só pelos códigos do Transferegov, que o v2 não traz. Sem o v1, o cartão
     // perde o código e continua com o botão da consulta.
     lerCatalogo(),
     lerContexto(),
     lerPreferencias(),
+    lerSeguidas(),
   ]);
 
   // O instante vem do servidor: calcular "hoje" no navegador faria servidor e
@@ -61,6 +63,7 @@ export default async function JanelasPage() {
       vista={vista}
       entidade={ativa ? { nome: ativa.nome, tipo: ROTULO_AGENTE[ativa.tipo], uf: ativa.uf } : null}
       seguindoTemas={preferencias.temas.length > 0}
+      janelasSeguidas={seguidas ? [...seguidas].filter((k) => k.startsWith("janela:")).map((k) => k.slice("janela:".length)) : null}
     />
   );
 }

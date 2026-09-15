@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { numeroValido } from "@/lib/oportunidades/busca";
 import { lerInstrumento } from "@/lib/oportunidades/busca.server";
+import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { InstrumentoConteudo } from "./InstrumentoConteudo";
@@ -19,7 +21,7 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
 
   const { numero } = await params;
   if (!numeroValido(numero)) notFound();
-  const leitura = await lerInstrumento(numero);
+  const [leitura, seguidas] = await Promise.all([lerInstrumento(numero), lerSeguidas()]);
 
   if (leitura.estado === "nao_encontrado") {
     return (
@@ -39,5 +41,10 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
     );
   }
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker={`Convênio nº ${numero}`} titulo="O convênio está indisponível agora" />;
-  return <InstrumentoConteudo leitura={leitura} />;
+  return (
+    <InstrumentoConteudo
+      leitura={leitura}
+      seguindo={seguidas ? seguidas.has(chaveSeguida("instrumento", leitura.instrumento.nr_convenio)) : null}
+    />
+  );
 }

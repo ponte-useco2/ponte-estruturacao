@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { clienteSessao, visitanteAtual } from "@/lib/supabase-auth";
-import { lerCatalogo } from "@/lib/oportunidades/catalogo.server";
+import { lerCatalogo, lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server";
+import { hojeLocal } from "@/lib/oportunidades/contrato-v2";
+import { LIMITE_SEGUIDOS, chaveValida, retratoDaJanela } from "@/lib/oportunidades/favoritos";
 import { ehTemaConhecido } from "@/lib/oportunidades/temas";
 
 /**
@@ -21,6 +23,8 @@ export interface ResultadoAcao {
 }
 
 type Campo = "lida_em" | "arquivada_em";
+/** A fila de avisos do catálogo (oport_3) ou a dos itens seguidos (oport_15): as duas marcam do mesmo jeito. */
+type Fila = "oport_notificacao" | "oport_aviso";
 
 /**
  * `/mapa` com escopo de LAYOUT, e não de página: desde 12/09/2026 o segmento tem
@@ -40,7 +44,7 @@ function idsValidos(ids: unknown): ids is string[] {
   );
 }
 
-async function marcar(ids: unknown, campo: Campo, ligar: boolean): Promise<ResultadoAcao> {
+async function marcar(ids: unknown, campo: Campo, ligar: boolean, fila: Fila = "oport_notificacao"): Promise<ResultadoAcao> {
   if (!idsValidos(ids)) return { ok: false, erro: "Seleção inválida." };
 
   const visitante = await visitanteAtual();
@@ -48,13 +52,13 @@ async function marcar(ids: unknown, campo: Campo, ligar: boolean): Promise<Resul
 
   const db = await clienteSessao();
   const { error } = await db
-    .from("oport_notificacao")
+    .from(fila)
     .update({ [campo]: ligar ? new Date().toISOString() : null })
     .in("id", ids)
     .eq("user_id", visitante.id);
 
   if (error) {
-    console.error(`central ${campo}:`, error.message);
+    console.error(`${fila} ${campo}:`, error.message);
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
@@ -76,6 +80,85 @@ export async function arquivar(ids: unknown): Promise<ResultadoAcao> {
 
 export async function desarquivar(ids: unknown): Promise<ResultadoAcao> {
   return marcar(ids, "arquivada_em", false);
+}
+
+export async function marcarItensLidos(ids: unknown): Promise<ResultadoAcao> {
+  return marcar(ids, "lida_em", true, "oport_aviso");
+}
+
+export async function marcarItensNaoLidos(ids: unknown): Promise<ResultadoAcao> {
+  return marcar(ids, "lida_em", false, "oport_aviso");
+}
+
+export async function arquivarItens(ids: unknown): Promise<ResultadoAcao> {
+  return marcar(ids, "arquivada_em", true, "oport_aviso");
+}
+
+export async function desarquivarItens(ids: unknown): Promise<ResultadoAcao> {
+  return marcar(ids, "arquivada_em", false, "oport_aviso");
+}
+
+/* -------------------------------------------------------------------------
+   Seguir um item (onda 7).
+
+   A estrela grava pela sessão, e a RLS garante que é da própria pessoa aprovada.
+   Convênio e proposta: o banco confere que o item está no painel e tira dele o
+   título e o retrato (gatilho da oport_15). Janela: o id é conferido aqui no
+   catálogo v2, e o retrato sai do catálogo lido no servidor, nunca do navegador.
+   ------------------------------------------------------------------------- */
+
+export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAcao> {
+  if (!chaveValida(tipo, chave)) return { ok: false, erro: "Item inválido." };
+  const alvo = chave as string;
+
+  const visitante = await visitanteAtual();
+  if (!visitante || visitante.status !== "aprovado") return { ok: false, erro: "Sem permissão." };
+
+  const linha: Record<string, unknown> = { user_id: visitante.id, tipo, chave: alvo };
+  if (tipo === "janela") {
+    const leitura = await lerCatalogoV2();
+    if (leitura.estado !== "ok") return { ok: false, erro: "O catálogo está indisponível agora. Tente de novo." };
+    const retrato = retratoDaJanela(leitura.payload, alvo, hojeLocal(new Date()));
+    if (!retrato) return { ok: false, erro: "Essa janela não está mais no catálogo." };
+    Object.assign(linha, { titulo: retrato.titulo, estado: retrato.estado, referencia: leitura.payload.generated_at });
+  }
+
+  const db = await clienteSessao();
+  const { error } = await db.from("oport_favorito").insert(linha);
+  // 23505: já seguia (dois cliques, duas abas). O resultado pedido é o mesmo.
+  if (error && error.code !== "23505") {
+    if (error.code === "23514") {
+      return { ok: false, erro: `Você já segue ${LIMITE_SEGUIDOS} itens. Deixe de seguir algum para seguir este.` };
+    }
+    if (error.code === "23503") return { ok: false, erro: "Este item não está mais na busca." };
+    console.error("seguir:", error.message);
+    return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
+  }
+
+  revalidatePath(ROTA, "layout");
+  return { ok: true };
+}
+
+export async function deixarDeSeguir(tipo: unknown, chave: unknown): Promise<ResultadoAcao> {
+  if (!chaveValida(tipo, chave)) return { ok: false, erro: "Item inválido." };
+
+  const visitante = await visitanteAtual();
+  if (!visitante || visitante.status !== "aprovado") return { ok: false, erro: "Sem permissão." };
+
+  const db = await clienteSessao();
+  const { error } = await db
+    .from("oport_favorito")
+    .delete()
+    .eq("user_id", visitante.id)
+    .eq("tipo", tipo)
+    .eq("chave", chave as string);
+  if (error) {
+    console.error("deixarDeSeguir:", error.message);
+    return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
+  }
+
+  revalidatePath(ROTA, "layout");
+  return { ok: true };
 }
 
 /* -------------------------------------------------------------------------

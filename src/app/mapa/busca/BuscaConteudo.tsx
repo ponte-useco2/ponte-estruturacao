@@ -24,13 +24,24 @@ import { UFS } from "@/lib/oportunidades/organizacao";
 import { ROTULO_DESFECHO } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA, TEMAS_RAIZ } from "@/lib/oportunidades/temas";
+import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 
 type LeituraOk = Extract<LeituraBusca, { estado: "ok" }>;
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 const data = (iso: string | null) => (iso ? formatarData(iso) : "—");
 
-export function BuscaConteudo({ p, leitura }: { p: ParametrosBusca; leitura: LeituraOk }) {
+export function BuscaConteudo({
+  p,
+  leitura,
+  seguidas = null,
+}: {
+  p: ParametrosBusca;
+  leitura: LeituraOk;
+  /** Chaves `tipo:chave` seguidas. Null sem a oport_15: as linhas ficam sem estrela. */
+  seguidas?: ReadonlySet<string> | null;
+}) {
   const grupos = p.aba === "instrumentos" ? GRUPOS_SITUACAO : GRUPOS_DESFECHO;
   const paginas = totalDePaginas(leitura.total);
   const vazio = leitura.instrumentos.length === 0 && leitura.propostas.length === 0;
@@ -149,9 +160,9 @@ export function BuscaConteudo({ p, leitura }: { p: ParametrosBusca; leitura: Lei
             Nenhum resultado com esses termos e filtros. Busque por uma palavra só, tire um filtro ou confira o número.
           </p>
         ) : p.aba === "instrumentos" ? (
-          <TabelaInstrumentos linhas={leitura.instrumentos} />
+          <TabelaInstrumentos linhas={leitura.instrumentos} seguidas={seguidas} />
         ) : (
-          <TabelaPropostas linhas={leitura.propostas} />
+          <TabelaPropostas linhas={leitura.propostas} seguidas={seguidas} />
         )}
         {paginas > 1 && (
           <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
@@ -192,7 +203,7 @@ function Temas({ temas }: { temas: string[] }) {
   return <span className="mp-tabela-secundario">{conhecidos.map((t) => ROTULO_TEMA[t]).join(" · ")}</span>;
 }
 
-function TabelaInstrumentos({ linhas }: { linhas: InstrumentoBusca[] }) {
+function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; seguidas: ReadonlySet<string> | null }) {
   return (
     <div className="mp-tabela-rolagem">
       <table className="mp-tabela mp-busca-tabela">
@@ -208,9 +219,20 @@ function TabelaInstrumentos({ linhas }: { linhas: InstrumentoBusca[] }) {
           {linhas.map((l) => (
             <tr key={l.nr_convenio}>
               <th scope="row">
-                <Link href={urlInstrumento(l.nr_convenio)} className="mp-tabela-principal">
-                  nº {l.nr_convenio}
-                </Link>
+                <span className="mp-busca-numero">
+                  <Link href={urlInstrumento(l.nr_convenio)} className="mp-tabela-principal">
+                    nº {l.nr_convenio}
+                  </Link>
+                  {seguidas && (
+                    <EstrelaSeguir
+                      tipo="instrumento"
+                      chave={l.nr_convenio}
+                      nome={`o convênio nº ${l.nr_convenio}`}
+                      seguindo={seguidas.has(chaveSeguida("instrumento", l.nr_convenio))}
+                      compacta
+                    />
+                  )}
+                </span>
                 <span className="mp-tabela-secundario">
                   {l.proponente ?? "—"} · {l.municipio ?? "—"}/{l.uf ?? "—"}
                 </span>
@@ -238,7 +260,7 @@ function TabelaInstrumentos({ linhas }: { linhas: InstrumentoBusca[] }) {
   );
 }
 
-function TabelaPropostas({ linhas }: { linhas: PropostaBusca[] }) {
+function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguidas: ReadonlySet<string> | null }) {
   return (
     <div className="mp-tabela-rolagem">
       <table className="mp-tabela mp-busca-tabela">
@@ -254,9 +276,20 @@ function TabelaPropostas({ linhas }: { linhas: PropostaBusca[] }) {
           {linhas.map((l) => (
             <tr key={l.id_proposta}>
               <th scope="row">
-                <Link href={urlProposta(l.id_proposta)} className="mp-tabela-principal">
-                  nº {l.nr_proposta ?? l.id_proposta}
-                </Link>
+                <span className="mp-busca-numero">
+                  <Link href={urlProposta(l.id_proposta)} className="mp-tabela-principal">
+                    nº {l.nr_proposta ?? l.id_proposta}
+                  </Link>
+                  {seguidas && (
+                    <EstrelaSeguir
+                      tipo="proposta"
+                      chave={l.id_proposta}
+                      nome={`a proposta nº ${l.nr_proposta ?? l.id_proposta}`}
+                      seguindo={seguidas.has(chaveSeguida("proposta", l.id_proposta))}
+                      compacta
+                    />
+                  )}
+                </span>
                 <span className="mp-tabela-secundario">
                   {l.proponente ?? "—"} · {l.municipio ?? "—"}/{l.uf ?? "—"}
                 </span>

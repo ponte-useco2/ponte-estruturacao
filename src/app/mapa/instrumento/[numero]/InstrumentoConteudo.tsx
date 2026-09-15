@@ -19,6 +19,7 @@ import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { ROTULO_MOTIVO_ADITIVO, percentual } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { CopiarNumero } from "../../painel/CopiarNumero";
 
 type LeituraOk = Extract<LeituraInstrumento, { estado: "ok" }>;
@@ -26,7 +27,8 @@ type LeituraOk = Extract<LeituraInstrumento, { estado: "ok" }>;
 const n = (x: number) => x.toLocaleString("pt-BR");
 const data = (iso: string | null) => (iso ? formatarData(iso) : "—");
 
-export function InstrumentoConteudo({ leitura }: { leitura: LeituraOk }) {
+/** `seguindo`: null quando não dá para saber (sem a oport_15): a estrela não aparece. */
+export function InstrumentoConteudo({ leitura, seguindo = null }: { leitura: LeituraOk; seguindo?: boolean | null }) {
   const i = leitura.instrumento;
   const r = resumoEventos(leitura.eventos);
   const anos = porAno(leitura.eventos);
@@ -37,6 +39,9 @@ export function InstrumentoConteudo({ leitura }: { leitura: LeituraOk }) {
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
           {i.modalidade ? `${i.modalidade.toLowerCase()} ` : "Convênio "}nº {i.nr_convenio} <CopiarNumero numero={i.nr_convenio} de="convênio" />
+          {seguindo !== null && (
+            <EstrelaSeguir tipo="instrumento" chave={i.nr_convenio} nome={`o convênio nº ${i.nr_convenio}`} seguindo={seguindo} />
+          )}
         </p>
         <h1 className="pa-titulo">{i.programa ?? "Programa não informado"}</h1>
         {i.objeto && <p className="pa-sub">{i.objeto}</p>}

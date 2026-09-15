@@ -25,6 +25,7 @@ import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe, type Tema } from "@/lib/oportunida
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
 import { copiarTexto } from "@/lib/area-de-transferencia";
 import { Tag } from "../_design/primitivos";
+import { EstrelaSeguir } from "./_componentes/EstrelaSeguir";
 
 interface Entidade {
   nome: string;
@@ -58,13 +59,17 @@ export function CatalogoClient({
   vista,
   entidade,
   seguindoTemas,
+  janelasSeguidas = null,
 }: {
   vista: CatalogoVista;
   entidade: Entidade | null;
   seguindoTemas: boolean;
+  /** Ids das janelas que a pessoa segue. Null sem a oport_15: os cartões ficam sem estrela. */
+  janelasSeguidas?: string[] | null;
 }) {
   const [filtros, setFiltros] = useState<FiltrosCatalogo>(SEM_FILTRO);
   const [anuncio, setAnuncio] = useState("");
+  const seguidas = useMemo(() => (janelasSeguidas ? new Set(janelasSeguidas) : null), [janelasSeguidas]);
 
   const visiveis = useMemo(() => filtrarJanelas(vista.janelas, filtros), [vista.janelas, filtros]);
 
@@ -329,8 +334,14 @@ export function CatalogoClient({
       ) : (
         <ul className="pa-pilha mp-janelas">
           {visiveis.map((j) => (
-            <li key={j.id}>
-              <JanelaCartao janela={j} mostrarMotivos={entidade !== null} anunciar={setAnuncio} />
+            // A âncora é o destino dos links "Meus itens" → janela, que não tem página própria.
+            <li key={j.id} id={`janela-${j.id}`}>
+              <JanelaCartao
+                janela={j}
+                mostrarMotivos={entidade !== null}
+                anunciar={setAnuncio}
+                seguindo={seguidas ? seguidas.has(j.id) : null}
+              />
             </li>
           ))}
         </ul>
@@ -393,10 +404,12 @@ function JanelaCartao({
   janela: j,
   mostrarMotivos,
   anunciar,
+  seguindo,
 }: {
   janela: JanelaVista;
   mostrarMotivos: boolean;
   anunciar: (mensagem: string) => void;
+  seguindo: boolean | null;
 }) {
   const edital = j.documentos[0];
   const combinaTema = j.aderencia?.motivos.some((m) => m.startsWith("combina")) ?? false;
@@ -472,6 +485,7 @@ function JanelaCartao({
 
       <div className="mp-janela-lado">
         <p className={j.urgente ? "mp-prazo mp-prazo-urgente" : "mp-prazo"}>{prazoPorExtenso(j)}</p>
+        {seguindo !== null && <EstrelaSeguir tipo="janela" chave={j.id} nome={`a janela ${j.titulo}`} seguindo={seguindo} />}
         {edital ? (
           <a
             className="pa-btn pa-btn-pequeno"

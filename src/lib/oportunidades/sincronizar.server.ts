@@ -10,9 +10,10 @@
  * o diff devolve vazio e o banco recusa `gerado_em` repetido.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
-import { lerCatalogo } from "./catalogo.server";
+import { lerCatalogo, lerCatalogoV2 } from "./catalogo.server";
 import { calcularDiff, type EstadoProcessado } from "./diff";
 import { ehEsquemaAusente } from "./esquema";
+import { gerarAvisosJanelas } from "./favoritos.server";
 
 export type ResultadoSincronizacao =
   | {
@@ -64,6 +65,12 @@ export async function sincronizarCentral(origem: OrigemSincronizacao = "cron"): 
   const iniciadaEm = new Date().toISOString();
   const r = await executarSincronizacao();
   await registrarTentativa(origem, iniciadaEm, r);
+  // Onda 7: avisos de quem segue janela, pelo catálogo v2. Roda também sem publicação
+  // nova, porque "fecha em N dias" muda com o dia; a função do banco não repete aviso.
+  if (r.status !== "nao_ativada") {
+    const v2 = await lerCatalogoV2();
+    if (v2.estado === "ok") await gerarAvisosJanelas(v2.payload);
+  }
   return r;
 }
 

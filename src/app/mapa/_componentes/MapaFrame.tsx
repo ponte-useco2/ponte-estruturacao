@@ -4,6 +4,8 @@ import { ContaMenu } from "./ContaMenu";
 import { MapaNav } from "./MapaNav";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
 import { contarNaoLidas } from "@/lib/oportunidades/notificacoes.server";
+import { somaNaoLidos } from "@/lib/oportunidades/favoritos";
+import { contarAvisosItensNaoLidos } from "@/lib/oportunidades/favoritos.server";
 import { ehAdministrador } from "@/lib/supabase-auth";
 
 /**
@@ -32,7 +34,13 @@ export async function MapaFrame({
   // A moldura lê o contexto de organização porque é ela que mostra qual está
   // ativa e oferece a troca. A página lê de novo, para saber se convida a
   // declarar: são duas responsabilidades distintas, e a leitura é barata.
-  const [{ ativa, todas }, naoLidas] = await Promise.all([lerContexto(), contarNaoLidas()]);
+  // O número da aba Avisos soma as duas filas: o que mudou no catálogo e o que mudou nos itens seguidos.
+  const [{ ativa, todas }, naoLidasCatalogo, naoLidasItens] = await Promise.all([
+    lerContexto(),
+    contarNaoLidas(),
+    contarAvisosItensNaoLidos(),
+  ]);
+  const naoLidas = somaNaoLidos(naoLidasCatalogo, naoLidasItens);
 
   return (
     // `pa-root` é a raiz do design system: declara os alias de token e o reset.

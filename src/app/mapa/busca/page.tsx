@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { parametrosBusca } from "@/lib/oportunidades/busca";
 import { lerBusca } from "@/lib/oportunidades/busca.server";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { BuscaConteudo, DadoIndisponivel } from "./BuscaConteudo";
 
@@ -25,7 +26,7 @@ export default async function BuscaPage({
   if (!visitante || visitante.status !== "aprovado") return null;
 
   const p = parametrosBusca(await searchParams);
-  const leitura = await lerBusca(p);
+  const [leitura, seguidas] = await Promise.all([lerBusca(p), lerSeguidas()]);
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Busca" titulo="A busca está indisponível agora" />;
-  return <BuscaConteudo p={p} leitura={leitura} />;
+  return <BuscaConteudo p={p} leitura={leitura} seguidas={seguidas} />;
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normaValida } from "@/lib/oportunidades/normas";
 import { clienteServidor, visitanteAtual, ehAdministrador } from "@/lib/supabase-auth";
 
 /**
@@ -53,6 +54,44 @@ export async function decidirAcesso(
   }
 
   revalidatePath("/oportunidades/admin");
+  return { ok: true };
+}
+
+/**
+ * Normas do mural de avisos (onda 7): a equipe publica e apaga. Quem lê é qualquer
+ * aprovado, pela RLS da oport_15; quem grava é só esta ação, pela chave de serviço.
+ */
+export async function cadastrarNorma(dados: unknown): Promise<Resultado> {
+  const admin = await exigirAdmin();
+  if (!admin) return { ok: false, erro: "Sem permissão." };
+
+  const norma = normaValida(dados);
+  if (typeof norma === "string") return { ok: false, erro: norma };
+
+  const { error } = await clienteServidor()
+    .from("oport_norma")
+    .insert({ ...norma, criada_por: admin.email });
+  if (error) {
+    console.error("cadastrarNorma:", error.message);
+    return { ok: false, erro: "Não foi possível publicar a norma." };
+  }
+  revalidatePath("/oportunidades/admin");
+  revalidatePath("/mapa/avisos");
+  return { ok: true };
+}
+
+export async function apagarNorma(id: string): Promise<Resultado> {
+  const admin = await exigirAdmin();
+  if (!admin) return { ok: false, erro: "Sem permissão." };
+  if (!/^\d{1,18}$/.test(id)) return { ok: false, erro: "Identificador inválido." };
+
+  const { error } = await clienteServidor().from("oport_norma").delete().eq("id", id);
+  if (error) {
+    console.error("apagarNorma:", error.message);
+    return { ok: false, erro: "Não foi possível apagar a norma." };
+  }
+  revalidatePath("/oportunidades/admin");
+  revalidatePath("/mapa/avisos");
   return { ok: true };
 }
 
