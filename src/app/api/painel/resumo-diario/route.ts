@@ -47,8 +47,12 @@ export async function POST(request: Request) {
   const execucao = (ultima.data as (ExecucaoPainel & { resumo_enviado_em: string | null })[] | null)?.[0];
   if (!execucao) return resposta({ status: "sem_execucao" });
   if (!somente && execucao.resumo_enviado_em) return resposta({ status: "ja_enviado", execucao: execucao.id });
-  // Reexecução com o mesmo arquivo, ou primeira comparação: nada novo a contar.
-  if (Number(execucao.contagens?.mudancas_total ?? 0) === 0) return resposta({ status: "sem_mudancas", execucao: execucao.id });
+  // Para todos, só execução que comparou arquivo novo: a reexecução com o mesmo arquivo
+  // não manda de novo o e-mail daquele dia. O teste (`somente`) usa as mudanças do último
+  // dado, mesmo que a última execução tenha sido uma reexecução.
+  if (!somente && Number(execucao.contagens?.mudancas_total ?? 0) === 0) {
+    return resposta({ status: "sem_mudancas", execucao: execucao.id });
+  }
 
   const [brasil, uf, destaques] = await Promise.all([
     db.rpc("painel_mudancas_resumo", { p_dias: 1 }),
@@ -57,6 +61,9 @@ export async function POST(request: Request) {
   ]);
   const erro = brasil.error ?? uf.error ?? destaques.error;
   if (erro) return resposta({ erro: erro.message }, 500);
+  if (((brasil.data ?? []) as ContagemMudanca[]).every((l) => l.n === 0)) {
+    return resposta({ status: "sem_mudancas", execucao: execucao.id });
+  }
 
   // Marca antes de enviar: duas chamadas ao mesmo tempo não mandam dois e-mails. Se o
   // envio falhar, desmarca, e a próxima chamada tenta de novo.
