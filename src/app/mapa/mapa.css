@@ -484,6 +484,10 @@
 .pa-root .mp-painel-mudancas td:nth-child(2) { min-width: 14rem; }
 .pa-root .mp-painel-mudancas td:nth-child(3) { min-width: 16rem; }
 .pa-root .mp-painel-mudancas .pa-tag { white-space: normal; }
+/* Pix e fundo a fundo: o nome do ente e do programa pedem largura; a tabela rola de lado. */
+.pa-root .mp-pix-planos th[scope="row"] { min-width: 16rem; }
+.pa-root .mp-pix-planos td:last-child { min-width: 9rem; }
+.pa-root .mp-pix-ressalvas { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.4rem; }
 .pa-root .mp-painel-ficha-link .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
 .pa-root .mp-painel-taxa { font-size: 0.78rem; color: var(--pa-muted); }
 .pa-root .mp-painel-sinais {

@@ -144,6 +144,10 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
             {contadores[v.id] !== undefined && <span className="pa-chip-contagem">{n(contadores[v.id] ?? 0)}</span>}
           </Link>
         ))}
+        {/* Outra fonte e outro retrato (semanal): página própria, com a UF levada junto. */}
+        <Link href={p.uf ? `/mapa/painel/pix?uf=${p.uf}` : "/mapa/painel/pix"} className="pa-chip">
+          Pix e fundo a fundo →
+        </Link>
       </nav>
 
       <Filtros p={p} orgaos={orgaos} municipios={leitura.opcoesMunicipio} referencia={execucao.referencia} />
