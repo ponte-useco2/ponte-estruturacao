@@ -61,6 +61,8 @@ export const TEMAS: Tema[] = [
   },
   { id: "mobilidade", rotulo: "Mobilidade e logística", radicais: ["mobilidade"] },
   { id: "desenvolvimento_regional", rotulo: "Desenvolvimento regional", radicais: ["desenvolvimento regional", "desenvolvimento_regional"] },
+  // Entrou em 15/09/2026 com os instrumentos do SICONV: prevenção de desastres é programa próprio do MIDR.
+  { id: "defesa_civil", rotulo: "Defesa civil e desastres", radicais: ["defesa civil", "desastre"] },
 
   // ------------------------------------------------ primeiro nível: pessoas
   {
@@ -72,6 +74,8 @@ export const TEMAS: Tema[] = [
   { id: "educacao", rotulo: "Educação", radicais: ["educaç", "educac"] },
   { id: "cultura", rotulo: "Cultura e patrimônio", radicais: ["cultura", "patrimônio", "patrimonio"] },
   { id: "turismo", rotulo: "Turismo", radicais: ["turismo"] },
+  // Entrou em 15/09/2026 com os instrumentos do SICONV: é o 3º tema em volume de convênios.
+  { id: "esporte", rotulo: "Esporte e lazer", radicais: ["esporte", "esportiv", "lazer"] },
 
   // ------------------------------------------------ primeiro nível: economia
   { id: "economia_solidaria", rotulo: "Economia solidária", radicais: ["economia solidária", "economia solidaria"] },
