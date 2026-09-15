@@ -72,6 +72,28 @@ export const VISOES: DefinicaoVisao[] = [
 
 /** Primeiro ano com dado de proposta no painel (o job grava a partir dele). */
 export const ANO_MINIMO_ENVIO = 2019;
+/** Primeiro ano do filtro de assinatura: o SICONV começa em 2008. */
+export const ANO_MINIMO_ASSINATURA = 2008;
+
+/** As visões que leem convênio a convênio — as únicas com filtro de município e de período. */
+export const VISOES_CONVENIO: Visao[] = ["suspensiva", "nunca", "vigencia", "contas", "saldo"];
+
+export function ehVisaoConvenio(v: Visao): boolean {
+  return VISOES_CONVENIO.includes(v);
+}
+
+/** Os dois primeiros dígitos do código IBGE do município são a UF. */
+const UF_POR_CODIGO: Record<string, string> = {
+  "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP", "17": "TO",
+  "21": "MA", "22": "PI", "23": "CE", "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE", "29": "BA",
+  "31": "MG", "32": "ES", "33": "RJ", "35": "SP", "41": "PR", "42": "SC", "43": "RS",
+  "50": "MS", "51": "MT", "52": "GO", "53": "DF",
+};
+
+/** UF de um código IBGE de 7 dígitos, ou null se o código não é de município. */
+export function ufDoIbge(ibge: string | null | undefined): string | null {
+  return ibge && /^\d{7}$/.test(ibge) ? (UF_POR_CODIGO[ibge.slice(0, 2)] ?? null) : null;
+}
 
 const IDS_VISAO = VISOES.map((v) => v.id) as string[];
 export const LADOS_CONTAS: LadoContas[] = ["atrasada", "negativo", "tce", "concedente"];
@@ -100,34 +122,66 @@ export interface ParametrosPainel {
   dimensao: DimensaoTempo;
   /** Só em aprovação. Null = o ano anterior ao do dado, decidido no servidor. */
   ano: number | null;
+  /** Só nas visões de convênio. Código IBGE; quando presente, a UF é a dele. */
+  municipio: string | null;
+  /** Só nas visões de convênio. Anos inclusivos da assinatura; null = sem limite. */
+  assinadoDe: number | null;
+  assinadoAte: number | null;
 }
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
+function anoValido(v: string | undefined, minimo: number): number | null {
+  const n = Number(v);
+  return v && Number.isInteger(n) && n >= minimo && n <= 2100 ? n : null;
+}
+
+/** Período de assinatura em ordem: quem digitou "de 2024 até 2020" quis 2020 a 2024. */
+function periodo(sp: Record<string, string | string[] | undefined>): [number | null, number | null] {
+  const de = anoValido(um(sp.assinado_de), ANO_MINIMO_ASSINATURA);
+  const ate = anoValido(um(sp.assinado_ate), ANO_MINIMO_ASSINATURA);
+  return de !== null && ate !== null && de > ate ? [ate, de] : [de, ate];
+}
+
 /** Da URL para o que a página consulta. Valor fora da lista cai no padrão em vez de chegar ao banco. */
 export function parametrosPainel(sp: Record<string, string | string[] | undefined>): ParametrosPainel {
   const visao = um(sp.visao);
-  const uf = um(sp.uf)?.toUpperCase() ?? null;
+  const ufUrl = um(sp.uf)?.toUpperCase() ?? null;
   const orgao = um(sp.orgao)?.trim();
   const lado = um(sp.lado);
-  const ano = Number(um(sp.ano));
   const v = (IDS_VISAO.includes(visao ?? "") ? visao : "suspensiva") as Visao;
+  const uf = ufUrl && (UFS as readonly string[]).includes(ufUrl) ? ufUrl : null;
+  const convenio = ehVisaoConvenio(v);
+  // Município só vale na UF dele. Se a URL traz outra UF, a pessoa trocou a UF no
+  // formulário com o município antigo ainda no seletor: vale a UF.
+  const ibge = um(sp.municipio)?.trim() ?? null;
+  const ufMunicipio = convenio ? ufDoIbge(ibge) : null;
+  const municipio = ufMunicipio && (uf === null || uf === ufMunicipio) ? ibge : null;
+  const [assinadoDe, assinadoAte] = convenio ? periodo(sp) : [null, null];
   return {
     visao: v,
-    uf: uf && (UFS as readonly string[]).includes(uf) ? uf : null,
+    uf: municipio ? ufMunicipio : uf,
     // Órgão é texto livre do arquivo: limita o tamanho e ignora em municípios.
     orgao: v !== "municipios" && orgao ? orgao.slice(0, 200) : null,
     lado: (LADOS_CONTAS as string[]).includes(lado ?? "") ? (lado as LadoContas) : "atrasada",
     dimensao: um(sp.dimensao) === "programa" ? "programa" : "orgao",
-    ano: Number.isInteger(ano) && ano >= ANO_MINIMO_ENVIO && ano <= 2100 ? ano : null,
+    ano: anoValido(um(sp.ano), ANO_MINIMO_ENVIO),
+    municipio,
+    assinadoDe,
+    assinadoAte,
   };
 }
 
-/** Monta a URL mantendo os outros parâmetros. Trocar de visão limpa o que era só da visão anterior. */
+/**
+ * Monta a URL mantendo os outros parâmetros. Trocar de visão limpa o que era só da
+ * visão anterior; município e período seguem entre as visões de convênio.
+ */
 export function urlPainel(atual: ParametrosPainel, muda: Partial<ParametrosPainel>): string {
   const trocouVisao = muda.visao !== undefined && muda.visao !== atual.visao;
   const limpa = trocouVisao ? { orgao: null, lado: "atrasada" as LadoContas, dimensao: "orgao" as DimensaoTempo, ano: null } : {};
   const p = { ...atual, ...limpa, ...muda };
+  // Trocar a UF solta o município, que era de outra.
+  if (p.municipio && ufDoIbge(p.municipio) !== p.uf) p.municipio = null;
   const q = new URLSearchParams();
   if (p.visao !== "suspensiva") q.set("visao", p.visao);
   if (p.uf) q.set("uf", p.uf);
@@ -135,8 +189,124 @@ export function urlPainel(atual: ParametrosPainel, muda: Partial<ParametrosPaine
   if (p.visao === "contas" && p.lado !== "atrasada") q.set("lado", p.lado);
   if (p.visao === "tempos" && p.dimensao !== "orgao") q.set("dimensao", p.dimensao);
   if (p.visao === "aprovacao" && p.ano !== null) q.set("ano", String(p.ano));
+  if (ehVisaoConvenio(p.visao)) {
+    if (p.municipio) q.set("municipio", p.municipio);
+    if (p.assinadoDe !== null) q.set("assinado_de", String(p.assinadoDe));
+    if (p.assinadoAte !== null) q.set("assinado_ate", String(p.assinadoAte));
+  }
   const s = q.toString();
   return s ? `/mapa/painel?${s}` : "/mapa/painel";
+}
+
+/** Datas inclusivas para o banco: 1º de janeiro do ano inicial e 31 de dezembro do final. */
+export function datasAssinatura(de: number | null, ate: number | null): { de: string | null; ate: string | null } {
+  return { de: de === null ? null : `${de}-01-01`, ate: ate === null ? null : `${ate}-12-31` };
+}
+
+/** Os anos do seletor de assinatura, do mais recente ao mais antigo. */
+export function anosAssinatura(referencia: string): number[] {
+  const anos: number[] = [];
+  for (let a = Number(referencia.slice(0, 4)); a >= ANO_MINIMO_ASSINATURA; a--) anos.push(a);
+  return anos;
+}
+
+/** "assinados de 2019 a 2024", "assinados desde 2023", "assinados até 2018", ou "". */
+export function periodoPorExtenso(de: number | null, ate: number | null): string {
+  if (de !== null && ate !== null) return de === ate ? `assinados em ${de}` : `assinados de ${de} a ${ate}`;
+  if (de !== null) return `assinados desde ${de}`;
+  if (ate !== null) return `assinados até ${ate}`;
+  return "";
+}
+
+// ============================ FICHA DO MUNICÍPIO ============================
+
+export type QuemFicha = "prefeitura" | "todos";
+
+export interface ParametrosFicha {
+  ibge: string;
+  uf: string;
+  quem: QuemFicha;
+  assinadoDe: number | null;
+  assinadoAte: number | null;
+}
+
+/** Null quando o código não é de município: a página volta ao painel. */
+export function parametrosFicha(ibge: string, sp: Record<string, string | string[] | undefined>): ParametrosFicha | null {
+  const uf = ufDoIbge(ibge);
+  if (!uf) return null;
+  const [assinadoDe, assinadoAte] = periodo(sp);
+  return { ibge, uf, quem: um(sp.quem) === "todos" ? "todos" : "prefeitura", assinadoDe, assinadoAte };
+}
+
+export function urlFicha(atual: Pick<ParametrosFicha, "ibge"> & Partial<ParametrosFicha>, muda: Partial<ParametrosFicha> = {}): string {
+  const f = { quem: "prefeitura" as QuemFicha, assinadoDe: null, assinadoAte: null, ...atual, ...muda };
+  const q = new URLSearchParams();
+  if (f.quem !== "prefeitura") q.set("quem", f.quem);
+  if (f.assinadoDe !== null) q.set("assinado_de", String(f.assinadoDe));
+  if (f.assinadoAte !== null) q.set("assinado_ate", String(f.assinadoAte));
+  const s = q.toString();
+  return `/mapa/painel/municipio/${f.ibge}${s ? `?${s}` : ""}`;
+}
+
+/** Uma proposta de `painel_proposta`, como a ficha a lê. */
+export interface PropostaPainel {
+  id_proposta: string;
+  nr_proposta: string | null;
+  proponente: string | null;
+  tipo_agente: string | null;
+  orgao_sup: string | null;
+  cod_programa: string | null;
+  programa: string | null;
+  objeto: string | null;
+  valor_repasse: number | null;
+  com_emenda: boolean;
+  dt_envio: string | null;
+  ano_envio: number | null;
+  desfecho: string;
+  em_lote: boolean;
+  limbo: boolean;
+  situacao: string | null;
+  dt_ultimo_evento: string | null;
+  dias_sem_evento: number | null;
+  dt_assinatura: string | null;
+  nr_convenio: string | null;
+}
+
+/** Uma linha de `painel_propostas_por_ano`. */
+export interface PropostasDoAno {
+  ano_envio: number;
+  enviadas: number;
+  assinadas: number;
+  reprovadas: number;
+  reprovadas_lote: number;
+  impedimento: number;
+  impedimento_lote: number;
+  eliminadas: number;
+  sem_desfecho: number;
+  limbo: number;
+  com_emenda: number;
+  valor_pedido: number;
+}
+
+export const DESFECHOS_ABERTOS = ["aberta_concedente", "aberta_proponente", "aguardando_assinatura"];
+
+export const ROTULO_DESFECHO: Record<string, string> = {
+  assinada: "Assinada",
+  reprovada: "Reprovada",
+  impedimento: "Impedimento técnico",
+  eliminada: "Eliminada no chamamento",
+  cancelada: "Cancelada",
+  anulada: "Convênio anulado",
+  aberta_concedente: "Em análise no concedente",
+  aberta_proponente: "Em complementação pelo proponente",
+  aguardando_assinatura: "Aprovada, esperando assinatura",
+};
+
+/** De quem é a vez numa proposta sem desfecho — o que a PONTE pode destravar. */
+export function vezDaProposta(desfecho: string): "concedente" | "proponente" | null {
+  if (desfecho === "aberta_proponente") return "proponente";
+  if (desfecho === "aberta_concedente" || desfecho === "aguardando_assinatura") return "concedente";
+  return null;
 }
 
 // ============================ ETAPAS E DESFECHOS ============================

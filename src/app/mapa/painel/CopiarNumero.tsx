@@ -7,14 +7,14 @@
 import { useState } from "react";
 import { copiarTexto } from "@/lib/area-de-transferencia";
 
-export function CopiarNumero({ numero, de = "convênio" }: { numero: string; de?: "convênio" | "programa" }) {
+export function CopiarNumero({ numero, de = "convênio" }: { numero: string; de?: "convênio" | "programa" | "proposta" }) {
   const [estado, setEstado] = useState<"copiado" | "falhou" | null>(null);
   return (
     <button
       type="button"
       className="mp-painel-copiar"
       onClick={async () => setEstado((await copiarTexto(numero)) ? "copiado" : "falhou")}
-      aria-label={`Copiar o número do ${de} ${numero}`}
+      aria-label={`Copiar o número ${de === "proposta" ? "da" : "do"} ${de} ${numero}`}
     >
       {estado === "copiado" ? "copiado ✓" : estado === "falhou" ? "não copiou" : "copiar nº"}
       <span className="pa-sr" role="status">

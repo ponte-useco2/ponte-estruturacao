@@ -2,9 +2,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   anoPadrao,
+  anosAssinatura,
   anosEnvio,
   canceladas,
+  datasAssinatura,
   diasPorExtenso,
+  parametrosFicha,
+  periodoPorExtenso,
+  ufDoIbge,
+  urlFicha,
+  vezDaProposta,
   etapasDe,
   exigenciasDe,
   fracao,
@@ -24,7 +31,71 @@ import {
   urlPainel,
 } from "./painel.ts";
 
-const PADRAO = { visao: "suspensiva", uf: null, orgao: null, lado: "atrasada", dimensao: "orgao", ano: null };
+const PADRAO = {
+  visao: "suspensiva",
+  uf: null,
+  orgao: null,
+  lado: "atrasada",
+  dimensao: "orgao",
+  ano: null,
+  municipio: null,
+  assinadoDe: null,
+  assinadoAte: null,
+};
+
+test("município: a UF sai do código IBGE, e UF diferente na URL solta o município", () => {
+  assert.equal(ufDoIbge("2507507"), "PB");
+  assert.equal(ufDoIbge("5300108"), "DF");
+  assert.equal(ufDoIbge("1600303"), "AP");
+  assert.equal(ufDoIbge("3400000"), null); // 34 não é UF
+  assert.equal(ufDoIbge("250750"), null);
+  const p = parametrosPainel({ visao: "nunca", municipio: "2507507" });
+  assert.deepEqual([p.uf, p.municipio], ["PB", "2507507"]);
+  assert.deepEqual(
+    [parametrosPainel({ municipio: "2507507", uf: "PB" }).municipio, parametrosPainel({ municipio: "2507507", uf: "RN" }).uf],
+    ["2507507", "RN"],
+  );
+  assert.equal(parametrosPainel({ municipio: "2507507", uf: "RN" }).municipio, null);
+  // Tempos, aprovação e municípios não leem convênio a convênio.
+  assert.equal(parametrosPainel({ visao: "tempos", municipio: "2507507" }).municipio, null);
+  assert.equal(parametrosPainel({ visao: "municipios", municipio: "2507507" }).uf, null);
+});
+
+test("período de assinatura: anos válidos, invertidos são trocados, e só nas visões de convênio", () => {
+  const p = parametrosPainel({ visao: "saldo", assinado_de: "2024", assinado_ate: "2019" });
+  assert.deepEqual([p.assinadoDe, p.assinadoAte], [2019, 2024]);
+  assert.deepEqual([parametrosPainel({ assinado_de: "2007" }).assinadoDe, parametrosPainel({ assinado_ate: "20x" }).assinadoAte], [null, null]);
+  assert.equal(parametrosPainel({ visao: "aprovacao", assinado_de: "2020" }).assinadoDe, null);
+  assert.deepEqual(datasAssinatura(2019, 2024), { de: "2019-01-01", ate: "2024-12-31" });
+  assert.deepEqual(datasAssinatura(null, null), { de: null, ate: null });
+  assert.equal(periodoPorExtenso(2019, 2024), "assinados de 2019 a 2024");
+  assert.equal(periodoPorExtenso(2023, null), "assinados desde 2023");
+  assert.equal(periodoPorExtenso(2020, 2020), "assinados em 2020");
+  assert.equal(periodoPorExtenso(null, null), "");
+  const anos = anosAssinatura("2026-09-12");
+  assert.deepEqual([anos[0], anos.at(-1)], [2026, 2008]);
+});
+
+test("url: município e período seguem entre visões de convênio e somem nas outras", () => {
+  const p = parametrosPainel({ visao: "nunca", municipio: "2507507", assinado_de: "2019" });
+  assert.equal(urlPainel(p, { visao: "contas" }), "/mapa/painel?visao=contas&uf=PB&municipio=2507507&assinado_de=2019");
+  assert.equal(urlPainel(p, { visao: "tempos" }), "/mapa/painel?visao=tempos&uf=PB");
+  assert.equal(urlPainel(p, { uf: "RN" }), "/mapa/painel?visao=nunca&uf=RN&assinado_de=2019");
+  assert.equal(urlPainel(p, { uf: null }), "/mapa/painel?visao=nunca&assinado_de=2019");
+});
+
+test("ficha: código inválido não abre, prefeitura é o padrão e a URL omite o padrão", () => {
+  assert.equal(parametrosFicha("123", {}), null);
+  const f = parametrosFicha("2507507", { quem: "todos", assinado_de: "2025", assinado_ate: "2020" });
+  assert.deepEqual(f, { ibge: "2507507", uf: "PB", quem: "todos", assinadoDe: 2020, assinadoAte: 2025 });
+  assert.equal(parametrosFicha("2507507", { quem: "x" })?.quem, "prefeitura");
+  assert.equal(urlFicha({ ibge: "2507507" }), "/mapa/painel/municipio/2507507");
+  assert.equal(urlFicha(f!, { quem: "prefeitura" }), "/mapa/painel/municipio/2507507?assinado_de=2020&assinado_ate=2025");
+  assert.deepEqual(
+    ["aberta_proponente", "aguardando_assinatura", "assinada"].map(vezDaProposta),
+    ["proponente", "concedente", null],
+  );
+});
 
 test("parâmetros: valores fora da lista caem no padrão, sem chegar ao banco", () => {
   assert.deepEqual(parametrosPainel({}), PADRAO);
