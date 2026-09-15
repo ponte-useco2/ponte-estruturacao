@@ -16,7 +16,9 @@ export function SairBotao() {
       const supabase = createBrowserClient(url, anon);
       await supabase.auth.signOut();
     }
-    window.location.href = "/oportunidades/entrar";
+    // Recarga completa, e não navegação do Next: a sessão acabou de mudar e nada
+    // do estado da página deve sobreviver.
+    window.location.assign(new URL("/oportunidades/entrar", window.location.origin));
   }
 
   return (

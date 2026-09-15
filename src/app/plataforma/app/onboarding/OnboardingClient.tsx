@@ -143,35 +143,28 @@ function Passos({
   );
   const [estado, setEstado] = useState(territorioSeed.uf);
   const [municipio, setMunicipio] = useState(territorioSeed.municipio);
-  const [municipios, setMunicipios] = useState<string[]>([]);
-  const [carregandoMun, setCarregandoMun] = useState(false);
+  // A lista é guardada junto da UF que a produziu. Carregando, erro e a própria
+  // lista derivam dela: o efeito só grava quando a resposta chega, e trocar de
+  // UF não precisa zerar nada à mão.
+  const [resultadoMun, setResultadoMun] = useState<{ uf: string; lista: string[]; erro: boolean } | null>(null);
+  const daUf = estado && resultadoMun?.uf === estado ? resultadoMun : null;
+  const municipios = daUf?.lista ?? [];
+  const carregandoMun = Boolean(estado) && !daUf;
   // Se o IBGE não responder, o município vira campo de texto livre — o
   // onboarding não pode travar por causa de uma lista indisponível.
-  const [erroMun, setErroMun] = useState(false);
+  const erroMun = daUf?.erro ?? false;
 
   // Carrega os municípios quando a UF muda. `vivo` descarta respostas de uma
   // UF anterior que chegam depois de o usuário já ter trocado de estado.
   useEffect(() => {
-    if (!estado) {
-      setMunicipios([]);
-      setErroMun(false);
-      return;
-    }
+    if (!estado) return;
     let vivo = true;
-    setCarregandoMun(true);
-    setErroMun(false);
     buscarMunicipios(estado)
       .then((lista) => {
-        if (vivo) setMunicipios(lista);
+        if (vivo) setResultadoMun({ uf: estado, lista, erro: false });
       })
       .catch(() => {
-        if (vivo) {
-          setErroMun(true);
-          setMunicipios([]);
-        }
-      })
-      .finally(() => {
-        if (vivo) setCarregandoMun(false);
+        if (vivo) setResultadoMun({ uf: estado, lista: [], erro: true });
       });
     return () => {
       vivo = false;

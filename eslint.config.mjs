@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Saída do sincronizador de design (gitignored): código gerado e minificado.
+    "ds-bundle/**",
+    ".ds-sync/**",
   ]),
 ]);
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -126,9 +127,9 @@ export default async function EntrarPage({
           </p>
         </details>
 
-        <a className="op-entrar-voltar" href="/">
+        <Link className="op-entrar-voltar" href="/">
           ← Site da PONTE
-        </a>
+        </Link>
       </div>
 
       <style>{estilosEntrada}</style>

@@ -150,6 +150,16 @@ GRANT EXECUTE ON FUNCTION public.consultar_cupom_centelha(TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.consumir_cupom_centelha(TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.devolver_cupom_centelha(TEXT) TO service_role;
 
+-- 8. Fechar o acesso público (seguranca_1_legado.sql, 15/09/2026)
+-- ---------------------------------------------------------------------
+-- Sem isto, as funções SECURITY DEFINER ficam executáveis por qualquer
+-- visitante com a chave pública, e estes códigos estão num repositório
+-- público: dava para esgotar ou "devolver" cupons sem login.
+REVOKE EXECUTE ON FUNCTION public.consultar_cupom_centelha(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.consumir_cupom_centelha(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.devolver_cupom_centelha(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.centelha_cupons FROM anon, authenticated;
+
 -- =====================================================================
 -- Pronto! Verifique com:
 --

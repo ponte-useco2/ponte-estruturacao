@@ -159,7 +159,7 @@ export function FormularioFinep() {
       } else {
         setErrorMsg(result.error || "Ocorreu um erro ao enviar o formulário.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setIsSubmitting(false);
       setErrorMsg("Erro de comunicação com o servidor. Tente novamente.");

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { estilosLegais } from "@/lib/estilos-legais";
 
 export const metadata: Metadata = {
@@ -232,9 +233,9 @@ export default function PrivacidadePage() {
           não substitui a avaliação de um advogado sobre o seu caso concreto.
         </p>
 
-        <a className="lg-voltar" href="/">
+        <Link className="lg-voltar" href="/">
           ← Voltar ao site
-        </a>
+        </Link>
       </div>
 
       <style>{estilosLegais}</style>

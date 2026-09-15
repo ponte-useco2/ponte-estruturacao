@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { visitanteAtual } from "@/lib/supabase-auth";
@@ -66,9 +67,9 @@ export default async function AguardandoPage() {
         */}
         <SairBotao />
 
-        <a className="op-entrar-voltar" href="/">
+        <Link className="op-entrar-voltar" href="/">
           ← Site da PONTE
-        </a>
+        </Link>
       </div>
 
       <style>{estilosEntrada}</style>

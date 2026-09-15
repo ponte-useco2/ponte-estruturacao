@@ -11,6 +11,7 @@
  *  - Se `versao` major diferir do suportado, exibe "Formato não suportado".
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRegistro } from "./usar-registro";
@@ -948,9 +949,9 @@ export function OportunidadesClient({
               trabalho, contrapartida, documentação de habilitação e o rito do Transferegov —
               onde a maioria das propostas cai. A Ponte estrutura isso com você.
             </p>
-            <a className="op-cta-btn" href="/#diagnostico">
+            <Link className="op-cta-btn" href="/#diagnostico">
               Solicitar diagnóstico
-            </a>
+            </Link>
             <a
               className="op-cta-alt"
               href="https://wa.me/5583996428315?text=Ol%C3%A1!%20Vi%20uma%20oportunidade%20no%20painel%20da%20Ponte%20e%20queria%20conversar."
@@ -971,7 +972,7 @@ export function OportunidadesClient({
               ? formatBR(payload.origem.atualizada_em.slice(0, 10))
               : "sem data"}
             .<br />
-            Painel operado pela <a href="/">Ponte Projetos</a> · UF: {payload.uf} · Contrato de
+            Painel operado pela <Link href="/">Ponte Projetos</Link> · UF: {payload.uf} · Contrato de
             dados v{payload.versao}.
           </footer>
         </main>
