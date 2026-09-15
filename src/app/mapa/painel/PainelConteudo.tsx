@@ -30,9 +30,16 @@ import {
   ROTULO_SINAL,
   ROTULO_SINAL_CURTO,
   SINAIS,
+  ANOS_MOTIVOS,
+  MOTIVOS_ADITIVO,
+  MOVIMENTOS,
+  ROTULO_MOTIVO_ADITIVO,
+  ROTULO_MOVIMENTO,
   VISOES,
   anosAssinatura,
   anosEnvio,
+  somaMotivos,
+  urlExportar,
   canceladas,
   definicao,
   diasPorExtenso,
@@ -64,6 +71,7 @@ import {
   Cartao,
   Lista,
   TabelaContas,
+  TabelaFisico,
   TabelaNunca,
   TabelaSaldo,
   TabelaSuspensiva,
@@ -93,6 +101,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
     vigencia: r("vigencia")("total").n,
     contas: contas("convenente").n + contas("concedente").n + contas("negativo").n,
     saldo: r("saldo")("parado").n,
+    fisico: r("fisico")("total").n,
     municipios: leitura.resumo.filter((l) => l.visao === "municipios").reduce((s, l) => s + l.n, 0),
   };
   const orgaos =
@@ -134,6 +143,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
           {def.titulo} · {onde}
           {p.orgao ? ` · ${p.orgao}` : ""}
           {periodo ? ` · ${periodo}` : ""}
+          {p.movimento && ehVisaoConvenio(p.visao) ? ` · ${ROTULO_MOVIMENTO[p.movimento]}` : ""}
         </h2>
         <p className="pa-sub">{def.pergunta}</p>
         {p.municipio && (
@@ -152,6 +162,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         {p.visao === "vigencia" && <Vigencia p={p} leitura={leitura} />}
         {p.visao === "contas" && <Contas p={p} leitura={leitura} />}
         {p.visao === "saldo" && <Saldo p={p} leitura={leitura} />}
+        {p.visao === "fisico" && <Fisico p={p} leitura={leitura} />}
         {p.visao === "municipios" && <Municipios leitura={leitura} />}
         {p.visao === "tempos" && <Tempos p={p} leitura={leitura} />}
         {p.visao === "aprovacao" && <Aprovacao p={p} leitura={leitura} />}
@@ -197,7 +208,7 @@ function Suspensiva({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk })
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Repasse" colunaDestaque="Vence em até 90 dias" />
 
-      <Lista titulo="Os próximos a vencer" vazio="Nenhuma cláusula suspensiva a vencer neste recorte.">
+      <Lista titulo="Os próximos a vencer" vazio="Nenhuma cláusula suspensiva a vencer neste recorte." csv={urlExportar(p)}>
         {leitura.convenios.length > 0 && <TabelaSuspensiva linhas={leitura.convenios} />}
       </Lista>
       {leitura.vencidos.length > 0 && (
@@ -259,6 +270,7 @@ function NuncaDesembolsado({ p, leitura }: { p: ParametrosPainel; leitura: Leitu
       <Lista
         titulo="Aceitos há mais tempo, depois os assinados há mais tempo"
         vazio="Nenhum convênio sem desembolso neste recorte."
+        csv={urlExportar(p)}
       >
         {leitura.convenios.length > 0 && <TabelaNunca linhas={leitura.convenios} />}
       </Lista>
@@ -288,12 +300,90 @@ function Vigencia({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
         conta. Extensões somam os termos aditivos de vigência e as prorrogações de ofício.
       </p>
 
+      <MotivosAditivos p={p} leitura={leitura} />
+
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="A desembolsar" colunaDestaque="Termina em até 90 dias" />
 
-      <Lista titulo="Os que terminam primeiro" vazio="Nenhum convênio em risco de vigência neste recorte.">
+      <Lista titulo="Os que terminam primeiro" vazio="Nenhum convênio em risco de vigência neste recorte." csv={urlExportar(p)}>
         {leitura.convenios.length > 0 && <TabelaVigencia linhas={leitura.convenios} />}
       </Lista>
     </>
+  );
+}
+
+/**
+ * Por que se prorroga. Duas leituras: o motivo do último aditivo dos convênios em risco
+ * da tela, e todos os aditivos de vigência do recorte nos últimos anos.
+ */
+function MotivosAditivos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
+  const r = resumoDe(leitura.resumo, "vigencia");
+  const anoDado = Number(leitura.execucao.referencia.slice(0, 4));
+  const anoMinimo = anoDado - (ANOS_MOTIVOS - 1);
+  const todos = somaMotivos(leitura.aditivosMotivo, anoMinimo);
+  const totalTodos = todos.reduce((s, m) => s + m.aditivos, 0);
+  const emRisco = MOTIVOS_ADITIVO.map((m) => ({ motivo: m, ...r(`motivo_${m}`) }))
+    .filter((m) => m.n > 0)
+    .sort((a, b) => Number(a.motivo === "nao_classificado" || a.motivo === "sem_justificativa") - Number(b.motivo === "nao_classificado" || b.motivo === "sem_justificativa") || b.n - a.n);
+  const totalRisco = emRisco.reduce((s, m) => s + m.n, 0);
+  if (totalTodos === 0 && totalRisco === 0) return null;
+  return (
+    <div className="pa-grade pa-grade-2 mp-painel-duas">
+      <div className="mp-radar-recorte">
+        <h3 className="mp-radar-h3">Por que os convênios em risco se prorrogaram</h3>
+        <p className="pa-nota">Motivo do aditivo de vigência mais recente de cada convênio da lista.</p>
+        <div className="mp-tabela-rolagem">
+          <table className="mp-tabela">
+            <thead>
+              <tr>
+                <th scope="col">Motivo</th>
+                <th scope="col" className="mp-num">Convênios</th>
+                <th scope="col" className="mp-num">Dos que têm aditivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {emRisco.slice(0, 8).map((m) => (
+                <tr key={m.motivo}>
+                  <th scope="row">{ROTULO_MOTIVO_ADITIVO[m.motivo] ?? m.motivo}</th>
+                  <td className="mp-num">{n(m.n)}</td>
+                  <td className="mp-num">{percentual(fracao(m.n, totalRisco))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="mp-radar-recorte">
+        <h3 className="mp-radar-h3">
+          Todos os aditivos de vigência · {p.uf ?? "Brasil"} · {anoMinimo} a {anoDado}
+        </h3>
+        <p className="pa-nota">Inclui convênios já concluídos: é o retrato de por que se pede mais prazo.</p>
+        <div className="mp-tabela-rolagem">
+          <table className="mp-tabela">
+            <thead>
+              <tr>
+                <th scope="col">Motivo</th>
+                <th scope="col" className="mp-num">Aditivos</th>
+                <th scope="col" className="mp-num">Do total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {todos.slice(0, 8).map((m) => (
+                <tr key={m.motivo}>
+                  <th scope="row">{ROTULO_MOTIVO_ADITIVO[m.motivo] ?? m.motivo}</th>
+                  <td className="mp-num">{n(m.aditivos)}</td>
+                  <td className="mp-num">{percentual(fracao(m.aditivos, totalTodos))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className="pa-nota mp-painel-nota-larga">
+        <Tag tom="proto">classificação automática</Tag> O motivo é lido do texto da justificativa por expressões do estudo; cada
+        aditivo recebe a primeira categoria que casar. Cerca de um quarto dos textos não cai em nenhuma. O texto em si não é
+        guardado.
+      </p>
+    </div>
   );
 }
 
@@ -355,6 +445,7 @@ function Contas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           }[p.lado]
         }
         vazio="Nenhum convênio nesta lista."
+        csv={urlExportar(p)}
       >
         {leitura.convenios.length > 0 && <TabelaContas linhas={leitura.convenios} />}
       </Lista>
@@ -397,8 +488,55 @@ function Saldo({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Saldo parado" colunaDestaque="Nunca pagaram" />
 
-      <Lista titulo="Os maiores saldos parados" vazio="Nenhuma conta parada há mais de um ano neste recorte.">
+      <Lista titulo="Os maiores saldos parados" vazio="Nenhuma conta parada há mais de um ano neste recorte." csv={urlExportar(p)}>
         {leitura.convenios.length > 0 && <TabelaSaldo linhas={leitura.convenios} />}
+      </Lista>
+    </>
+  );
+}
+
+function Fisico({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
+  const r = resumoDe(leitura.resumo, "fisico");
+  const total = r("total");
+  const c = leitura.execucao.contagens;
+  const emExecucao = Number(c.em_execucao ?? 0);
+  const comFisico = Number(c.em_execucao_com_fisico ?? 0);
+
+  return (
+    <>
+      <div className="pa-grade pa-grade-3 mp-painel-cartoes">
+        <Cartao
+          rotulo="Desembolso alto, físico baixo"
+          quantidade={total.n}
+          valor={total.valor}
+          legenda="desembolsados"
+          tom="urgente"
+        />
+        <Cartao
+          rotulo="Com físico zerado"
+          quantidade={r("fisico_zero").n}
+          valor={r("fisico_zero").valor}
+          legenda="desembolsados"
+          nota="Zero pode ser obra parada ou percentual nunca informado."
+        />
+        <Cartao
+          rotulo="Sem movimentação há +1 ano"
+          quantidade={r("parado_1ano").n}
+          valor={r("parado_1ano").valor}
+          legenda="desembolsados"
+        />
+      </div>
+      <p className="pa-nota">
+        <strong>Cobertura:</strong> só {percentual(fracao(comFisico, emExecucao))} dos convênios em execução no Brasil têm físico
+        aferido ({n(comFisico)} de {n(emExecucao)}) — a maioria dos contratos de repasse, poucos convênios e nenhum termo de
+        fomento. Fora dessa amostra, o painel não sabe como está a obra. Desembolsado é o que chegou à conta; físico é o
+        percentual do resumo físico-financeiro do Transferegov.
+      </p>
+
+      <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Desembolsado" colunaDestaque="Parados há +1 ano" />
+
+      <Lista titulo="Os maiores valores desembolsados" vazio="Nenhum convênio com desembolso alto e físico baixo neste recorte." csv={urlExportar(p)}>
+        {leitura.convenios.length > 0 && <TabelaFisico linhas={leitura.convenios} />}
       </Lista>
     </>
   );
@@ -482,24 +620,48 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
   const todos = etapasDe(leitura.etapas, CHAVE_TODOS);
   const foco = p.orgao ? etapasDe(leitura.etapas, p.orgao) : todos;
   const linhas = matrizEtapas(leitura.etapas, p.dimensao);
-  const colunas = [...ETAPAS_CAMINHO, "vez_concedente"];
+  const porAno = p.ano !== null;
+  // "De quem é a vez" só existe na janela; por ano, a matriz fica nas cinco etapas.
+  const colunas = porAno ? [...ETAPAS_CAMINHO] : [...ETAPAS_CAMINHO, "vez_concedente"];
   const porPrograma = p.dimensao === "programa";
+  const anoDado = Number(leitura.execucao.referencia.slice(0, 4));
 
   return (
     <>
+      <nav aria-label="Período das etapas" className="pa-chips mp-painel-lados mp-painel-anos">
+        {[null, ...anosEnvio(leitura.execucao.referencia)].map((a) => (
+          <Link
+            key={a ?? "janela"}
+            href={urlPainel(p, { ano: a })}
+            className={`pa-chip${p.ano === a ? " pa-ativo" : ""}`}
+            aria-current={p.ano === a ? "true" : undefined}
+          >
+            {a === null ? "Últimos 36 meses" : `${a}${a === anoDado ? " · parcial" : ""}`}
+          </Link>
+        ))}
+      </nav>
+
       <div className="pa-grade pa-grade-4 mp-painel-cartoes">
         {ETAPAS_CAMINHO.map((e) => (
           <CartaoTempo key={e} rotulo={ROTULO_ETAPA[e]} linha={foco[e]} />
         ))}
       </div>
-      <p className="pa-nota">
-        Mediana das etapas que terminaram desde {formatarData(inicioJanela(leitura.execucao.referencia))}, nos últimos 36
-        meses: metade levou menos que isso. Aprovação é o plano de trabalho aprovado; assinatura, a data formal do
-        convênio; conclusão, a prestação de contas aprovada. &ldquo;Ainda nesta etapa&rdquo; conta, nas etapas de proposta,
-        só as enviadas na mesma janela; nas de convênio, os que estão nela hoje.
-      </p>
+      {porAno ? (
+        <p className="pa-nota">
+          Mediana das etapas que <strong>terminaram em {p.ano}</strong>, qualquer que seja o ano em que começaram: metade levou
+          menos que isso. Compare anos para ver se um órgão ficou mais rápido. Os primeiros anos da série somam etapas
+          iniciadas antes deles e tendem a sair mais longos; o ano corrente ainda está em andamento.
+        </p>
+      ) : (
+        <p className="pa-nota">
+          Mediana das etapas que terminaram desde {formatarData(inicioJanela(leitura.execucao.referencia))}, nos últimos 36
+          meses: metade levou menos que isso. Aprovação é o plano de trabalho aprovado; assinatura, a data formal do
+          convênio; conclusão, a prestação de contas aprovada. &ldquo;Ainda nesta etapa&rdquo; conta, nas etapas de proposta,
+          só as enviadas na mesma janela; nas de convênio, os que estão nela hoje.
+        </p>
+      )}
 
-      <div className="mp-radar-recorte">
+      {porAno ? null : <div className="mp-radar-recorte">
         <h3 className="mp-radar-h3">De quem é a vez, do envio à assinatura</h3>
         <div className="mp-tabela-rolagem">
           <table className="mp-tabela">
@@ -531,7 +693,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           Nas propostas assinadas na janela, o tempo somado em análise do concedente, em complementação pelo proponente e
           aprovada esperando a assinatura. As medianas não se somam: cada uma é o meio da sua própria distribuição.
         </p>
-      </div>
+      </div>}
 
       <nav aria-label="Comparar por" className="pa-chips mp-painel-lados">
         {(["orgao", "programa"] as const).map((d) => (
@@ -549,10 +711,16 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
       <Lista
         titulo={
           porPrograma
-            ? `Mediana em dias, nos ${linhas.length} programas com mais assinaturas${p.orgao ? " do órgão" : ""}`
-            : "Mediana em dias, por órgão concedente"
+            ? linhas.length > 0
+              ? `Mediana em dias, nos ${linhas.length} programas com mais assinaturas${p.orgao ? " do órgão" : ""}${porAno ? ` em ${p.ano}` : ""}`
+              : "Mediana em dias, por programa"
+            : `Mediana em dias, por órgão concedente${porAno ? ` · etapas terminadas em ${p.ano}` : ""}`
         }
-        vazio={`Nenhum ${porPrograma ? "programa" : "órgão"} com medição neste recorte.`}
+        vazio={
+          porAno && porPrograma && p.uf
+            ? "Por ano, os programas só são medidos no Brasil inteiro: por UF a amostra de cada um é pequena demais."
+            : `Nenhum ${porPrograma ? "programa" : "órgão"} com medição neste recorte.`
+        }
       >
         {linhas.length > 0 && (
           <table className="mp-tabela mp-painel-matriz">
@@ -564,8 +732,8 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
                     {ROTULO_ETAPA[e]}
                   </th>
                 ))}
-                <th scope="col" className="mp-num">Assinadas na janela</th>
-                <th scope="col" className="mp-num">Propostas sem desfecho</th>
+                <th scope="col" className="mp-num">{porAno ? `Assinadas em ${p.ano}` : "Assinadas na janela"}</th>
+                {porAno ? null : <th scope="col" className="mp-num">Propostas sem desfecho</th>}
               </tr>
             </thead>
             <tbody>
@@ -599,7 +767,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
                     );
                   })}
                   <td className="mp-num">{n(l.volume)}</td>
-                  <td className="mp-num">{n(l.etapas.envio_assinatura?.em_aberto ?? 0)}</td>
+                  {porAno ? null : <td className="mp-num">{n(l.etapas.envio_assinatura?.em_aberto ?? 0)}</td>}
                 </tr>
               ))}
             </tbody>
@@ -889,7 +1057,7 @@ function Filtros({
         {p.visao !== "suspensiva" && <input type="hidden" name="visao" value={p.visao} />}
         {p.visao === "contas" && p.lado !== "atrasada" && <input type="hidden" name="lado" value={p.lado} />}
         {p.visao === "tempos" && p.dimensao !== "orgao" && <input type="hidden" name="dimensao" value={p.dimensao} />}
-        {p.visao === "aprovacao" && p.ano !== null && <input type="hidden" name="ano" value={p.ano} />}
+        {(p.visao === "aprovacao" || p.visao === "tempos") && p.ano !== null && <input type="hidden" name="ano" value={p.ano} />}
         <label htmlFor="painel-uf" className="pa-campo-rotulo">
           Onde
         </label>
@@ -957,6 +1125,21 @@ function Filtros({
               ))}
             </select>
           </fieldset>
+        )}
+        {convenio && (
+          <>
+            <label htmlFor="painel-movimento" className="pa-campo-rotulo">
+              Movimentação
+            </label>
+            <select id="painel-movimento" name="movimento" defaultValue={p.movimento ?? ""} className="pa-select">
+              <option value="">qualquer</option>
+              {MOVIMENTOS.map((m) => (
+                <option key={m} value={m}>
+                  {ROTULO_MOVIMENTO[m]}
+                </option>
+              ))}
+            </select>
+          </>
         )}
         <button type="submit" className="pa-btn pa-btn-pequeno">
           Aplicar

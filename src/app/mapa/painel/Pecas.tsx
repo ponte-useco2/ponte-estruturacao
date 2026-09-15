@@ -8,7 +8,9 @@ import { formatarData } from "@/lib/oportunidades/central";
 import {
   ROTULO_ETAPA_LICITACAO,
   ROTULO_EXIGENCIA,
+  ROTULO_FONTE_MOVIMENTACAO,
   ROTULO_GRUPO_SUSPENSIVA,
+  ROTULO_MOTIVO_ADITIVO,
   exigenciasDe,
   idadePorExtenso,
   percentual,
@@ -52,12 +54,35 @@ export function Cartao({
   );
 }
 
-export function Lista({ titulo, vazio, children }: { titulo: string; vazio: string; children: ReactNode }) {
+export function Lista({
+  titulo,
+  vazio,
+  children,
+  csv,
+}: {
+  titulo: string;
+  vazio: string;
+  children: ReactNode;
+  /** Endereço do CSV com todos os convênios da lista, não só os mostrados. */
+  csv?: string;
+}) {
   return (
     <div className="mp-radar-recorte">
-      <h3 className="mp-radar-h3">{titulo}</h3>
+      <div className="mp-painel-lista-cabeca">
+        <h3 className="mp-radar-h3">{titulo}</h3>
+        {csv && children ? <BotaoCsv href={csv} /> : null}
+      </div>
       {children ? <div className="mp-tabela-rolagem">{children}</div> : <p className="pa-cartao pa-cartao-plano">{vazio}</p>}
     </div>
+  );
+}
+
+/** Link comum para a rota de exportação: o navegador baixa o arquivo. */
+export function BotaoCsv({ href, rotulo = "Baixar CSV" }: { href: string; rotulo?: string }) {
+  return (
+    <a href={href} className="pa-btn pa-btn-pequeno mp-painel-csv" download>
+      {rotulo}
+    </a>
   );
 }
 
@@ -71,6 +96,12 @@ export function CelulaConvenio({ c, naFicha }: { c: ConvenioPainel; naFicha?: bo
         {!naFicha && c.cod_ibge ? <Link href={urlFicha({ ibge: c.cod_ibge })}>{lugar}</Link> : lugar} · nº {c.nr_convenio}{" "}
         <CopiarNumero numero={c.nr_convenio} />
       </span>
+      {c.dias_sem_movimentacao !== null && c.dias_sem_movimentacao !== undefined && (
+        <span className={`mp-tabela-secundario${c.dias_sem_movimentacao > 365 ? " mp-painel-urgente" : ""}`}>
+          último movimento há {idadePorExtenso(c.dias_sem_movimentacao)}
+          {c.ultima_movimentacao_tipo ? ` (${ROTULO_FONTE_MOVIMENTACAO[c.ultima_movimentacao_tipo] ?? c.ultima_movimentacao_tipo})` : ""}
+        </span>
+      )}
     </th>
   );
 }
@@ -193,8 +224,49 @@ export function TabelaVigencia({ linhas, naFicha }: TabelaProps) {
             </td>
             <CelulaPrograma c={c} />
             <td className="mp-num">{percentual(c.pct_desembolsado)}</td>
-            <td className="mp-num">{c.n_extensoes ?? 0}</td>
+            <td className="mp-num">
+              {c.n_extensoes ?? 0}
+              {c.motivo_aditivo && (
+                <span className="mp-tabela-secundario mp-painel-motivo">{ROTULO_MOTIVO_ADITIVO[c.motivo_aditivo] ?? c.motivo_aditivo}</span>
+              )}
+            </td>
             <td className="mp-num">{moedaCurta(Math.max((c.repasse ?? 0) - (c.desembolsado ?? 0), 0))}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function TabelaFisico({ linhas, naFicha }: TabelaProps) {
+  return (
+    <table className="mp-tabela">
+      <thead>
+        <tr>
+          <th scope="col">Proponente e convênio</th>
+          <th scope="col">Programa e órgão</th>
+          <th scope="col" className="mp-num">Desembolsado</th>
+          <th scope="col" className="mp-num">Físico aferido</th>
+          <th scope="col">Fim da vigência</th>
+          <th scope="col" className="mp-num">Valor desembolsado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {linhas.map((c) => (
+          <tr key={c.nr_convenio}>
+            <CelulaConvenio c={c} naFicha={naFicha} />
+            <CelulaPrograma c={c} />
+            <td className="mp-num">{percentual(c.pct_desembolsado)}</td>
+            <td className="mp-num">
+              <span className={(c.pct_fisico ?? 1) === 0 ? "mp-painel-urgente" : undefined}>{percentual(c.pct_fisico)}</span>
+            </td>
+            <td className="mp-nowrap">
+              <span className="mp-tabela-principal">{c.dt_fim_vigencia ? formatarData(c.dt_fim_vigencia) : "—"}</span>
+              <span className="mp-tabela-secundario">
+                {prazoPorExtenso(c.dias_para_fim, { futuro: "termina", passado: "terminou" })}
+              </span>
+            </td>
+            <td className="mp-num">{moedaCurta(c.desembolsado)}</td>
           </tr>
         ))}
       </tbody>

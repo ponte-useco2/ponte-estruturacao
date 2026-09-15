@@ -475,6 +475,10 @@
 }
 .pa-root .mp-painel-periodo legend { float: left; margin-right: 0.2rem; }
 .pa-root .mp-painel-ficha-link { margin: 0.6rem 0 0; }
+.pa-root .mp-painel-lista-cabeca { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.4rem 1rem; }
+.pa-root .mp-painel-csv { min-height: 44px; display: inline-flex; align-items: center; }
+.pa-root .mp-painel-motivo { white-space: normal; max-width: 12rem; margin-left: auto; }
+.pa-root .mp-painel-nota-larga { grid-column: 1 / -1; }
 .pa-root .mp-painel-ficha-link .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
 .pa-root .mp-painel-taxa { font-size: 0.78rem; color: var(--pa-muted); }
 .pa-root .mp-painel-sinais {

@@ -7,8 +7,14 @@ import {
   canceladas,
   datasAssinatura,
   diasPorExtenso,
+  MOTIVOS_ADITIVO,
+  ROTULO_MOTIVO_ADITIVO,
+  paraCsv,
+  urlExportar,
+  urlExportarFicha,
   parametrosFicha,
   periodoPorExtenso,
+  somaMotivos,
   ufDoIbge,
   urlFicha,
   vezDaProposta,
@@ -41,7 +47,74 @@ const PADRAO = {
   municipio: null,
   assinadoDe: null,
   assinadoAte: null,
+  movimento: null,
 };
+
+test("movimentação: só nas visões de convênio, valor fora da lista cai fora, e segue na URL", () => {
+  const p = parametrosPainel({ visao: "fisico", movimento: "parado_1ano", municipio: "2507507" });
+  assert.deepEqual([p.movimento, p.uf], ["parado_1ano", "PB"]);
+  assert.equal(parametrosPainel({ visao: "nunca", movimento: "x" }).movimento, null);
+  assert.equal(parametrosPainel({ visao: "tempos", movimento: "recente_30d" }).movimento, null);
+  assert.equal(urlPainel(p, { visao: "saldo" }), "/mapa/painel?visao=saldo&uf=PB&municipio=2507507&movimento=parado_1ano");
+  assert.equal(urlPainel(p, { visao: "aprovacao" }), "/mapa/painel?visao=aprovacao&uf=PB");
+  const f = parametrosFicha("2507507", { movimento: "recente_30d" });
+  assert.equal(urlFicha(f!), "/mapa/painel/municipio/2507507?movimento=recente_30d");
+});
+
+test("tempos por ano: o ano vai na URL de tempos e some ao trocar de visão", () => {
+  const t = parametrosPainel({ visao: "tempos", ano: "2024" });
+  assert.equal(t.ano, 2024);
+  assert.equal(urlPainel(t, {}), "/mapa/painel?visao=tempos&ano=2024");
+  assert.equal(urlPainel(t, { ano: null }), "/mapa/painel?visao=tempos");
+  assert.equal(urlPainel(t, { visao: "aprovacao" }), "/mapa/painel?visao=aprovacao");
+  assert.equal(parametrosPainel({ visao: "suspensiva", ano: "2024" }).ano, null);
+});
+
+test("motivos dos aditivos: soma dos anos pedidos, com a falta de motivo no fim", () => {
+  const l = (ano: number, motivo: string, aditivos: number) => ({ recorte: "BR", ano, motivo, aditivos, convenios: aditivos });
+  const r = somaMotivos(
+    [l(2023, "chuvas", 100), l(2024, "licitacao", 30), l(2025, "licitacao", 30), l(2025, "nao_classificado", 500), l(2025, "chuvas", 5)],
+    2024,
+  );
+  assert.deepEqual(r, [
+    { motivo: "licitacao", aditivos: 60 },
+    { motivo: "chuvas", aditivos: 5 },
+    { motivo: "nao_classificado", aditivos: 500 },
+  ]);
+  assert.ok(MOTIVOS_ADITIVO.every((m) => ROTULO_MOTIVO_ADITIVO[m]));
+});
+
+test("endereços do CSV repetem os filtros da tela, com a visão explícita", () => {
+  assert.equal(urlExportar(parametrosPainel({})), "/mapa/painel/exportar?visao=suspensiva");
+  assert.equal(
+    urlExportar(parametrosPainel({ municipio: "2507507", movimento: "parado_1ano" })),
+    "/mapa/painel/exportar?visao=suspensiva&uf=PB&municipio=2507507&movimento=parado_1ano",
+  );
+  assert.equal(
+    urlExportar(parametrosPainel({ visao: "contas", lado: "tce", uf: "PB" })),
+    "/mapa/painel/exportar?visao=contas&uf=PB&lado=tce",
+  );
+  const f = parametrosFicha("2507507", { quem: "todos", assinado_de: "2020" })!;
+  assert.equal(urlExportarFicha(f), "/mapa/painel/exportar?ficha=2507507&quem=todos&assinado_de=2020");
+  assert.equal(urlExportarFicha(f, "propostas"), "/mapa/painel/exportar?ficha=2507507&tipo=propostas&quem=todos&assinado_de=2020");
+});
+
+test("CSV para o Excel em português", () => {
+  const csv = paraCsv(
+    [
+      { titulo: "Convênio", valor: (x: { nr: string }) => x.nr },
+      { titulo: "Valor", valor: () => 1234.5 },
+      { titulo: "Data", valor: () => "2026-09-12" },
+      { titulo: "Ativo", valor: () => true },
+      { titulo: "Nota", valor: () => 'tem ; e "aspas"' },
+      { titulo: "Fórmula", valor: () => "=HYPERLINK(1)" },
+      { titulo: "Vazio", valor: () => null },
+    ],
+    [{ nr: "981395" }],
+  );
+  assert.ok(csv.startsWith("﻿Convênio;Valor;Data;Ativo;Nota;Fórmula;Vazio\r\n"));
+  assert.equal(csv.split("\r\n")[1], `981395;1234,5;12/09/2026;sim;"tem ; e ""aspas""";"'=HYPERLINK(1)";`);
+});
 
 test("município: a UF sai do código IBGE, e UF diferente na URL solta o município", () => {
   assert.equal(ufDoIbge("2507507"), "PB");
@@ -87,7 +160,7 @@ test("url: município e período seguem entre visões de convênio e somem nas o
 test("ficha: código inválido não abre, prefeitura é o padrão e a URL omite o padrão", () => {
   assert.equal(parametrosFicha("123", {}), null);
   const f = parametrosFicha("2507507", { quem: "todos", assinado_de: "2025", assinado_ate: "2020" });
-  assert.deepEqual(f, { ibge: "2507507", uf: "PB", quem: "todos", assinadoDe: 2020, assinadoAte: 2025 });
+  assert.deepEqual(f, { ibge: "2507507", uf: "PB", quem: "todos", assinadoDe: 2020, assinadoAte: 2025, movimento: null });
   assert.equal(parametrosFicha("2507507", { quem: "x" })?.quem, "prefeitura");
   assert.equal(urlFicha({ ibge: "2507507" }), "/mapa/painel/municipio/2507507");
   assert.equal(urlFicha(f!, { quem: "prefeitura" }), "/mapa/painel/municipio/2507507?assinado_de=2020&assinado_ate=2025");

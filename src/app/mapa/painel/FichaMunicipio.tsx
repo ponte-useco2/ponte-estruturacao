@@ -7,9 +7,12 @@ import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   DESCRICAO_SINAL,
+  MOVIMENTOS,
   ROTULO_DESFECHO,
+  ROTULO_MOVIMENTO,
   ROTULO_SINAL,
   anosAssinatura,
+  urlExportarFicha,
   fracao,
   idadePorExtenso,
   parametrosPainel,
@@ -28,7 +31,18 @@ import { LIMITE_FICHA_CONVENIOS, type FichaMunicipio, type MunicipioPainel } fro
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Tag } from "../../_design/primitivos";
 import { CopiarNumero } from "./CopiarNumero";
-import { Cartao, Lista, TabelaContas, TabelaNunca, TabelaSaldo, TabelaSuspensiva, TabelaVigencia, n } from "./Pecas";
+import {
+  BotaoCsv,
+  Cartao,
+  Lista,
+  TabelaContas,
+  TabelaFisico,
+  TabelaNunca,
+  TabelaSaldo,
+  TabelaSuspensiva,
+  TabelaVigencia,
+  n,
+} from "./Pecas";
 
 export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMunicipio }) {
   const nome = ficha.nome ?? `IBGE ${f.ibge}`;
@@ -38,8 +52,14 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
   const anoMinimoPropostas = Number(ficha.execucao.referencia.slice(0, 4)) - 2;
   // Link para a mesma visão no painel, já filtrada por este município e período.
   const noPainel = (visao: Visao) =>
-    urlPainel(parametrosPainel({ visao, municipio: f.ibge }), { assinadoDe: f.assinadoDe, assinadoAte: f.assinadoAte });
-  const semConvenio = [ficha.suspensiva, ficha.nunca, ficha.vigencia, ficha.contas, ficha.saldo].every((l) => l.length === 0);
+    urlPainel(parametrosPainel({ visao, municipio: f.ibge }), {
+      assinadoDe: f.assinadoDe,
+      assinadoAte: f.assinadoAte,
+      movimento: f.movimento,
+    });
+  const semConvenio = [ficha.suspensiva, ficha.nunca, ficha.vigencia, ficha.contas, ficha.saldo, ficha.fisico].every(
+    (l) => l.length === 0,
+  );
 
   return (
     <div className="pa-pagina mp-radar mp-painel">
@@ -72,6 +92,17 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
       <div className="mp-filtros mp-radar-filtros">
         <form method="get" action={`/mapa/painel/municipio/${f.ibge}`} className="pa-linha mp-radar-uf mp-painel-filtros">
           {f.quem !== "prefeitura" && <input type="hidden" name="quem" value={f.quem} />}
+          <label htmlFor="ficha-movimento" className="pa-campo-rotulo">
+            Movimentação
+          </label>
+          <select id="ficha-movimento" name="movimento" defaultValue={f.movimento ?? ""} className="pa-select">
+            <option value="">qualquer</option>
+            {MOVIMENTOS.map((m) => (
+              <option key={m} value={m}>
+                {ROTULO_MOVIMENTO[m]}
+              </option>
+            ))}
+          </select>
           <fieldset className="mp-painel-periodo">
             <legend className="pa-campo-rotulo">Convênios assinados</legend>
             <label htmlFor="ficha-assinado-de" className="pa-sr">
@@ -106,9 +137,13 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
       {f.quem === "prefeitura" && <Sinais sinais={ficha.sinais} />}
 
       <section aria-labelledby="ficha-convenios" className="mp-radar-secao">
-        <h2 id="ficha-convenios" className="mp-radar-h2">
-          Convênios que travam{periodo ? ` · ${periodo}` : ""}
-        </h2>
+        <div className="mp-painel-lista-cabeca">
+          <h2 id="ficha-convenios" className="mp-radar-h2">
+            Convênios que travam{periodo ? ` · ${periodo}` : ""}
+            {f.movimento ? ` · ${ROTULO_MOVIMENTO[f.movimento]}` : ""}
+          </h2>
+          {!semConvenio && <BotaoCsv href={urlExportarFicha(f)} rotulo="Baixar os convênios (CSV)" />}
+        </div>
         <div className="pa-grade pa-grade-3 mp-painel-cartoes">
           <Cartao rotulo="Suspensiva pendente" quantidade={r("suspensiva")("total").n} valor={r("suspensiva")("total").valor} legenda="de repasse" />
           <Cartao rotulo="Nunca desembolsado" quantidade={r("nunca")("total").n} valor={r("nunca")("total").valor} legenda="de repasse" tom="urgente" />
@@ -120,6 +155,12 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
             tom={contas("negativo").n > 0 ? "urgente" : undefined}
           />
           <Cartao rotulo="Saldo parado há +1 ano" quantidade={r("saldo")("parado").n} valor={r("saldo")("parado").valor} legenda="em conta" />
+          <Cartao
+            rotulo="Desembolso alto, físico baixo"
+            quantidade={r("fisico")("total").n}
+            valor={r("fisico")("total").valor}
+            legenda="desembolsados"
+          />
         </div>
 
         {semConvenio && (
@@ -143,10 +184,21 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
         <Bloco titulo="Saldo parado, pelo valor" linhas={ficha.saldo.length} total={r("saldo")("parado").n} href={noPainel("saldo")}>
           <TabelaSaldo linhas={ficha.saldo} naFicha />
         </Bloco>
+        <Bloco
+          titulo="Desembolso alto com físico baixo, pelo valor"
+          linhas={ficha.fisico.length}
+          total={r("fisico")("total").n}
+          href={noPainel("fisico")}
+        >
+          <TabelaFisico linhas={ficha.fisico} naFicha />
+        </Bloco>
       </section>
 
       <section aria-labelledby="ficha-propostas" className="mp-radar-secao">
-        <h2 id="ficha-propostas" className="mp-radar-h2">Propostas</h2>
+        <div className="mp-painel-lista-cabeca">
+          <h2 id="ficha-propostas" className="mp-radar-h2">Propostas</h2>
+          {ficha.porAno.length > 0 && <BotaoCsv href={urlExportarFicha(f, "propostas")} rotulo="Baixar as propostas (CSV)" />}
+        </div>
         <p className="pa-sub">
           Enviadas desde {anoMinimoPropostas}, e as mais antigas ainda sem desfecho que se mexeram no último ano. O filtro
           de assinatura acima vale só para os convênios.

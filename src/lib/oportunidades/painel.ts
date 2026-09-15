@@ -7,7 +7,18 @@
  */
 import { UFS } from "./organizacao.ts";
 
-export type Visao = "suspensiva" | "nunca" | "vigencia" | "contas" | "saldo" | "municipios" | "tempos" | "aprovacao";
+export type Visao =
+  | "suspensiva"
+  | "nunca"
+  | "vigencia"
+  | "contas"
+  | "saldo"
+  | "fisico"
+  | "municipios"
+  | "tempos"
+  | "aprovacao";
+/** Filtro de última movimentação: qualquer registro do convênio, não só dinheiro. */
+export type Movimento = "parado_1ano" | "recente_30d";
 export type LadoContas = "atrasada" | "negativo" | "tce" | "concedente";
 export type DimensaoTempo = "orgao" | "programa";
 
@@ -51,6 +62,12 @@ export const VISOES: DefinicaoVisao[] = [
     pergunta: "Dinheiro que chegou à conta e não saiu há mais de um ano, com o rendimento que ele gerou.",
   },
   {
+    id: "fisico",
+    rotulo: "Físico × financeiro",
+    titulo: "O dinheiro saiu e a obra não andou",
+    pergunta: "Em execução, com 80% ou mais do repasse desembolsado e menos de 30% de execução física aferida.",
+  },
+  {
     id: "municipios",
     rotulo: "Municípios",
     titulo: "Municípios que mais precisam de ajuda",
@@ -76,7 +93,64 @@ export const ANO_MINIMO_ENVIO = 2019;
 export const ANO_MINIMO_ASSINATURA = 2008;
 
 /** As visões que leem convênio a convênio — as únicas com filtro de município e de período. */
-export const VISOES_CONVENIO: Visao[] = ["suspensiva", "nunca", "vigencia", "contas", "saldo"];
+export const VISOES_CONVENIO: Visao[] = ["suspensiva", "nunca", "vigencia", "contas", "saldo", "fisico"];
+
+export const MOVIMENTOS: Movimento[] = ["parado_1ano", "recente_30d"];
+export const ROTULO_MOVIMENTO: Record<Movimento, string> = {
+  parado_1ano: "sem nenhuma movimentação há mais de 1 ano",
+  recente_30d: "com movimentação nos últimos 30 dias",
+};
+/** A fonte do registro mais recente do convênio, como o job grava. */
+export const ROTULO_FONTE_MOVIMENTACAO: Record<string, string> = {
+  pagamento: "pagamento",
+  desembolso: "desembolso",
+  aditivo: "termo aditivo",
+  prorrogacao: "prorrogação de ofício",
+  licitacao: "licitação",
+  historico: "mudança de situação",
+};
+
+/** As categorias de motivo dos aditivos, na ordem de prioridade do job (painel_execucao/aditivos.py). */
+export const MOTIVOS_ADITIVO = [
+  "pandemia",
+  "licitacao_fracassada",
+  "chuvas",
+  "atraso_repasse",
+  "mudanca_gestao",
+  "readequacao_projeto",
+  "empresa",
+  "licitacao",
+  "analise_concedente",
+  "licenca_area",
+  "saldo_rendimento",
+  "ampliacao_meta",
+  "reajuste_contrato",
+  "contrapartida",
+  "atraso_execucao",
+  "orcamento_empenho",
+  "sem_justificativa",
+  "nao_classificado",
+] as const;
+export const ROTULO_MOTIVO_ADITIVO: Record<string, string> = {
+  pandemia: "Pandemia",
+  licitacao_fracassada: "Licitação deserta ou fracassada",
+  chuvas: "Chuvas e clima",
+  atraso_repasse: "Atraso no repasse",
+  mudanca_gestao: "Mudança de gestão",
+  readequacao_projeto: "Readequação do projeto",
+  empresa: "Problema com a empresa contratada",
+  licitacao: "Licitação em andamento",
+  analise_concedente: "Análise da mandatária ou do concedente",
+  licenca_area: "Licença, área ou suspensiva",
+  saldo_rendimento: "Uso de saldo ou rendimento",
+  ampliacao_meta: "Ampliação de meta",
+  reajuste_contrato: "Reajuste do contrato",
+  contrapartida: "Ajuste de contrapartida",
+  atraso_execucao: "Atraso na execução (genérico)",
+  orcamento_empenho: "Orçamento ou empenho",
+  sem_justificativa: "Sem justificativa",
+  nao_classificado: "Não classificado",
+};
 
 export function ehVisaoConvenio(v: Visao): boolean {
   return VISOES_CONVENIO.includes(v);
@@ -120,13 +194,18 @@ export interface ParametrosPainel {
   lado: LadoContas;
   /** Só em tempos. */
   dimensao: DimensaoTempo;
-  /** Só em aprovação. Null = o ano anterior ao do dado, decidido no servidor. */
+  /**
+   * Em aprovação, o ano do envio (null = o anterior ao do dado, decidido no servidor).
+   * Em tempos, o ano em que a etapa terminou (null = janela dos últimos 36 meses).
+   */
   ano: number | null;
   /** Só nas visões de convênio. Código IBGE; quando presente, a UF é a dele. */
   municipio: string | null;
   /** Só nas visões de convênio. Anos inclusivos da assinatura; null = sem limite. */
   assinadoDe: number | null;
   assinadoAte: number | null;
+  /** Só nas visões de convênio. */
+  movimento: Movimento | null;
 }
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -134,6 +213,10 @@ const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 function anoValido(v: string | undefined, minimo: number): number | null {
   const n = Number(v);
   return v && Number.isInteger(n) && n >= minimo && n <= 2100 ? n : null;
+}
+
+function movimentoDe(v: string | undefined): Movimento | null {
+  return (MOVIMENTOS as string[]).includes(v ?? "") ? (v as Movimento) : null;
 }
 
 /** Período de assinatura em ordem: quem digitou "de 2024 até 2020" quis 2020 a 2024. */
@@ -165,10 +248,11 @@ export function parametrosPainel(sp: Record<string, string | string[] | undefine
     orgao: v !== "municipios" && orgao ? orgao.slice(0, 200) : null,
     lado: (LADOS_CONTAS as string[]).includes(lado ?? "") ? (lado as LadoContas) : "atrasada",
     dimensao: um(sp.dimensao) === "programa" ? "programa" : "orgao",
-    ano: anoValido(um(sp.ano), ANO_MINIMO_ENVIO),
+    ano: v === "aprovacao" || v === "tempos" ? anoValido(um(sp.ano), ANO_MINIMO_ENVIO) : null,
     municipio,
     assinadoDe,
     assinadoAte,
+    movimento: convenio ? movimentoDe(um(sp.movimento)) : null,
   };
 }
 
@@ -188,14 +272,23 @@ export function urlPainel(atual: ParametrosPainel, muda: Partial<ParametrosPaine
   if (p.orgao && p.visao !== "municipios") q.set("orgao", p.orgao);
   if (p.visao === "contas" && p.lado !== "atrasada") q.set("lado", p.lado);
   if (p.visao === "tempos" && p.dimensao !== "orgao") q.set("dimensao", p.dimensao);
-  if (p.visao === "aprovacao" && p.ano !== null) q.set("ano", String(p.ano));
+  if ((p.visao === "aprovacao" || p.visao === "tempos") && p.ano !== null) q.set("ano", String(p.ano));
   if (ehVisaoConvenio(p.visao)) {
     if (p.municipio) q.set("municipio", p.municipio);
     if (p.assinadoDe !== null) q.set("assinado_de", String(p.assinadoDe));
     if (p.assinadoAte !== null) q.set("assinado_ate", String(p.assinadoAte));
+    if (p.movimento) q.set("movimento", p.movimento);
   }
   const s = q.toString();
   return s ? `/mapa/painel?${s}` : "/mapa/painel";
+}
+
+/** O CSV da visão, com exatamente os filtros da tela. */
+export function urlExportar(p: ParametrosPainel): string {
+  const url = urlPainel(p, {});
+  const consulta = url.includes("?") ? url.slice(url.indexOf("?")) : "";
+  // `visao` é omitido quando é a padrão (suspensiva); o CSV precisa dele explícito.
+  return `/mapa/painel/exportar${consulta.includes("visao=") ? consulta : `?visao=${p.visao}${consulta ? `&${consulta.slice(1)}` : ""}`}`;
 }
 
 /** Datas inclusivas para o banco: 1º de janeiro do ano inicial e 31 de dezembro do final. */
@@ -228,6 +321,7 @@ export interface ParametrosFicha {
   quem: QuemFicha;
   assinadoDe: number | null;
   assinadoAte: number | null;
+  movimento: Movimento | null;
 }
 
 /** Null quando o código não é de município: a página volta ao painel. */
@@ -235,17 +329,35 @@ export function parametrosFicha(ibge: string, sp: Record<string, string | string
   const uf = ufDoIbge(ibge);
   if (!uf) return null;
   const [assinadoDe, assinadoAte] = periodo(sp);
-  return { ibge, uf, quem: um(sp.quem) === "todos" ? "todos" : "prefeitura", assinadoDe, assinadoAte };
+  return {
+    ibge,
+    uf,
+    quem: um(sp.quem) === "todos" ? "todos" : "prefeitura",
+    assinadoDe,
+    assinadoAte,
+    movimento: movimentoDe(um(sp.movimento)),
+  };
 }
 
 export function urlFicha(atual: Pick<ParametrosFicha, "ibge"> & Partial<ParametrosFicha>, muda: Partial<ParametrosFicha> = {}): string {
-  const f = { quem: "prefeitura" as QuemFicha, assinadoDe: null, assinadoAte: null, ...atual, ...muda };
+  const f = { quem: "prefeitura" as QuemFicha, assinadoDe: null, assinadoAte: null, movimento: null, ...atual, ...muda };
   const q = new URLSearchParams();
   if (f.quem !== "prefeitura") q.set("quem", f.quem);
   if (f.assinadoDe !== null) q.set("assinado_de", String(f.assinadoDe));
   if (f.assinadoAte !== null) q.set("assinado_ate", String(f.assinadoAte));
+  if (f.movimento) q.set("movimento", f.movimento);
   const s = q.toString();
   return `/mapa/painel/municipio/${f.ibge}${s ? `?${s}` : ""}`;
+}
+
+/** O CSV da ficha: convênios (padrão) ou propostas, com os filtros da ficha. */
+export function urlExportarFicha(f: ParametrosFicha, tipo: "convenios" | "propostas" = "convenios"): string {
+  const url = urlFicha(f);
+  const consulta = new URLSearchParams(url.includes("?") ? url.slice(url.indexOf("?") + 1) : "");
+  const q = new URLSearchParams({ ficha: f.ibge });
+  if (tipo === "propostas") q.set("tipo", "propostas");
+  consulta.forEach((v, k) => q.set(k, v));
+  return `/mapa/painel/exportar?${q.toString()}`;
 }
 
 /** Uma proposta de `painel_proposta`, como a ficha a lê. */
@@ -592,4 +704,60 @@ export function exigenciasDe(linha: Partial<Record<`exige_${Exigencia}`, boolean
 
 export function sinaisDe(m: Partial<Record<`sinal_${Sinal}`, boolean>>): Sinal[] {
   return SINAIS.filter((s) => m[`sinal_${s}`] === true);
+}
+
+// ============================ ADITIVOS ============================
+
+/** Uma linha de `painel_aditivo_motivo`. */
+export interface LinhaAditivoMotivo {
+  recorte: string;
+  ano: number;
+  motivo: string;
+  aditivos: number;
+  convenios: number;
+}
+
+/** Anos de aditivo somados no bloco "Por que se prorroga": o do dado e os dois anteriores. */
+export const ANOS_MOTIVOS = 3;
+
+/**
+ * Soma os aditivos por motivo nos anos pedidos, do mais frequente ao menos. "Não
+ * classificado" e "sem justificativa" vão sempre para o fim: não são motivo, são falta dele.
+ */
+export function somaMotivos(linhas: LinhaAditivoMotivo[], anoMinimo: number): { motivo: string; aditivos: number }[] {
+  const soma = new Map<string, number>();
+  for (const l of linhas) if (l.ano >= anoMinimo) soma.set(l.motivo, (soma.get(l.motivo) ?? 0) + l.aditivos);
+  const semMotivo = (m: string) => m === "nao_classificado" || m === "sem_justificativa";
+  return [...soma]
+    .map(([motivo, aditivos]) => ({ motivo, aditivos }))
+    .sort((a, b) => Number(semMotivo(a.motivo)) - Number(semMotivo(b.motivo)) || b.aditivos - a.aditivos);
+}
+
+// ============================ CSV ============================
+
+export interface ColunaCsv<T> {
+  titulo: string;
+  valor: (linha: T) => string | number | boolean | null | undefined;
+}
+
+/**
+ * CSV para abrir no Excel em português: BOM UTF-8, separador ponto e vírgula, fim de
+ * linha CRLF, número com vírgula decimal e data AAAA-MM-DD virando DD/MM/AAAA.
+ */
+export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[]): string {
+  const celula = (v: string | number | boolean | null | undefined): string => {
+    if (v === null || v === undefined) return "";
+    let s: string;
+    if (typeof v === "boolean") s = v ? "sim" : "não";
+    else if (typeof v === "number") s = Number.isFinite(v) ? String(v).replace(".", ",") : "";
+    else s = /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : v;
+    // Aspas quando o texto tem separador, aspas, quebra de linha, ou começa com sinal
+    // que o Excel leria como fórmula.
+    const precisaAspas = /[;"\r\n]/.test(s) || /^[=+\-@]/.test(s);
+    if (/^[=+\-@]/.test(s) && typeof v === "string") s = `'${s}`;
+    return precisaAspas ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const cabecalho = colunas.map((c) => celula(c.titulo)).join(";");
+  const corpo = linhas.map((l) => colunas.map((c) => celula(c.valor(l))).join(";"));
+  return "﻿" + [cabecalho, ...corpo].join("\r\n") + "\r\n";
 }
