@@ -246,13 +246,21 @@ export async function alternarPreferencia(eixo: unknown, valor: unknown, marcado
   return { ok: true };
 }
 
-/** Desmarcar tudo de uma vez: apaga a linha, como desmarcar uma a uma faria. */
+/**
+ * Desmarcar tudo de uma vez: apaga a linha, como desmarcar uma a uma faria.
+ *
+ * Não exige aprovação: quem foi bloqueado com a aba aberta ainda retira a escolha.
+ * Por isso vai pela função da oport_16, e não por `.delete()`. DELETE com filtro
+ * passa pela política de SELECT, que exige aprovação: para o bloqueado, apagava 0
+ * linhas sem erro, e a tela dizia "Preferências apagadas.". A função apaga pela
+ * `auth.uid()` sem RLS no caminho, então 0 aqui quer dizer que não havia linha.
+ */
 export async function limparPreferencias(): Promise<ResultadoAcao> {
   const visitante = await visitanteAtual();
   if (!visitante) return { ok: false, erro: "Sem permissão." };
 
   const db = await clienteSessao();
-  const { error } = await db.from("oport_preferencia").delete().eq("user_id", visitante.id);
+  const { error } = await db.rpc("oport_apagar_minhas_preferencias");
 
   if (error) {
     console.error("preferencia limpeza:", error.message);
