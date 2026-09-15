@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   GRUPOS_SITUACAO,
   PAGINA_MAXIMA,
+  contagem,
   desfechosDoGrupo,
   fracoesDaMaior,
   grupoDaSituacao,
@@ -18,6 +19,12 @@ import {
   urlBusca,
   type EventoInstrumento,
 } from "./busca.ts";
+
+test("contagem: a palavra concorda com o número, que sai no formato brasileiro", () => {
+  assert.equal(contagem(1, "desembolso", "desembolsos"), "1 desembolso");
+  assert.equal(contagem(0, "aditivo", "aditivos"), "0 aditivos");
+  assert.equal(contagem(1234, "convênio", "convênios"), "1.234 convênios");
+});
 
 test("termos: sem acento, minúsculas, CNPJ só dígitos, sem curinga do LIKE e sem repetição", () => {
   assert.deepEqual(termosDaBusca("  Pavimentação   JOÃO Pessoa "), ["pavimentacao", "joao", "pessoa"]);

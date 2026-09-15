@@ -8,6 +8,7 @@ import {
   GRUPOS_DESFECHO,
   GRUPOS_SITUACAO,
   LIMITE_POR_PAGINA,
+  contagem,
   totalDePaginas,
   urlBusca,
   urlInstrumento,
@@ -131,7 +132,11 @@ export function BuscaConteudo({ p, leitura }: { p: ParametrosBusca; leitura: Lei
 
       <section aria-labelledby="busca-resultado" className="mp-radar-secao">
         <h2 id="busca-resultado" className="mp-radar-h2" aria-live="polite">
-          {vazio ? "Nada encontrado" : `${n(leitura.total)} ${p.aba === "instrumentos" ? "convênios" : "propostas"}`}
+          {vazio
+            ? "Nada encontrado"
+            : p.aba === "instrumentos"
+              ? contagem(leitura.total, "convênio", "convênios")
+              : contagem(leitura.total, "proposta", "propostas")}
           {p.municipio ? (
             <>
               {" "}

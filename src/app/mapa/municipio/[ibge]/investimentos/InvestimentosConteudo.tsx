@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ROTULO_GRUPO_INVESTIMENTO,
   ROTULO_TIPO_INVESTIMENTO,
+  contagem,
   fracoesDaMaior,
   linhasDe,
   parametrosBusca,
@@ -62,7 +63,7 @@ export function InvestimentosConteudo({ ibge, uf, leitura }: { ibge: string; uf:
                   <h2 className="pa-mono">{ROTULO_TIPO_INVESTIMENTO[chave]}</h2>
                   <p className="pa-numero">{moedaCurta(l?.valor ?? 0)}</p>
                   <p className="pa-nota">
-                    {n(l?.n ?? 0)} {chave === "convenio" ? "instrumentos" : "planos"} ·{" "}
+                    {chave === "convenio" ? contagem(l?.n ?? 0, "instrumento", "instrumentos") : contagem(l?.n ?? 0, "plano", "planos")} ·{" "}
                     {chave === "convenio" ? "desembolsado" : chave === "especial" ? "pago" : "creditado na conta"}{" "}
                     {moedaCurta(l?.executado ?? 0)}
                   </p>

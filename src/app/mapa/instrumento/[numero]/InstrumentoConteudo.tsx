@@ -4,6 +4,7 @@
 import Link from "next/link";
 import {
   ROTULO_TIPO_EVENTO,
+  contagem,
   porAno,
   resumoEventos,
   rotuloSituacaoHistorico,
@@ -127,15 +128,17 @@ export function InstrumentoConteudo({ leitura }: { leitura: LeituraOk }) {
         ) : (
           <>
             <p className="pa-nota">
-              {n(r.desembolso.n)} desembolsos ({moedaCurta(r.desembolso.valor)}) · {n(r.pagamento.n)} pagamentos ({moedaCurta(r.pagamento.valor)}) ·{" "}
-              {n(r.aditivo.n)} aditivos · {n(r.licitacao.n)} licitações. Pagamentos somados por dia e tipo de documento, sem o
+              {contagem(r.desembolso.n, "desembolso", "desembolsos")} ({moedaCurta(r.desembolso.valor)}) ·{" "}
+              {contagem(r.pagamento.n, "pagamento", "pagamentos")} ({moedaCurta(r.pagamento.valor)}) ·{" "}
+              {contagem(r.aditivo.n, "aditivo", "aditivos")} · {contagem(r.licitacao.n, "licitação", "licitações")}. Pagamentos
+              somados por dia e tipo de documento, sem o
               favorecido.
               {leitura.eventosTruncados ? " A lista mostra os primeiros 5.000 eventos." : ""}
             </p>
             {anos.map((grupo, indice) => (
               <details key={grupo.ano} className="mp-linha-ano" open={indice === 0}>
                 <summary>
-                  <strong>{grupo.ano}</strong> · {n(grupo.eventos.length)} {grupo.eventos.length === 1 ? "evento" : "eventos"}
+                  <strong>{grupo.ano}</strong> · {contagem(grupo.eventos.length, "evento", "eventos")}
                 </summary>
                 <ol className="mp-linha">
                   {grupo.eventos.map((e, k) => (

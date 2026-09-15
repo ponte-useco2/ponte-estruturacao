@@ -253,6 +253,11 @@ export interface LinhaInvestimento {
   executado: number | null;
 }
 
+/** "1 plano", "2 planos", "1.234 convênios": o número no formato brasileiro com a palavra concordando. */
+export function contagem(quantidade: number, um: string, varios: string): string {
+  return `${quantidade.toLocaleString("pt-BR")} ${Math.abs(quantidade) === 1 ? um : varios}`;
+}
+
 // ============================ LINHA DO TEMPO ============================
 
 export const ROTULO_TIPO_EVENTO: Record<TipoEvento, string> = {
