@@ -115,6 +115,14 @@ test("sem filtro, nada some", () => {
   assert.equal(filtrarJanelas(c.janelas, SEM_FILTRO).length, c.janelas.length);
 });
 
+test("a janela leva o endereço da fonte, para o botão das fontes sem edital", () => {
+  const c = montarCatalogo(FIXTURE, null, ANTES);
+  for (const j of c.janelas) {
+    const o = FIXTURE.opportunities.find((x) => x.id === j.id);
+    assert.equal(j.fonteUrl, o?.source.url);
+  }
+});
+
 test("filtro por fonte", () => {
   const c = montarCatalogo(FIXTURE, null, ANTES);
   const so = filtrarJanelas(c.janelas, { ...SEM_FILTRO, fontes: ["finep", "cnpq"] });

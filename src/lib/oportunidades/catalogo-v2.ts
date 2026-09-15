@@ -26,6 +26,8 @@ export interface JanelaVista {
   financiador: string;
   fonteId: string;
   fonteNome: string;
+  /** `source.url`: a página pública da fonte. Nas fontes das APIs novas do Transferegov é o módulo do sistema. */
+  fonteUrl: string;
   instrumento: string;
   /** Null quando o arquivo não informa e o `id` não permite deduzir. */
   canal: CanalV2 | null;
@@ -104,6 +106,7 @@ function vista(o: OportunidadeV2, hojeIso: string, aderencia: Aderencia | null, 
     financiador: o.funder,
     fonteId: o.source.id,
     fonteNome: o.source.name,
+    fonteUrl: o.source.url,
     instrumento: ROTULO_INSTRUMENTO[o.instrument.type] ?? o.instrument.type,
     canal: canalDaOportunidade(o),
     prazo: o.dates.deadline,

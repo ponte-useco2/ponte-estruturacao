@@ -468,6 +468,13 @@ function JanelaCartao({
             Consultar no Transferegov
             <span className="pa-sr"> — procure pelo programa {j.titulo} (abre em nova aba)</span>
           </a>
+        ) : j.fonteId.startsWith("transferegov-") && j.fonteUrl.startsWith("https://") ? (
+          // Especiais, fundo a fundo e parcerias: sem edital nem endereço por programa.
+          // O botão leva ao módulo, onde o ente entra e procura pelo nome.
+          <a className="pa-btn pa-btn-pequeno" href={j.fonteUrl} target="_blank" rel="noopener noreferrer">
+            Abrir no Transferegov
+            <span className="pa-sr"> — módulo {j.fonteNome.replace(/^TransfereGov · /, "")}, programa {j.titulo} (abre em nova aba)</span>
+          </a>
         ) : null}
       </div>
     </article>
