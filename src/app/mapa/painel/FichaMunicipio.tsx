@@ -94,6 +94,12 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
           IBGE {f.ibge}. Dado até <strong>{formatarPublicacao(ficha.execucao.dado_ate)}</strong>; prazos contados a partir
           de {formatarData(ficha.execucao.referencia)}.
         </p>
+        {/* O painel fiscal (onda 8) só cobre a PB, e é só de administrador: o cliente não vê o link. */}
+        {!cliente && f.uf === "PB" && (
+          <p className="pa-nota">
+            <Link href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</Link>
+          </p>
+        )}
       </div>
 
       {!cliente && (

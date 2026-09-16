@@ -148,6 +148,9 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         <Link href={p.uf ? `/mapa/painel/pix?uf=${p.uf}` : "/mapa/painel/pix"} className="pa-chip">
           Pix e fundo a fundo →
         </Link>
+        <Link href="/mapa/fiscal" className="pa-chip">
+          Capacidade fiscal (PB) →
+        </Link>
       </nav>
 
       <Filtros p={p} orgaos={orgaos} municipios={leitura.opcoesMunicipio} referencia={execucao.referencia} />

@@ -585,3 +585,38 @@
 .pa-root .mp-seguido-titulo { min-width: 0; flex: 1 1 14rem; overflow-wrap: anywhere; }
 .pa-root .mp-normas { list-style: none; margin: 0; padding: 0; }
 .pa-root .mp-itens-nota { margin-bottom: 1rem; }
+
+/* Onda 8 — Painel de Capacidade Fiscal. O estado vem em etiqueta com marca de forma (✓ ✕ ! ? ↻),
+   e a borda à esquerda repete o estado para quem percorre a lista de relance. */
+.pa-root .mp-fiscal-contagem { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
+.pa-root .mp-fiscal-contagem a {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; min-height: 44px;
+  padding: 0 0.4rem; border-radius: var(--pa-r); color: inherit; text-decoration: none;
+}
+.pa-root .mp-fiscal-contagem a:hover, .pa-root .mp-fiscal-contagem a[aria-current="true"] { background: var(--pa-surface-2); }
+.pa-root .mp-fiscal-tabela td { min-width: 9rem; }
+.pa-root .mp-fiscal-tabela th[scope="row"] { min-width: 12rem; }
+.pa-root .mp-fiscal-lista { margin: 0.2rem 0 0; font-size: 0.86rem; }
+.pa-root .mp-fiscal-verificacoes { list-style: none; margin: 0; padding: 0; }
+.pa-root .mp-fiscal-verificacao { border-left: 4px solid var(--pa-border); }
+.pa-root .mp-fiscal-verificacao.mp-fiscal-nao_atendido, .pa-root .mp-fiscal-decisao.mp-fiscal-nao_atendido { border-left: 4px solid var(--pa-danger); }
+.pa-root .mp-fiscal-verificacao.mp-fiscal-atencao, .pa-root .mp-fiscal-decisao.mp-fiscal-atencao { border-left: 4px solid #b08a3e; }
+.pa-root .mp-fiscal-verificacao.mp-fiscal-desatualizado { border-left: 4px solid #2d5580; }
+.pa-root .mp-fiscal-verificacao.mp-fiscal-atendido, .pa-root .mp-fiscal-decisao.mp-fiscal-atendido { border-left: 4px solid var(--pa-brand); }
+.pa-root .mp-fiscal-verificacao-cabeca { align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pa-root .mp-fiscal-verificacao-cabeca h3 { margin: 0; }
+.pa-root .mp-fiscal-detalhe { margin-top: 0.4rem; }
+.pa-root .mp-fiscal-detalhe > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.pa-root .mp-fiscal-detalhe > * + * { margin-top: 0.6rem; }
+.pa-root .mp-fiscal-evidencia { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.4rem 1rem; margin: 0; }
+.pa-root .mp-fiscal-evidencia dt { font-size: 0.78rem; color: var(--pa-muted); }
+.pa-root .mp-fiscal-evidencia dd { margin: 0; overflow-wrap: anywhere; }
+.pa-root .mp-fiscal-urls, .pa-root .mp-fiscal-historico, .pa-root .mp-fiscal-documentais { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+.pa-root .mp-fiscal-urls li, .pa-root .mp-fiscal-historico li { margin: 0.25rem 0; }
+.pa-root .mp-fiscal-url { overflow-wrap: anywhere; font-size: 0.82rem; }
+.pa-root .mp-fiscal-fonte p { margin: 0; }
+.pa-root .mp-fiscal-aviso {
+  margin: 0.4rem 0 0; padding: 0.6rem 0.8rem; border-left: 3px solid var(--pa-border); background: var(--pa-surface-2);
+  font-size: 0.86rem; color: var(--pa-text); max-width: 72ch;
+}
+.pa-root .mp-fiscal .mp-busca-form .pa-btn { min-height: 44px; display: inline-flex; align-items: center; align-self: flex-end; }

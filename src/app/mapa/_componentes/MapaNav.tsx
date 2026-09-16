@@ -41,6 +41,7 @@ const ABAS: readonly Aba[] = [
   // que confere o administrador no servidor antes de ler qualquer dado.
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
   { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
+  { href: "/mapa/fiscal", nome: "Fiscal", exata: false, admin: true, municipio: false },
 ];
 
 export function MapaNav({
