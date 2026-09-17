@@ -81,6 +81,20 @@ test("evidência do CAUC e das entregas, e o que falta vira travessão", () => {
   assert.equal(pct(null), "—");
 });
 
+test("evidência do comprometimento com a dívida: valor, origem e percentual", () => {
+  const jp = linhasDaEvidencia({
+    codigo: "G5",
+    evidencia: {
+      pct: 5.73, pvls: 29, rcl_ajustada: 4588455772.25,
+      servico: { fonte: "sadipem", exercicio: 2026, valor: 262994309.02, pvl: "PVL02.001741/2024-73", data_pvl: "2026-06-16" },
+    },
+  });
+  assert.deepEqual(jp.map((l) => l.valor).slice(0, 4), ["R$ 263,0 mi", "cronograma do PVL PVL02.001741/2024-73 (16/06/2026), previsto para 2026", "R$ 4,6 bi", "5,73%"]);
+  const st = linhasDaEvidencia({ codigo: "G5", evidencia: { servico: { fonte: "siconfi", exercicio: 2025, valor: 261455.93 } } });
+  assert.equal(st[1].valor, "empenhado em juros e amortização em 2025 (RREO), repetido");
+  assert.equal(linhasDaEvidencia({ codigo: "G5", evidencia: { servico: null } })[1].valor, "—");
+});
+
 test("fonte da evidência só quando existe", () => {
   assert.equal(fonteDaEvidencia({ evidencia: {} }), null);
   assert.equal(fonteDaEvidencia({ evidencia: { fonte: {} } }), null);

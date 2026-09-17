@@ -17,6 +17,7 @@ import {
   linhasDaEvidencia,
   ordenarVerificacoes,
   urlMunicipioFiscal,
+  urlSimularFiscal,
   type EstadoFiscal,
   type FonteEvidencia,
   type HistoricoFiscal,
@@ -69,6 +70,9 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           {m.populacao ? ` · ${n(m.populacao)} habitantes` : ""} · lido em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>
         </p>
         <p className="pa-chips">
+          <Link href={urlSimularFiscal(m.ibge)} className="pa-chip">
+            Simular um projeto →
+          </Link>
           <Link href={urlFicha({ ibge: m.ibge })} className="pa-chip">
             Ficha no painel de execução →
           </Link>

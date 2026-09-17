@@ -114,6 +114,39 @@ export interface IndicadoresFiscais {
   saude_exercicio: number | null;
   pvls: number | null;
   cauc_pendencias: string[];
+  // Onda 9 — a base do simulador.
+  rcl_ajustada: number | null;
+  dc: number | null;
+  dcl: number | null;
+  operacoes_exercicio: number | null;
+  servico_ano: ServicoDoAno | null;
+  servico_siconfi: { exercicio: number; juros: number; amortizacao: number; total: number } | null;
+  caixa: { exercicio: number; nao_vinculado_liquido: number | null; nao_vinculado_bruto: number | null; total_liquido: number | null } | null;
+  pvl_referencia: PvlReferencia | null;
+}
+
+/** O comprometimento com a dívida no exercício: do cronograma do PVL recente ou do empenhado no último exercício. */
+export type ServicoDoAno =
+  | { fonte: "sadipem"; exercicio: number; valor: number; pvl: string | number; data_pvl: string }
+  | { fonte: "siconfi"; exercicio: number; valor: number };
+
+export interface PvlReferencia {
+  id_pleito: number;
+  num_pvl: string | null;
+  status: string;
+  data_protocolo: string | null;
+  tipo_operacao: string | null;
+  finalidade: string | null;
+  valor: number | null;
+  pendente: boolean;
+}
+
+/** Uma linha de `fiscal_projecao`: o cronograma do PVL de referência num ano. */
+export interface ProjecaoFiscal {
+  ano: number;
+  servico_demais: number;
+  servico_pleiteada: number;
+  liberacoes: number;
 }
 
 export interface MunicipioFiscal {
@@ -193,6 +226,7 @@ export function urlFiscal(p: ParametrosFiscal, muda: Partial<ParametrosFiscal> =
 }
 
 export const urlMunicipioFiscal = (ibge: string) => `/mapa/fiscal/${ibge}`;
+export const urlSimularFiscal = (ibge: string) => `/mapa/fiscal/${ibge}/simular`;
 
 function dobrar(texto: string): string {
   return texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
@@ -281,11 +315,22 @@ export function linhasDaEvidencia(v: Pick<VerificacaoFiscal, "codigo" | "evidenc
         linha("Sobre a RCL ajustada", pct(e.operacoes_pct)),
         linha("Limite · alerta", `${pct(e.limite_pct)} · ${pct(e.limite_alerta_pct)}`),
       ];
-    case "G5":
+    case "G5": {
+      const s = e.servico as ServicoDoAno | null | undefined;
+      const origem = !s
+        ? "—"
+        : s.fonte === "sadipem"
+          ? `cronograma do PVL ${s.pvl} (${dataIso(s.data_pvl)}), previsto para ${s.exercicio}`
+          : `empenhado em juros e amortização em ${s.exercicio} (RREO), repetido`;
       return [
+        linha("Serviço da dívida no ano", reais(s?.valor)),
+        linha("Origem", origem),
+        linha("RCL ajustada", reais(e.rcl_ajustada)),
+        linha("Sobre a RCL ajustada", pct(e.pct)),
+        linha("Limite · alerta", "11,50% · 10,35%"),
         linha("Pedidos no SADIPEM", texto(e.pvls)),
-        linha("Situações", ((e.situacoes as string[] | undefined) ?? []).join(" · ") || "—"),
       ];
+    }
     case "G6":
       return [
         linha("Período", texto(e.referencia)),
