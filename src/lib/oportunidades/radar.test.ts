@@ -25,26 +25,36 @@ test("parâmetros válidos passam; inválidos caem no padrão", () => {
     uf: "PB",
     dias: 7,
     categoria: "revisada",
+    canal: null,
+    tipo: null,
     ordem: null,
   });
   assert.deepEqual(parametrosRadar({ uf: "XX", dias: "5", categoria: "drop", ordem: "programa.inventada.asc" }), {
     uf: null,
     dias: 30,
     categoria: "nova",
+    canal: null,
+    tipo: null,
     ordem: null,
   });
-  assert.deepEqual(parametrosRadar({}), { uf: null, dias: 30, categoria: "nova", ordem: null });
+  assert.deepEqual(parametrosRadar({}), { uf: null, dias: 30, categoria: "nova", canal: null, tipo: null, ordem: null });
+  const filtrado = parametrosRadar({ canal: "emenda_parlamentar", tipo: "osc" });
+  assert.deepEqual([filtrado.canal, filtrado.tipo], ["emenda_parlamentar", "osc"]);
+  const inventado = parametrosRadar({ canal: "pix", tipo: "prefeitura" });
+  assert.deepEqual([inventado.canal, inventado.tipo], [null, null], "valor fora da lista não chega ao banco");
   assert.deepEqual(parametrosRadar({ ordem: "programa.valor.asc" }).ordem, { tabela: "programa", coluna: "valor", sentido: "asc" });
   assert.deepEqual(parametrosRadar({ ordem: "pb.valor.seja-o-que-for" }).ordem, { tabela: "pb", coluna: "valor", sentido: "desc" });
 });
 
 test("a URL omite o que é padrão", () => {
-  const base = { uf: null, dias: 30 as const, categoria: "nova" as const, ordem: null };
+  const base = { uf: null, dias: 30 as const, categoria: "nova" as const, canal: null, tipo: null, ordem: null };
   assert.equal(urlRadar(base, {}), "/mapa/radar");
   assert.equal(urlRadar(base, { uf: "PB" }), "/mapa/radar?uf=PB");
   assert.equal(urlRadar({ ...base, uf: "PB" }, { dias: 7 }), "/mapa/radar?uf=PB&dias=7");
   assert.equal(urlRadar({ ...base, uf: "PB" }, { uf: null }), "/mapa/radar");
   assert.equal(urlRadar(base, { ordem: { tabela: "disputa", coluna: "valor", sentido: "asc" } }), "/mapa/radar?ordem=disputa.valor.asc");
+  assert.equal(urlRadar(base, { canal: "voluntaria", tipo: "municipio" }), "/mapa/radar?canal=voluntaria&tipo=municipio");
+  assert.equal(urlRadar({ ...base, canal: "voluntaria" }, { canal: null }), "/mapa/radar", "o chip Todos tira o filtro");
 });
 
 test("janela de 24h que toca o fim de semana, no horário de Brasília", () => {
@@ -76,7 +86,7 @@ test("cabeçalho: coluna nova começa do maior, texto começa de A e a mesma col
   assert.deepEqual(proximaOrdem(padrao, "programa", "valor"), { tabela: "programa", coluna: "valor", sentido: "desc" });
   assert.deepEqual(proximaOrdem(padrao, "programa", "rotulo", true), { tabela: "programa", coluna: "rotulo", sentido: "asc" });
   assert.deepEqual(proximaOrdem(padrao, "programa", "atual"), { tabela: "programa", coluna: "atual", sentido: "asc" }, "mesma coluna inverte");
-  const p = { uf: null, dias: 30 as const, categoria: "nova" as const, ordem: { tabela: "pb", coluna: "valor", sentido: "asc" as const } };
+  const p = { uf: null, dias: 30 as const, categoria: "nova" as const, canal: null, tipo: null, ordem: { tabela: "pb", coluna: "valor", sentido: "asc" as const } };
   assert.equal(ordemDaTabela(p, "pb").coluna, "valor", "a tabela ordenada usa a ordem da URL");
   assert.deepEqual(ordemDaTabela(p, "programa"), ORDEM_PADRAO.programa, "as outras ficam no padrão");
 });

@@ -111,19 +111,23 @@ export async function lerRadar(p: ParametrosRadar): Promise<LeituraRadar> {
   const desde = new Date(Date.parse(execucao.dado_ate) - p.dias * 24 * 60 * 60 * 1000).toISOString();
 
   const [placar, canal, tipo, programa, disputa, envios, municipios] = await Promise.all([
-    db.rpc("radar_placar", { p_uf: p.uf }),
-    db.rpc("radar_recorte", { p_uf: p.uf, p_dimensao: "canal", p_dias: p.dias, p_categoria: p.categoria }),
-    db.rpc("radar_recorte", { p_uf: p.uf, p_dimensao: "tipo_agente", p_dias: p.dias, p_categoria: p.categoria }),
-    db.rpc("radar_recorte", { p_uf: p.uf, p_dimensao: "programa", p_dias: p.dias, p_categoria: p.categoria }),
-    db.rpc("radar_disputa", { p_uf: p.uf, p_limite: LIMITE_DISPUTA }),
-    db
-      .from("radar_evento")
-      .select("id_proposta, cod_ibge, cod_programa, categoria, ocorrido_em, proponente, municipio, tipo_agente, programa, canal, valor_repasse")
-      .eq("execucao_id", execucao.id)
-      .eq("uf", "PB")
-      .gt("ocorrido_em", desde)
-      .order("ocorrido_em", { ascending: false })
-      .limit(LIMITE_ENVIOS_PB),
+    db.rpc("radar_placar", { p_uf: p.uf, p_canal: p.canal, p_tipo: p.tipo }),
+    db.rpc("radar_recorte", { p_uf: p.uf, p_dimensao: "canal", p_dias: p.dias, p_categoria: p.categoria, p_canal: p.canal, p_tipo: p.tipo }),
+    db.rpc("radar_recorte", { p_uf: p.uf, p_dimensao: "tipo_agente", p_dias: p.dias, p_categoria: p.categoria, p_canal: p.canal, p_tipo: p.tipo }),
+    db.rpc("radar_recorte", { p_uf: p.uf, p_dimensao: "programa", p_dias: p.dias, p_categoria: p.categoria, p_canal: p.canal, p_tipo: p.tipo }),
+    // A disputa é da janela do programa, que não tem proponente: só o canal filtra.
+    db.rpc("radar_disputa", { p_uf: p.uf, p_limite: LIMITE_DISPUTA, p_canal: p.canal }),
+    (() => {
+      let q = db
+        .from("radar_evento")
+        .select("id_proposta, cod_ibge, cod_programa, categoria, ocorrido_em, proponente, municipio, tipo_agente, programa, canal, valor_repasse")
+        .eq("execucao_id", execucao.id)
+        .eq("uf", "PB")
+        .gt("ocorrido_em", desde);
+      if (p.canal) q = q.eq("canal", p.canal);
+      if (p.tipo) q = q.eq("tipo_agente", p.tipo);
+      return q.order("ocorrido_em", { ascending: false }).limit(LIMITE_ENVIOS_PB);
+    })(),
     db
       .from("radar_municipio_pb")
       .select("cod_ibge, municipio, novas_30d, em_revisao_30d, revisadas_30d, ultimo_envio")

@@ -64,11 +64,19 @@ export function variacao(atual: number, anterior: number): Variacao {
 
 // ============================ PARÂMETROS ============================
 
+/** Os canais e os tipos que a `oport_17` aceita filtrar — a mesma lista que as funções SQL validam. */
+export const CANAIS_RADAR = ["voluntaria", "emenda_parlamentar", "beneficiario_especifico", "nao_determinado"] as const;
+export const TIPOS_RADAR = ["municipio", "osc", "estado", "consorcio_publico", "empresa"] as const;
+
 export interface ParametrosRadar {
   /** Null = Brasil. */
   uf: string | null;
   dias: Dias;
   categoria: Categoria;
+  /** Null = todos os canais. */
+  canal: string | null;
+  /** Null = todos os tipos de proponente. Não se aplica à disputa, que é da janela, não do proponente. */
+  tipo: string | null;
   /** Uma tabela ordenada por vez, escrita na URL como `tabela.coluna.sentido` (`programa.valor.desc`). */
   ordem: Ordenacao | null;
 }
@@ -137,11 +145,15 @@ export function parametrosRadar(sp: Record<string, string | string[] | undefined
   const uf = um(sp.uf)?.toUpperCase() ?? null;
   const dias = Number(um(sp.dias));
   const categoria = um(sp.categoria);
+  const canal = um(sp.canal);
+  const tipo = um(sp.tipo);
   const [tabela, coluna, sentido] = (um(sp.ordem) ?? "").split(".");
   return {
     uf: uf && (UFS as readonly string[]).includes(uf) ? uf : null,
     dias: (JANELAS as number[]).includes(dias) ? (dias as Dias) : 30,
     categoria: (CATEGORIAS as string[]).includes(categoria ?? "") ? (categoria as Categoria) : "nova",
+    canal: (CANAIS_RADAR as readonly string[]).includes(canal ?? "") ? (canal as string) : null,
+    tipo: (TIPOS_RADAR as readonly string[]).includes(tipo ?? "") ? (tipo as string) : null,
     ordem: COLUNAS_ORDEM[tabela ?? ""]?.includes(coluna ?? "")
       ? { tabela, coluna, sentido: sentido === "asc" ? "asc" : "desc" }
       : null,
@@ -155,6 +167,8 @@ export function urlRadar(atual: ParametrosRadar, muda: Partial<ParametrosRadar>)
   if (p.uf) q.set("uf", p.uf);
   if (p.dias !== 30) q.set("dias", String(p.dias));
   if (p.categoria !== "nova") q.set("categoria", p.categoria);
+  if (p.canal) q.set("canal", p.canal);
+  if (p.tipo) q.set("tipo", p.tipo);
   if (p.ordem) q.set("ordem", `${p.ordem.tabela}.${p.ordem.coluna}.${p.ordem.sentido}`);
   const s = q.toString();
   return s ? `/mapa/radar?${s}` : "/mapa/radar";

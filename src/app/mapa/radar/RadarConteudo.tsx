@@ -9,9 +9,11 @@ import { UFS } from "@/lib/oportunidades/organizacao";
 import { urlBusca, urlProposta, type ParametrosBusca } from "@/lib/oportunidades/busca";
 import { urlFicha } from "@/lib/oportunidades/painel";
 import {
+  CANAIS_RADAR,
   CATEGORIAS,
   DESCRICAO_CATEGORIA,
   JANELAS,
+  TIPOS_RADAR,
   ROTULO_CANAL_RADAR,
   ROTULO_CATEGORIA,
   ROTULO_JANELA,
@@ -81,6 +83,14 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
         <p className="pa-sub">
           Dado até <strong>{formatarPublicacao(execucao.dado_ate)}</strong>. O Transferegov publica os arquivos uma
           vez por dia: as janelas contam até o último registro, e não até agora.
+          {(p.canal || p.tipo) && (
+            <>
+              {" "}
+              Filtrado por{p.canal ? <> canal <strong>{ROTULO_CANAL_RADAR[p.canal] ?? p.canal}</strong></> : null}
+              {p.canal && p.tipo ? " e" : null}
+              {p.tipo ? <> proponente <strong>{rotuloTipo(p.tipo)}</strong></> : null}.
+            </>
+          )}
         </p>
       </div>
 
@@ -300,6 +310,31 @@ function Filtros({ p }: { p: ParametrosRadar }) {
             aria-current={p.categoria === c ? "true" : undefined}
           >
             {ROTULO_CATEGORIA[c]}
+          </Link>
+        ))}
+      </nav>
+
+      {/* Filtro por coluna: vale para o placar, os recortes, a disputa (só canal) e a lista da Paraíba. */}
+      <nav aria-label="Canal" className="pa-chips">
+        <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Canal</span>
+        <Link href={urlRadar(p, { canal: null })} className={`pa-chip${p.canal === null ? " pa-ativo" : ""}`} aria-current={p.canal === null ? "true" : undefined}>
+          Todos
+        </Link>
+        {CANAIS_RADAR.map((c) => (
+          <Link key={c} href={urlRadar(p, { canal: c })} className={`pa-chip${p.canal === c ? " pa-ativo" : ""}`} aria-current={p.canal === c ? "true" : undefined}>
+            {ROTULO_CANAL_RADAR[c] ?? c}
+          </Link>
+        ))}
+      </nav>
+
+      <nav aria-label="Tipo de proponente" className="pa-chips">
+        <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Proponente</span>
+        <Link href={urlRadar(p, { tipo: null })} className={`pa-chip${p.tipo === null ? " pa-ativo" : ""}`} aria-current={p.tipo === null ? "true" : undefined}>
+          Todos
+        </Link>
+        {TIPOS_RADAR.map((t) => (
+          <Link key={t} href={urlRadar(p, { tipo: t })} className={`pa-chip${p.tipo === t ? " pa-ativo" : ""}`} aria-current={p.tipo === t ? "true" : undefined}>
+            {rotuloTipo(t)}
           </Link>
         ))}
       </nav>
