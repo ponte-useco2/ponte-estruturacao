@@ -15,6 +15,7 @@ import {
   fonteDaEvidencia,
   hashCurto,
   linhasDaEvidencia,
+  mesesDaConferencia,
   ordenarVerificacoes,
   urlMunicipioFiscal,
   urlSimularFiscal,
@@ -189,6 +190,7 @@ function Verificacao({
   fontesUf: (FonteEvidencia & { chave: string })[];
 }) {
   const linhas = linhasDaEvidencia(v);
+  const meses = mesesDaConferencia(v);
   // CAUC e SIOPE são lidos uma vez para a UF: a evidência do município aponta para a leitura comum.
   const propria = fonteDaEvidencia(v);
   const fonte = propria ?? (v.codigo.startsWith("G7") ? fontesUf.find((f) => f.chave === "cauc") : v.codigo === "G11" ? fontesUf.find((f) => f.chave.startsWith("siope")) : undefined);
@@ -198,7 +200,7 @@ function Verificacao({
       <div className="pa-linha mp-fiscal-verificacao-cabeca">
         <h3 className="pa-oportunidade-titulo">{v.nome}</h3>
         <Estado estado={v.estado} />
-        <span className="pa-mono">{v.decisoes.map((d) => `decisão ${d}`).join(" · ")}</span>
+        <span className="pa-mono">{v.decisoes.length ? v.decisoes.map((d) => `decisão ${d}`).join(" · ") : "conferência, fora das decisões"}</span>
       </div>
       <p>{v.resumo}</p>
       <details className="mp-fiscal-detalhe">
@@ -212,6 +214,34 @@ function Verificacao({
               </div>
             ))}
           </dl>
+        )}
+        {meses.length > 0 && (
+          <div className="mp-tabela-rolagem">
+            <table className="mp-tabela mp-fiscal-meses">
+              <caption className="pa-sr">Pessoal do Executivo, mês a mês, no RGF e no TCE-PB</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Mês</th>
+                  <th scope="col" className="mp-num">RGF</th>
+                  <th scope="col" className="mp-num">TCE-PB</th>
+                  <th scope="col" className="mp-num">Diferença</th>
+                </tr>
+              </thead>
+              <tbody>
+                {meses.map((m) => (
+                  <tr key={m.mes}>
+                    <th scope="row">
+                      {m.mes}
+                      {m.fora && <span className="mp-tabela-secundario">ainda não publicado no TCE-PB: fora da conta</span>}
+                    </th>
+                    <td className="mp-num">{m.rgf}</td>
+                    <td className="mp-num">{m.tce}</td>
+                    <td className="mp-num">{m.diferenca}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <p>
           <span className="pa-mono">Base legal</span> {v.base_legal}

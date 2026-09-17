@@ -667,3 +667,7 @@
   .pa-root .mp-simulador .pa-cartao, .pa-root .mp-simulador tr { break-inside: avoid; }
   .pa-root .mp-simulador a { color: inherit; text-decoration: none; }
 }
+
+/* Onda 9, parte 3 — a tabela mês a mês da conferência de pessoal (G2A). */
+.pa-root .mp-fiscal-meses tbody th { min-width: 0; font-weight: 600; }
+.pa-root .mp-fiscal-meses { font-size: 0.82rem; }

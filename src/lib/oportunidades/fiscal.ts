@@ -55,6 +55,7 @@ export const DECISOES: readonly { id: Decisao; nome: string; curto: string }[] =
 export const NOME_VERIFICACAO: Record<string, string> = {
   G1: "Entregas ao Siconfi",
   G2: "Despesa com pessoal do Executivo",
+  G2A: "Pessoal do Executivo: RGF × TCE-PB",
   G3: "Regra de ouro",
   G4: "Operações de crédito no exercício",
   G5: "Comprometimento anual com a dívida",
@@ -72,6 +73,7 @@ export const NOME_VERIFICACAO: Record<string, string> = {
 export const NOME_CURTO: Record<string, string> = {
   G1: "Entregas",
   G2: "Pessoal",
+  G2A: "Pessoal × TCE-PB",
   G3: "Regra de ouro",
   G4: "Crédito no ano",
   G5: "Serviço da dívida",
@@ -86,7 +88,9 @@ export const NOME_CURTO: Record<string, string> = {
 };
 
 /** Ordem de leitura: das declarações ao crédito, e os documentais no fim. */
-export const ORDEM_VERIFICACOES = ["G1", "G7", "G7A", "G2", "G11", "G12", "G6", "G4", "G3", "G5", "G8", "G9", "G10"] as const;
+export const ORDEM_VERIFICACOES = ["G1", "G7", "G7A", "G2", "G2A", "G11", "G12", "G6", "G4", "G3", "G5", "G8", "G9", "G10"] as const;
+
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 export const AVISO_FIXO =
   "Leitura automática de fontes públicas, cada uma com a sua data. Não substitui certidão nem a análise da STN, do Tribunal de " +
@@ -306,6 +310,23 @@ export function linhasDaEvidencia(v: Pick<VerificacaoFiscal, "codigo" | "evidenc
         linha("Limites (alerta · prudencial · máximo)", `${pct(e.limite_alerta_pct)} · ${pct(e.limite_prudencial_pct)} · ${pct(e.limite_maximo_pct)}`),
         linha("Cálculo", texto(e.calculo)),
       ];
+    case "G2A": {
+      const maior = e.maior_mes as { mes: number; diferenca: number } | undefined;
+      const ausentes = (e.ausentes as number[] | undefined) ?? [];
+      const excluidos = (e.excluidos as { legislativo?: number; consorcio?: number } | undefined) ?? {};
+      const arquivo = ((e.tce as { arquivo?: { modificado?: string } } | undefined) ?? {}).arquivo;
+      return [
+        linha("Exercício", texto(e.exercicio)),
+        linha("RGF", texto(e.rgf)),
+        linha("TCE-PB, Executivo", reais(e.total_tce)),
+        linha("RGF, despesa bruta executada", reais(e.total_rgf)),
+        linha("Diferença", num(e.pct) === null ? "—" : `${pct(e.pct)} · ${reais(e.diferenca)}`),
+        linha("Maior diferença", maior ? `${MESES[maior.mes - 1]} · ${reais(maior.diferenca)}` : "—"),
+        linha("Meses fora da conta", ausentes.length ? ausentes.map((m) => MESES[m - 1]).join(", ") : "nenhum"),
+        linha("Fora do Executivo no TCE-PB", `Câmara ${reais(excluidos.legislativo)} · consórcio ${reais(excluidos.consorcio)}`),
+        linha("Arquivo do TCE-PB", arquivo?.modificado ? `gerado em ${dataIso(arquivo.modificado)}` : "—"),
+      ];
+    }
     case "G3":
       return [linha("Exercício", texto(e.exercicio)), linha("Despesas de capital − operações de crédito", reais(e.resultado))];
     case "G4":
@@ -352,6 +373,27 @@ export function linhasDaEvidencia(v: Pick<VerificacaoFiscal, "codigo" | "evidenc
     default:
       return [];
   }
+}
+
+export interface MesConferido {
+  mes: string;
+  rgf: string;
+  tce: string;
+  diferenca: string;
+  /** O TCE-PB ainda não publicou o mês: fica fora da conta. */
+  fora: boolean;
+}
+
+/** G2A: a tabela mês a mês do RGF contra o TCE-PB. Vazia em qualquer outra verificação. */
+export function mesesDaConferencia(v: Pick<VerificacaoFiscal, "codigo" | "evidencia">): MesConferido[] {
+  const meses = v.codigo === "G2A" ? (v.evidencia?.meses as { mes: number; rgf: number; tce: number; fora: boolean }[] | undefined) : undefined;
+  return (meses ?? []).map((m) => ({
+    mes: MESES[m.mes - 1] ?? String(m.mes),
+    rgf: reais(m.rgf),
+    tce: reais(m.tce),
+    diferenca: reais(num(m.tce) !== null && num(m.rgf) !== null ? m.tce - m.rgf : null),
+    fora: Boolean(m.fora),
+  }));
 }
 
 export function fonteDaEvidencia(v: Pick<VerificacaoFiscal, "evidencia">): FonteEvidencia | null {

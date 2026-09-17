@@ -5,6 +5,7 @@ import {
   filtrarMunicipios,
   fonteDaEvidencia,
   linhasDaEvidencia,
+  mesesDaConferencia,
   ordenarVerificacoes,
   parametrosFiscal,
   pct,
@@ -93,6 +94,34 @@ test("evidência do comprometimento com a dívida: valor, origem e percentual", 
   const st = linhasDaEvidencia({ codigo: "G5", evidencia: { servico: { fonte: "siconfi", exercicio: 2025, valor: 261455.93 } } });
   assert.equal(st[1].valor, "empenhado em juros e amortização em 2025 (RREO), repetido");
   assert.equal(linhasDaEvidencia({ codigo: "G5", evidencia: { servico: null } })[1].valor, "—");
+});
+
+test("conferência de pessoal com o TCE-PB (Sapé, 2025): linhas, tabela mês a mês e ordem logo depois do pessoal", () => {
+  const meses = Array.from({ length: 12 }, (_, i) => ({ mes: i + 1, rgf: 14_000_000, tce: 14_000_000, fora: false }));
+  meses[11] = { mes: 12, rgf: 20216030.26, tce: 19346442.22, fora: false };
+  const v = {
+    codigo: "G2A",
+    evidencia: {
+      exercicio: 2025, rgf: "RGF 3º quadrimestre de 2025", total_tce: 177256297.79, total_rgf: 178340133.26, pct: -0.61,
+      diferenca: -1083835.47, maior_mes: { mes: 12, diferenca: -869588.04 }, ausentes: [], meses,
+      excluidos: { legislativo: 5897711.76, consorcio: 0 },
+      tce: { arquivo: { modificado: "2026-02-06T03:14:32.507000+00:00" } },
+    },
+  };
+  const valores = Object.fromEntries(linhasDaEvidencia(v).map((l) => [l.rotulo, l.valor]));
+  assert.equal(valores["Diferença"], "-0,61% · R$ -1,1 mi");
+  assert.equal(valores["Maior diferença"], "dezembro · R$ -870 mil");
+  assert.equal(valores["Meses fora da conta"], "nenhum");
+  assert.equal(valores["Fora do Executivo no TCE-PB"], "Câmara R$ 5,9 mi · consórcio R$ 0");
+  assert.equal(valores["Arquivo do TCE-PB"], "gerado em 06/02/2026");
+  const tabela = mesesDaConferencia(v);
+  assert.equal(tabela.length, 12);
+  assert.deepEqual(tabela[11], { mes: "dezembro", rgf: "R$ 20,2 mi", tce: "R$ 19,3 mi", diferenca: "R$ -870 mil", fora: false });
+  assert.deepEqual(mesesDaConferencia({ codigo: "G2", evidencia: { meses } }), []);
+  assert.deepEqual(ordenarVerificacoes([{ codigo: "G11" }, { codigo: "G2A" }, { codigo: "G2" }]).map((x) => x.codigo), ["G2", "G2A", "G11"]);
+  const semCalculo = Object.fromEntries(linhasDaEvidencia({ codigo: "G2A", evidencia: { exercicio: 2025 } }).map((l) => [l.rotulo, l.valor]));
+  assert.equal(semCalculo["Diferença"], "—");
+  assert.equal(semCalculo["Arquivo do TCE-PB"], "—");
 });
 
 test("fonte da evidência só quando existe", () => {
