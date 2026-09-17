@@ -677,3 +677,7 @@
 .pa-root .mp-ordenar:hover { text-decoration: underline; }
 .pa-root .mp-ordenar-seta { opacity: 0.45; font-size: 0.7em; }
 .pa-root .mp-ordenar-seta.mp-ordenar-ativa { opacity: 1; color: var(--pa-brand); }
+
+/* Onda 10 — link dentro de tabela precisa parecer link: mesma cor do texto e sem sublinhado não convida ao clique. */
+.pa-root .mp-tabela tbody a { color: var(--pa-brand); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.pa-root .mp-tabela tbody a:hover, .pa-root .mp-tabela tbody a:focus-visible { text-decoration-thickness: 2px; }
