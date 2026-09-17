@@ -671,3 +671,9 @@
 /* Onda 9, parte 3 — a tabela mês a mês da conferência de pessoal (G2A). */
 .pa-root .mp-fiscal-meses tbody th { min-width: 0; font-weight: 600; }
 .pa-root .mp-fiscal-meses { font-size: 0.82rem; }
+
+/* Onda 10 — cabeçalho que ordena: a seta mostra a coluna ativa e o sentido. */
+.pa-root .mp-ordenar { display: inline-flex; align-items: center; gap: 0.3rem; color: inherit; text-decoration: none; min-height: 44px; }
+.pa-root .mp-ordenar:hover { text-decoration: underline; }
+.pa-root .mp-ordenar-seta { opacity: 0.45; font-size: 0.7em; }
+.pa-root .mp-ordenar-seta.mp-ordenar-ativa { opacity: 1; color: var(--pa-brand); }

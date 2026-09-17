@@ -49,6 +49,10 @@ export interface LinhaDisputa {
 }
 
 export interface EnvioPB {
+  /** Ids que a tabela já guardava e a tela não lia: levam à proposta, à ficha do município e ao programa. */
+  id_proposta: string | null;
+  cod_ibge: string | null;
+  cod_programa: string | null;
   categoria: Categoria;
   ocorrido_em: string;
   proponente: string | null;
@@ -114,7 +118,7 @@ export async function lerRadar(p: ParametrosRadar): Promise<LeituraRadar> {
     db.rpc("radar_disputa", { p_uf: p.uf, p_limite: LIMITE_DISPUTA }),
     db
       .from("radar_evento")
-      .select("categoria, ocorrido_em, proponente, municipio, tipo_agente, programa, canal, valor_repasse")
+      .select("id_proposta, cod_ibge, cod_programa, categoria, ocorrido_em, proponente, municipio, tipo_agente, programa, canal, valor_repasse")
       .eq("execucao_id", execucao.id)
       .eq("uf", "PB")
       .gt("ocorrido_em", desde)

@@ -69,6 +69,62 @@ export interface ParametrosRadar {
   uf: string | null;
   dias: Dias;
   categoria: Categoria;
+  /** Uma tabela ordenada por vez, escrita na URL como `tabela.coluna.sentido` (`programa.valor.desc`). */
+  ordem: Ordenacao | null;
+}
+
+export type Sentido = "asc" | "desc";
+
+export interface Ordenacao {
+  tabela: string;
+  coluna: string;
+  sentido: Sentido;
+}
+
+/** As colunas que cada tabela aceita ordenar; o que vier fora disso na URL é ignorado. */
+export const COLUNAS_ORDEM: Record<string, readonly string[]> = {
+  canal: ["rotulo", "atual", "anterior", "variacao", "valor", "inferidos"],
+  tipo: ["rotulo", "atual", "anterior", "variacao", "valor"],
+  programa: ["rotulo", "atual", "anterior", "variacao", "valor"],
+  disputa: ["programa", "canal", "desde_abertura", "trinta_dias", "valor", "faltam", "ufs"],
+  pb: ["quando", "proponente", "categoria", "programa", "canal", "valor"],
+  parados: ["municipio", "em_revisao", "revisadas", "ultimo_envio"],
+};
+
+/** O padrão de cada tabela, para o cabeçalho mostrar a seta certa antes do primeiro clique. */
+export const ORDEM_PADRAO: Record<string, Ordenacao> = {
+  canal: { tabela: "canal", coluna: "atual", sentido: "desc" },
+  tipo: { tabela: "tipo", coluna: "atual", sentido: "desc" },
+  programa: { tabela: "programa", coluna: "atual", sentido: "desc" },
+  disputa: { tabela: "disputa", coluna: "desde_abertura", sentido: "desc" },
+  pb: { tabela: "pb", coluna: "quando", sentido: "desc" },
+  parados: { tabela: "parados", coluna: "municipio", sentido: "asc" },
+};
+
+export function ordemDaTabela(p: ParametrosRadar, tabela: string): Ordenacao {
+  return p.ordem?.tabela === tabela ? p.ordem : ORDEM_PADRAO[tabela];
+}
+
+/** O clique no cabeçalho: coluna nova começa do maior (texto começa de A); a mesma coluna inverte. */
+export function proximaOrdem(atual: Ordenacao, tabela: string, coluna: string, texto = false): Ordenacao {
+  if (atual.tabela === tabela && atual.coluna === coluna) {
+    return { tabela, coluna, sentido: atual.sentido === "asc" ? "desc" : "asc" };
+  }
+  return { tabela, coluna, sentido: texto ? "asc" : "desc" };
+}
+
+/** Ordena em memória: as tabelas têm dezenas de linhas, e a ordem não precisa voltar ao banco. */
+export function ordenar<T>(linhas: readonly T[], valor: (l: T) => string | number | null, sentido: Sentido): T[] {
+  const sinal = sentido === "asc" ? 1 : -1;
+  return [...linhas]
+    .map((l, i) => ({ l, i, v: valor(l) }))
+    .sort((a, b) => {
+      // Sem valor vai para o fim nos dois sentidos: "—" no meio da lista confunde.
+      if (a.v === null || b.v === null) return a.v === b.v ? a.i - b.i : a.v === null ? 1 : -1;
+      const d = typeof a.v === "number" && typeof b.v === "number" ? a.v - b.v : String(a.v).localeCompare(String(b.v), "pt-BR");
+      return d ? d * sinal : a.i - b.i;
+    })
+    .map((x) => x.l);
 }
 
 /**
@@ -81,10 +137,14 @@ export function parametrosRadar(sp: Record<string, string | string[] | undefined
   const uf = um(sp.uf)?.toUpperCase() ?? null;
   const dias = Number(um(sp.dias));
   const categoria = um(sp.categoria);
+  const [tabela, coluna, sentido] = (um(sp.ordem) ?? "").split(".");
   return {
     uf: uf && (UFS as readonly string[]).includes(uf) ? uf : null,
     dias: (JANELAS as number[]).includes(dias) ? (dias as Dias) : 30,
     categoria: (CATEGORIAS as string[]).includes(categoria ?? "") ? (categoria as Categoria) : "nova",
+    ordem: COLUNAS_ORDEM[tabela ?? ""]?.includes(coluna ?? "")
+      ? { tabela, coluna, sentido: sentido === "asc" ? "asc" : "desc" }
+      : null,
   };
 }
 
@@ -95,6 +155,7 @@ export function urlRadar(atual: ParametrosRadar, muda: Partial<ParametrosRadar>)
   if (p.uf) q.set("uf", p.uf);
   if (p.dias !== 30) q.set("dias", String(p.dias));
   if (p.categoria !== "nova") q.set("categoria", p.categoria);
+  if (p.ordem) q.set("ordem", `${p.ordem.tabela}.${p.ordem.coluna}.${p.ordem.sentido}`);
   const s = q.toString();
   return s ? `/mapa/radar?${s}` : "/mapa/radar";
 }

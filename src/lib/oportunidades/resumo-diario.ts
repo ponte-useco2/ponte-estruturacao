@@ -13,6 +13,7 @@ import {
   descreverMudanca,
   diaDoDado,
   ordenarContagens,
+  urlFicha,
   type ContagemMudanca,
   type MudancaPainel,
 } from "./painel.ts";
@@ -43,6 +44,21 @@ export interface ResumoDiario {
 
 export function escapar(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+/** O painel já filtrado: um tipo de mudança, no Brasil ou na UF. Mesmos parâmetros que `urlPainel` escreve. */
+export function urlMudancas(urlBase: string, opcoes: { tipo?: string; uf?: string; municipio?: string } = {}): string {
+  const q = new URLSearchParams({ visao: "mudancas" });
+  if (opcoes.uf) q.set("uf", opcoes.uf);
+  if (opcoes.municipio) q.set("municipio", opcoes.municipio);
+  if (opcoes.tipo) q.set("tipo", opcoes.tipo);
+  return `${urlBase}/mapa/painel?${q.toString()}`;
+}
+
+/** A página do item que mudou: convênio pelo número, proposta pelo id do SICONV (a `chave` de `painel_mudanca`). */
+export function urlDoItem(urlBase: string, m: Pick<MudancaPainel, "alvo" | "chave">): string {
+  const caminho = m.alvo === "proposta" ? "proposta" : "instrumento";
+  return `${urlBase}/mapa/${caminho}/${encodeURIComponent(m.chave)}`;
 }
 
 const COR_GRUPO = { avanco: "#047857", alerta: "#b91c1c", registro: "#475569" } as const;
@@ -78,7 +94,7 @@ export function montarResumoDiario(e: EntradaResumo): ResumoDiario {
       const frase = descreverMudanca(m);
       return `- ${definicaoMudanca(m.tipo).rotulo} · ${m.proponente ?? "—"} (${m.municipio ?? "—"}) · ${
         m.alvo === "proposta" ? "proposta" : "convênio"
-      } nº ${m.numero ?? m.chave}${frase ? ` · ${frase}` : ""}${m.valor !== null ? ` · ${moedaCurta(m.valor)}` : ""}`;
+      } nº ${m.numero ?? m.chave}${frase ? ` · ${frase}` : ""}${m.valor !== null ? ` · ${moedaCurta(m.valor)}` : ""}\n  ${urlDoItem(e.urlBase, m)}`;
     }),
     "",
     `No painel: ${link}`,
@@ -88,28 +104,39 @@ export function montarResumoDiario(e: EntradaResumo): ResumoDiario {
   ].join("\n");
 
   // ---------------------------------------------------------------- HTML
+  // Cada linha leva ao painel já filtrado naquele tipo: o número do Brasil abre o Brasil, o da UF abre a UF.
+  // Zero não vira link: levaria a uma lista vazia.
+  const CELULA = "padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:14px;";
+  const elo = (texto: string, url: string | null) =>
+    url ? `<a href="${escapar(url)}" style="color:#0f172a;text-decoration:underline;">${texto}</a>` : texto;
   const linhasTabela = linhas
     .map((l) => {
       const def = definicaoMudanca(l.tipo);
       const uf = porUf.get(l.tipo)?.n ?? 0;
+      const doTipo = urlMudancas(e.urlBase, { tipo: l.tipo });
       return `<tr>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:14px;"><span style="color:${COR_GRUPO[def.grupo]};font-weight:600;">●</span> ${escapar(def.rotulo)}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:14px;text-align:right;">${n(l.n)}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:14px;text-align:right;font-weight:${uf ? 700 : 400};">${n(uf)}</td>
+        <td style="${CELULA}"><span style="color:${COR_GRUPO[def.grupo]};font-weight:600;">●</span> ${elo(escapar(def.rotulo), doTipo)}</td>
+        <td style="${CELULA}text-align:right;">${elo(n(l.n), l.n ? doTipo : null)}</td>
+        <td style="${CELULA}text-align:right;font-weight:${uf ? 700 : 400};">${elo(n(uf), uf ? urlMudancas(e.urlBase, { tipo: l.tipo, uf: UF_DESTAQUE }) : null)}</td>
       </tr>`;
     })
     .join("");
 
+  // No destaque, o nome abre o item (convênio ou proposta) e o município abre a ficha dele no painel.
   const linhasDestaque = destaques
     .map((m) => {
       const def = definicaoMudanca(m.tipo);
       const frase = descreverMudanca(m);
+      const lugar = escapar(m.municipio ?? "—");
       return `<tr><td style="padding:10px 0;border-bottom:1px solid #e2e8f0;">
         <div style="font-size:12px;font-weight:700;color:${COR_GRUPO[def.grupo]};text-transform:uppercase;letter-spacing:0.04em;">${escapar(def.rotulo)}</div>
-        <div style="font-size:14px;font-weight:600;color:#0f172a;margin-top:2px;">${escapar(m.proponente ?? "—")} · ${escapar(m.municipio ?? "—")}</div>
-        <div style="font-size:13px;color:#475569;margin-top:2px;">${m.alvo === "proposta" ? "Proposta" : "Convênio"} nº ${escapar(m.numero ?? m.chave)}${
-          frase ? ` · ${escapar(frase)}` : ""
-        }${m.valor !== null ? ` · <strong>${escapar(moedaCurta(m.valor))}</strong>` : ""}</div>
+        <div style="font-size:14px;font-weight:600;color:#0f172a;margin-top:2px;">${elo(escapar(m.proponente ?? "—"), urlDoItem(e.urlBase, m))} · ${
+          m.cod_ibge ? elo(lugar, `${e.urlBase}${urlFicha({ ibge: m.cod_ibge })}`) : lugar
+        }</div>
+        <div style="font-size:13px;color:#475569;margin-top:2px;">${elo(
+          `${m.alvo === "proposta" ? "Proposta" : "Convênio"} nº ${escapar(m.numero ?? m.chave)}`,
+          urlDoItem(e.urlBase, m),
+        )}${frase ? ` · ${escapar(frase)}` : ""}${m.valor !== null ? ` · <strong>${escapar(moedaCurta(m.valor))}</strong>` : ""}</div>
         ${m.programa ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${escapar(m.programa)}</div>` : ""}
       </td></tr>`;
     })

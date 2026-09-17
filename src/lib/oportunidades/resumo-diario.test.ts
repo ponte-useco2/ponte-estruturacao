@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LIMITE_DESTAQUES, escapar, montarResumoDiario, type EntradaResumo } from "./resumo-diario.ts";
+import { LIMITE_DESTAQUES, escapar, montarResumoDiario, urlDoItem, urlMudancas, type EntradaResumo } from "./resumo-diario.ts";
 import type { MudancaPainel } from "./painel.ts";
 
 function mudanca(muda: Partial<MudancaPainel>): MudancaPainel {
@@ -93,4 +93,35 @@ test("destaques: avanços e alertas antes do registro, pelo valor dentro do grup
 
 test("sem data anterior, a frase não inventa uma", () => {
   assert.ok(montarResumoDiario({ ...BASE, desde: null }).texto.includes("(comparado com o dado anterior)"));
+});
+
+test("cada linha do quadro leva ao painel filtrado naquele tipo; zero não vira link", () => {
+  const r = montarResumoDiario(BASE);
+  assert.match(r.html, /<a href="https:\/\/ponteprojetos\.com\.br\/mapa\/painel\?visao=mudancas&amp;tipo=proposta_enviada"[^>]*>820<\/a>/);
+  assert.match(
+    r.html,
+    /<a href="https:\/\/ponteprojetos\.com\.br\/mapa\/painel\?visao=mudancas&amp;uf=PB&amp;tipo=suspensiva_retirada"[^>]*>1<\/a>/,
+  );
+  // "Contas enviadas" (tce_instaurada) tem 0 no Brasil e na PB: nenhum link levaria a lista vazia.
+  assert.equal(r.html.includes("tipo=tce_instaurada"), false);
+});
+
+test("o destaque abre o item e o município abre a ficha", () => {
+  const r = montarResumoDiario({
+    ...BASE,
+    destaques: [mudanca({}), mudanca({ alvo: "proposta", chave: "2244524", numero: "10192/2026", tipo: "proposta_enviada", cod_ibge: null, municipio: null })],
+  });
+  assert.match(r.html, /href="https:\/\/ponteprojetos\.com\.br\/mapa\/instrumento\/900123"[^>]*>Convênio nº 900123</);
+  assert.match(r.html, /href="https:\/\/ponteprojetos\.com\.br\/mapa\/proposta\/2244524"[^>]*>Proposta nº 10192\/2026</);
+  assert.match(r.html, /href="https:\/\/ponteprojetos\.com\.br\/mapa\/painel\/municipio\/2516201"[^>]*>SOUSA</);
+  assert.equal(r.html.includes("/mapa/painel/municipio/null"), false);
+  // No texto puro, o endereço do item vai embaixo de cada destaque.
+  assert.match(r.texto, /\n {2}https:\/\/ponteprojetos\.com\.br\/mapa\/proposta\/2244524/);
+});
+
+test("urlMudancas e urlDoItem escrevem o que o painel e a busca leem", () => {
+  assert.equal(urlMudancas("https://x", { tipo: "saldo_parado", uf: "PB" }), "https://x/mapa/painel?visao=mudancas&uf=PB&tipo=saldo_parado");
+  assert.equal(urlMudancas("https://x"), "https://x/mapa/painel?visao=mudancas");
+  assert.equal(urlDoItem("https://x", { alvo: "convenio", chave: "900123" }), "https://x/mapa/instrumento/900123");
+  assert.equal(urlDoItem("https://x", { alvo: "proposta", chave: "2244524" }), "https://x/mapa/proposta/2244524");
 });

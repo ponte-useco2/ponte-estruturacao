@@ -2,9 +2,12 @@
  * A exibição do radar. Recebe os dados já lidos e só desenha — é o que permite
  * conferir a tela com dados reais sem o portão de administrador e sem Supabase.
  */
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
 import { UFS } from "@/lib/oportunidades/organizacao";
+import { urlBusca, urlProposta, type ParametrosBusca } from "@/lib/oportunidades/busca";
+import { urlFicha } from "@/lib/oportunidades/painel";
 import {
   CATEGORIAS,
   DESCRICAO_CATEGORIA,
@@ -14,6 +17,9 @@ import {
   ROTULO_JANELA,
   janela24hTocaFimDeSemana,
   moedaCurta,
+  ordemDaTabela,
+  ordenar,
+  proximaOrdem,
   rotuloTipo,
   urlRadar,
   variacao,
@@ -22,6 +28,45 @@ import {
 import type { LeituraRadar, LinhaRecorte } from "@/lib/oportunidades/radar.server";
 
 type LeituraOk = Extract<LeituraRadar, { estado: "ok" }>;
+
+const BUSCA_VAZIA: ParametrosBusca = { aba: "instrumentos", q: "", uf: null, municipio: null, tema: null, grupo: null, pagina: 1 };
+
+/** O programa na busca: as propostas que o citam, na mesma UF do recorte. */
+const urlPorPrograma = (programa: string, uf: string | null) => urlBusca(BUSCA_VAZIA, { aba: "propostas", q: programa, uf });
+
+/** Cabeçalho que ordena: link GET, sem JavaScript, com a ordem na URL para poder ser compartilhada. */
+function Ordenavel({
+  p,
+  tabela,
+  coluna,
+  children,
+  num = false,
+  texto = false,
+}: {
+  p: ParametrosRadar;
+  tabela: string;
+  coluna: string;
+  children: ReactNode;
+  num?: boolean;
+  texto?: boolean;
+}) {
+  const atual = ordemDaTabela(p, tabela);
+  const ativa = atual.coluna === coluna;
+  return (
+    <th
+      scope="col"
+      className={num ? "mp-num" : undefined}
+      aria-sort={ativa ? (atual.sentido === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <Link href={urlRadar(p, { ordem: proximaOrdem(atual, tabela, coluna, texto) })} className="mp-ordenar">
+        {children}
+        <span aria-hidden="true" className={`mp-ordenar-seta${ativa ? " mp-ordenar-ativa" : ""}`}>
+          {ativa ? (atual.sentido === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </Link>
+    </th>
+  );
+}
 
 export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: LeituraOk }) {
   const { execucao, placar } = leitura;
@@ -85,18 +130,23 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
           Valor é o repasse pedido, somado uma vez por proposta. A comparação é com os {ROTULO_JANELA[p.dias]} anteriores.
         </p>
         <TabelaRecorte
+          p={p}
+          tabela="canal"
           titulo="Por canal"
           linhas={leitura.porCanal}
           rotulo={(l) => ROTULO_CANAL_RADAR[l.chave ?? ""] ?? l.chave ?? "—"}
           nota="Emenda vem da tabela de emendas. Voluntária e beneficiário específico são inferidos pela janela do programa aberta no primeiro envio."
           mostrarInferidos
         />
-        <TabelaRecorte titulo="Por tipo de proponente" linhas={leitura.porTipo} rotulo={(l) => rotuloTipo(l.chave ?? "")} />
+        <TabelaRecorte p={p} tabela="tipo" titulo="Por tipo de proponente" linhas={leitura.porTipo} rotulo={(l) => rotuloTipo(l.chave ?? "")} />
         <TabelaRecorte
+          p={p}
+          tabela="programa"
           titulo="Por programa"
           linhas={leitura.porPrograma}
           rotulo={(l) => l.rotulo ?? l.chave ?? "—"}
-          nota="Os 25 com mais propostas no período."
+          link={(l) => (l.rotulo ? urlPorPrograma(l.rotulo, p.uf) : null)}
+          nota="Os 25 com mais propostas no período. O nome do programa abre a busca de propostas."
         />
       </section>
 
@@ -116,20 +166,22 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
             <table className="mp-tabela">
               <thead>
                 <tr>
-                  <th scope="col">Programa</th>
-                  <th scope="col">Canal</th>
-                  <th scope="col" className="mp-num">Propostas desde a abertura</th>
-                  <th scope="col" className="mp-num">Últimos 30 dias</th>
-                  <th scope="col" className="mp-num">Valor pedido</th>
-                  <th scope="col" className="mp-num">Faltam</th>
-                  {!p.uf && <th scope="col" className="mp-num">UFs</th>}
+                  <Ordenavel p={p} tabela="disputa" coluna="programa" texto>Programa</Ordenavel>
+                  <Ordenavel p={p} tabela="disputa" coluna="canal" texto>Canal</Ordenavel>
+                  <Ordenavel p={p} tabela="disputa" coluna="desde_abertura" num>Propostas desde a abertura</Ordenavel>
+                  <Ordenavel p={p} tabela="disputa" coluna="trinta_dias" num>Últimos 30 dias</Ordenavel>
+                  <Ordenavel p={p} tabela="disputa" coluna="valor" num>Valor pedido</Ordenavel>
+                  <Ordenavel p={p} tabela="disputa" coluna="faltam" num>Faltam</Ordenavel>
+                  {!p.uf && <Ordenavel p={p} tabela="disputa" coluna="ufs" num>UFs</Ordenavel>}
                 </tr>
               </thead>
               <tbody>
-                {leitura.disputa.map((d) => (
+                {ordenar(leitura.disputa, CHAVES_DISPUTA[ordemDaTabela(p, "disputa").coluna] ?? CHAVES_DISPUTA.desde_abertura, ordemDaTabela(p, "disputa").sentido).map((d) => (
                   <tr key={`${d.cod_programa}-${d.canal}`}>
                     <th scope="row">
-                      <span className="mp-tabela-principal">{d.programa}</span>
+                      <Link href={urlPorPrograma(d.programa, p.uf)} className="mp-tabela-principal">
+                        {d.programa}
+                      </Link>
                       <span className="mp-tabela-secundario">{d.orgao}</span>
                     </th>
                     <td>{ROTULO_CANAL_RADAR[d.canal] ?? d.canal}</td>
@@ -158,26 +210,33 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
             <table className="mp-tabela">
               <thead>
                 <tr>
-                  <th scope="col">Quando</th>
-                  <th scope="col">Proponente</th>
-                  <th scope="col">O quê</th>
-                  <th scope="col">Programa</th>
-                  <th scope="col">Canal</th>
-                  <th scope="col" className="mp-num">Repasse</th>
+                  <Ordenavel p={p} tabela="pb" coluna="quando">Quando</Ordenavel>
+                  <Ordenavel p={p} tabela="pb" coluna="proponente" texto>Proponente</Ordenavel>
+                  <Ordenavel p={p} tabela="pb" coluna="categoria" texto>O quê</Ordenavel>
+                  <Ordenavel p={p} tabela="pb" coluna="programa" texto>Programa</Ordenavel>
+                  <Ordenavel p={p} tabela="pb" coluna="canal" texto>Canal</Ordenavel>
+                  <Ordenavel p={p} tabela="pb" coluna="valor" num>Repasse</Ordenavel>
                 </tr>
               </thead>
               <tbody>
-                {leitura.enviaramPB.map((e, i) => (
-                  <tr key={`${e.ocorrido_em}-${i}`}>
+                {ordenar(leitura.enviaramPB, CHAVES_PB[ordemDaTabela(p, "pb").coluna] ?? CHAVES_PB.quando, ordemDaTabela(p, "pb").sentido).map((e, i) => (
+                  <tr key={`${e.ocorrido_em}-${e.id_proposta ?? i}`}>
                     <td className="mp-nowrap">{formatarPublicacao(e.ocorrido_em)}</td>
                     <th scope="row">
                       <span className="mp-tabela-principal">{e.proponente ?? "—"}</span>
                       <span className="mp-tabela-secundario">
-                        {e.municipio} · {rotuloTipo(e.tipo_agente ?? "")}
+                        {e.cod_ibge ? <Link href={urlFicha({ ibge: e.cod_ibge })}>{e.municipio}</Link> : e.municipio} ·{" "}
+                        {rotuloTipo(e.tipo_agente ?? "")}
                       </span>
                     </th>
-                    <td>{ROTULO_CATEGORIA[e.categoria]}</td>
-                    <td>{e.programa ?? "—"}</td>
+                    <td>
+                      {e.id_proposta ? (
+                        <Link href={urlProposta(e.id_proposta)}>{ROTULO_CATEGORIA[e.categoria]}</Link>
+                      ) : (
+                        ROTULO_CATEGORIA[e.categoria]
+                      )}
+                    </td>
+                    <td>{e.programa ? <Link href={urlPorPrograma(e.programa, "PB")}>{e.programa}</Link> : "—"}</td>
                     <td>{ROTULO_CANAL_RADAR[e.canal ?? ""] ?? "—"}</td>
                     <td className="mp-num">{moedaCurta(e.valor_repasse)}</td>
                   </tr>
@@ -189,7 +248,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
       </section>
 
       {/* ------------------------------------------------------------ municípios parados */}
-      <MunicipiosParados leitura={leitura} />
+      <MunicipiosParados p={p} leitura={leitura} />
     </div>
   );
 }
@@ -249,18 +308,28 @@ function Filtros({ p }: { p: ParametrosRadar }) {
 }
 
 function TabelaRecorte({
+  p,
+  tabela,
   titulo,
   linhas,
   rotulo,
+  link,
   nota,
   mostrarInferidos = false,
 }: {
+  p: ParametrosRadar;
+  tabela: string;
   titulo: string;
   linhas: LinhaRecorte[];
   rotulo: (l: LinhaRecorte) => string;
+  link?: (l: LinhaRecorte) => string | null;
   nota?: string;
   mostrarInferidos?: boolean;
 }) {
+  const o = ordemDaTabela(p, tabela);
+  const chave = { rotulo: (l: LinhaRecorte) => rotulo(l), atual: (l: LinhaRecorte) => l.atual, anterior: (l: LinhaRecorte) => l.anterior,
+    variacao: (l: LinhaRecorte) => l.atual - l.anterior, valor: (l: LinhaRecorte) => l.valor_atual, inferidos: (l: LinhaRecorte) => l.inferidos };
+  const ordenadas = ordenar(linhas, chave[o.coluna as keyof typeof chave] ?? chave.atual, o.sentido);
   return (
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">{titulo}</h3>
@@ -272,20 +341,23 @@ function TabelaRecorte({
           <table className="mp-tabela">
             <thead>
               <tr>
-                <th scope="col">{titulo.replace(/^Por /, "").replace(/^\w/, (x) => x.toUpperCase())}</th>
-                <th scope="col" className="mp-num">Propostas</th>
-                <th scope="col" className="mp-num">Período anterior</th>
-                <th scope="col" className="mp-num">Variação</th>
-                <th scope="col" className="mp-num">Valor pedido</th>
-                {mostrarInferidos && <th scope="col" className="mp-num">Inferidas</th>}
+                <Ordenavel p={p} tabela={tabela} coluna="rotulo" texto>
+                  {titulo.replace(/^Por /, "").replace(/^\w/, (x) => x.toUpperCase())}
+                </Ordenavel>
+                <Ordenavel p={p} tabela={tabela} coluna="atual" num>Propostas</Ordenavel>
+                <Ordenavel p={p} tabela={tabela} coluna="anterior" num>Período anterior</Ordenavel>
+                <Ordenavel p={p} tabela={tabela} coluna="variacao" num>Variação</Ordenavel>
+                <Ordenavel p={p} tabela={tabela} coluna="valor" num>Valor pedido</Ordenavel>
+                {mostrarInferidos && <Ordenavel p={p} tabela={tabela} coluna="inferidos" num>Inferidas</Ordenavel>}
               </tr>
             </thead>
             <tbody>
-              {linhas.map((l) => {
+              {ordenadas.map((l) => {
                 const v = variacao(l.atual, l.anterior);
+                const destino = link?.(l) ?? null;
                 return (
                   <tr key={l.chave ?? "sem"}>
-                    <th scope="row">{rotulo(l)}</th>
+                    <th scope="row">{destino ? <Link href={destino}>{rotulo(l)}</Link> : rotulo(l)}</th>
                     <td className="mp-num">{l.atual}</td>
                     <td className="mp-num">{l.anterior}</td>
                     <td className={`mp-num mp-radar-${v.sentido}`}>{v.texto}</td>
@@ -302,7 +374,33 @@ function TabelaRecorte({
   );
 }
 
-function MunicipiosParados({ leitura }: { leitura: LeituraOk }) {
+const CHAVES_DISPUTA: Record<string, (d: LeituraOk["disputa"][number]) => string | number | null> = {
+  programa: (d) => d.programa,
+  canal: (d) => ROTULO_CANAL_RADAR[d.canal] ?? d.canal,
+  desde_abertura: (d) => d.novas_desde_abertura,
+  trinta_dias: (d) => d.novas_30d,
+  valor: (d) => d.valor_pedido,
+  faltam: (d) => d.dias_restantes,
+  ufs: (d) => d.ufs,
+};
+
+const CHAVES_PB: Record<string, (e: LeituraOk["enviaramPB"][number]) => string | number | null> = {
+  quando: (e) => e.ocorrido_em,
+  proponente: (e) => e.proponente,
+  categoria: (e) => ROTULO_CATEGORIA[e.categoria],
+  programa: (e) => e.programa,
+  canal: (e) => ROTULO_CANAL_RADAR[e.canal ?? ""] ?? null,
+  valor: (e) => e.valor_repasse,
+};
+
+const CHAVES_PARADOS: Record<string, (m: LeituraOk["municipiosPB"][number]) => string | number | null> = {
+  municipio: (m) => m.municipio,
+  em_revisao: (m) => m.em_revisao_30d,
+  revisadas: (m) => m.revisadas_30d,
+  ultimo_envio: (m) => m.ultimo_envio,
+};
+
+function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: LeituraOk }) {
   const janelas = leitura.execucao.contagens.janelas_abertas_municipio_pb ?? 0;
   // "Parado" é sem proposta NOVA em 30 dias. Quem só tem proposta em revisão
   // continua na lista, mas com o número à vista: está trabalhando, só não abriu
@@ -325,16 +423,18 @@ function MunicipiosParados({ leitura }: { leitura: LeituraOk }) {
           <table className="mp-tabela">
             <thead>
               <tr>
-                <th scope="col">Município</th>
-                <th scope="col" className="mp-num">Em revisão (30 d)</th>
-                <th scope="col" className="mp-num">Revisadas (30 d)</th>
-                <th scope="col">Último envio novo</th>
+                <Ordenavel p={p} tabela="parados" coluna="municipio" texto>Município</Ordenavel>
+                <Ordenavel p={p} tabela="parados" coluna="em_revisao" num>Em revisão (30 d)</Ordenavel>
+                <Ordenavel p={p} tabela="parados" coluna="revisadas" num>Revisadas (30 d)</Ordenavel>
+                <Ordenavel p={p} tabela="parados" coluna="ultimo_envio">Último envio novo</Ordenavel>
               </tr>
             </thead>
             <tbody>
-              {parados.map((m) => (
+              {ordenar(parados, CHAVES_PARADOS[ordemDaTabela(p, "parados").coluna] ?? CHAVES_PARADOS.municipio, ordemDaTabela(p, "parados").sentido).map((m) => (
                 <tr key={m.cod_ibge}>
-                  <th scope="row">{m.municipio}</th>
+                  <th scope="row">
+                    <Link href={urlFicha({ ibge: m.cod_ibge })}>{m.municipio}</Link>
+                  </th>
                   <td className="mp-num">{m.em_revisao_30d}</td>
                   <td className="mp-num">{m.revisadas_30d}</td>
                   <td>{m.ultimo_envio ? formatarPublicacao(m.ultimo_envio) : "nenhum envio registrado"}</td>

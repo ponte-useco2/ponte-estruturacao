@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { janela24hTocaFimDeSemana, moedaCurta, parametrosRadar, rotuloTipo, urlRadar, variacao } from "./radar.ts";
+import { ORDEM_PADRAO, janela24hTocaFimDeSemana, moedaCurta, ordemDaTabela, ordenar, parametrosRadar, proximaOrdem, rotuloTipo, urlRadar, variacao } from "./radar.ts";
 
 test("variação com base: delta e percentual", () => {
   const v = variacao(1178, 2466);
@@ -25,21 +25,26 @@ test("parâmetros válidos passam; inválidos caem no padrão", () => {
     uf: "PB",
     dias: 7,
     categoria: "revisada",
+    ordem: null,
   });
-  assert.deepEqual(parametrosRadar({ uf: "XX", dias: "5", categoria: "drop" }), {
+  assert.deepEqual(parametrosRadar({ uf: "XX", dias: "5", categoria: "drop", ordem: "programa.inventada.asc" }), {
     uf: null,
     dias: 30,
     categoria: "nova",
+    ordem: null,
   });
-  assert.deepEqual(parametrosRadar({}), { uf: null, dias: 30, categoria: "nova" });
+  assert.deepEqual(parametrosRadar({}), { uf: null, dias: 30, categoria: "nova", ordem: null });
+  assert.deepEqual(parametrosRadar({ ordem: "programa.valor.asc" }).ordem, { tabela: "programa", coluna: "valor", sentido: "asc" });
+  assert.deepEqual(parametrosRadar({ ordem: "pb.valor.seja-o-que-for" }).ordem, { tabela: "pb", coluna: "valor", sentido: "desc" });
 });
 
 test("a URL omite o que é padrão", () => {
-  const base = { uf: null, dias: 30 as const, categoria: "nova" as const };
+  const base = { uf: null, dias: 30 as const, categoria: "nova" as const, ordem: null };
   assert.equal(urlRadar(base, {}), "/mapa/radar");
   assert.equal(urlRadar(base, { uf: "PB" }), "/mapa/radar?uf=PB");
   assert.equal(urlRadar({ ...base, uf: "PB" }, { dias: 7 }), "/mapa/radar?uf=PB&dias=7");
   assert.equal(urlRadar({ ...base, uf: "PB" }, { uf: null }), "/mapa/radar");
+  assert.equal(urlRadar(base, { ordem: { tabela: "disputa", coluna: "valor", sentido: "asc" } }), "/mapa/radar?ordem=disputa.valor.asc");
 });
 
 test("janela de 24h que toca o fim de semana, no horário de Brasília", () => {
@@ -64,4 +69,22 @@ test("moeda curta", () => {
 test("tipo de proponente desconhecido vira Outro", () => {
   assert.equal(rotuloTipo("municipio"), "Município");
   assert.equal(rotuloTipo("qualquer"), "Outro");
+});
+
+test("cabeçalho: coluna nova começa do maior, texto começa de A e a mesma coluna inverte", () => {
+  const padrao = ORDEM_PADRAO.programa;
+  assert.deepEqual(proximaOrdem(padrao, "programa", "valor"), { tabela: "programa", coluna: "valor", sentido: "desc" });
+  assert.deepEqual(proximaOrdem(padrao, "programa", "rotulo", true), { tabela: "programa", coluna: "rotulo", sentido: "asc" });
+  assert.deepEqual(proximaOrdem(padrao, "programa", "atual"), { tabela: "programa", coluna: "atual", sentido: "asc" }, "mesma coluna inverte");
+  const p = { uf: null, dias: 30 as const, categoria: "nova" as const, ordem: { tabela: "pb", coluna: "valor", sentido: "asc" as const } };
+  assert.equal(ordemDaTabela(p, "pb").coluna, "valor", "a tabela ordenada usa a ordem da URL");
+  assert.deepEqual(ordemDaTabela(p, "programa"), ORDEM_PADRAO.programa, "as outras ficam no padrão");
+});
+
+test("ordenar: número, texto com acento e sem valor no fim dos dois sentidos", () => {
+  const linhas = [{ n: "Água", v: 2 }, { n: "Barra", v: null }, { n: "Cabedelo", v: 10 }, { n: "Areia", v: 2 }];
+  assert.deepEqual(ordenar(linhas, (l) => l.v, "desc").map((l) => l.n), ["Cabedelo", "Água", "Areia", "Barra"]);
+  assert.deepEqual(ordenar(linhas, (l) => l.v, "asc").map((l) => l.n), ["Água", "Areia", "Cabedelo", "Barra"]);
+  assert.deepEqual(ordenar(linhas, (l) => l.n, "asc").map((l) => l.n), ["Água", "Areia", "Barra", "Cabedelo"]);
+  assert.deepEqual(ordenar(linhas, (l) => l.n, "desc").map((l) => l.n), ["Cabedelo", "Barra", "Areia", "Água"]);
 });
