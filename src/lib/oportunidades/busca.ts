@@ -226,6 +226,8 @@ export interface Instrumento extends Omit<InstrumentoBusca, "total"> {
   dt_limite_contas: string | null;
   dt_suspensiva: string | null;
   dt_retirada_suspensiva: string | null;
+  /** O que o termo exige para retirar a suspensiva (oport_18b). Ausente antes da migração. */
+  motivo_suspensao?: string | null;
   n_aditivos: number;
   n_prorrogas: number;
   dt_primeiro_desembolso: string | null;

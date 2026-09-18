@@ -682,3 +682,74 @@
 .pa-root .mp-tabela tbody a { color: var(--pa-brand); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 .pa-root .mp-tabela tbody a:hover, .pa-root .mp-tabela tbody a:focus-visible { text-decoration-thickness: 2px; }
 .pa-root .mp-radar-filtro-rotulo { align-self: center; margin-right: 0.2rem; }
+
+/* Onda 11 — laudo da cláusula suspensiva e lista das suspensivas.
+   Nível do risco: crítico em vermelho, alto em âmbar, moderado em azul — as mesmas cores do painel fiscal.
+   Os dois lados (concedente e município) têm cores próprias e neutras: não são "bom" nem "ruim". */
+.pa-root .mp-laudo-acoes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.4rem 0 0; }
+.pa-root .mp-laudo-frase { border-left: 4px solid var(--pa-border); }
+.pa-root .mp-laudo-frase p { margin: 0; }
+.pa-root .mp-laudo-frase p + p { margin-top: 0.5rem; }
+.pa-root .mp-laudo-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.pa-root .mp-laudo-risco { border-left: 4px solid var(--pa-border); }
+.pa-root .mp-laudo-risco p { margin: 0; }
+.pa-root .mp-laudo-risco p + p { margin-top: 0.3rem; }
+.pa-root .mp-laudo-frase.mp-laudo-critico, .pa-root .mp-laudo-risco.mp-laudo-critico { border-left-color: var(--pa-danger); }
+.pa-root .mp-laudo-frase.mp-laudo-alto, .pa-root .mp-laudo-risco.mp-laudo-alto { border-left-color: #b08a3e; }
+.pa-root .mp-laudo-frase.mp-laudo-moderado, .pa-root .mp-laudo-risco.mp-laudo-moderado { border-left-color: #2d5580; }
+.pa-root .mp-laudo-nivel { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.pa-root .mp-laudo-nivel.mp-laudo-critico { background: var(--pa-danger); color: #fff; border-color: var(--pa-danger); }
+.pa-root .mp-laudo-nivel.mp-laudo-alto { background: #b08a3e; color: #fff; border-color: #b08a3e; }
+.pa-root .mp-laudo-nivel.mp-laudo-moderado { background: #2d5580; color: #fff; border-color: #2d5580; }
+.pa-root .mp-laudo-inacao { margin: 0; padding-left: 1.4rem; }
+.pa-root .mp-laudo-inacao li + li { margin-top: 0.35rem; }
+.pa-root .mp-laudo-causas { margin: 0; padding-left: 1.2rem; }
+.pa-root .mp-laudo-causas li + li { margin-top: 0.35rem; }
+
+/* Tempo com cada lado: uma barra só, dividida na proporção dos dias. */
+.pa-root .mp-laudo-tempo { margin: 0 0 0.8rem; }
+.pa-root .mp-laudo-barra { display: flex; height: 0.9rem; border-radius: 999px; overflow: hidden; background: var(--pa-surface-2); }
+.pa-root .mp-laudo-barra-concedente { background: #2d5580; }
+.pa-root .mp-laudo-barra-proponente { background: #8a6a2a; }
+.pa-root .mp-laudo-tempo figcaption { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin-top: 0.35rem; }
+.pa-root .mp-laudo-legenda::before { content: ""; display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; margin-right: 0.35rem; vertical-align: -0.05rem; }
+.pa-root .mp-laudo-legenda-concedente::before { background: #2d5580; }
+.pa-root .mp-laudo-legenda-proponente::before { background: #8a6a2a; }
+
+/* Linha do tempo: cada evento com a cor de quem agiu; a espera que vem depois, na cor de quem ficou com a vez. */
+.pa-root .mp-laudo-linha { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.pa-root .mp-laudo-evento { border-left: 4px solid var(--pa-border); padding: 0.5rem 0 0.5rem 0.8rem; }
+.pa-root .mp-laudo-evento p { margin: 0; }
+.pa-root .mp-laudo-evento > * + * { margin-top: 0.3rem; }
+.pa-root .mp-laudo-evento-concedente { border-left-color: #2d5580; }
+.pa-root .mp-laudo-evento-proponente { border-left-color: #8a6a2a; }
+.pa-root .mp-laudo-evento-cabeca .pa-mono { margin-right: 0.3rem; }
+.pa-root .mp-laudo-texto { margin: 0.4rem 0 0; padding: 0.6rem 0.8rem; background: var(--pa-surface-2); border-radius: var(--pa-r); overflow-wrap: anywhere; }
+.pa-root .mp-laudo-texto p { margin: 0; font-style: italic; }
+.pa-root .mp-laudo-texto footer { margin-top: 0.3rem; }
+.pa-root .mp-laudo-espera { font-style: italic; }
+.pa-root .mp-laudo-espera::before { content: "↓ "; font-style: normal; }
+.pa-root .mp-laudo-espera-concedente { color: #2d5580; }
+.pa-root .mp-laudo-espera-proponente { color: #8a6a2a; }
+
+/* Documentos e lista. */
+.pa-root .mp-laudo-vencido td:last-child { color: var(--pa-danger); font-weight: 600; }
+.pa-root .mp-laudo-marca { font-weight: 600; }
+.pa-root .mp-laudo-marca.mp-laudo-critico { color: var(--pa-danger); }
+.pa-root .mp-laudo-marca.mp-laudo-alto { color: #8a6a2a; }
+.pa-root .mp-suspensivas-tabela th[scope="row"] { min-width: 14rem; }
+.pa-root .mp-suspensivas-tabela td { white-space: nowrap; }
+.pa-root .mp-suspensivas-tabela td:nth-child(2) { white-space: normal; min-width: 9rem; }
+
+@media print {
+  .pa-root .mp-laudo .mp-fiscal-detalhe:not([open]) > :not(summary) { display: block; }
+  .pa-root .mp-laudo .mp-tabela-rolagem { overflow: visible; border: 0; }
+  .pa-root .mp-laudo .mp-tabela { font-size: 8.5pt; }
+  .pa-root .mp-laudo .pa-cartao, .pa-root .mp-laudo .mp-laudo-evento, .pa-root .mp-laudo tr { break-inside: avoid; }
+  .pa-root .mp-laudo a { color: inherit; text-decoration: none; }
+  .pa-root .mp-laudo-barra { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+.pa-root .mp-laudo-condicoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.pa-root .mp-laudo-condicao { display: flex; flex-direction: column; gap: 0.2rem; border-left: 4px solid var(--pa-brand); }
+.pa-root .mp-laudo-condicao.mp-laudo-sem-mencao { border-left-color: #b08a3e; }
+.pa-root .mp-laudo-original { overflow-wrap: anywhere; font-style: italic; }

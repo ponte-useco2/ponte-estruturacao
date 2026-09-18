@@ -5,7 +5,7 @@ import { numeroValido } from "@/lib/oportunidades/busca";
 import { lerInstrumento } from "@/lib/oportunidades/busca.server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
-import { visitanteAtual } from "@/lib/supabase-auth";
+import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { InstrumentoConteudo } from "./InstrumentoConteudo";
 
@@ -41,10 +41,14 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
     );
   }
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker={`Convênio nº ${numero}`} titulo="O convênio está indisponível agora" />;
+  const i = leitura.instrumento;
   return (
     <InstrumentoConteudo
       leitura={leitura}
-      seguindo={seguidas ? seguidas.has(chaveSeguida("instrumento", leitura.instrumento.nr_convenio)) : null}
+      seguindo={seguidas ? seguidas.has(chaveSeguida("instrumento", i.nr_convenio)) : null}
+      // O laudo nomeia servidores e interpreta o andamento: só administradores veem o atalho (e a
+      // página do laudo confere de novo no servidor).
+      laudo={ehAdministrador(visitante.email) && i.situacao === "Em execução" && !!i.dt_suspensiva && !i.dt_retirada_suspensiva}
     />
   );
 }

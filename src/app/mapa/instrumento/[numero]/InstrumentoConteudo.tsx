@@ -27,8 +27,19 @@ type LeituraOk = Extract<LeituraInstrumento, { estado: "ok" }>;
 const n = (x: number) => x.toLocaleString("pt-BR");
 const data = (iso: string | null) => (iso ? formatarData(iso) : "—");
 
-/** `seguindo`: null quando não dá para saber (sem a oport_15): a estrela não aparece. */
-export function InstrumentoConteudo({ leitura, seguindo = null }: { leitura: LeituraOk; seguindo?: boolean | null }) {
+/**
+ * `seguindo`: null quando não dá para saber (sem a oport_15): a estrela não aparece.
+ * `laudo`: mostra o atalho para o laudo da cláusula suspensiva (a página decide quem vê).
+ */
+export function InstrumentoConteudo({
+  leitura,
+  seguindo = null,
+  laudo = false,
+}: {
+  leitura: LeituraOk;
+  seguindo?: boolean | null;
+  laudo?: boolean;
+}) {
   const i = leitura.instrumento;
   const r = resumoEventos(leitura.eventos);
   const anos = porAno(leitura.eventos);
@@ -109,10 +120,18 @@ export function InstrumentoConteudo({ leitura, seguindo = null }: { leitura: Lei
               valor={i.dt_retirada_suspensiva ? `retirada em ${data(i.dt_retirada_suspensiva)}` : `prazo até ${data(i.dt_suspensiva)}`}
             />
           )}
+          {i.motivo_suspensao && <Prazo rotulo="O termo exige, para retirar a suspensiva" valor={i.motivo_suspensao} />}
           <Prazo rotulo="Termos aditivos e prorrogações de ofício" valor={`${n(i.n_aditivos)} e ${n(i.n_prorrogas)}`} />
           <Prazo rotulo="Desembolsos" valor={i.dt_primeiro_desembolso ? `${data(i.dt_primeiro_desembolso)} a ${data(i.dt_ultimo_desembolso)}` : "nenhum"} />
           <Prazo rotulo="Último pagamento" valor={data(i.dt_ultimo_pagamento)} />
         </dl>
+        {laudo && (
+          <p className="pa-nota">
+            <Link href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`}>
+              Ver o laudo da cláusula suspensiva: o que falta, desde quando e de quem é a vez
+            </Link>
+          </p>
+        )}
         {i.id_proposta && (
           <p className="pa-nota">
             <Link href={urlProposta(i.id_proposta)}>Ver a proposta que originou o convênio</Link>

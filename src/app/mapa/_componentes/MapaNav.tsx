@@ -42,6 +42,7 @@ const ABAS: readonly Aba[] = [
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
   { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
   { href: "/mapa/fiscal", nome: "Fiscal", exata: false, admin: true, municipio: false },
+  { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false },
 ];
 
 export function MapaNav({
