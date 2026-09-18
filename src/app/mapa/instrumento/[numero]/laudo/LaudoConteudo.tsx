@@ -53,6 +53,11 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
           <Link href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
             Todas as suspensivas
           </Link>
+          {contexto.orgao_sup && (
+            <Link href={`/mapa/suspensivas/checklist?orgao=${encodeURIComponent(contexto.orgao_sup)}`} className="pa-btn pa-btn-pequeno">
+              Checklist deste órgão
+            </Link>
+          )}
         </p>
         <p className="mp-fiscal-aviso">{AVISO}</p>
       </div>
@@ -111,8 +116,8 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
                 {laudo.condicoes.map((c) => (
                   <li key={c.texto} className={`pa-cartao mp-laudo-condicao${c.mencionada ? "" : " mp-laudo-sem-mencao"}`}>
                     <strong>{c.texto}</strong>
-                    {c.livre && <span className="pa-nota">texto livre do termo</span>}
-                    <span className="pa-nota">
+                    {c.livre && <span className="mp-laudo-miudo">texto livre do termo</span>}
+                    <span className="mp-laudo-miudo">
                       {c.mencionada ? "aparece nos textos do concedente" : "nenhum texto do concedente na aba de requisitos menciona"}
                     </span>
                   </li>
@@ -191,7 +196,7 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
               <span className="mp-laudo-barra-concedente" style={{ width: `${pctConcedente}%` }} />
               <span className="mp-laudo-barra-proponente" style={{ width: `${100 - pctConcedente}%` }} />
             </div>
-            <figcaption className="pa-nota">
+            <figcaption className="mp-laudo-miudo">
               <span className="mp-laudo-legenda mp-laudo-legenda-concedente">concedente {dias(t.concedente)}</span>
               <span className="mp-laudo-legenda mp-laudo-legenda-proponente">município {dias(t.proponente)}</span>
             </figcaption>
@@ -323,7 +328,7 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
         <h2 id="laudo-fonte" className="mp-radar-h2">
           Fonte e método
         </h2>
-        <ul className="mp-laudo-causas pa-nota">
+        <ul className="mp-laudo-causas mp-laudo-miudo">
           <li>
             Histórico, documentos e textos: tela “Requisitos para Celebração” do Acesso Livre do Transferegov, colhida em{" "}
             {dossie.coletado_em ? formatarPublicacao(dossie.coletado_em) : "data desconhecida"}. O tempo parado conta até essa coleta — o que aconteceu
@@ -359,7 +364,7 @@ function EventoLaudo({ l, ultimo }: { l: LinhaDoTempo; ultimo: boolean }) {
       <p className="mp-laudo-evento-cabeca">
         <span className="pa-mono">{data(l.dia)}</span> <strong>{l.evento}</strong>
       </p>
-      <p className="pa-nota">
+      <p className="mp-laudo-miudo">
         {lado}
         {l.responsavel ? ` · ${l.responsavel}` : ""}
         {l.atribuicao ? ` · ${l.atribuicao}` : ""}
@@ -369,11 +374,11 @@ function EventoLaudo({ l, ultimo }: { l: LinhaDoTempo; ultimo: boolean }) {
       {l.texto && (
         <blockquote className="mp-laudo-texto">
           <p>{l.texto}</p>
-          <footer className="pa-nota">{l.tipoTexto === "solicitacao" ? "Solicitação de complementação" : "Observação"}, como registrada</footer>
+          <footer className="mp-laudo-miudo">{l.tipoTexto === "solicitacao" ? "Solicitação de complementação" : "Observação"}, como registrada</footer>
         </blockquote>
       )}
       {l.vezDepois && (
-        <p className={`pa-nota mp-laudo-espera mp-laudo-espera-${l.vezDepois}`}>
+        <p className={`mp-laudo-miudo mp-laudo-espera mp-laudo-espera-${l.vezDepois}`}>
           {ultimo
             ? `Desde então, a vez é do ${NOME_LADO[l.vezDepois]}: ${dias(l.diasAteProximo)} até a coleta.`
             : `Vez do ${NOME_LADO[l.vezDepois]} por ${dias(l.diasAteProximo)}.`}
@@ -399,13 +404,13 @@ function GrupoLaudo({ b }: { b: BlocoLinha }) {
           {n(b.itens.length)} × {primeiro.evento}
         </strong>
       </p>
-      <p className="pa-nota">
+      <p className="mp-laudo-miudo">
         {lado}
         {primeiro.responsavel ? ` · ${primeiro.responsavel}` : ""} · {n(b.itens.length)} registros em {dias(periodo)}
         {primeiro.temDetalhe ? " · texto não colhido" : ""}
       </p>
       {ultimoItem.vezDepois && (
-        <p className={`pa-nota mp-laudo-espera mp-laudo-espera-${ultimoItem.vezDepois}`}>
+        <p className={`mp-laudo-miudo mp-laudo-espera mp-laudo-espera-${ultimoItem.vezDepois}`}>
           {b.ultimo
             ? `Desde então, a vez é do ${NOME_LADO[ultimoItem.vezDepois]}: ${dias(ultimoItem.diasAteProximo)} até a coleta.`
             : `Depois do último, vez do ${NOME_LADO[ultimoItem.vezDepois]} por ${dias(ultimoItem.diasAteProximo)}.`}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { compararUrgencia, diaBrasilia, diasEntre, nivelPrazo, type Nivel } from "@/lib/oportunidades/laudo";
 import type { LeituraSuspensivas, LinhaSuspensiva } from "@/lib/oportunidades/laudo.server";
+import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 
 type LeituraOk = Extract<LeituraSuspensivas, { estado: "ok" }>;
@@ -60,6 +61,14 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         <h1 className="pa-titulo">Convênios esperando a retirada da suspensiva</h1>
         <p className="pa-sub">
           Do prazo mais apertado ao mais folgado; no mesmo prazo, quem está parado há mais tempo vem antes. Cada linha abre o laudo do convênio.
+        </p>
+        <p className="mp-nao-imprimir mp-laudo-acoes">
+          <Link href="/mapa/suspensivas/padroes" className="pa-btn pa-btn-pequeno">
+            Padrões: destino, tempo e quem analisa
+          </Link>
+          <Link href={f.orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(f.orgao)}` : "/mapa/suspensivas/checklist"} className="pa-btn pa-btn-pequeno">
+            Checklist preventivo
+          </Link>
         </p>
       </div>
 
@@ -205,29 +214,4 @@ function contarOrgaos(linhas: LinhaSuspensiva[]): [string, number][] {
   const m = new Map<string, number>();
   for (const l of linhas) if (l.contexto?.orgao_sup) m.set(l.contexto.orgao_sup, (m.get(l.contexto.orgao_sup) ?? 0) + 1);
   return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-}
-
-/** Palavras que o SICONV grava ora com, ora sem acento nos nomes de órgão. */
-const ACENTOS_ORGAO: Record<string, string> = {
-  ministerio: "ministério",
-  saude: "saúde",
-  justica: "justiça",
-  seguranca: "segurança",
-  publica: "pública",
-  integracao: "integração",
-  educacao: "educação",
-  ciencia: "ciência",
-  inovacao: "inovação",
-  agropecuaria: "agropecuária",
-};
-
-/** "MINISTERIO DA SAUDE" → "Ministério da Saúde": o dado vem em caixa alta e às vezes sem acento. */
-function tituloOrgao(o: string): string {
-  const minusculas = new Set(["da", "das", "de", "do", "dos", "e"]);
-  return o
-    .toLowerCase()
-    .replace(/[a-zà-ú]+/g, (p) => ACENTOS_ORGAO[p] ?? p)
-    .split(/\s+/)
-    .map((p, k) => (k > 0 && minusculas.has(p) ? p : p.charAt(0).toUpperCase() + p.slice(1)))
-    .join(" ");
 }
