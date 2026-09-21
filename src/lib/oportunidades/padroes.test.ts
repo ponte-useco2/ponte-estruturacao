@@ -10,6 +10,7 @@ import {
   porCondicao,
   porRequisito,
   quantil,
+  tempoNoOrgao,
   tituloOrgao,
   venceNaNatureza,
   type AtualSuspensiva,
@@ -88,6 +89,56 @@ test("lerHistorico conta a coorte, mede o tempo só de quem saiu e a fatia perdi
   assert.equal(turismo?.mediana, 150);
   assert.equal(turismo?.pctPerdido, 1 / 3);
   assert.equal(r.orgaos[0].orgao, "MINISTERIO DO TURISMO", "o órgão com mais casos vem primeiro");
+});
+
+// ------------------------------------------------------------------ tempo de um convênio no órgão
+
+const somaDias = (iso: string, d: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
+
+/** Turismo: 5 saídas (100 a 500 dias da assinatura: mediana 300, P75 400) e 1 anulado; Saúde: 1 saída. */
+function historicoTurismo(): HistoricoSuspensiva[] {
+  return [
+    ...[100, 200, 300, 400, 500].map((d, k) => h({ nr_convenio: `s${k}`, dt_retirada_suspensiva: somaDias("2022-01-01", d) })),
+    h({ nr_convenio: "m", dt_suspensiva: "2023-01-01", situacao: "Convênio Anulado", vl_repasse: 700 }),
+    h({ nr_convenio: "x", orgao_sup: "MINISTERIO DA SAUDE", dt_retirada_suspensiva: "2022-01-11" }),
+  ];
+}
+const convenio = (diasAssinado: number, extra: Partial<{ orgao_sup: string | null; dt_retirada_suspensiva: string | null }> = {}) => ({
+  orgao_sup: "MINISTERIO DO TURISMO",
+  dt_assinatura: somaDias(HOJE, -diasAssinado),
+  dt_retirada_suspensiva: null,
+  ...extra,
+});
+
+test("tempo no órgão: a posição do convênio contra a mediana e o P75 de quem saiu", () => {
+  const hs = historicoTurismo();
+  const antes = tempoNoOrgao(convenio(90), hs, HOJE);
+  assert.equal(antes?.posicao, "antes_da_mediana");
+  assert.equal(antes?.dias, 90);
+  assert.deepEqual([antes?.mediana, antes?.p75, antes?.sairam], [300, 400, 5]);
+  assert.equal(tempoNoOrgao(convenio(350), hs, HOJE)?.posicao, "passou_da_mediana");
+  assert.equal(tempoNoOrgao(convenio(450), hs, HOJE)?.posicao, "passou_do_p75");
+  // No limite ainda não passou: "metade saiu em até 300 dias" inclui os 300.
+  assert.equal(tempoNoOrgao(convenio(300), hs, HOJE)?.posicao, "antes_da_mediana");
+});
+
+test("tempo no órgão: perda conta anulado e encerrado; só o órgão do convênio entra", () => {
+  const t = tempoNoOrgao(convenio(90), historicoTurismo(), HOJE);
+  assert.deepEqual([t?.perdidos, t?.terminados, t?.valorPerdido], [1, 6, 700]);
+  assert.equal(t?.pctPerdido, 1 / 6);
+  assert.equal(t?.orgao, "MINISTERIO DO TURISMO");
+  assert.equal(t?.desde, "2019-01-01");
+});
+
+test("tempo no órgão: com poucas saídas não há posição; sem órgão, assinatura ou com retirada, nada", () => {
+  const hs = historicoTurismo();
+  const saude = tempoNoOrgao(convenio(90, { orgao_sup: "MINISTERIO DA SAUDE" }), hs, HOJE);
+  assert.equal(saude?.sairam, 1);
+  assert.equal(saude?.posicao, null);
+  assert.equal(tempoNoOrgao(convenio(90, { orgao_sup: "MINISTERIO DAS MULHERES" }), hs, HOJE), null);
+  assert.equal(tempoNoOrgao(convenio(90, { orgao_sup: null }), hs, HOJE), null);
+  assert.equal(tempoNoOrgao(convenio(90, { dt_retirada_suspensiva: "2026-01-01" }), hs, HOJE), null);
+  assert.equal(tempoNoOrgao({ orgao_sup: "MINISTERIO DO TURISMO", dt_assinatura: null, dt_retirada_suspensiva: null }, hs, HOJE), null);
 });
 
 // ------------------------------------------------------------------ agora

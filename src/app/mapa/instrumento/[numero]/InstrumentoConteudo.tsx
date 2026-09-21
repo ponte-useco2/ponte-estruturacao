@@ -7,6 +7,7 @@ import {
   contagem,
   porAno,
   resumoEventos,
+  rotuloModalidade,
   rotuloSituacaoHistorico,
   urlBusca,
   urlInvestimentos,
@@ -49,7 +50,7 @@ export function InstrumentoConteudo({
     <div className="pa-pagina mp-radar mp-instrumento">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          {i.modalidade ? `${i.modalidade.toLowerCase()} ` : "Convênio "}nº {i.nr_convenio} <CopiarNumero numero={i.nr_convenio} de="convênio" />
+          {rotuloModalidade(i.modalidade) ?? "convênio"} nº {i.nr_convenio} <CopiarNumero numero={i.nr_convenio} de="convênio" />
           {seguindo !== null && (
             <EstrelaSeguir tipo="instrumento" chave={i.nr_convenio} nome={`o convênio nº ${i.nr_convenio}`} seguindo={seguindo} />
           )}

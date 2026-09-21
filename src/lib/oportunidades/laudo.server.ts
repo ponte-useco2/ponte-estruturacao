@@ -8,6 +8,8 @@
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import type { ContextoLaudo, Dossie, Lado } from "./laudo";
+import { COORTE_DESDE, type HistoricoSuspensiva } from "./padroes";
+import { COLUNAS_HISTORICO, todas } from "./padroes.server";
 
 type Falha = { estado: "nao_ativado" } | { estado: "sem_execucao" } | { estado: "erro" };
 type Banco = ReturnType<typeof clienteServidor>;
@@ -42,7 +44,8 @@ async function comMotivo(consulta: (colunas: string) => PromiseLike<Resposta>): 
 }
 
 export type LeituraLaudo =
-  | { estado: "ok"; dossie: Dossie; contexto: ContextoPainel }
+  /** `historicoOrgao`: convênios da PB do mesmo órgão, na coorte, para o tempo típico (vazio se falhar). */
+  | { estado: "ok"; dossie: Dossie; contexto: ContextoPainel; historicoOrgao: HistoricoSuspensiva[] }
   | { estado: "sem_coleta"; contexto: ContextoPainel | null; coletadoEm: string | null }
   | Falha;
 
@@ -75,7 +78,27 @@ export async function lerLaudoInstrumento(numero: string): Promise<LeituraLaudo>
   const d = dossie.data as Dossie | null;
   if (!d || !d.instrumento) return { estado: "sem_coleta", contexto, coletadoEm: d?.coletado_em ?? null };
   if (!contexto) return { estado: "sem_coleta", contexto: null, coletadoEm: d.coletado_em };
-  return { estado: "ok", dossie: d, contexto };
+
+  // O histórico do mesmo órgão, para comparar o tempo (no máximo ~mil linhas, as de Cidades). Se esta
+  // leitura falhar, o laudo sai sem a comparação em vez de cair: ela é complemento, não o laudo.
+  let historicoOrgao: HistoricoSuspensiva[] = [];
+  const orgao = contexto.orgao_sup;
+  if (orgao && !contexto.dt_retirada_suspensiva) {
+    const h = await todas<HistoricoSuspensiva>("lerLaudoInstrumento (histórico do órgão)", (i, f) =>
+      db
+        .from("painel_instrumento")
+        .select(COLUNAS_HISTORICO)
+        .eq("execucao_id", painel)
+        .eq("uf", "PB")
+        .eq("orgao_sup", orgao)
+        .gte("dt_assinatura", COORTE_DESDE)
+        .or("dt_suspensiva.not.is.null,dt_retirada_suspensiva.not.is.null")
+        .order("nr_convenio")
+        .range(i, f),
+    );
+    if (Array.isArray(h)) historicoOrgao = h;
+  }
+  return { estado: "ok", dossie: d, contexto, historicoOrgao };
 }
 
 // ================================================================ lista

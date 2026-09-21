@@ -16,6 +16,8 @@
  *     Já o prazo da suspensiva e a vigência contam até hoje, porque vêm do painel, que é diário.
  */
 import { formatarData } from "./central.ts";
+// Só o tipo: padroes.ts importa este arquivo, e o cálculo do tempo no órgão mora lá.
+import type { TempoOrgao } from "./padroes.ts";
 import { moedaCurta } from "./radar.ts";
 
 // ================================================================ dados de entrada
@@ -174,6 +176,10 @@ export interface Laudo {
   analistas: Analista[];
   /** O que o termo exige (motivo da suspensiva), com a marca de quais o concedente chegou a mencionar. */
   condicoes: Condicao[];
+  /** Este convênio contra quem já saiu da suspensiva no mesmo órgão (`tempoNoOrgao`); nulo sem histórico. */
+  tempoOrgao: TempoOrgao | null;
+  /** Eventos com painel de detalhe no Transferegov e quantos deles tiveram o texto colhido. */
+  textos: { comDetalhe: number; colhidos: number };
 }
 
 // ------------------------------------------------------------------ condições do termo
@@ -333,9 +339,11 @@ const NOME_LADO: Record<Lado, string> = { concedente: "concedente", proponente: 
 
 // ================================================================ a leitura
 
-export function lerLaudo(dossie: Dossie, contexto: ContextoLaudo, hoje: string): Laudo {
+export function lerLaudo(dossie: Dossie, contexto: ContextoLaudo, hoje: string, tempo: TempoOrgao | null = null): Laudo {
   const referencia = diaBrasilia(dossie.referencia ?? dossie.coletado_em ?? hoje);
   const detalhePorId = new Map(dossie.detalhes.map((d) => [d.id_situacao, d]));
+  const detalhaveis = dossie.eventos.filter((e) => e.id_situacao);
+  const textos = { comDetalhe: detalhaveis.length, colhidos: detalhaveis.filter((e) => detalhePorId.has(e.id_situacao as string)).length };
 
   const linha = montarLinha(dossie.eventos, detalhePorId, referencia);
   const ultimo = linha.at(-1) ?? null;
@@ -357,8 +365,9 @@ export function lerLaudo(dossie: Dossie, contexto: ContextoLaudo, hoje: string):
   const rodadas = linha.filter((l) => l.resultado === "complementação solicitada").length;
   const envios = linha.filter((l) => l.resultado === "enviado").length;
   const condicoes = retirada ? [] : lerCondicoes(contexto.motivo_suspensao, dossie.detalhes);
+  const tempoOrgao = retirada ? null : tempo;
 
-  const base = { linha, ultimo, vez, prazo, vigencia, dinheiro, documentos, analistas, rodadas, envios, contexto, referencia, condicoes };
+  const base = { linha, ultimo, vez, prazo, vigencia, dinheiro, documentos, analistas, rodadas, envios, contexto, referencia, condicoes, tempoOrgao };
   return {
     referencia,
     retirada,
@@ -376,6 +385,8 @@ export function lerLaudo(dossie: Dossie, contexto: ContextoLaudo, hoje: string):
     documentos,
     analistas,
     condicoes,
+    tempoOrgao,
+    textos,
   };
 }
 
@@ -529,9 +540,11 @@ interface Base {
   contexto: ContextoLaudo;
   referencia: string;
   condicoes: Condicao[];
+  tempoOrgao: TempoOrgao | null;
 }
 
 const semMencao = (b: Base) => b.condicoes.filter((c) => !c.mencionada);
+const ano = (iso: string) => iso.slice(0, 4);
 
 function lerRiscos(b: Base): Risco[] {
   const r: Risco[] = [];
@@ -564,6 +577,17 @@ function lerRiscos(b: Base): Risco[] {
   }
   if (b.rodadas >= RODADAS_REUNIAO) {
     r.push({ nivel: "moderado", titulo: "Muitas rodadas de exigência", fato: `O concedente pediu complementação ${vezes(b.rodadas)}; o município enviou ${vezes(b.envios)}.` });
+  }
+  const t = b.tempoOrgao;
+  if (t && t.mediana !== null && t.p75 !== null && (t.posicao === "passou_do_p75" || t.posicao === "passou_da_mediana")) {
+    const alem = t.posicao === "passou_do_p75";
+    r.push({
+      nivel: alem ? "alto" : "moderado",
+      titulo: alem ? "Mais demorado que 3 em cada 4 do órgão" : "Mais demorado que a metade do órgão",
+      fato:
+        `Assinado há ${dias(t.dias)}. Dos ${t.sairam.toLocaleString("pt-BR")} convênios da PB deste órgão assinados desde ${ano(t.desde)} que saíram da ` +
+        `suspensiva, metade saiu em até ${dias(Math.round(t.mediana))} e 3 em cada 4, em até ${dias(Math.round(t.p75))}.`,
+    });
   }
   // "Atendido" com condição do termo que nenhum texto menciona: o rótulo pode estar falando de outra
   // coisa (em Cabedelo, adimplência), e a condição que suspende o convênio segue sem registro.
@@ -701,6 +725,14 @@ function lerInacao(b: Base): string[] {
   }
   if (b.vigencia.dias !== null && b.vigencia.dias > 0) {
     i.push(`Cada mês sem a retirada é um mês a menos para licitar e executar: a vigência acaba em ${dataBr(b.vigencia.data)}.`);
+  }
+  // Só com padrão (saídas suficientes) e com perda de fato: a taxa do órgão, não uma previsão deste convênio.
+  const t = b.tempoOrgao;
+  if (t && t.posicao !== null && t.perdidos > 0 && t.pctPerdido !== null) {
+    i.push(
+      `Neste órgão, ${Math.round(t.pctPerdido * 100)}% dos convênios da PB assinados desde ${ano(t.desde)} que terminaram morreram na suspensiva: ` +
+        `${t.perdidos.toLocaleString("pt-BR")} de ${t.terminados.toLocaleString("pt-BR")}, ${moedaCurta(t.valorPerdido)} de repasse que não chegou.`,
+    );
   }
   return i;
 }

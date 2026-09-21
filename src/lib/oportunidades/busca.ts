@@ -342,6 +342,22 @@ export const ROTULO_GRUPO_INVESTIMENTO: Record<string, string> = {
   outros: "Outras situações",
 };
 
+/** O SICONV grava a modalidade em maiúsculas e sem acento ("CONVENIO", "TERMO DE COLABORACAO"). */
+const MODALIDADE: Record<string, string> = {
+  CONVENIO: "convênio",
+  "CONTRATO DE REPASSE": "contrato de repasse",
+  "TERMO DE FOMENTO": "termo de fomento",
+  "TERMO DE COMPROMISSO": "termo de compromisso",
+  "TERMO DE COLABORACAO": "termo de colaboração",
+  "TERMO DE PARCERIA": "termo de parceria",
+};
+
+/** Modalidade em minúsculas e com acento; `null` sem modalidade. Desconhecida sai só em minúsculas. */
+export function rotuloModalidade(m: string | null | undefined): string | null {
+  if (!m) return null;
+  return MODALIDADE[m.trim().toUpperCase()] ?? m.toLowerCase();
+}
+
 export function linhasDe(linhas: LinhaInvestimento[], dimensao: LinhaInvestimento["dimensao"]): LinhaInvestimento[] {
   return linhas.filter((l) => l.dimensao === dimensao).sort((a, b) => (b.valor ?? 0) - (a.valor ?? 0) || a.chave.localeCompare(b.chave));
 }

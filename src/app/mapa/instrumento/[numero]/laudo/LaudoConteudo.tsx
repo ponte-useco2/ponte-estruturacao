@@ -4,7 +4,7 @@
  * Recebe a leitura pronta (lib/oportunidades/laudo.ts); aqui só se apresenta.
  */
 import Link from "next/link";
-import { urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
+import { rotuloModalidade, urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { agruparLinha, diasEntre as diasEntreDias, type BlocoLinha, type Dossie, type Laudo, type Lado, type LinhaDoTempo, type Nivel } from "@/lib/oportunidades/laudo";
 import type { ContextoPainel } from "@/lib/oportunidades/laudo.server";
@@ -26,13 +26,14 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
   const numero = contexto.nr_convenio;
   const inst = dossie.instrumento;
   const t = laudo.tempoPorLado;
+  const to = laudo.tempoOrgao;
   const pctConcedente = t.total ? Math.round((t.concedente / t.total) * 100) : 0;
 
   return (
     <div className="pa-pagina mp-radar mp-laudo">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          Laudo da cláusula suspensiva · {contexto.modalidade ? contexto.modalidade.toLowerCase() : "convênio"} nº {numero}
+          Laudo da cláusula suspensiva · {rotuloModalidade(contexto.modalidade) ?? "convênio"} nº {numero}
         </p>
         <h1 className="pa-titulo">
           {contexto.municipio ?? "Município não informado"}
@@ -72,7 +73,7 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
         </div>
       </section>
 
-      <div className="pa-grade pa-grade-3 mp-painel-cartoes">
+      <div className={`pa-grade ${laudo.tempoOrgao ? "pa-grade-4" : "pa-grade-3"} mp-painel-cartoes`}>
         <article className="pa-cartao">
           <h2 className="pa-mono">Repasse sem desembolso</h2>
           <p className="pa-numero">{moedaCurta(laudo.dinheiro.parado)}</p>
@@ -101,6 +102,17 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
             {laudo.vigencia.data ? ` · vigência até ${data(laudo.vigencia.data)}` : ""}
           </p>
         </article>
+        {to && (
+          <article className="pa-cartao">
+            <h2 className="pa-mono">Desde a assinatura</h2>
+            <p className="pa-numero">{dias(to.dias)}</p>
+            <p className="pa-nota">
+              {to.posicao === null || to.mediana === null || to.p75 === null
+                ? `poucos casos no órgão para comparar: ${to.sairam === 0 ? "nenhum saiu" : to.sairam === 1 ? "1 saiu" : `${n(to.sairam)} saíram`} da suspensiva desde ${to.desde.slice(0, 4)}`
+                : `no órgão, metade saiu da suspensiva em até ${dias(Math.round(to.mediana))}; 3 em cada 4, em até ${dias(Math.round(to.p75))}`}
+            </p>
+          </article>
+        )}
       </div>
 
       {!laudo.retirada && (
@@ -335,10 +347,23 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
             depois dela não está aqui.
           </li>
           <li>Valores, prazo da cláusula suspensiva e vigência: dados abertos do Transferegov (SICONV), atualizados todo dia; prazos contados até {data(hoje)}.</li>
-          <li>
-            O texto do concedente vem do painel de detalhe dos três eventos mais recentes de cada convênio. Nos anteriores, a linha do tempo
-            mostra quem agiu e quando; “texto não colhido” quer dizer que o texto existe no Transferegov, não que veio em branco.
-          </li>
+          {laudo.textos.comDetalhe > 0 && (
+            <li>
+              {laudo.textos.colhidos >= laudo.textos.comDetalhe
+                ? laudo.textos.comDetalhe === 1
+                  ? "O texto do concedente vem do painel de detalhe do evento: o único deste convênio foi colhido."
+                  : `O texto do concedente vem do painel de detalhe de cada evento: os ${n(laudo.textos.comDetalhe)} deste convênio foram colhidos.`
+                : `O texto do concedente vem do painel de detalhe de cada evento: foram colhidos ${n(laudo.textos.colhidos)} dos ${n(laudo.textos.comDetalhe)} deste convênio. ` +
+                  "Nos demais, a linha do tempo mostra quem agiu e quando; “texto não colhido” quer dizer que o texto existe no Transferegov, não que veio em branco."}
+            </li>
+          )}
+          {to && (
+            <li>
+              Tempo no órgão: convênios da PB do mesmo órgão assinados desde {data(to.desde)} que tiveram cláusula suspensiva, nos dados
+              abertos. A metade e o “3 em cada 4” contam só os que saíram dela: quem segue
+              preso ou morreu nela não entra nessa conta, então a espera típica de verdade é maior.
+            </li>
+          )}
           <li>
             A vez é lida pelo último evento: pedido de complementação ou análise não atendida deixam a vez com o município; envio de documentação ou
             análise atendida, com o concedente.

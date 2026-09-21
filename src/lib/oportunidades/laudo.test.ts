@@ -15,6 +15,7 @@ import {
   type ExigDocumento,
   type ExigEvento,
 } from "./laudo.ts";
+import type { TempoOrgao } from "./padroes.ts";
 
 // ------------------------------------------------------------------ montagem
 
@@ -438,4 +439,57 @@ test("evento com painel de detalhe mas sem texto é marcado como não colhido", 
   const l = lerLaudo(joaoPessoa979063(), CONTEXTO, HOJE).linha;
   assert.equal(l[1].temDetalhe, false);   // envio do município: não tem painel
   assert.equal(l[0].temDetalhe, true);
+});
+
+test("cobertura dos textos: eventos com painel de detalhe e quantos foram colhidos", () => {
+  assert.deepEqual(lerLaudo(joaoPessoa979063(), CONTEXTO, HOJE).textos, { comDetalhe: 3, colhidos: 3 });
+  const d = joaoPessoa979063();
+  d.detalhes = d.detalhes.filter((x) => x.id_situacao !== "1");
+  assert.deepEqual(lerLaudo(d, CONTEXTO, HOJE).textos, { comDetalhe: 3, colhidos: 2 });
+});
+
+// ------------------------------------------------------------------ tempo no órgão
+
+function tempo(extra: Partial<TempoOrgao> = {}): TempoOrgao {
+  return {
+    orgao: "MINISTERIO DO ESPORTE",
+    desde: "2019-01-01",
+    dias: 263,
+    mediana: 200,
+    p75: 250,
+    sairam: 40,
+    perdidos: 4,
+    terminados: 44,
+    valorPerdido: 2_000_000,
+    pctPerdido: 4 / 44,
+    posicao: "passou_do_p75",
+    ...extra,
+  };
+}
+
+test("tempo no órgão: além do P75 é risco alto, além da mediana é moderado, antes não é risco", () => {
+  const risco = (t: TempoOrgao | null) => lerLaudo(joaoPessoa979063(), CONTEXTO, HOJE, t).riscos.find((r) => /do órgão$/.test(r.titulo));
+  const alto = risco(tempo());
+  assert.equal(alto?.nivel, "alto");
+  assert.equal(alto?.titulo, "Mais demorado que 3 em cada 4 do órgão");
+  assert.match(alto?.fato ?? "", /Assinado há 263 dias\. Dos 40 convênios .* desde 2019 .* metade saiu em até 200 dias e 3 em cada 4, em até 250 dias\./);
+  assert.equal(risco(tempo({ posicao: "passou_da_mediana", dias: 220 }))?.nivel, "moderado");
+  assert.equal(risco(tempo({ posicao: "antes_da_mediana", dias: 90 })), undefined);
+  assert.equal(risco(tempo({ posicao: null, sairam: 3 })), undefined, "poucos casos não viram risco");
+  assert.equal(risco(null), undefined);
+});
+
+test("tempo no órgão: a inação cita a perda do órgão só com padrão e com perda de fato", () => {
+  const inacao = (t: TempoOrgao | null) => lerLaudo(joaoPessoa979063(), CONTEXTO, HOJE, t).inacao.find((x) => x.startsWith("Neste órgão"));
+  assert.equal(
+    inacao(tempo()),
+    "Neste órgão, 9% dos convênios da PB assinados desde 2019 que terminaram morreram na suspensiva: 4 de 44, R$ 2,0 mi de repasse que não chegou.",
+  );
+  assert.equal(inacao(tempo({ posicao: null })), undefined);
+  assert.equal(inacao(tempo({ perdidos: 0, pctPerdido: 0 })), undefined);
+});
+
+test("tempo no órgão: com a suspensiva retirada, a comparação some", () => {
+  const l = lerLaudo(joaoPessoa979063(), { ...CONTEXTO, dt_retirada_suspensiva: "2026-03-01" }, HOJE, tempo());
+  assert.equal(l.tempoOrgao, null);
 });

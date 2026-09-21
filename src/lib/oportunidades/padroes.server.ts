@@ -5,7 +5,8 @@
  * das exigências e a última execução concluída do painel; nunca mistura retratos.
  *
  * Volume em 18/09/2026: ~5,1 mil convênios da PB com suspensiva no histórico, 288 na coleta, 3,5 mil
- * documentos, 1,5 mil eventos e 633 detalhes — umas dez chamadas de mil linhas. Página de uso interno.
+ * documentos, 1,5 mil eventos e um detalhe por evento colhido (até 964) — umas dez chamadas de mil
+ * linhas. Página de uso interno.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
@@ -34,8 +35,8 @@ function falha(onde: string, erro: { message: string; code?: string }): Falha {
   return { estado: "erro" };
 }
 
-/** Todas as linhas de uma consulta, em páginas de mil (o limite da API). */
-async function todas<T>(onde: string, consulta: (inicio: number, fim: number) => PromiseLike<Resposta>): Promise<T[] | Falha> {
+/** Todas as linhas de uma consulta, em páginas de mil (o limite da API). O laudo também usa. */
+export async function todas<T>(onde: string, consulta: (inicio: number, fim: number) => PromiseLike<Resposta>): Promise<T[] | Falha> {
   const saida: T[] = [];
   for (let inicio = 0; inicio < 50_000; inicio += 1000) {
     const r = await consulta(inicio, inicio + 999);
@@ -51,7 +52,7 @@ function ehFalha<T>(x: T[] | Falha): x is Falha {
   return !Array.isArray(x);
 }
 
-const COLUNAS_HISTORICO =
+export const COLUNAS_HISTORICO =
   "nr_convenio,orgao_sup,programa,situacao,dt_assinatura,dt_suspensiva,dt_retirada_suspensiva,vl_repasse,vl_desembolsado";
 
 export async function lerPadroes(): Promise<LeituraPadroes> {

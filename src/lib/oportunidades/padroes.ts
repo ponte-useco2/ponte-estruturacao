@@ -171,6 +171,70 @@ export function lerHistorico(hs: HistoricoSuspensiva[], desde = COORTE_DESDE): {
   };
 }
 
+// ================================================================ o tempo de UM convênio contra o órgão
+
+/** Onde um convênio em suspensiva está em relação a quem já saiu dela no mesmo órgão. */
+export type PosicaoTempo = "antes_da_mediana" | "passou_da_mediana" | "passou_do_p75";
+
+export interface TempoOrgao {
+  orgao: string;
+  /** Início da coorte comparada (assinaturas desde). */
+  desde: string;
+  /** Dias da assinatura deste convênio até hoje. */
+  dias: number;
+  /** Assinatura → retirada de quem saiu: metade saiu em até `mediana` dias; 3 em cada 4, em até `p75`. */
+  mediana: number | null;
+  p75: number | null;
+  sairam: number;
+  /** Morreram ou encerraram sem sair. */
+  perdidos: number;
+  terminados: number;
+  valorPerdido: number;
+  pctPerdido: number | null;
+  /** Nula com menos de MINIMO_PADRAO saídas: aí não há padrão para comparar. */
+  posicao: PosicaoTempo | null;
+}
+
+/**
+ * O tempo de um convênio contra o histórico do órgão dele. `hs` pode vir já filtrado pelo órgão (o
+ * servidor do laudo lê só ele); o que for de outro órgão é ignorado. A mediana conta só quem SAIU:
+ * quem segue preso ou morreu nela não entra, então a espera típica de verdade é maior — a página diz isso.
+ */
+export function tempoNoOrgao(
+  c: { orgao_sup: string | null; dt_assinatura: string | null; dt_retirada_suspensiva: string | null },
+  hs: HistoricoSuspensiva[],
+  hoje: string,
+): TempoOrgao | null {
+  if (!c.orgao_sup || !c.dt_assinatura || c.dt_retirada_suspensiva) return null;
+  const dias = diasEntre(c.dt_assinatura, hoje);
+  if (dias < 0) return null;
+  const h = lerHistorico(hs.filter((x) => x.orgao_sup === c.orgao_sup)).orgaos[0];
+  if (!h) return null;
+  const sairam = h.destinos.saiu.n;
+  const perdidos = h.destinos.morreu.n + h.destinos.encerrou.n;
+  const posicao: PosicaoTempo | null =
+    sairam < MINIMO_PADRAO || h.mediana === null || h.p75 === null
+      ? null
+      : dias > h.p75
+        ? "passou_do_p75"
+        : dias > h.mediana
+          ? "passou_da_mediana"
+          : "antes_da_mediana";
+  return {
+    orgao: h.orgao,
+    desde: COORTE_DESDE,
+    dias,
+    mediana: h.mediana,
+    p75: h.p75,
+    sairam,
+    perdidos,
+    terminados: sairam + perdidos,
+    valorPerdido: h.destinos.morreu.valor + h.destinos.encerrou.valor,
+    pctPerdido: h.pctPerdido,
+    posicao,
+  };
+}
+
 // ================================================================ AGORA: quem segue em suspensiva
 
 export interface AtualSuspensiva {

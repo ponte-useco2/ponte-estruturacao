@@ -664,6 +664,8 @@
   .pa-root .mp-simulador .mp-tabela-rolagem { overflow: visible; border: 0; }
   .pa-root .mp-simulador .mp-tabela { font-size: 8.5pt; }
   .pa-root .mp-simulador .mp-tabela th, .pa-root .mp-simulador .mp-tabela td { padding: 0.2rem 0.35rem; }
+  /* Os 9 títulos do "Ano a ano" numa linha só estouram o A4 retrato: no papel, quebram. */
+  .pa-root .mp-simulador .mp-tabela thead th { white-space: normal; }
   .pa-root .mp-simulador .pa-cartao, .pa-root .mp-simulador tr { break-inside: avoid; }
   .pa-root .mp-simulador a { color: inherit; text-decoration: none; }
 }
@@ -741,8 +743,23 @@
 .pa-root .mp-suspensivas-tabela td { white-space: nowrap; }
 .pa-root .mp-suspensivas-tabela td:nth-child(2) { white-space: normal; min-width: 9rem; }
 
+/* Impressão das páginas com botão de imprimir (simulador, laudo, checklist), conferida em PDF pelo
+   Edge em 18/09/2026, sem gráficos de fundo como o Chrome imprime por padrão:
+   - título de seção não fica sozinho no pé da página;
+   - a lista recolhida (`details`) sai aberta: o Chromium esconde o conteúdo de um `details` fechado
+     num pseudo-elemento próprio, que só `::details-content` alcança; o resumo "Ver a lista" some;
+   - etiqueta de nível (branco sobre cor) sai com a cor, senão o texto branco some no papel. */
+@page { size: A4; margin: 10mm; }
 @media print {
-  .pa-root .mp-laudo .mp-fiscal-detalhe:not([open]) > :not(summary) { display: block; }
+  .pa-root .mp-radar-h2 { break-after: avoid; }
+  .pa-root .mp-fiscal-detalhe::details-content { content-visibility: visible; display: block; }
+  .pa-root .mp-laudo .mp-fiscal-detalhe > summary { display: none; }
+  .pa-root .mp-laudo-nivel { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .pa-root .mp-laudo .mp-tabela td:last-child { white-space: nowrap; }
+  /* O Chromium repete o tfoot em cada página: o "Total" apareceria antes das últimas linhas. */
+  .pa-root .mp-tabela tfoot { display: table-row-group; }
+}
+@media print {
   .pa-root .mp-laudo .mp-tabela-rolagem { overflow: visible; border: 0; }
   .pa-root .mp-laudo .mp-tabela { font-size: 8.5pt; }
   .pa-root .mp-laudo .pa-cartao, .pa-root .mp-laudo .mp-laudo-evento, .pa-root .mp-laudo tr { break-inside: avoid; }

@@ -82,13 +82,13 @@ const COLUNAS_CONVENIO: ColunaCsv<ConvenioPainel>[] = [
 type PropostaExportada = Awaited<ReturnType<typeof lerPropostasParaExportar>> extends LeituraExportacao<infer T> ? T : never;
 
 const COLUNAS_PROPOSTA: ColunaCsv<PropostaExportada>[] = [
-  { titulo: "Nº da proposta", valor: (p) => p.nr_proposta },
+  { titulo: "Nº da proposta", valor: (p) => p.nr_proposta, texto: true },
   { titulo: "Proponente", valor: (p) => p.proponente },
   { titulo: "Tipo de proponente", valor: (p) => agente(p.tipo_agente) },
   { titulo: "Município", valor: (p) => p.municipio },
   { titulo: "UF", valor: (p) => p.uf },
   { titulo: "Órgão concedente", valor: (p) => p.orgao_sup },
-  { titulo: "Código do programa", valor: (p) => p.cod_programa },
+  { titulo: "Código do programa", valor: (p) => p.cod_programa, texto: true },
   { titulo: "Programa", valor: (p) => p.programa },
   { titulo: "Objeto", valor: (p) => p.objeto },
   { titulo: "Repasse pedido (R$)", valor: (p) => p.valor_repasse },

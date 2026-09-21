@@ -59,6 +59,9 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
   const documentos = c.documentos.filter((d) => d.fatia >= FATIA_DOCUMENTO);
   const h = c.historico;
   const terminados = h ? h.destinos.saiu.n + h.destinos.morreu.n + h.destinos.encerrou.n : 0;
+  // Cobertura do texto do concedente na coleta: análises com painel de detalhe × as que tiveram o texto colhido.
+  const detalhaveis = leitura.eventos.filter((e) => e.id_situacao).length;
+  const colhidos = leitura.detalhes.length;
 
   return (
     <div className="pa-pagina mp-radar mp-checklist">
@@ -171,8 +174,11 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
 
       <p className="pa-nota">
         Condições: motivo da cláusula suspensiva nos dados abertos do Transferegov. Documentos e pedidos: coleta no Acesso Livre de{" "}
-        {formatarPublicacao(leitura.coletadoEm)} (o texto vem dos três eventos mais recentes de cada convênio). Tempo e perda: histórico dos dados
-        abertos, atualizado todo dia.
+        {formatarPublicacao(leitura.coletadoEm)} (
+        {colhidos >= detalhaveis
+          ? "com o texto de todas as análises"
+          : `com o texto de ${n(colhidos)} das ${n(detalhaveis)} análises dos convênios em suspensiva`}
+        ). Tempo e perda: histórico dos dados abertos, atualizado todo dia.
       </p>
     </div>
   );

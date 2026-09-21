@@ -10,6 +10,7 @@ import {
   fracoesDaMaior,
   linhasDe,
   parametrosBusca,
+  rotuloModalidade,
   urlBusca,
   type LinhaInvestimento,
 } from "@/lib/oportunidades/busca";
@@ -95,7 +96,10 @@ export function InvestimentosConteudo({ ibge, uf, leitura }: { ibge: string; uf:
           <Barras
             titulo="Convênios por modalidade"
             linhas={modalidades}
-            rotulo={(l) => (l.chave ? l.chave.charAt(0) + l.chave.slice(1).toLowerCase() : "Não informada")}
+            rotulo={(l) => {
+              const r = rotuloModalidade(l.chave);
+              return r ? r.charAt(0).toUpperCase() + r.slice(1) : "Não informada";
+            }}
             link={() => null}
           />
         </>

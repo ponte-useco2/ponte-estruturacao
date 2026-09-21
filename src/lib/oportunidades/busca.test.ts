@@ -12,6 +12,7 @@ import {
   parametrosBusca,
   porAno,
   resumoEventos,
+  rotuloModalidade,
   rotuloSituacaoHistorico,
   situacoesDoGrupo,
   termosDaBusca,
@@ -24,6 +25,15 @@ test("contagem: a palavra concorda com o número, que sai no formato brasileiro"
   assert.equal(contagem(1, "desembolso", "desembolsos"), "1 desembolso");
   assert.equal(contagem(0, "aditivo", "aditivos"), "0 aditivos");
   assert.equal(contagem(1234, "convênio", "convênios"), "1.234 convênios");
+});
+
+test("modalidade: o SICONV grava sem acento; a tela mostra com acento e em minúsculas", () => {
+  assert.equal(rotuloModalidade("CONVENIO"), "convênio");
+  assert.equal(rotuloModalidade("TERMO DE COLABORACAO"), "termo de colaboração");
+  assert.equal(rotuloModalidade("CONTRATO DE REPASSE"), "contrato de repasse");
+  assert.equal(rotuloModalidade("MODALIDADE NOVA"), "modalidade nova");
+  assert.equal(rotuloModalidade(null), null);
+  assert.equal(rotuloModalidade(""), null);
 });
 
 test("termos: sem acento, minúsculas, CNPJ só dígitos, sem curinga do LIKE e sem repetição", () => {

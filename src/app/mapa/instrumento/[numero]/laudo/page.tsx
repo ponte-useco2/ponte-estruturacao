@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { numeroValido, urlInstrumento } from "@/lib/oportunidades/busca";
 import { diaBrasilia, lerLaudo } from "@/lib/oportunidades/laudo";
 import { lerLaudoInstrumento } from "@/lib/oportunidades/laudo.server";
+import { tempoNoOrgao } from "@/lib/oportunidades/padroes";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
 import { LaudoConteudo } from "./LaudoConteudo";
@@ -49,5 +50,6 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
   }
 
   const hoje = diaBrasilia(new Date().toISOString());
-  return <LaudoConteudo laudo={lerLaudo(leitura.dossie, leitura.contexto, hoje)} dossie={leitura.dossie} contexto={leitura.contexto} hoje={hoje} />;
+  const laudo = lerLaudo(leitura.dossie, leitura.contexto, hoje, tempoNoOrgao(leitura.contexto, leitura.historicoOrgao, hoje));
+  return <LaudoConteudo laudo={laudo} dossie={leitura.dossie} contexto={leitura.contexto} hoje={hoje} />;
 }

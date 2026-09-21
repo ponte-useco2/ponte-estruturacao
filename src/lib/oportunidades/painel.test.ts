@@ -173,7 +173,45 @@ test("CSV para o Excel em português", () => {
     [{ nr: "981395" }],
   );
   assert.ok(csv.startsWith("﻿Convênio;Valor;Data;Ativo;Nota;Fórmula;Vazio\r\n"));
-  assert.equal(csv.split("\r\n")[1], `981395;1234,5;12/09/2026;sim;"tem ; e ""aspas""";"'=HYPERLINK(1)";`);
+  assert.equal(csv.split("\r\n")[1], `981395;1234,5;12/09/2026;sim;"tem ; e ""aspas""";" =HYPERLINK(1)";`);
+});
+
+test("CSV: texto com sinal na frente ganha espaço (o Excel não lê fórmula e não mostra apóstrofo)", () => {
+  const csv = paraCsv(
+    [
+      { titulo: "Objeto", valor: (x: { t: string }) => x.t },
+      { titulo: "Dias", valor: () => -12 },
+    ],
+    [{ t: "- Aquisição" }, { t: "+ Valorizar" }, { t: "@ALGUEM" }, { t: "=SOMA(1;2)" }, { t: "Construção - PB" }],
+  );
+  assert.deepEqual(csv.split("\r\n").slice(1, 6), [
+    `" - Aquisição";-12`,
+    `" + Valorizar";-12`,
+    `" @ALGUEM";-12`,
+    `" =SOMA(1;2)";-12`,
+    `Construção - PB;-12`,
+  ]);
+});
+
+test("CSV: identificador marcado como texto sai como =\"…\" (proposta N/AAAA e código de 13 dígitos)", () => {
+  const colunas = [
+    { titulo: "Proposta", valor: (x: { p: string | null; c: string }) => x.p, texto: true },
+    { titulo: "Código", valor: (x: { p: string | null; c: string }) => x.c, texto: true },
+  ];
+  const csv = paraCsv(colunas, [
+    { p: "1/2024", c: "2629820240001" },
+    { p: "10009/2019", c: "2200020190061" },
+    { p: null, c: "sem-dígito-na-frente" },
+    { p: '1"&SOMA(1)&"', c: "=1+1" },
+  ]);
+  assert.deepEqual(csv.split("\r\n").slice(1, 5), [
+    `"=""1/2024""";"=""2629820240001"""`,
+    `"=""10009/2019""";"=""2200020190061"""`,
+    // Fora do padrão seguro volta ao tratamento normal: nulo vazio, texto como texto,
+    // e nada que feche a aspa entra no ="…".
+    `;sem-dígito-na-frente`,
+    `"1""&SOMA(1)&""";" =1+1"`,
+  ]);
 });
 
 test("município: a UF sai do código IBGE, e UF diferente na URL solta o município", () => {
