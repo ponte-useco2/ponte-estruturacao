@@ -4,6 +4,10 @@
     {
       "path": "/api/oportunidades/sincronizar",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/agendamento/disparar",
+      "schedule": "30 11 * * *"
     }
   ]
 }
