@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { numeroValido } from "@/lib/oportunidades/busca";
 import { lerDiagnostico } from "@/lib/oportunidades/diagnostico";
 import { lerEntradaDiagnostico } from "@/lib/oportunidades/diagnostico.server";
-import { diaBrasilia, lerLaudo } from "@/lib/oportunidades/laudo";
+import { diaBrasilia, lerAcessoLivre, lerLaudo } from "@/lib/oportunidades/laudo";
 import { lerLaudoInstrumento } from "@/lib/oportunidades/laudo.server";
 import { tempoNoOrgao } from "@/lib/oportunidades/padroes";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
@@ -59,6 +59,13 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
   const referencia = diaBrasilia(execucao.referencia ?? execucao.dado_ate ?? hoje);
   // O dossiê da suspensiva é complemento deste laudo, não condição: se a leitura dele falhar, o laudo sai sem.
   if (suspensiva.estado !== "ok" && suspensiva.estado !== "sem_coleta") entrada.faltas.push("dossiê da suspensiva (Acesso Livre)");
+
+  // Coleta dos aprovados sem assinatura (onda 12, parte 2): os requisitos para celebração entram no
+  // diagnóstico, que decide a vez e o próximo passo por eles. A página é a de qualquer instrumento.
+  if (suspensiva.estado === "ok" && suspensiva.dossie.recorte === "assinatura") {
+    const d = lerDiagnostico({ ...entrada, acessoLivre: lerAcessoLivre(suspensiva.dossie, hoje) }, hoje);
+    return <DiagnosticoConteudo d={d} i={entrada.instrumento} referencia={referencia} hoje={hoje} dossie={suspensiva.dossie} />;
+  }
 
   if (suspensiva.estado === "ok") {
     const laudo = lerLaudo(suspensiva.dossie, suspensiva.contexto, hoje, tempoNoOrgao(suspensiva.contexto, suspensiva.historicoOrgao, hoje));

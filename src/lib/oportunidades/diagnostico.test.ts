@@ -6,6 +6,7 @@ import {
   etapaDo,
   funis,
   lerDiagnostico,
+  motivoAcessoLivreVazio,
   nivelMaisAlto,
   nomeProponente,
   tempoNaEtapa,
@@ -14,6 +15,7 @@ import {
   type InstrumentoLaudo,
   type Vizinho,
 } from "./diagnostico.ts";
+import { lerAcessoLivre, type Dossie, type ExigDetalhe, type ExigEvento } from "./laudo.ts";
 import type { LinhaDesfecho, LinhaEtapa } from "./painel.ts";
 
 const HOJE = "2026-09-28";
@@ -453,6 +455,101 @@ test("nome do proponente e chave do órgão para comparar", () => {
   assert.equal(chaveOrgao("Ministério  da Cultura"), chaveOrgao("MINISTERIO DA CULTURA"));
   // O texto da carteira usa o nome tratado.
   assert.ok(lerDiagnostico(entrada962210(), HOJE).inacao.some((x) => x.startsWith("Estado da Paraíba já teve 21")));
+});
+
+// ------------------------------------------------------------------ requisitos para celebração (coleta da assinatura)
+
+function dossieAssinatura(eventos: ExigEvento[], detalhes: ExigDetalhe[]): Dossie {
+  return {
+    coletado_em: "2026-09-28T16:00:00+00:00",
+    referencia: "2026-09-28",
+    fonte: "transferegov_acesso_livre",
+    recorte: "assinatura",
+    instrumento: null,
+    documentos: [],
+    eventos,
+    detalhes,
+  };
+}
+
+/** O 962210 como a coleta de 28/09/2026 trouxe: um evento, requisitos atendidos, observação "Adimplente". */
+const ACESSO_962210 = dossieAssinatura(
+  [{ ordem: 0, evento: "Análise Registrada - Atendido", lado: "concedente", resultado: "atendido", responsavel: "FULANO DE TAL", ocorrido_em: "2024-10-17T15:56:15+00:00", id_situacao: "405933" }],
+  [
+    {
+      id_situacao: "405933",
+      analise: "Análise Registrada",
+      responsavel: "FULANO DE TAL",
+      atribuicao: "Gestor de Instrumento do Concedente",
+      analisada_em: "2024-10-08",
+      situacao: "Atendido",
+      observacao: "Adimplente",
+      solicitacao: null,
+    },
+  ],
+);
+
+test("coleta da assinatura: 'atendido' é a vez do concedente assinar, e a frase não fala de suspensiva", () => {
+  const al = lerAcessoLivre(ACESSO_962210, HOJE);
+  assert.equal(al.recorte, "assinatura");
+  assert.equal(al.vez.lado, "concedente");
+  assert.equal(al.vez.dias, 711);
+  assert.match(al.vez.frase, /requisitos para celebração foram registrados como atendidos em 17\/10\/2024, por FULANO DE TAL/);
+  assert.match(al.vez.frase, /A assinatura não está registrada\./);
+  assert.doesNotMatch(al.vez.frase, /suspensiva/);
+});
+
+test("962210 com a coleta: requisitos parados há 711 dias e o passo de pedir a assinatura citando a análise", () => {
+  const d = lerDiagnostico(entrada962210({ acessoLivre: lerAcessoLivre(ACESSO_962210, HOJE) }), HOJE);
+  assert.equal(d.vez, "concedente");
+  const parado = d.riscos.find((r) => r.titulo === "Requisitos para celebração parados");
+  assert.ok(parado);
+  assert.equal(parado.nivel, "alto");
+  assert.match(parado.fato, /há 711 dias, desde 17\/10\/2024, contados até a coleta de 28\/09\/2026, com a vez do concedente/);
+  // A vigência vencida vem primeiro; depois, a assinatura pedida com a análise na mão.
+  assert.equal(d.estrategia[0].titulo, "Confirmar com o concedente se o instrumento ainda pode ser assinado");
+  assert.equal(d.estrategia[1].titulo, "Pedir a assinatura, citando a análise dos requisitos");
+  assert.match(d.estrategia[1].porque, /atendidos em 17\/10\/2024, por FULANO DE TAL, com a observação «Adimplente»\. 711 dias sem evento até a coleta de 28\/09\/2026\./);
+});
+
+test("pedido de complementação aberto: a vez é do proponente, mesmo com a situação 'aprovado'", () => {
+  const al = lerAcessoLivre(
+    dossieAssinatura(
+      [
+        { ordem: 0, evento: "Complementação Solicitada", lado: "concedente", resultado: "complementação solicitada", responsavel: "SICRANA", ocorrido_em: "2026-06-25T16:04:09+00:00", id_situacao: "900" },
+        { ordem: 1, evento: "Enviado para Verificação", lado: "proponente", resultado: "enviado", responsavel: "BELTRANO", ocorrido_em: "2026-04-24T18:21:10+00:00", id_situacao: null },
+      ],
+      [{ id_situacao: "900", analise: null, responsavel: "SICRANA", atribuicao: null, analisada_em: null, situacao: null, observacao: null, solicitacao: "Apresentar documentação atualizada." }],
+    ),
+    HOJE,
+  );
+  assert.match(al.vez.frase, /Não há envio do proponente depois disso — 95 dias até a coleta/);
+  const i = base({ situacao: "Proposta/Plano de Trabalho Aprovado", dt_assinatura: null, dt_aprovacao: "2026-06-23", dt_fim_vigencia: "2028-07-31" });
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, carteira: [], acessoLivre: al }, HOJE);
+  assert.equal(d.vez, "proponente");
+  assert.equal(d.estrategia[0].titulo, "Responder ao último pedido do concedente");
+  assert.match(d.estrategia[0].porque, /Pedido de 25\/06\/2026, por SICRANA: «Apresentar documentação atualizada\.»\. 95 dias sem evento/);
+  assert.ok(d.riscos.some((r) => r.titulo === "Requisitos para celebração parados" && r.nivel === "moderado"));
+});
+
+test("coleta vazia: nos termos do SIMEC/PAR o laudo diz onde o andamento está", () => {
+  const vazia = lerAcessoLivre(dossieAssinatura([], []), HOJE);
+  const par = base({ situacao: "Proposta/Plano de Trabalho Aprovado", dt_assinatura: null, programa: "Programa SIMEC/PAR4", modalidade: "TERMO DE COMPROMISSO" });
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: par, carteira: [], acessoLivre: vazia }, HOJE);
+  assert.match(d.acessoLivreVazio ?? "", /acompanhamento desses termos é feito no SIMEC/);
+  assert.equal(d.vez, "concedente"); // sem evento, vale a situação: aprovado espera a assinatura
+  assert.equal(
+    motivoAcessoLivreVazio({ programa: "Outro" }, vazia),
+    "A tela de requisitos para celebração do Acesso Livre está vazia para este instrumento: nenhum documento enviado nem análise registrada até a coleta.",
+  );
+  assert.equal(motivoAcessoLivreVazio({ programa: "Programa SIMEC/PAR" }, null), null);
+  assert.equal(lerDiagnostico(entrada962210({ acessoLivre: lerAcessoLivre(ACESSO_962210, HOJE) }), HOJE).acessoLivreVazio, null);
+});
+
+test("a coleta só vale antes da assinatura: num instrumento em execução ela é ignorada", () => {
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: base({}), carteira: [], acessoLivre: lerAcessoLivre(ACESSO_962210, HOJE) }, HOJE);
+  assert.equal(d.acessoLivre, null);
+  assert.ok(!d.riscos.some((r) => r.titulo === "Requisitos para celebração parados"));
 });
 
 test("CNPJ legível e nível mais alto dos riscos", () => {

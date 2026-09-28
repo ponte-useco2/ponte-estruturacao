@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { rotuloModalidade, urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
-import { formatarData } from "@/lib/oportunidades/central";
+import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   ROTULO_ETAPA_LAUDO,
   ROTULO_TIPO_EMENDA,
@@ -20,11 +20,12 @@ import {
   type Vizinhanca,
 } from "@/lib/oportunidades/diagnostico";
 import { NOME_VERIFICACAO, ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
-import type { Nivel, Passo, Risco } from "@/lib/oportunidades/laudo";
+import type { Dossie, Nivel, Passo, Risco } from "@/lib/oportunidades/laudo";
 import { DIAS_JANELA_TEMPO, percentual } from "@/lib/oportunidades/painel";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
+import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
 
 const AVISO =
   "Leitura automática dos dados abertos do Transferegov e do painel fiscal. Não substitui o termo, o parecer do concedente nem " +
@@ -37,7 +38,20 @@ const dias = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "dia" : "dias"}`;
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—");
 const diasArredondados = (x: number) => dias(Math.round(x));
 
-export function DiagnosticoConteudo({ d, i, referencia, hoje }: { d: Diagnostico; i: InstrumentoLaudo; referencia: string; hoje: string }) {
+/** `dossie`: a coleta do Acesso Livre no recorte da assinatura, para a lista de documentos. */
+export function DiagnosticoConteudo({
+  d,
+  i,
+  referencia,
+  hoje,
+  dossie = null,
+}: {
+  d: Diagnostico;
+  i: InstrumentoLaudo;
+  referencia: string;
+  hoje: string;
+  dossie?: Dossie | null;
+}) {
   const municipio = i.municipio ? `${i.municipio}${i.uf ? `/${i.uf}` : ""}` : null;
   const titulo = i.tipo_agente === "municipio" || !i.proponente ? (municipio ?? "Proponente não informado") : nomeProponente(i);
   const t = d.tempo;
@@ -81,6 +95,7 @@ export function DiagnosticoConteudo({ d, i, referencia, hoje }: { d: Diagnostico
             {d.vez ? ` · a vez é do ${d.vez === "concedente" ? "concedente" : "proponente"}` : ""}
           </p>
           <p>{d.frase}</p>
+          {d.acessoLivre && <p>{d.acessoLivreVazio ?? d.acessoLivre.vez.frase}</p>}
         </div>
       </section>
 
@@ -190,6 +205,15 @@ export function DiagnosticoConteudo({ d, i, referencia, hoje }: { d: Diagnostico
 
       <Cruzamentos d={d} i={i} />
 
+      {/* Os registros dos requisitos para celebração, como no laudo da suspensiva: depois da leitura, antes da fonte. */}
+      {d.acessoLivre && d.acessoLivre.linha.length > 0 && (
+        <>
+          <LinhaDoTempoSecao linha={d.acessoLivre.linha} proponente="proponente" />
+          <AnalistasSecao analistas={d.acessoLivre.analistas} />
+          {dossie && <DocumentosSecao documentos={d.acessoLivre.documentos} lista={dossie.documentos} hoje={hoje} />}
+        </>
+      )}
+
       <section aria-labelledby="diag-fonte" className="mp-radar-secao">
         <h2 id="diag-fonte" className="mp-radar-h2">
           Fonte e método
@@ -246,6 +270,13 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
       <li>Emenda de origem: arquivo de emendas do SICONV, ligado pela proposta. O autor é agente público e aparece como registrado.</li>
       {d.fiscal && <li>Situação fiscal: painel de capacidade fiscal, decisão “receber transferência voluntária”, de {data(d.fiscal.referencia)}.</li>}
       <li>Janelas abertas: catálogo de oportunidades, filtrado pelo tipo de proponente e pela UF; entram as do mesmo programa ou do mesmo órgão concedente.</li>
+      {d.acessoLivre && (
+        <li>
+          Requisitos para celebração: tela do Acesso Livre do Transferegov, colhida em{" "}
+          {d.acessoLivre.coletadoEm ? formatarPublicacao(d.acessoLivre.coletadoEm) : "data desconhecida"}, com os instrumentos da PB aprovados e não
+          assinados. O tempo parado conta até essa coleta; “atendido” é o rótulo que o concedente registrou, não uma conclusão deste laudo.
+        </li>
+      )}
       {d.faltas.length > 0 && <li>Não vieram nesta leitura: {d.faltas.join(", ")}. O laudo saiu sem esses cruzamentos.</li>}
     </>
   );

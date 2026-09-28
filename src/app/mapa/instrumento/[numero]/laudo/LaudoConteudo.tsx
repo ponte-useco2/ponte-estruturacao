@@ -7,7 +7,17 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { rotuloModalidade, urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
-import { agruparLinha, diasEntre as diasEntreDias, type BlocoLinha, type Dossie, type Laudo, type Lado, type LinhaDoTempo, type Nivel } from "@/lib/oportunidades/laudo";
+import {
+  agruparLinha,
+  diasEntre as diasEntreDias,
+  type BlocoLinha,
+  type Dossie,
+  type ExigDocumento,
+  type Laudo,
+  type Lado,
+  type LinhaDoTempo,
+  type Nivel,
+} from "@/lib/oportunidades/laudo";
 import type { ContextoPainel } from "@/lib/oportunidades/laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
@@ -253,116 +263,9 @@ export function LaudoConteudo({
         )}
       </section>
 
-      <section aria-labelledby="laudo-linha" className="mp-radar-secao">
-        <h2 id="laudo-linha" className="mp-radar-h2">
-          Linha do tempo
-        </h2>
-        {laudo.linha.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">O Acesso Livre não registra nenhum evento de análise para este convênio.</p>
-        ) : (
-          <ol className="mp-laudo-linha">
-            {agruparLinha(laudo.linha).map((b, k) =>
-              b.itens.length === 1 ? (
-                <EventoLaudo key={`${b.itens[0].quando}-${k}`} l={b.itens[0]} ultimo={b.ultimo} />
-              ) : (
-                <GrupoLaudo key={`${b.itens[0].quando}-${k}`} b={b} />
-              ),
-            )}
-          </ol>
-        )}
-      </section>
-
-      {laudo.analistas.length > 0 && (
-        <section aria-labelledby="laudo-analistas" className="mp-radar-secao">
-          <h2 id="laudo-analistas" className="mp-radar-h2">
-            Quem analisou
-          </h2>
-          <div className="mp-tabela-rolagem">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Pessoa</th>
-                  <th scope="col">Atribuição</th>
-                  <th scope="col" className="mp-num">
-                    Atos
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pediu complementação
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Deu por atendido
-                  </th>
-                  <th scope="col">Período</th>
-                </tr>
-              </thead>
-              <tbody>
-                {laudo.analistas.map((a) => (
-                  <tr key={a.nome}>
-                    <th scope="row">{a.nome}</th>
-                    <td>{a.atribuicao ?? "—"}</td>
-                    <td className="mp-num">{n(a.atos)}</td>
-                    <td className="mp-num">{n(a.exigencias)}</td>
-                    <td className="mp-num">{n(a.atendimentos)}</td>
-                    <td>{a.primeiro === a.ultimo ? data(a.primeiro) : `${data(a.primeiro)} a ${data(a.ultimo)}`}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="pa-nota">Nomes e atribuições como registrados no Transferegov. Contatos pessoais não são coletados.</p>
-        </section>
-      )}
-
-      <section aria-labelledby="laudo-documentos" className="mp-radar-secao">
-        <h2 id="laudo-documentos" className="mp-radar-h2">
-          Documentos anexados
-        </h2>
-        {laudo.documentos.total === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhum documento anexado na aba de requisitos.</p>
-        ) : (
-          <>
-            <p className="pa-nota">
-              {n(laudo.documentos.total)} {laudo.documentos.total === 1 ? "documento" : "documentos"} (
-              {laudo.documentos.porGrupo.map((g) => `${g.grupo.toLowerCase()}: ${n(g.n)}`).join(" · ")})
-              {laudo.documentos.comValidade > 0
-                ? ` · ${n(laudo.documentos.vencidos.length)} de ${n(laudo.documentos.comValidade)} com validade já vencidos em ${data(hoje)}`
-                : ""}
-              .
-            </p>
-            <details className="mp-fiscal-detalhe">
-              <summary>Ver a lista, do envio mais recente ao mais antigo</summary>
-              <div className="mp-tabela-rolagem">
-                <table className="mp-tabela">
-                  <thead>
-                    <tr>
-                      <th scope="col">Documento</th>
-                      <th scope="col">Grupo</th>
-                      <th scope="col">Enviado em</th>
-                      <th scope="col">Validade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dossie.documentos.map((d) => {
-                      const vencido = !!d.validade && d.validade < hoje;
-                      return (
-                        <tr key={d.ordem} className={vencido ? "mp-laudo-vencido" : undefined}>
-                          <th scope="row">
-                            <span className="mp-tabela-principal">{d.descricao ?? d.arquivo}</span>
-                            <span className="mp-tabela-secundario">{d.arquivo}</span>
-                          </th>
-                          <td>{d.grupo ?? "—"}</td>
-                          <td>{d.enviado_em ? formatarPublicacao(d.enviado_em) : "—"}</td>
-                          <td>{d.validade ? `${data(d.validade)}${vencido ? " · vencido" : ""}` : "sem validade"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </details>
-          </>
-        )}
-      </section>
+      <LinhaDoTempoSecao linha={laudo.linha} />
+      <AnalistasSecao analistas={laudo.analistas} />
+      <DocumentosSecao documentos={laudo.documentos} lista={dossie.documentos} hoje={hoje} />
 
       <section aria-labelledby="laudo-fonte" className="mp-radar-secao">
         <h2 id="laudo-fonte" className="mp-radar-h2">
@@ -411,8 +314,135 @@ export function LaudoConteudo({
   );
 }
 
-function EventoLaudo({ l, ultimo }: { l: LinhaDoTempo; ultimo: boolean }) {
-  const lado = l.lado === "indefinido" ? "indefinido" : NOME_LADO[l.lado];
+// ================================================================ peças do Acesso Livre
+// Também no laudo de qualquer instrumento (onda 12), com a coleta da assinatura: lá quem envia é o
+// "proponente" (há Estado e OSC), e não o "município".
+
+/** A linha do tempo da tela de requisitos, com as repetições sem texto agrupadas. */
+export function LinhaDoTempoSecao({ linha, proponente = "município" }: { linha: LinhaDoTempo[]; proponente?: string }) {
+  return (
+    <section aria-labelledby="laudo-linha" className="mp-radar-secao">
+      <h2 id="laudo-linha" className="mp-radar-h2">
+        Linha do tempo
+      </h2>
+      {linha.length === 0 ? (
+        <p className="pa-cartao pa-cartao-plano">O Acesso Livre não registra nenhum evento de análise para este instrumento.</p>
+      ) : (
+        <ol className="mp-laudo-linha">
+          {agruparLinha(linha).map((b, k) =>
+            b.itens.length === 1 ? (
+              <EventoLaudo key={`${b.itens[0].quando}-${k}`} l={b.itens[0]} ultimo={b.ultimo} proponente={proponente} />
+            ) : (
+              <GrupoLaudo key={`${b.itens[0].quando}-${k}`} b={b} proponente={proponente} />
+            ),
+          )}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+/** Quem analisou do lado do concedente: nome e atribuição como registrados, sem contato pessoal. */
+export function AnalistasSecao({ analistas }: { analistas: Laudo["analistas"] }) {
+  if (!analistas.length) return null;
+  return (
+    <section aria-labelledby="laudo-analistas" className="mp-radar-secao">
+      <h2 id="laudo-analistas" className="mp-radar-h2">
+        Quem analisou
+      </h2>
+      <div className="mp-tabela-rolagem">
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Pessoa</th>
+              <th scope="col">Atribuição</th>
+              <th scope="col" className="mp-num">
+                Atos
+              </th>
+              <th scope="col" className="mp-num">
+                Pediu complementação
+              </th>
+              <th scope="col" className="mp-num">
+                Deu por atendido
+              </th>
+              <th scope="col">Período</th>
+            </tr>
+          </thead>
+          <tbody>
+            {analistas.map((a) => (
+              <tr key={a.nome}>
+                <th scope="row">{a.nome}</th>
+                <td>{a.atribuicao ?? "—"}</td>
+                <td className="mp-num">{n(a.atos)}</td>
+                <td className="mp-num">{n(a.exigencias)}</td>
+                <td className="mp-num">{n(a.atendimentos)}</td>
+                <td>{a.primeiro === a.ultimo ? data(a.primeiro) : `${data(a.primeiro)} a ${data(a.ultimo)}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="pa-nota">Nomes e atribuições como registrados no Transferegov. Contatos pessoais não são coletados.</p>
+    </section>
+  );
+}
+
+/** Os documentos anexados na aba de requisitos: o resumo e, aberta sob pedido, a lista. */
+export function DocumentosSecao({ documentos, lista, hoje }: { documentos: Laudo["documentos"]; lista: ExigDocumento[]; hoje: string }) {
+  return (
+    <section aria-labelledby="laudo-documentos" className="mp-radar-secao">
+      <h2 id="laudo-documentos" className="mp-radar-h2">
+        Documentos anexados
+      </h2>
+      {documentos.total === 0 ? (
+        <p className="pa-cartao pa-cartao-plano">Nenhum documento anexado na aba de requisitos.</p>
+      ) : (
+        <>
+          <p className="pa-nota">
+            {n(documentos.total)} {documentos.total === 1 ? "documento" : "documentos"} (
+            {documentos.porGrupo.map((g) => `${g.grupo.toLowerCase()}: ${n(g.n)}`).join(" · ")})
+            {documentos.comValidade > 0 ? ` · ${n(documentos.vencidos.length)} de ${n(documentos.comValidade)} com validade já vencidos em ${data(hoje)}` : ""}.
+          </p>
+          <details className="mp-fiscal-detalhe">
+            <summary>Ver a lista, do envio mais recente ao mais antigo</summary>
+            <div className="mp-tabela-rolagem">
+              <table className="mp-tabela">
+                <thead>
+                  <tr>
+                    <th scope="col">Documento</th>
+                    <th scope="col">Grupo</th>
+                    <th scope="col">Enviado em</th>
+                    <th scope="col">Validade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map((d) => {
+                    const vencido = !!d.validade && d.validade < hoje;
+                    return (
+                      <tr key={d.ordem} className={vencido ? "mp-laudo-vencido" : undefined}>
+                        <th scope="row">
+                          <span className="mp-tabela-principal">{d.descricao ?? d.arquivo}</span>
+                          <span className="mp-tabela-secundario">{d.arquivo}</span>
+                        </th>
+                        <td>{d.grupo ?? "—"}</td>
+                        <td>{d.enviado_em ? formatarPublicacao(d.enviado_em) : "—"}</td>
+                        <td>{d.validade ? `${data(d.validade)}${vencido ? " · vencido" : ""}` : "sem validade"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </>
+      )}
+    </section>
+  );
+}
+
+function EventoLaudo({ l, ultimo, proponente }: { l: LinhaDoTempo; ultimo: boolean; proponente: string }) {
+  const nomes: Record<Lado, string> = { concedente: "concedente", proponente };
+  const lado = l.lado === "indefinido" ? "indefinido" : nomes[l.lado];
   return (
     <li className={`mp-laudo-evento mp-laudo-evento-${l.lado}`}>
       <p className="mp-laudo-evento-cabeca">
@@ -434,8 +464,8 @@ function EventoLaudo({ l, ultimo }: { l: LinhaDoTempo; ultimo: boolean }) {
       {l.vezDepois && (
         <p className={`mp-laudo-miudo mp-laudo-espera mp-laudo-espera-${l.vezDepois}`}>
           {ultimo
-            ? `Desde então, a vez é do ${NOME_LADO[l.vezDepois]}: ${dias(l.diasAteProximo)} até a coleta.`
-            : `Vez do ${NOME_LADO[l.vezDepois]} por ${dias(l.diasAteProximo)}.`}
+            ? `Desde então, a vez é do ${nomes[l.vezDepois]}: ${dias(l.diasAteProximo)} até a coleta.`
+            : `Vez do ${nomes[l.vezDepois]} por ${dias(l.diasAteProximo)}.`}
         </p>
       )}
     </li>
@@ -443,10 +473,11 @@ function EventoLaudo({ l, ultimo }: { l: LinhaDoTempo; ultimo: boolean }) {
 }
 
 /** Pedidos seguidos do mesmo ato, pela mesma pessoa e sem texto colhido: uma linha só. */
-function GrupoLaudo({ b }: { b: BlocoLinha }) {
+function GrupoLaudo({ b, proponente }: { b: BlocoLinha; proponente: string }) {
+  const nomes: Record<Lado, string> = { concedente: "concedente", proponente };
   const primeiro = b.itens[0];
   const ultimoItem = b.itens[b.itens.length - 1];
-  const lado = primeiro.lado === "indefinido" ? "indefinido" : NOME_LADO[primeiro.lado];
+  const lado = primeiro.lado === "indefinido" ? "indefinido" : nomes[primeiro.lado];
   const periodo = diasEntreDias(primeiro.dia, ultimoItem.dia);
   return (
     <li className={`mp-laudo-evento mp-laudo-evento-${primeiro.lado}`}>
@@ -466,8 +497,8 @@ function GrupoLaudo({ b }: { b: BlocoLinha }) {
       {ultimoItem.vezDepois && (
         <p className={`mp-laudo-miudo mp-laudo-espera mp-laudo-espera-${ultimoItem.vezDepois}`}>
           {b.ultimo
-            ? `Desde então, a vez é do ${NOME_LADO[ultimoItem.vezDepois]}: ${dias(ultimoItem.diasAteProximo)} até a coleta.`
-            : `Depois do último, vez do ${NOME_LADO[ultimoItem.vezDepois]} por ${dias(ultimoItem.diasAteProximo)}.`}
+            ? `Desde então, a vez é do ${nomes[ultimoItem.vezDepois]}: ${dias(ultimoItem.diasAteProximo)} até a coleta.`
+            : `Depois do último, vez do ${nomes[ultimoItem.vezDepois]} por ${dias(ultimoItem.diasAteProximo)}.`}
         </p>
       )}
     </li>

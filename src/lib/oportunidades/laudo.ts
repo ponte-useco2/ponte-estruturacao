@@ -73,11 +73,19 @@ export interface ExigDetalhe {
   solicitacao: string | null;
 }
 
+/**
+ * Que instrumentos a coleta cobre (oport_20): os da PB em cláusula suspensiva (onda 11) ou os da PB
+ * aprovados e não assinados (onda 12). A tela do Acesso Livre é a mesma, e o vocabulário também.
+ */
+export type RecorteColeta = "suspensiva" | "assinatura";
+
 /** O que `exigencia_dossie(numero)` devolve. */
 export interface Dossie {
   coletado_em: string | null;
   referencia: string | null;
   fonte: string | null;
+  /** Ausente antes da oport_20: aí é sempre a suspensiva. */
+  recorte?: RecorteColeta | null;
   instrumento: ExigInstrumento | null;
   documentos: ExigDocumento[];
   eventos: ExigEvento[];
@@ -339,21 +347,56 @@ const NOME_LADO: Record<Lado, string> = { concedente: "concedente", proponente: 
 
 // ================================================================ a leitura
 
-export function lerLaudo(dossie: Dossie, contexto: ContextoLaudo, hoje: string, tempo: TempoOrgao | null = null): Laudo {
+/**
+ * Só o que o Acesso Livre mostra, sem o painel: de quem é a vez, a linha do tempo, quanto tempo cada
+ * lado segurou, quem analisou, os documentos e quantos textos do concedente foram colhidos. É a base
+ * do laudo da suspensiva e, no recorte da assinatura (onda 12), entra no laudo de qualquer instrumento.
+ */
+export interface AcessoLivre {
+  recorte: RecorteColeta;
+  referencia: string;
+  coletadoEm: string | null;
+  vez: Laudo["vez"];
+  ultimo: LinhaDoTempo | null;
+  linha: LinhaDoTempo[];
+  tempoPorLado: Laudo["tempoPorLado"];
+  maiorEspera: Laudo["maiorEspera"];
+  analistas: Analista[];
+  documentos: Laudo["documentos"];
+  textos: Laudo["textos"];
+  /** Pedidos de complementação do concedente e envios do proponente. */
+  rodadas: number;
+  envios: number;
+}
+
+export function lerAcessoLivre(dossie: Dossie, hoje: string): AcessoLivre {
+  const recorte: RecorteColeta = dossie.recorte ?? "suspensiva";
   const referencia = diaBrasilia(dossie.referencia ?? dossie.coletado_em ?? hoje);
   const detalhePorId = new Map(dossie.detalhes.map((d) => [d.id_situacao, d]));
   const detalhaveis = dossie.eventos.filter((e) => e.id_situacao);
-  const textos = { comDetalhe: detalhaveis.length, colhidos: detalhaveis.filter((e) => detalhePorId.has(e.id_situacao as string)).length };
-
   const linha = montarLinha(dossie.eventos, detalhePorId, referencia);
   const ultimo = linha.at(-1) ?? null;
-  const tempoPorLado = somarTempo(linha);
-  const maiorEspera = acharMaiorEspera(linha, referencia);
-  const documentos = lerDocumentos(dossie.documentos, hoje);
-  const analistas = lerAnalistas(linha);
+  return {
+    recorte,
+    referencia,
+    coletadoEm: dossie.coletado_em,
+    vez: lerVez(ultimo, referencia, recorte),
+    ultimo,
+    linha,
+    tempoPorLado: somarTempo(linha),
+    maiorEspera: acharMaiorEspera(linha, referencia),
+    analistas: lerAnalistas(linha),
+    documentos: lerDocumentos(dossie.documentos, hoje),
+    textos: { comDetalhe: detalhaveis.length, colhidos: detalhaveis.filter((e) => detalhePorId.has(e.id_situacao as string)).length },
+    rodadas: linha.filter((l) => l.resultado === "complementação solicitada").length,
+    envios: linha.filter((l) => l.resultado === "enviado").length,
+  };
+}
+
+export function lerLaudo(dossie: Dossie, contexto: ContextoLaudo, hoje: string, tempo: TempoOrgao | null = null): Laudo {
+  const { referencia, textos, linha, ultimo, tempoPorLado, maiorEspera, documentos, analistas, vez, rodadas, envios } = lerAcessoLivre(dossie, hoje);
 
   const retirada = contexto.dt_retirada_suspensiva;
-  const vez = lerVez(ultimo, referencia);
   const prazo = lerPrazo(contexto, hoje);
   const vigencia = lerVigencia(contexto, hoje);
   const dinheiro = {
@@ -362,8 +405,6 @@ export function lerLaudo(dossie: Dossie, contexto: ContextoLaudo, hoje: string, 
     parado: contexto.vl_repasse === null ? null : Math.max(0, contexto.vl_repasse - (contexto.vl_desembolsado ?? 0)),
   };
 
-  const rodadas = linha.filter((l) => l.resultado === "complementação solicitada").length;
-  const envios = linha.filter((l) => l.resultado === "enviado").length;
   const condicoes = retirada ? [] : lerCondicoes(contexto.motivo_suspensao, dossie.detalhes);
   const tempoOrgao = retirada ? null : tempo;
 
@@ -473,7 +514,12 @@ function lerAnalistas(linha: LinhaDoTempo[]): Analista[] {
   return [...m.values()].sort((a, b) => b.atos - a.atos || a.nome.localeCompare(b.nome));
 }
 
-function lerVez(ultimo: LinhaDoTempo | null, referencia: string): Laudo["vez"] {
+/**
+ * A frase de quem está devendo. No recorte da assinatura, "atendido" quer dizer que os requisitos para
+ * celebrar foram dados por cumpridos e falta o concedente assinar; e quem envia é o "proponente" — na
+ * lista há Estado e OSC, não só município.
+ */
+function lerVez(ultimo: LinhaDoTempo | null, referencia: string, recorte: RecorteColeta = "suspensiva"): Laudo["vez"] {
   if (!ultimo) {
     return { lado: null, desde: null, dias: null, frase: "O Acesso Livre não registra nenhuma análise para este instrumento." };
   }
@@ -481,21 +527,25 @@ function lerVez(ultimo: LinhaDoTempo | null, referencia: string): Laudo["vez"] {
   const d = diasEntre(ultimo.dia, referencia);
   const ate = `até a coleta de ${dataBr(referencia)}`;
   const quando = dataBr(ultimo.dia);
+  const quem = recorte === "assinatura" ? "proponente" : "município";
   let frase: string;
   switch (ultimo.resultado) {
     case "atendido":
       frase =
-        `A última manifestação foi do concedente: uma análise registrada como atendida em ${quando}${por(ultimo.responsavel)}. ` +
-        `Desde então, nenhum evento novo — ${dias(d)} ${ate}. A retirada da cláusula suspensiva não está registrada.`;
+        recorte === "assinatura"
+          ? `A última manifestação foi do concedente: os requisitos para celebração foram registrados como atendidos em ${quando}${por(ultimo.responsavel)}. ` +
+            `Desde então, nenhum evento novo — ${dias(d)} ${ate}. A assinatura não está registrada.`
+          : `A última manifestação foi do concedente: uma análise registrada como atendida em ${quando}${por(ultimo.responsavel)}. ` +
+            `Desde então, nenhum evento novo — ${dias(d)} ${ate}. A retirada da cláusula suspensiva não está registrada.`;
       break;
     case "enviado":
-      frase = `O município enviou documentação em ${quando} e espera a análise do concedente há ${dias(d)}, ${ate}.`;
+      frase = `O ${quem} enviou documentação em ${quando} e espera a análise do concedente há ${dias(d)}, ${ate}.`;
       break;
     case "complementação solicitada":
-      frase = `O concedente pediu complementação em ${quando}${por(ultimo.responsavel)}. Não há envio do município depois disso — ${dias(d)} ${ate}.`;
+      frase = `O concedente pediu complementação em ${quando}${por(ultimo.responsavel)}. Não há envio do ${quem} depois disso — ${dias(d)} ${ate}.`;
       break;
     case "não atendido":
-      frase = `O concedente registrou análise não atendida em ${quando}${por(ultimo.responsavel)}. Cabe ao município corrigir e reenviar — ${dias(d)} sem resposta, ${ate}.`;
+      frase = `O concedente registrou análise não atendida em ${quando}${por(ultimo.responsavel)}. Cabe ao ${quem} corrigir e reenviar — ${dias(d)} sem resposta, ${ate}.`;
       break;
     default:
       frase = `O último evento, em ${quando}, tem um rótulo que o laudo não sabe ler ("${ultimo.evento}"). Confira no Transferegov.`;

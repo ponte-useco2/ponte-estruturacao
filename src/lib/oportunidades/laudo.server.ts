@@ -80,10 +80,11 @@ export async function lerLaudoInstrumento(numero: string): Promise<LeituraLaudo>
   if (!contexto) return { estado: "sem_coleta", contexto: null, coletadoEm: d.coletado_em };
 
   // O histórico do mesmo órgão, para comparar o tempo (no máximo ~mil linhas, as de Cidades). Se esta
-  // leitura falhar, o laudo sai sem a comparação em vez de cair: ela é complemento, não o laudo.
+  // leitura falhar, o laudo sai sem a comparação em vez de cair: ela é complemento, não o laudo. Na coleta
+  // da assinatura (onda 12) não há suspensiva para comparar: o tempo vem do diagnóstico.
   let historicoOrgao: HistoricoSuspensiva[] = [];
   const orgao = contexto.orgao_sup;
-  if (orgao && !contexto.dt_retirada_suspensiva) {
+  if (orgao && !contexto.dt_retirada_suspensiva && d.recorte !== "assinatura") {
     const h = await todas<HistoricoSuspensiva>("lerLaudoInstrumento (histórico do órgão)", (i, f) =>
       db
         .from("painel_instrumento")

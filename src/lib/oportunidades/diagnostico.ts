@@ -24,7 +24,7 @@
 import { grupoDaSituacao, rotuloSituacaoHistorico, type Instrumento } from "./busca.ts";
 import { formatarData } from "./central.ts";
 import type { ConclusaoFiscal, EstadoFiscal } from "./fiscal.ts";
-import { diasEntre, type Nivel, type Passo, type Risco } from "./laudo.ts";
+import { DIAS_PARADO_ALTO, DIAS_PARADO_MODERADO, RODADAS_REUNIAO, diasEntre, type AcessoLivre, type Nivel, type Passo, type Risco } from "./laudo.ts";
 import { MINIMO_MEDICOES, percentual, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
 import { tituloOrgao } from "./padroes.ts";
 import { moedaCurta } from "./radar.ts";
@@ -129,6 +129,11 @@ export interface EntradaDiagnostico {
   emendas: EmendaOrigem[] | null;
   fiscal: FiscalProponente | null;
   portas: PortaAberta[] | null;
+  /**
+   * A coleta do Acesso Livre no recorte da assinatura (onda 12, parte 2): requisitos para celebração,
+   * quem analisou e de quem é a vez. Ausente para quem não está na coleta.
+   */
+  acessoLivre?: AcessoLivre | null;
   /** O que não veio e por quê, para a nota de método. */
   faltas: string[];
 }
@@ -312,10 +317,26 @@ export interface Diagnostico {
   /** Por que não há leitura fiscal (Estado, outra UF, falha). */
   fiscalMotivo: string | null;
   portas: PortaAberta[];
+  acessoLivre: AcessoLivre | null;
+  /** Por que a coleta não tem nenhum evento, quando não tem (os termos do SIMEC/PAR correm no SIMEC). */
+  acessoLivreVazio: string | null;
   riscos: Risco[];
   estrategia: Passo[];
   inacao: string[];
   faltas: string[];
+}
+
+/**
+ * Por que a tela de requisitos veio vazia. Na coleta de 28/09/2026, os termos de compromisso do MEC no
+ * "Programa SIMEC/PAR" (107 dos 239 aprovados da PB) não tinham nenhum evento: o acompanhamento deles
+ * é feito no SIMEC, do FNDE, e o Transferegov só recebe o termo. Nos outros 22 vazios, quase todos
+ * aprovados há poucos meses, a tela dizia "Nenhum registro encontrado": nada enviado ainda.
+ */
+export function motivoAcessoLivreVazio(i: Pick<Instrumento, "programa">, al: AcessoLivre | null): string | null {
+  if (!al || al.linha.length) return null;
+  return /simec/i.test(i.programa ?? "")
+    ? "Nos termos de compromisso do PAR (programa SIMEC/PAR, do FNDE), a tela de requisitos do Transferegov vem vazia: o acompanhamento desses termos é feito no SIMEC."
+    : "A tela de requisitos para celebração do Acesso Livre está vazia para este instrumento: nenhum documento enviado nem análise registrada até a coleta.";
 }
 
 // ================================================================ utilidades
@@ -507,7 +528,10 @@ export function funis(desfechos: LinhaDesfecho[], codPrograma: string | null, uf
 export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: OpcoesDiagnostico = {}): Diagnostico {
   const i = e.instrumento;
   const etapa = etapaDo(i);
-  const vez = vezDo(i, etapa);
+  // Antes da assinatura, a coleta do Acesso Livre diz de quem é a vez melhor que a situação: um
+  // aprovado "esperando assinatura" pode estar com um pedido de complementação aberto para o proponente.
+  const acessoLivre = e.acessoLivre && (etapa === "assinatura" || etapa === "proposta") ? e.acessoLivre : null;
+  const vez = acessoLivre?.vez.lado ?? vezDo(i, etapa);
   const tempo = tempoNaEtapa(i, etapa, e.etapas, hoje);
 
   const vigDias = i.dt_fim_vigencia ? diasEntre(hoje, i.dt_fim_vigencia) : null;
@@ -581,7 +605,23 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     )
     .slice(0, MAXIMO_PORTAS);
 
-  const b: Base = { i, etapa, vez, tempo, vigencia, dinheiro, liminar, programa, proponente, emendas, fiscal: e.fiscal, portas, hoje, comDossie: !!opcoes.comDossie };
+  const b: Base = {
+    i,
+    etapa,
+    vez,
+    tempo,
+    vigencia,
+    dinheiro,
+    liminar,
+    programa,
+    proponente,
+    emendas,
+    fiscal: e.fiscal,
+    portas,
+    acessoLivre,
+    hoje,
+    comDossie: !!opcoes.comDossie,
+  };
   return {
     etapa,
     rotuloEtapa: ROTULO_ETAPA_LAUDO[etapa],
@@ -597,6 +637,8 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     fiscal: e.fiscal,
     fiscalMotivo,
     portas,
+    acessoLivre,
+    acessoLivreVazio: motivoAcessoLivreVazio(i, acessoLivre),
     riscos: lerRiscos(b).sort(porNivel),
     estrategia: lerEstrategia(b),
     inacao: b.comDossie ? [] : lerInacao(b),
@@ -617,6 +659,7 @@ interface Base {
   emendas: EmendaOrigem[];
   fiscal: FiscalProponente | null;
   portas: PortaAberta[];
+  acessoLivre: AcessoLivre | null;
   hoje: string;
   comDossie: boolean;
 }
@@ -715,6 +758,34 @@ function lerRiscos(b: Base): Risco[] {
         nivel: p90 ? "alto" : "moderado",
         titulo: p90 ? `Mais demorado que 9 em cada 10 ${daBase(t.base)}` : `Mais demorado que a metade ${daBase(t.base)}`,
         fato: frasePadrao(t),
+      });
+    }
+  }
+
+  // Os requisitos para celebração, lidos da coleta do Acesso Livre (recorte da assinatura).
+  const al = b.acessoLivre;
+  if (al) {
+    if (al.vez.dias !== null && al.vez.dias > DIAS_PARADO_MODERADO) {
+      r.push({
+        nivel: al.vez.dias > DIAS_PARADO_ALTO ? "alto" : "moderado",
+        titulo: "Requisitos para celebração parados",
+        fato:
+          `Nenhum evento na tela de requisitos há ${dias(al.vez.dias)}, desde ${data(al.vez.desde)}, contados até a coleta de ${data(al.referencia)}` +
+          `${al.vez.lado ? `, com a vez do ${al.vez.lado}` : ""}.`,
+      });
+    }
+    if (al.rodadas >= RODADAS_REUNIAO) {
+      r.push({
+        nivel: "moderado",
+        titulo: "Muitas rodadas de exigência",
+        fato: `O concedente pediu complementação ${plural(al.rodadas, "vez", "vezes")}; o proponente enviou documentação ${plural(al.envios, "vez", "vezes")}.`,
+      });
+    }
+    if (al.documentos.vencidos.length) {
+      r.push({
+        nivel: "moderado",
+        titulo: "Documentos com validade vencida",
+        fato: `${n(al.documentos.vencidos.length)} de ${n(al.documentos.comValidade)} documentos com validade já venceram. Numa nova análise, não valem mais.`,
       });
     }
   }
@@ -818,22 +889,32 @@ function lerEstrategia(b: Base): Passo[] {
 
   if (!b.comDossie) {
     switch (etapa) {
-      case "assinatura":
-        if (v.dias !== null && v.dias < 0) {
+      case "assinatura": {
+        const vencida = v.dias !== null && v.dias < 0;
+        if (vencida) {
           p.push({
             titulo: "Confirmar com o concedente se o instrumento ainda pode ser assinado",
             porque:
               `A vigência registrada terminou em ${data(v.data)} sem assinatura. Antes de cobrar a assinatura, é preciso saber se o concedente ` +
               "vai registrar nova vigência ou se o caminho é uma nova proposta.",
           });
-        } else {
+        }
+        const doAcesso = passoDoAcessoLivre(b, base);
+        if (doAcesso) p.push(doAcesso);
+        else if (!vencida) {
           p.push({
             titulo: "Cobrar a assinatura do concedente",
             porque: `${i.dt_aprovacao ? `Plano aprovado em ${data(i.dt_aprovacao)}` : "Aprovado"}${t?.dias !== null && t?.dias !== undefined ? `, há ${dias(t.dias)}` : ""}.${base}`,
           });
         }
         break;
-      case "proposta":
+      }
+      case "proposta": {
+        const doAcesso = passoDoAcessoLivre(b, base);
+        if (doAcesso) {
+          p.push(doAcesso);
+          break;
+        }
         if (b.vez === "proponente") {
           p.push({ titulo: "Responder ao pedido do concedente", porque: `O último registro do histórico, de ${data(i.dt_ultimo_historico)}, deixa a vez com o proponente.` });
         } else {
@@ -843,6 +924,7 @@ function lerEstrategia(b: Base): Passo[] {
           });
         }
         break;
+      }
       case "suspensiva":
         p.push({
           titulo: "Levantar o que falta para a retirada da suspensiva",
@@ -921,6 +1003,37 @@ function lerEstrategia(b: Base): Passo[] {
     });
   }
   return p;
+}
+
+/**
+ * O próximo passo pelo último evento dos requisitos para celebração: com "atendido", pedir a assinatura
+ * citando a análise; com envio do proponente, cobrar a análise; com pedido do concedente, responder a ele.
+ */
+function passoDoAcessoLivre(b: Base, base: string): Passo | null {
+  const al = b.acessoLivre;
+  const u = al?.ultimo;
+  if (!al || !u) return null;
+  const por = u.responsavel ? `, por ${u.responsavel}` : "";
+  const espera = al.vez.dias !== null ? ` ${dias(al.vez.dias)} sem evento até a coleta de ${data(al.referencia)}.` : "";
+  switch (u.resultado) {
+    case "atendido":
+      return {
+        titulo: "Pedir a assinatura, citando a análise dos requisitos",
+        porque:
+          `Os requisitos para celebração foram registrados como atendidos em ${data(u.dia)}${por}` +
+          `${u.texto ? `, com a observação «${u.texto}»` : ""}.${espera}${base}`,
+      };
+    case "enviado":
+      return { titulo: "Cobrar a análise do último envio", porque: `O proponente enviou documentação em ${data(u.dia)}.${espera}` };
+    case "complementação solicitada":
+    case "não atendido":
+      return {
+        titulo: "Responder ao último pedido do concedente",
+        porque: `Pedido de ${data(u.dia)}${por}${u.texto ? `: «${u.texto}»` : ""}.${espera}`,
+      };
+    default:
+      return null;
+  }
 }
 
 function somaDias(iso: string, d: number): string {
