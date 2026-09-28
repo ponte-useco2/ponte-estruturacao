@@ -9,15 +9,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ROTA_LAUDO, abaAtiva, type RegraAba } from "@/lib/oportunidades/abas";
 
-interface Aba {
-  href: string;
+interface Aba extends RegraAba {
   nome: string;
-  exata: boolean;
   admin: boolean;
   municipio: boolean;
-  /** Outras rotas que acendem esta aba. */
-  tambem?: readonly string[];
 }
 
 const ABAS: readonly Aba[] = [
@@ -33,6 +30,8 @@ const ABAS: readonly Aba[] = [
     admin: false,
     municipio: false,
     tambem: ["/mapa/instrumento/", "/mapa/proposta/", "/mapa/municipio/"],
+    // O laudo mora debaixo de /mapa/instrumento, mas se chega a ele pela lista das suspensivas.
+    exceto: [ROTA_LAUDO],
   },
   // Só para quem está numa organização de município. A página confere o vínculo
   // confirmado e explica o que falta; a aba só evita mostrar a porta a quem não é prefeitura.
@@ -42,7 +41,7 @@ const ABAS: readonly Aba[] = [
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
   { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
   { href: "/mapa/fiscal", nome: "Fiscal", exata: false, admin: true, municipio: false },
-  { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false },
+  { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false, tambem: [ROTA_LAUDO] },
 ];
 
 export function MapaNav({
@@ -60,9 +59,7 @@ export function MapaNav({
   return (
     <nav className="pa-abas" aria-label="Mapa de Oportunidades">
       {ABAS.filter((aba) => (admin || !aba.admin) && (municipio || !aba.municipio)).map((aba) => {
-        const atual = aba.exata
-          ? pathname === aba.href
-          : pathname.startsWith(aba.href) || (aba.tambem ?? []).some((p) => pathname.startsWith(p));
+        const atual = abaAtiva(aba, pathname);
         const contagem = aba.href === "/mapa/avisos" && naoLidas !== null && naoLidas > 0 ? naoLidas : null;
         return (
           <Link

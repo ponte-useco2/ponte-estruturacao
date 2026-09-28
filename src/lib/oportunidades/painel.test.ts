@@ -176,6 +176,14 @@ test("CSV para o Excel em português", () => {
   assert.equal(csv.split("\r\n")[1], `981395;1234,5;12/09/2026;sim;"tem ; e ""aspas""";" =HYPERLINK(1)";`);
 });
 
+test("CSV: número sai com no máximo duas casas, sem resto de ponto flutuante", () => {
+  const csv = paraCsv(
+    [{ titulo: "N", valor: (x: { v: number }) => x.v }],
+    [{ v: 395.80999999999995 }, { v: 0.1 + 0.2 }, { v: -4743 }, { v: 1442831.44 }, { v: -0.001 }, { v: 12.5 }],
+  );
+  assert.deepEqual(csv.split("\r\n").slice(1, 7), ["395,81", "0,3", "-4743", "1442831,44", "0", "12,5"]);
+});
+
 test("CSV: texto com sinal na frente ganha espaço (o Excel não lê fórmula e não mostra apóstrofo)", () => {
   const csv = paraCsv(
     [

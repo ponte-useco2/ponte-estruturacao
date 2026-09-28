@@ -44,10 +44,12 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
   const prazo = FILTROS_PRAZO.find((x) => x.id === filtro.prazo) ?? FILTROS_PRAZO[0];
   const f: Filtro = { prazo: prazo.id, orgao };
 
-  const linhas = todas
-    .filter((l) => !orgao || l.contexto?.orgao_sup === orgao)
-    .filter((l) => !prazo.niveis || prazo.niveis.includes(nivelPrazo(urgencia(l), hoje)))
-    .sort((a, b) => compararUrgencia(urgencia(a), urgencia(b), hoje));
+  const noPrazo = todas.filter((l) => !prazo.niveis || prazo.niveis.includes(nivelPrazo(urgencia(l), hoje)));
+  const linhas = noPrazo.filter((l) => !orgao || l.contexto?.orgao_sup === orgao).sort((a, b) => compararUrgencia(urgencia(a), urgencia(b), hoje));
+  // O número em cada botão de órgão segue o filtro de prazo; a ordem dos botões é a do total, para não pular.
+  const porOrgaoNoPrazo = new Map(contarOrgaos(noPrazo));
+  // Convênios da coleta cuja suspensiva foi retirada depois dela (o painel é diário, a coleta não).
+  const retirados = linhas.filter((l) => l.contexto?.dt_retirada_suspensiva).length;
 
   const parado = linhas.reduce((s, l) => s + Math.max(0, (l.contexto?.vl_repasse ?? 0) - (l.contexto?.vl_desembolsado ?? 0)), 0);
   const vencidos = linhas.filter((l) => l.contexto?.dt_suspensiva && !l.contexto.dt_retirada_suspensiva && l.contexto.dt_suspensiva < hoje).length;
@@ -76,7 +78,10 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         <article className="pa-cartao">
           <h2 className="pa-mono">Convênios</h2>
           <p className="pa-numero">{n(linhas.length)}</p>
-          <p className="pa-nota">{linhas.length !== todas.length ? `de ${n(todas.length)} na coleta` : "na coleta"}</p>
+          <p className="pa-nota">
+            {linhas.length !== todas.length ? `de ${n(todas.length)} na coleta` : "na coleta"}
+            {retirados > 0 ? ` · ${n(retirados)} já com a retirada registrada depois dela` : ""}
+          </p>
         </article>
         <article className="pa-cartao">
           <h2 className="pa-mono">Repasse sem desembolso</h2>
@@ -109,14 +114,14 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
           <Link href={url(f, { orgao: null })} className={`pa-chip${!f.orgao ? " pa-ativo" : ""}`} aria-current={!f.orgao ? "true" : undefined}>
             Todos
           </Link>
-          {orgaos.map(([o, q]) => (
+          {orgaos.map(([o]) => (
             <Link
               key={o}
               href={url(f, { orgao: o })}
               className={`pa-chip${o === f.orgao ? " pa-ativo" : ""}`}
               aria-current={o === f.orgao ? "true" : undefined}
             >
-              {tituloOrgao(o)} ({n(q)})
+              {tituloOrgao(o)} ({n(porOrgaoNoPrazo.get(o) ?? 0)})
             </Link>
           ))}
         </nav>

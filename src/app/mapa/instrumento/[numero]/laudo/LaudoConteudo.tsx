@@ -84,7 +84,12 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
         <article className="pa-cartao">
           <h2 className="pa-mono">A vez é do</h2>
           <p className="pa-numero">{laudo.vez.lado ? NOME_LADO[laudo.vez.lado] : "—"}</p>
-          <p className="pa-nota">{laudo.vez.dias !== null ? `há ${dias(laudo.vez.dias)}, desde ${data(laudo.vez.desde)}` : "sem evento registrado"}</p>
+          {/* Duas referências no mesmo laudo: a vez conta até a coleta; prazo, vigência e assinatura, até hoje. Cada cartão diz a sua. */}
+          <p className="pa-nota">
+            {laudo.vez.dias !== null
+              ? `há ${dias(laudo.vez.dias)} até a coleta de ${data(laudo.referencia)}, desde ${data(laudo.vez.desde)}`
+              : "sem evento registrado"}
+          </p>
         </article>
         <article className="pa-cartao">
           <h2 className="pa-mono">Prazo da suspensiva</h2>
@@ -107,6 +112,7 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
             <h2 className="pa-mono">Desde a assinatura</h2>
             <p className="pa-numero">{dias(to.dias)}</p>
             <p className="pa-nota">
+              {`até hoje (${data(hoje)}) · `}
               {to.posicao === null || to.mediana === null || to.p75 === null
                 ? `poucos casos no órgão para comparar: ${to.sairam === 0 ? "nenhum saiu" : to.sairam === 1 ? "1 saiu" : `${n(to.sairam)} saíram`} da suspensiva desde ${to.desde.slice(0, 4)}`
                 : `no órgão, metade saiu da suspensiva em até ${dias(Math.round(to.mediana))}; 3 em cada 4, em até ${dias(Math.round(to.p75))}`}

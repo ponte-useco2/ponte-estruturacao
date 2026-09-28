@@ -934,7 +934,8 @@ export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[]): string {
     if (texto && typeof v === "string" && IDENTIFICADOR_SEGURO.test(v)) return `"=""${v}"""`;
     let s: string;
     if (typeof v === "boolean") s = v ? "sim" : "não";
-    else if (typeof v === "number") s = Number.isFinite(v) ? String(v).replace(".", ",") : "";
+    // Duas casas no máximo: conta de ponto flutuante gerava "395,80999999999995" no rendimento.
+    else if (typeof v === "number") s = Number.isFinite(v) ? String(Math.round(v * 100) / 100 || 0).replace(".", ",") : "";
     else s = /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : v;
     // Texto começando com sinal ganha um espaço na frente: o Excel deixa de ler fórmula
     // ("- Aquisição…" dava #NOME?) e, ao contrário do apóstrofo, o espaço não aparece.
