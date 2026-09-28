@@ -47,8 +47,8 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
       leitura={leitura}
       seguindo={seguidas ? seguidas.has(chaveSeguida("instrumento", i.nr_convenio)) : null}
       // O laudo nomeia servidores e interpreta o andamento: só administradores veem o atalho (e a
-      // página do laudo confere de novo no servidor).
-      laudo={ehAdministrador(visitante.email) && i.situacao === "Em execução" && !!i.dt_suspensiva && !i.dt_retirada_suspensiva}
+      // página do laudo confere de novo no servidor). Desde a onda 12, vale para qualquer instrumento.
+      laudo={ehAdministrador(visitante.email)}
     />
   );
 }

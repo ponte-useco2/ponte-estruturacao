@@ -55,8 +55,10 @@ export const MINIMO_PADRAO = 5;
 /** Coorte do histórico: as regras mudaram (Portaria 424/2016, Portaria Conjunta 33/2023). */
 export const COORTE_DESDE = "2019-01-01";
 
-/** Palavras que o SICONV grava ora com, ora sem acento nos nomes de órgão. */
+/** Palavras que o SICONV grava ora com, ora sem acento nos nomes de órgão (e de proponente, no laudo). */
 const ACENTOS_ORGAO: Record<string, string> = {
+  paraiba: "paraíba",
+  municipio: "município",
   ministerio: "ministério",
   saude: "saúde",
   justica: "justiça",

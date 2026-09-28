@@ -4,6 +4,7 @@
  * Recebe a leitura pronta (lib/oportunidades/laudo.ts); aqui só se apresenta.
  */
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { rotuloModalidade, urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { agruparLinha, diasEntre as diasEntreDias, type BlocoLinha, type Dossie, type Laudo, type Lado, type LinhaDoTempo, type Nivel } from "@/lib/oportunidades/laudo";
@@ -22,7 +23,26 @@ const n = (x: number) => x.toLocaleString("pt-BR");
 const dias = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "dia" : "dias"}`;
 const data = (iso: string | null) => (iso ? formatarData(iso) : "—");
 
-export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo; dossie: Dossie; contexto: ContextoPainel; hoje: string }) {
+/**
+ * `complemento`: seções do laudo de qualquer instrumento (onda 12) — outros riscos, programa, proponente,
+ * emenda, janelas —, que entram depois do "Se nada for feito" e antes dos registros do Acesso Livre;
+ * `fontesExtras`: as linhas de método delas, na lista da "Fonte e método".
+ */
+export function LaudoConteudo({
+  laudo,
+  dossie,
+  contexto,
+  hoje,
+  complemento = null,
+  fontesExtras = null,
+}: {
+  laudo: Laudo;
+  dossie: Dossie;
+  contexto: ContextoPainel;
+  hoje: string;
+  complemento?: ReactNode;
+  fontesExtras?: ReactNode;
+}) {
   const numero = contexto.nr_convenio;
   const inst = dossie.instrumento;
   const t = laudo.tempoPorLado;
@@ -204,6 +224,8 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
         </section>
       )}
 
+      {complemento}
+
       <section aria-labelledby="laudo-causas" className="mp-radar-secao">
         <h2 id="laudo-causas" className="mp-radar-h2">
           O que os registros mostram
@@ -377,6 +399,7 @@ export function LaudoConteudo({ laudo, dossie, contexto, hoje }: { laudo: Laudo;
           <li>
             “Atendido” é o rótulo que o concedente registrou, não uma conclusão deste laudo. Onde há observação, ela aparece entre aspas, como foi escrita.
           </li>
+          {fontesExtras}
         </ul>
         {contexto.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">

@@ -30,7 +30,7 @@ const data = (iso: string | null) => (iso ? formatarData(iso) : "—");
 
 /**
  * `seguindo`: null quando não dá para saber (sem a oport_15): a estrela não aparece.
- * `laudo`: mostra o atalho para o laudo da cláusula suspensiva (a página decide quem vê).
+ * `laudo`: mostra o botão do laudo do instrumento (a página decide quem vê).
  */
 export function InstrumentoConteudo({
   leitura,
@@ -80,6 +80,14 @@ export function InstrumentoConteudo({
             </Link>
           ))}
         </p>
+        {laudo && (
+          <p className="mp-nao-imprimir mp-laudo-acoes">
+            <Link href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`} className="pa-btn pa-btn-pequeno">
+              Laudo do instrumento
+            </Link>
+            <span className="pa-nota">onde está, quanto tempo contra o típico, riscos e o que fazer</span>
+          </p>
+        )}
       </div>
 
       <div className="pa-grade pa-grade-3 mp-painel-cartoes">
@@ -94,7 +102,8 @@ export function InstrumentoConteudo({
           <h2 className="pa-mono">Desembolsado</h2>
           <p className="pa-numero">{moedaCurta(i.vl_desembolsado)}</p>
           <p className="pa-nota">
-            {percentual(i.pct_desembolsado)} do repasse · empenhado {moedaCurta(i.vl_empenhado)}
+            {/* Calculado aqui: até a onda 12 o job gravava 999% em `pct_desembolsado` quando não havia desembolso. */}
+            {percentual(i.vl_repasse ? (i.vl_desembolsado ?? 0) / i.vl_repasse : null)} do repasse · empenhado {moedaCurta(i.vl_empenhado)}
           </p>
         </article>
         <article className="pa-cartao">
@@ -126,13 +135,6 @@ export function InstrumentoConteudo({
           <Prazo rotulo="Desembolsos" valor={i.dt_primeiro_desembolso ? `${data(i.dt_primeiro_desembolso)} a ${data(i.dt_ultimo_desembolso)}` : "nenhum"} />
           <Prazo rotulo="Último pagamento" valor={data(i.dt_ultimo_pagamento)} />
         </dl>
-        {laudo && (
-          <p className="pa-nota">
-            <Link href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`}>
-              Ver o laudo da cláusula suspensiva: o que falta, desde quando e de quem é a vez
-            </Link>
-          </p>
-        )}
         {i.id_proposta && (
           <p className="pa-nota">
             <Link href={urlProposta(i.id_proposta)}>Ver a proposta que originou o convênio</Link>

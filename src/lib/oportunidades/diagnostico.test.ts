@@ -1,0 +1,479 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  chaveOrgao,
+  cnpjLegivel,
+  etapaDo,
+  funis,
+  lerDiagnostico,
+  nivelMaisAlto,
+  nomeProponente,
+  tempoNaEtapa,
+  vizinhanca,
+  type EntradaDiagnostico,
+  type InstrumentoLaudo,
+  type Vizinho,
+} from "./diagnostico.ts";
+import type { LinhaDesfecho, LinhaEtapa } from "./painel.ts";
+
+const HOJE = "2026-09-28";
+
+// ------------------------------------------------------------------ o 962210 como está no painel (execução 25, 26/09/2026)
+
+const I962210: InstrumentoLaudo = {
+  nr_convenio: "962210",
+  id_proposta: "1988073",
+  nr_proposta: "8161/2024",
+  modalidade: "TERMO DE COMPROMISSO",
+  situacao: "Proposta/Plano de Trabalho Aprovado",
+  subsituacao: null,
+  vivo: false,
+  detalhe: true,
+  uf: "PB",
+  cod_ibge: "2507507",
+  municipio: "JOÃO PESSOA",
+  proponente: "ESTADO DA PARAIBA",
+  cnpj: "08761124000100",
+  tipo_agente: "estado",
+  orgao_sup: "MINISTERIO DA CULTURA",
+  orgao: "INSTITUTO DO PATRIMONIO HIST. E ART. NACIONAL",
+  cod_programa: "2041120240005",
+  programa: "NOVO PAC PATRIMÔNIO CULTURAL - PROJETOS",
+  temas: ["cultura"],
+  objeto: "Contratação de projetos técnicos para Estruturação dos Sítio Arqueológico Itacoatiaras do Rio Ingá - Ingá/PB",
+  com_emenda: false,
+  vl_global: 450000,
+  vl_repasse: 450000,
+  vl_contrapartida: 0,
+  vl_empenhado: 450000,
+  vl_desembolsado: null,
+  vl_pago: null,
+  vl_saldo_conta: 0,
+  // Como o job gravava antes da onda 12: 999% sem desembolso. O laudo não usa este campo.
+  pct_desembolsado: 9.99,
+  pct_fisico: null,
+  dt_assinatura: null,
+  dt_inicio_vigencia: "2024-10-08",
+  dt_fim_vigencia: "2025-10-03",
+  dt_limite_contas: "2025-10-03",
+  dt_suspensiva: null,
+  dt_retirada_suspensiva: null,
+  n_aditivos: 0,
+  n_prorrogas: 0,
+  dt_primeiro_desembolso: null,
+  dt_ultimo_desembolso: null,
+  dt_ultimo_pagamento: null,
+  // oport_19, conferido no SICONV de 14/09/2026.
+  situacao_contratacao: null,
+  dt_fim_vigencia_original: "2025-10-03",
+  dt_envio: "2024-05-29",
+  dt_aprovacao: "2024-06-06",
+  dt_conclusao: null,
+  dt_ultimo_historico: "2024-06-21",
+  ultimo_historico: "PLANO_TRABALHO_APROVADO",
+};
+
+function etapa(recorte: string, dimensao: "orgao" | "programa", chave: string, e: string, n: number, mediana: number, p90: number, emAberto = 0): LinhaEtapa {
+  return { recorte, dimensao, chave, rotulo: chave, orgao_sup: "MINISTERIO DA CULTURA", etapa: e, n, mediana, p90, em_aberto: emAberto, idade_mediana_aberto: null };
+}
+
+const ETAPAS_MINC: LinhaEtapa[] = [
+  etapa("PB", "orgao", "MINISTERIO DA CULTURA", "aprovacao_assinatura", 35, 14, 133, 2),
+  etapa("BR", "orgao", "MINISTERIO DA CULTURA", "aprovacao_assinatura", 3146, 0, 51, 40),
+  etapa("BR", "programa", "2041120240005", "aprovacao_assinatura", 90, 161, 328, 4),
+  // Programa na PB com poucas medições: não serve de base.
+  etapa("PB", "programa", "2041120240005", "aprovacao_assinatura", 2, 20, 30),
+  etapa("PB", "orgao", "MINISTERIO DA CULTURA", "envio_aprovacao", 39, 61.4, 249),
+];
+
+function desfecho(uf: string, enviadas: number, assinadas: number, aguardando: number, abertas: number, negadas: number): LinhaDesfecho {
+  return {
+    cod_programa: "2041120240005",
+    programa: "NOVO PAC PATRIMÔNIO CULTURAL - PROJETOS",
+    orgao_sup: "MINISTERIO DA CULTURA",
+    ano_envio: 2024,
+    uf,
+    enviadas,
+    assinadas,
+    reprovadas: negadas,
+    reprovadas_lote: 0,
+    impedimento: 0,
+    impedimento_lote: 0,
+    eliminadas: 0,
+    abertas_concedente: abertas,
+    limbo: 0,
+    abertas_proponente: 0,
+    aguardando_assinatura: aguardando,
+    com_emenda: 0,
+    assinadas_com_emenda: 0,
+    valor_pedido: 0,
+  };
+}
+
+function vizinho(nr: string, situacao: string | null, repasse: number, extra: Partial<Vizinho> = {}): Vizinho {
+  const assinado = situacao !== null && !/Proposta\/Plano|Cancelado/.test(situacao);
+  return {
+    nr_convenio: nr,
+    situacao,
+    uf: "PB",
+    municipio: "JOÃO PESSOA",
+    proponente: "ESTADO DA PARAIBA",
+    orgao_sup: "MINISTERIO DA SAUDE",
+    programa: "Outro",
+    dt_assinatura: assinado ? "2022-01-10" : null,
+    dt_suspensiva: null,
+    dt_retirada_suspensiva: null,
+    dt_fim_vigencia: "2027-12-31",
+    vl_repasse: repasse,
+    vl_desembolsado: null,
+    ...extra,
+  };
+}
+
+/** A carteira do Estado da PB no painel de 26/09/2026, em forma reduzida. */
+const CARTEIRA_ESTADO: Vizinho[] = [
+  vizinho("962210", "Proposta/Plano de Trabalho Aprovado", 450000, { orgao_sup: "MINISTERIO DA CULTURA" }),
+  ...Array.from({ length: 6 }, (_, k) => vizinho(`96000${k}`, "Proposta/Plano de Trabalho Aprovado", 1_700_000, k === 0 ? { orgao_sup: "MINISTERIO DA CULTURA" } : {})),
+  vizinho("970001", "Proposta/Plano de Trabalho Complementado em Análise", 14_625_000),
+  ...Array.from({ length: 15 }, (_, k) => vizinho(`90000${k}`, "Convênio Anulado", 2_200_000)),
+  ...Array.from({ length: 6 }, (_, k) => vizinho(`91000${k}`, "Cancelado", 4_100_000)),
+  ...Array.from({ length: 17 }, (_, k) => vizinho(`92000${k}`, "Em execução", 28_000_000)),
+];
+
+const PARES_PROGRAMA_PB: Vizinho[] = [
+  vizinho("962210", "Proposta/Plano de Trabalho Aprovado", 450000, { orgao_sup: "MINISTERIO DA CULTURA" }),
+  vizinho("962211", "Em execução", 300000, { orgao_sup: "MINISTERIO DA CULTURA", proponente: "MUNICIPIO X" }),
+  vizinho("962212", "Em execução", 500000, { orgao_sup: "MINISTERIO DA CULTURA", proponente: "MUNICIPIO Y" }),
+];
+
+function entrada962210(extra: Partial<EntradaDiagnostico> = {}): EntradaDiagnostico {
+  return {
+    instrumento: I962210,
+    etapas: ETAPAS_MINC,
+    desfechos: [desfecho("BR", 102, 90, 4, 6, 2), desfecho("PB", 3, 2, 1, 0, 0)],
+    pares: PARES_PROGRAMA_PB,
+    carteira: CARTEIRA_ESTADO,
+    emendas: [],
+    fiscal: null,
+    portas: [],
+    faltas: [],
+    ...extra,
+  };
+}
+
+test("962210: esperando assinatura há 844 dias, contra 14 de mediana e 133 de P90 do MinC na PB", () => {
+  const d = lerDiagnostico(entrada962210(), HOJE);
+  assert.equal(d.etapa, "assinatura");
+  assert.equal(d.vez, "concedente");
+  assert.ok(d.tempo);
+  assert.equal(d.tempo.etapa, "aprovacao_assinatura");
+  assert.equal(d.tempo.dias, 844);
+  assert.equal(d.tempo.base?.rotulo, "Ministério da Cultura na PB");
+  assert.deepEqual([d.tempo.base?.mediana, d.tempo.base?.p90], [14, 133]);
+  assert.equal(d.tempo.posicao, "passou_do_p90");
+  // O programa na PB tem só 2 medições: fica de fora; entram o órgão na PB, o programa e o órgão no Brasil.
+  assert.deepEqual(d.tempo.comparacoes.map((c) => c.rotulo), ["Ministério da Cultura na PB", "Programa no Brasil", "Ministério da Cultura no Brasil"]);
+  assert.match(d.frase, /^Plano de trabalho aprovado em 06\/06\/2024 e não assinado: 844 dias até hoje\./);
+  assert.match(d.frase, /último registro do histórico é «Plano de trabalho aprovado», em 21\/06\/2024/);
+});
+
+test("962210: vigência vencida sem assinatura é o risco crítico, e a estratégia começa por saber se ainda há instrumento", () => {
+  const d = lerDiagnostico(entrada962210(), HOJE);
+  assert.equal(d.vigencia.dias, -360);
+  assert.equal(d.vigencia.nivel, "critico");
+  assert.equal(d.riscos[0].nivel, "critico");
+  assert.equal(d.riscos[0].titulo, "Vigência vencida sem assinatura");
+  assert.ok(d.riscos.some((r) => r.titulo === "Mais demorado que 9 em cada 10 do órgão na PB" && r.nivel === "alto"));
+  assert.equal(d.estrategia[0].titulo, "Confirmar com o concedente se o instrumento ainda pode ser assinado");
+  assert.ok(d.inacao.some((x) => x.startsWith("R$ 450 mil de repasse aprovados")));
+});
+
+test("962210: o programa andou para os outros, e o funil nacional vem das propostas, não da busca", () => {
+  const d = lerDiagnostico(entrada962210(), HOJE);
+  const fora = d.riscos.find((r) => r.titulo === "Fora do padrão do programa");
+  assert.ok(fora);
+  assert.match(fora.fato, /Dos 3 instrumentos do programa na PB, 2 já foram assinados; só este segue/);
+  assert.match(fora.fato, /das 102 propostas do programa enviadas desde 2019, 90 foram assinadas/);
+  assert.deepEqual(
+    d.programa?.funis.map((f) => [f.recorte, f.enviadas, f.assinadas, f.aguardando, f.negadas, f.abertas]),
+    [
+      ["BR", 102, 90, 4, 2, 6],
+      ["PB", 3, 2, 1, 0, 0],
+    ],
+  );
+});
+
+test("962210: a carteira do Estado — outros esperando assinatura e o que já foi perdido", () => {
+  const d = lerDiagnostico(entrada962210(), HOJE);
+  const c = d.proponente?.carteira;
+  assert.ok(c);
+  // 6 aprovados e 1 complementado em análise: todos "aprovado, esperando assinatura". O próprio não conta.
+  assert.equal(c.mesmaEtapa.n, 7);
+  assert.equal(c.mesmaEtapaMesmoOrgao.n, 1);
+  assert.equal(c.extintos.n, 21);
+  assert.ok(d.riscos.some((r) => r.titulo === "O proponente tem outros instrumentos parados na mesma etapa"));
+  assert.ok(d.estrategia.some((p) => p.titulo === "Tratar a carteira do proponente de uma vez" && /1 com o mesmo órgão/.test(p.porque)));
+  assert.ok(d.inacao.some((x) => /já teve 21 instrumentos anulados, rescindidos ou cancelados/.test(x)));
+});
+
+test("962210: Estado não entra no painel fiscal, e o laudo diz por quê; sem desembolso é 0%, não 999%", () => {
+  const d = lerDiagnostico(entrada962210(), HOJE);
+  assert.equal(d.fiscal, null);
+  assert.match(d.fiscalMotivo ?? "", /situação do Estado ainda não entra/);
+  assert.equal(d.dinheiro.pctDesembolsado, 0);
+  assert.equal(d.dinheiro.semDesembolso, 450000);
+});
+
+test("com o programa aberto de novo e a vigência vencida, entra o plano B", () => {
+  const porta = {
+    id: "x",
+    titulo: "Novo PAC Patrimônio Cultural - Projetos",
+    financiador: "MinC",
+    prazo: "2026-10-30",
+    diasRestantes: 32,
+    fonteNome: "Transferegov",
+    fonteUrl: "https://example.org",
+    codigos: ["2041120240005"],
+    mesmoPrograma: true,
+    mesmoOrgao: true,
+    mesmoTema: true,
+  };
+  const doOrgao = { ...porta, id: "y", titulo: "Obras 2026", financiador: "MINISTERIO DA CULTURA", codigos: [], mesmoPrograma: false, diasRestantes: 3 };
+  // Só o tema casa (o classificador marcou "cultura" numa janela de agricultura familiar): não entra.
+  const soTema = { ...porta, id: "z", titulo: "Emendas MDA", financiador: "MDA", codigos: [], mesmoPrograma: false, mesmoOrgao: false, diasRestantes: 0 };
+  const d = lerDiagnostico(entrada962210({ portas: [soTema, doOrgao, porta] }), HOJE);
+  assert.deepEqual(d.portas.map((p) => p.id), ["x", "y"]); // o mesmo programa vem antes, mesmo com prazo maior
+  assert.ok(d.estrategia.some((p) => p.titulo === "Plano B: o programa está com janela aberta" && /até 30\/10\/2026/.test(p.porque)));
+  // Só com janela do mesmo órgão (o caso real do 962210: "Obras 2026", do MinC), o plano B aponta para ela.
+  const soOrgao = lerDiagnostico(entrada962210({ portas: [soTema, doOrgao] }), HOJE);
+  const b = soOrgao.estrategia.find((p) => p.titulo === "Plano B: o mesmo órgão tem janela aberta");
+  assert.ok(b);
+  assert.equal(b.porque, "«Obras 2026» (Ministério da Cultura) recebe propostas até 30/10/2026.");
+});
+
+test("leitura que falhou vem nula e o laudo sai sem ela", () => {
+  const d = lerDiagnostico(entrada962210({ pares: null, carteira: null, emendas: null, portas: null, faltas: ["pares do programa"] }), HOJE);
+  assert.equal(d.programa?.naUf, null);
+  assert.equal(d.proponente, null);
+  assert.deepEqual(d.emendas, []);
+  assert.deepEqual(d.faltas, ["pares do programa"]);
+  assert.equal(d.riscos[0].titulo, "Vigência vencida sem assinatura");
+});
+
+// ------------------------------------------------------------------ as outras etapas
+
+function base(extra: Partial<InstrumentoLaudo>): InstrumentoLaudo {
+  return {
+    ...I962210,
+    nr_convenio: "1",
+    situacao: "Em execução",
+    tipo_agente: "municipio",
+    proponente: "MUNICIPIO DE SOUSA",
+    cod_ibge: "2516201",
+    dt_assinatura: "2023-01-10",
+    dt_fim_vigencia: "2027-12-31",
+    dt_fim_vigencia_original: "2027-12-31",
+    vl_desembolsado: 0,
+    ...extra,
+  };
+}
+
+test("etapa pela situação do SICONV", () => {
+  const e = (situacao: string | null, extra: Partial<Vizinho> = {}) =>
+    etapaDo({ situacao, dt_assinatura: "2024-01-01", dt_suspensiva: null, dt_retirada_suspensiva: null, ...extra });
+  assert.equal(e(null, { dt_assinatura: null }), "proposta");
+  assert.equal(e("Proposta/Plano de Trabalho Complementado em Análise", { dt_assinatura: null }), "assinatura");
+  assert.equal(e("Assinatura Pendente Registro TV Siafi"), "assinatura");
+  assert.equal(e("Em execução", { dt_suspensiva: "2026-12-01" }), "suspensiva");
+  assert.equal(e("Em execução", { dt_suspensiva: "2025-12-01", dt_retirada_suspensiva: "2025-06-01" }), "execucao");
+  assert.equal(e("Aguardando Prestação de Contas"), "contas");
+  assert.equal(e("Prestação de Contas Concluída"), "concluido");
+  assert.equal(e("Convênio Anulado", { dt_suspensiva: "2024-06-01" }), "extinto");
+});
+
+test("suspensiva com dossiê: o diagnóstico só complementa (sem vigência, tempo e inação, que o laudo da suspensiva já trata)", () => {
+  const i = base({
+    nr_convenio: "980439",
+    situacao_contratacao: "Cláusula Suspensiva",
+    dt_assinatura: "2025-12-22",
+    dt_suspensiva: "2026-10-10",
+    dt_fim_vigencia: "2026-12-01",
+    motivo_suspensao: "Projeto de Engenharia",
+  });
+  const entrada: EntradaDiagnostico = {
+    ...entrada962210(),
+    instrumento: i,
+    etapas: [],
+    carteira: null,
+    pares: null,
+    emendas: [{ nr_emenda: "60120002", parlamentar: "COM. AGRICULTURA E REFORMA AGRARIA", tipo_parlamentar: "COMISSAO", impositiva: false, valor: 396343.15 }],
+  };
+  const sem = lerDiagnostico(entrada, HOJE);
+  assert.equal(sem.etapa, "suspensiva");
+  assert.ok(sem.riscos.some((r) => r.titulo === "Pouca vigência pela frente"));
+  assert.ok(sem.estrategia.some((p) => p.titulo === "Pedir a prorrogação do prazo da suspensiva"));
+
+  const com = lerDiagnostico(entrada, HOJE, { comDossie: true });
+  assert.ok(!com.riscos.some((r) => r.titulo === "Pouca vigência pela frente"));
+  assert.ok(!com.estrategia.some((p) => /suspensiva/.test(p.titulo)));
+  assert.deepEqual(com.inacao, []);
+  const autor = com.estrategia.find((p) => p.titulo === "Envolver o autor da emenda");
+  assert.ok(autor);
+  assert.match(autor.porque, /emenda de comissão nº 60120002, de COM\. AGRICULTURA E REFORMA AGRARIA\./);
+
+  // Emenda de relator-geral não tem autor a procurar; e, com o dinheiro todo desembolsado, o passo não cabe.
+  const relator = lerDiagnostico(
+    { ...entrada, emendas: [{ nr_emenda: "81000785", parlamentar: "RELATOR GERAL", tipo_parlamentar: "RELATOR GERAL", impositiva: false, valor: 1 }] },
+    HOJE,
+    { comDossie: true },
+  );
+  assert.ok(!relator.estrategia.some((p) => p.titulo === "Envolver o autor da emenda"));
+  const pago = lerDiagnostico(
+    { ...entrada, instrumento: { ...i, dt_suspensiva: null, vl_repasse: 100, vl_desembolsado: 100 } },
+    HOJE,
+  );
+  assert.ok(!pago.estrategia.some((p) => p.titulo === "Envolver o autor da emenda"));
+});
+
+test("vigência a 30 dias ou menos é crítica; no dia, 'termina hoje'", () => {
+  const i = base({ dt_fim_vigencia: "2026-09-30", dt_primeiro_desembolso: "2024-01-01", vl_repasse: 100, vl_desembolsado: 100 });
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, carteira: [] }, HOJE);
+  const r = d.riscos.find((x) => x.titulo === "Vigência acabando");
+  assert.ok(r);
+  assert.equal(r.nivel, "critico");
+  assert.equal(r.fato, "A vigência termina em 30/09/2026, daqui a 2 dias.");
+  const hoje = lerDiagnostico({ ...entrada962210(), instrumento: { ...i, dt_fim_vigencia: HOJE }, carteira: [] }, HOJE);
+  assert.equal(hoje.riscos.find((x) => x.titulo === "Vigência acabando")?.fato, "A vigência termina hoje, 28/09/2026.");
+});
+
+test("a mesma janela vinda duas vezes do catálogo aparece uma vez", () => {
+  const p = {
+    id: "a",
+    titulo: "Fomento ao Setor Agropecuário - Emendas Individuais",
+    financiador: "MAPA",
+    prazo: "2026-09-30",
+    diasRestantes: 2,
+    fonteNome: "Transferegov",
+    fonteUrl: "https://example.org",
+    codigos: ["2200020260002"],
+    mesmoPrograma: false,
+    mesmoOrgao: true,
+    mesmoTema: false,
+  };
+  const d = lerDiagnostico(entrada962210({ portas: [p, { ...p, id: "b" }] }), HOJE);
+  assert.deepEqual(d.portas.map((x) => x.id), ["a"]);
+});
+
+test("execução: sem movimento há mais de um ano e dinheiro na frente da obra", () => {
+  const i = base({
+    vl_repasse: 1_000_000,
+    vl_desembolsado: 900_000,
+    vl_saldo_conta: 120_000,
+    pct_fisico: 0.1,
+    dt_primeiro_desembolso: "2023-03-01",
+    dt_ultimo_desembolso: "2023-09-01",
+    dt_ultimo_pagamento: "2025-01-15",
+  });
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [] }, HOJE);
+  assert.equal(d.etapa, "execucao");
+  assert.equal(d.tempo?.etapa, "desembolso_conclusao");
+  const parado = d.riscos.find((r) => r.titulo === "Sem movimento financeiro há mais de um ano");
+  assert.ok(parado);
+  assert.match(parado.fato, /15\/01\/2025, há 621 dias\. Há R\$ 120 mil em conta\./);
+  assert.ok(d.riscos.some((r) => r.titulo === "Dinheiro na frente da obra"));
+  assert.match(d.frase, /90% do repasse desembolsado; último pagamento em 15\/01\/2025/);
+});
+
+test("contas: prazo vencido, vez do proponente, e município bloqueado no painel fiscal", () => {
+  const i = base({ situacao: "Aguardando Prestação de Contas", dt_limite_contas: "2026-06-30", dt_primeiro_desembolso: "2024-01-01" });
+  const fiscal = {
+    ibge: "2516201",
+    municipio: "Sousa",
+    conclusao: { decisao: "B" as const, nome: "Receber transferência voluntária", estado: "nao_atendido" as const, bloqueantes: ["G7"], alertas: [], sem_dado: [], documentais: [], versao: "x" },
+    caucPendencias: ["1.1", "3.2.3"],
+    referencia: "2026-09-28",
+  };
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [], fiscal }, HOJE);
+  assert.equal(d.etapa, "contas");
+  assert.equal(d.vez, "proponente");
+  assert.ok(d.riscos.some((r) => r.titulo === "Prazo de prestar contas vencido" && r.nivel === "alto"));
+  // Prestação de contas não é etapa "viva" para o risco fiscal de receber transferência.
+  assert.ok(!d.riscos.some((r) => /bloqueado para receber/.test(r.titulo)));
+  assert.equal(d.estrategia[0].titulo, "Enviar a prestação de contas");
+  assert.ok(d.inacao.some((x) => /inadimplência registrada no CAUC/.test(x)));
+});
+
+test("assinatura de município bloqueado: o risco e o passo fiscal aparecem, com os itens do CAUC", () => {
+  const i = base({ situacao: "Proposta/Plano de Trabalho Aprovado", dt_assinatura: null, dt_aprovacao: "2026-08-01", dt_fim_vigencia: "2027-12-31" });
+  const fiscal = {
+    ibge: "2516201",
+    municipio: "Sousa",
+    conclusao: { decisao: "B" as const, nome: "Receber transferência voluntária", estado: "nao_atendido" as const, bloqueantes: ["G7"], alertas: [], sem_dado: [], documentais: [], versao: "x" },
+    caucPendencias: ["1.1", "1.2", "3.2.3"],
+    referencia: "2026-09-28",
+  };
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, carteira: [], fiscal }, HOJE);
+  const r = d.riscos.find((x) => x.titulo === "Município bloqueado para receber transferência voluntária");
+  assert.ok(r);
+  assert.match(r.fato, /«bloqueada» por G7\. O CAUC registra pendência nos itens 1\.1, 1\.2 e 3\.2\.3\./);
+  assert.ok(d.estrategia.some((p) => p.titulo === "Resolver as pendências fiscais do município"));
+  // 58 dias desde a aprovação: passou da mediana (14), não do P90 (133).
+  assert.equal(d.tempo?.posicao, "passou_da_mediana");
+  assert.equal(d.estrategia[0].titulo, "Cobrar a assinatura do concedente");
+});
+
+test("liminar judicial e extinto com suspensiva pendente", () => {
+  const lim = lerDiagnostico({ ...entrada962210(), instrumento: base({ situacao_contratacao: "Sob Liminar Judicial e Cláusula Suspensiva" }), carteira: [] }, HOJE);
+  assert.ok(lim.riscos.some((r) => r.titulo === "Contratação sob liminar judicial" && r.nivel === "alto"));
+  assert.ok(lim.estrategia.some((p) => p.titulo === "Levantar o processo judicial"));
+
+  const ext = lerDiagnostico(
+    { ...entrada962210(), instrumento: base({ situacao: "Convênio Anulado", dt_suspensiva: "2025-01-01", vl_repasse: 800_000 }), carteira: [] },
+    HOJE,
+  );
+  assert.equal(ext.etapa, "extinto");
+  assert.equal(ext.tempo, null);
+  assert.equal(ext.vigencia.nivel, null);
+  assert.match(ext.frase, /Terminou com a cláusula suspensiva pendente\. Nenhum repasse foi desembolsado\./);
+  assert.ok(ext.riscos.some((r) => r.titulo === "Instrumento extinto" && /R\$ 800 mil de repasse não chegaram, e a cláusula suspensiva nunca foi retirada/.test(r.fato)));
+});
+
+test("tempo na etapa sem data de início não compara", () => {
+  const t = tempoNaEtapa({ ...I962210, dt_aprovacao: null, dt_envio: null }, "assinatura", ETAPAS_MINC, HOJE);
+  assert.ok(t);
+  assert.equal(t.etapa, "envio_assinatura");
+  assert.equal(t.dias, null);
+  assert.equal(t.posicao, null);
+});
+
+test("nome do proponente e chave do órgão para comparar", () => {
+  assert.equal(nomeProponente(I962210), "Estado da Paraíba");
+  assert.equal(nomeProponente({ proponente: "MUNICIPIO DE SOUSA" }), "Município de Sousa");
+  assert.equal(nomeProponente({ proponente: null }, "O proponente"), "O proponente");
+  assert.equal(chaveOrgao("Ministério  da Cultura"), chaveOrgao("MINISTERIO DA CULTURA"));
+  // O texto da carteira usa o nome tratado.
+  assert.ok(lerDiagnostico(entrada962210(), HOJE).inacao.some((x) => x.startsWith("Estado da Paraíba já teve 21")));
+});
+
+test("CNPJ legível e nível mais alto dos riscos", () => {
+  assert.equal(cnpjLegivel("08761124000100"), "08.761.124/0001-00");
+  assert.equal(cnpjLegivel("123"), "123");
+  assert.equal(cnpjLegivel(null), null);
+  assert.equal(nivelMaisAlto([]), "informativo");
+  assert.equal(nivelMaisAlto(lerDiagnostico(entrada962210(), HOJE).riscos), "critico");
+});
+
+test("vizinhança e funil somam do jeito certo", () => {
+  const v = vizinhanca(CARTEIRA_ESTADO, I962210, "assinatura");
+  assert.equal(v.total, 46);
+  assert.deepEqual(
+    v.porEtapa.map((c) => [c.etapa, c.n]),
+    [
+      ["assinatura", 8],
+      ["execucao", 17],
+      ["extinto", 21],
+    ],
+  );
+  assert.deepEqual(funis([], "2041120240005", "PB"), []);
+  assert.deepEqual(funis([desfecho("BR", 5, 5, 0, 0, 0)], null, "PB"), []);
+});

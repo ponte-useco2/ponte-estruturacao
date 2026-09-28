@@ -8,8 +8,8 @@
  */
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ROTA_LAUDO, abaAtiva, type RegraAba } from "@/lib/oportunidades/abas";
+import { usePathname, useSearchParams } from "next/navigation";
+import { LAUDO_PELAS_SUSPENSIVAS, abaAtiva, type RegraAba } from "@/lib/oportunidades/abas";
 
 interface Aba extends RegraAba {
   nome: string;
@@ -30,8 +30,8 @@ const ABAS: readonly Aba[] = [
     admin: false,
     municipio: false,
     tambem: ["/mapa/instrumento/", "/mapa/proposta/", "/mapa/municipio/"],
-    // O laudo mora debaixo de /mapa/instrumento, mas se chega a ele pela lista das suspensivas.
-    exceto: [ROTA_LAUDO],
+    // O laudo de qualquer instrumento acende a Busca; o aberto pela lista das suspensivas, não.
+    exceto: [LAUDO_PELAS_SUSPENSIVAS],
   },
   // Só para quem está numa organização de município. A página confere o vínculo
   // confirmado e explica o que falta; a aba só evita mostrar a porta a quem não é prefeitura.
@@ -41,7 +41,7 @@ const ABAS: readonly Aba[] = [
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
   { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
   { href: "/mapa/fiscal", nome: "Fiscal", exata: false, admin: true, municipio: false },
-  { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false, tambem: [ROTA_LAUDO] },
+  { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false, tambem: [LAUDO_PELAS_SUSPENSIVAS] },
 ];
 
 export function MapaNav({
@@ -55,11 +55,13 @@ export function MapaNav({
   municipio?: boolean;
 }) {
   const pathname = usePathname() ?? "/mapa";
+  // De onde se chegou (`?de=suspensivas`): decide a aba acesa no laudo.
+  const de = useSearchParams()?.get("de") ?? null;
 
   return (
     <nav className="pa-abas" aria-label="Mapa de Oportunidades">
       {ABAS.filter((aba) => (admin || !aba.admin) && (municipio || !aba.municipio)).map((aba) => {
-        const atual = abaAtiva(aba, pathname);
+        const atual = abaAtiva(aba, pathname, de);
         const contagem = aba.href === "/mapa/avisos" && naoLidas !== null && naoLidas > 0 ? naoLidas : null;
         return (
           <Link

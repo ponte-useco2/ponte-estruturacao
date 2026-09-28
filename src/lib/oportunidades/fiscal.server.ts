@@ -5,8 +5,9 @@
  * pode ver é a página, com `ehAdministrador` (decisão do titular: MVP só para administradores).
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
+import type { FiscalProponente } from "./diagnostico";
 import { ehEsquemaAusente } from "./esquema";
-import type { ExecucaoFiscal, FonteEvidencia, HistoricoFiscal, MunicipioFiscal, ProjecaoFiscal, VerificacaoFiscal } from "./fiscal";
+import { conclusaoDe, type ExecucaoFiscal, type FonteEvidencia, type HistoricoFiscal, type MunicipioFiscal, type ProjecaoFiscal, type VerificacaoFiscal } from "./fiscal";
 
 export type LeituraFiscal =
   | { estado: "nao_ativado" }
@@ -57,6 +58,35 @@ export async function lerFiscal(): Promise<LeituraFiscal> {
     return { estado: "erro" };
   }
   return { estado: "ok", execucao: ultima.execucao, municipios: (data ?? []) as MunicipioFiscal[] };
+}
+
+/**
+ * Só a decisão B (receber transferência voluntária) e as pendências do CAUC de um município, para o
+ * laudo do instrumento (onda 12). Nulo quando não há execução, o município não está no painel ou a
+ * leitura falha: no laudo, a situação fiscal é complemento.
+ */
+export async function lerResumoFiscal(ibge: string): Promise<FiscalProponente | null> {
+  const ultima = await ultimaExecucao();
+  if (ultima.estado !== "ok") return null;
+  const { data, error } = await clienteServidor()
+    .from("fiscal_municipio")
+    .select("ibge, nome, conclusoes, indicadores")
+    .eq("execucao_id", ultima.execucao.id)
+    .eq("ibge", ibge)
+    .maybeSingle();
+  if (error) {
+    console.error("lerResumoFiscal:", error.message);
+    return null;
+  }
+  if (!data) return null;
+  const m = data as Pick<MunicipioFiscal, "ibge" | "nome" | "conclusoes" | "indicadores">;
+  return {
+    ibge: m.ibge,
+    municipio: m.nome,
+    conclusao: conclusaoDe(m, "B") ?? null,
+    caucPendencias: m.indicadores?.cauc_pendencias ?? [],
+    referencia: ultima.execucao.referencia,
+  };
 }
 
 export async function lerFiscalMunicipio(ibge: string): Promise<LeituraMunicipioFiscal> {

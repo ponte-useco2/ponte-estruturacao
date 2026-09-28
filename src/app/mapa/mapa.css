@@ -788,3 +788,6 @@
   .pa-root .mp-checklist-caixa { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 .pa-root .mp-laudo-miudo { font-size: 0.82rem; color: var(--pa-muted); line-height: 1.45; }
+
+/* Laudo de qualquer instrumento (onda 12): legenda das tabelas de programa e proponente, à esquerda e sem a barra das notas. */
+.pa-root .mp-laudo .mp-tabela caption.mp-laudo-legenda-tabela { caption-side: top; text-align: left; padding: 0 0 0.4rem; font-size: 0.85rem; color: var(--pa-muted); }

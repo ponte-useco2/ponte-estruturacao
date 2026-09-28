@@ -3,6 +3,7 @@
  * O prazo da suspensiva manda na ordem (é ele que extingue o instrumento); o tempo parado desempata.
  */
 import Link from "next/link";
+import { ORIGEM_SUSPENSIVAS } from "@/lib/oportunidades/abas";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { compararUrgencia, diaBrasilia, diasEntre, nivelPrazo, type Nivel } from "@/lib/oportunidades/laudo";
 import type { LeituraSuspensivas, LinhaSuspensiva } from "@/lib/oportunidades/laudo.server";
@@ -23,7 +24,8 @@ const FILTROS_PRAZO: { id: string | null; nome: string; niveis: Nivel[] | null }
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 const dias = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "dia" : "dias"}`;
-const urlLaudo = (nr: string) => `/mapa/instrumento/${encodeURIComponent(nr)}/laudo`;
+// `de`: a origem mantém a aba Suspensivas acesa no laudo (lib/oportunidades/abas.ts).
+const urlLaudo = (nr: string) => `/mapa/instrumento/${encodeURIComponent(nr)}/laudo?de=${ORIGEM_SUSPENSIVAS}`;
 
 function url(f: Filtro, troca: Partial<Filtro>): string {
   const p = new URLSearchParams();
