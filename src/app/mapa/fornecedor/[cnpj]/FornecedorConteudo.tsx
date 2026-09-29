@@ -182,7 +182,7 @@ export function FornecedorConteudo({ leitura }: { leitura: LeituraOk }) {
                   <tr key={m.chave}>
                     <th scope="row">{m.nome}</th>
                     <td className="mp-num">{n(m.convenios)}</td>
-                    <td className="mp-num">{moedaCurta(m.pago)}</td>
+                    <td className="mp-num">{m.pago > 0 ? moedaCurta(m.pago) : "só contrato"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -235,9 +235,14 @@ export function FornecedorConteudo({ leitura }: { leitura: LeituraOk }) {
                       {c.n_pagamentos > 0 ? n(c.n_pagamentos) : "nenhum"}
                       {c.primeiro_pagamento && (
                         <span className="mp-tabela-secundario">
-                          {c.ultimo_pagamento && c.ultimo_pagamento !== c.primeiro_pagamento
-                            ? `de ${data(c.primeiro_pagamento)} a ${data(c.ultimo_pagamento)}`
-                            : `em ${data(c.primeiro_pagamento)}`}
+                          {c.ultimo_pagamento && c.ultimo_pagamento !== c.primeiro_pagamento ? (
+                            <>
+                              <span className="mp-nowrap">de {data(c.primeiro_pagamento)}</span>{" "}
+                              <span className="mp-nowrap">a {data(c.ultimo_pagamento)}</span>
+                            </>
+                          ) : (
+                            <span className="mp-nowrap">em {data(c.primeiro_pagamento)}</span>
+                          )}
                         </span>
                       )}
                     </td>

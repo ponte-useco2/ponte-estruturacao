@@ -9,6 +9,7 @@ import {
   motivoAcessoLivreVazio,
   nivelMaisAlto,
   nomeProponente,
+  portaServe,
   tempoNaEtapa,
   vizinhanca,
   type EntradaDiagnostico,
@@ -623,4 +624,32 @@ test("fornecedores e o destino do dinheiro entram no laudo, com os riscos junto 
   const sem = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [] }, HOJE);
   assert.equal(sem.fornecedores, null);
   assert.ok(!sem.riscos.some((r) => /TCU/.test(r.titulo)));
+});
+
+test("janela de beneficiário específico só entra quando nomeia o município do proponente", () => {
+  const caem = { canal: "beneficiario_especifico" as const, titulo: "Atendimento de demanda judicial - Processo nº 0001844-33.2008.4.01.3300 - Município de Caem/BA" };
+  assert.equal(portaServe(caem, "CAMPINA GRANDE"), false);
+  assert.equal(portaServe(caem, "CAÉM"), true);
+  assert.equal(portaServe(caem, null), false);
+  assert.equal(portaServe({ canal: "voluntaria", titulo: "Novo PAC - Periferia Viva" }, "CAMPINA GRANDE"), true);
+  assert.equal(portaServe({ canal: null, titulo: "Qualquer" }, null), true);
+});
+
+test("concluído: a janela é a 'próxima porta', não plano B; e a voluntária vem antes da de emenda", () => {
+  const comum = {
+    financiador: "MINISTERIO DAS CIDADES", prazo: "2026-12-31", diasRestantes: 93, fonteNome: "Transferegov",
+    fonteUrl: "https://example.org", codigos: [], mesmoPrograma: false, mesmoOrgao: true, mesmoTema: false,
+  };
+  const emenda = { ...comum, id: "e", titulo: "Emendas Cidades 2026", canal: "emenda_parlamentar" as const, diasRestantes: 10 };
+  const voluntaria = { ...comum, id: "v", titulo: "Novo PAC - Periferia Viva", canal: "voluntaria" as const };
+  const i = base({ situacao: "Prestação de Contas Concluída", dt_primeiro_desembolso: "2019-01-01" });
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [], portas: [emenda, voluntaria] }, HOJE);
+  assert.equal(d.etapa, "concluido");
+  const passo = d.estrategia.find((p) => p.titulo.startsWith("Próxima porta"));
+  assert.ok(passo);
+  assert.match(passo.porque, /Novo PAC - Periferia Viva/);
+  assert.ok(!d.estrategia.some((p) => p.titulo.startsWith("Plano B")));
+  // Só com a de emenda, ela entra, dizendo que depende de parlamentar.
+  const soEmenda = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [], portas: [emenda] }, HOJE);
+  assert.match(soEmenda.estrategia.find((p) => p.titulo.startsWith("Próxima porta"))?.porque ?? "", /depende da indicação de um parlamentar/);
 });

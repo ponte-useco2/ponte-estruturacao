@@ -21,6 +21,7 @@ import {
   type EmendaOrigem,
   type EntradaDiagnostico,
   type InstrumentoLaudo,
+  portaServe,
   type PortaAberta,
   type Vizinho,
 } from "./diagnostico";
@@ -99,8 +100,9 @@ export async function portasAbertas(i: InstrumentoLaudo, hoje: string, faltas: s
         mesmoPrograma: !!i.cod_programa && j.codigos.includes(i.cod_programa),
         mesmoOrgao: !!orgao && chaveOrgao(j.financiador) === orgao,
         mesmoTema: temas.length > 0 && alcancaAssunto(j.temas, temas),
+        canal: j.canal,
       }))
-      .filter(portaRelevante);
+      .filter((p) => portaRelevante(p) && portaServe(p, i.municipio));
   } catch (e) {
     console.error("laudo do instrumento (janelas abertas):", e instanceof Error ? e.message : e);
     faltas.push("janelas abertas");

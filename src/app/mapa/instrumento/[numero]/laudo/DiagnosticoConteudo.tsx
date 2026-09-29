@@ -19,6 +19,7 @@ import {
   type InstrumentoLaudo,
   type Vizinhanca,
 } from "@/lib/oportunidades/diagnostico";
+import { ROTULO_CANAL } from "@/lib/oportunidades/contrato-v2";
 import { NOME_VERIFICACAO, ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { NIVEL_MOMENTO, ROTULO_FAIXA, ROTULO_MOMENTO, nomeFornecedor, urlFornecedor, type SecaoFornecedores } from "@/lib/oportunidades/fornecedores";
 import type { Dossie, Nivel, Passo, Risco } from "@/lib/oportunidades/laudo";
@@ -533,7 +534,8 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
                   {p.prazo
                     ? `até ${data(p.prazo)}${p.diasRestantes === 0 ? " (fecha hoje)" : p.diasRestantes !== null ? ` (faltam ${dias(p.diasRestantes)})` : ""}`
                     : "sem prazo informado"}
-                  {p.codigos.length ? ` · código ${p.codigos.join(", ")}` : ""} ·{" "}
+                  {p.codigos.length ? ` · código ${p.codigos.join(", ")}` : ""}
+                  {p.canal && p.canal !== "voluntaria" ? ` · ${ROTULO_CANAL[p.canal].toLowerCase()}` : ""} ·{" "}
                   <a href={p.fonteUrl} target="_blank" rel="noopener noreferrer">
                     {p.fonteNome}
                   </a>
@@ -611,7 +613,14 @@ function Distribuicao({
 }
 
 const pct = (x: number | null | undefined) => (x === null || x === undefined ? "—" : `${Math.round(x * 100)}%`);
-const periodo = (de: string, ate: string | null) => (ate && ate !== de ? `de ${data(de)} a ${data(ate)}` : `em ${data(de)}`);
+function Periodo({ de, ate }: { de: string; ate: string | null }) {
+  if (!ate || ate === de) return <span className="mp-nowrap">em {data(de)}</span>;
+  return (
+    <>
+      <span className="mp-nowrap">de {data(de)}</span> <span className="mp-nowrap">a {data(ate)}</span>
+    </>
+  );
+}
 
 /**
  * Para onde foi o dinheiro (onda 12, parte 3): empenho por natureza, depósitos da contrapartida, ponto da
@@ -735,7 +744,11 @@ function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
               </td>
               <td>
                 {l.nPagamentos > 0 ? n(l.nPagamentos) : "nenhum"}
-                {l.primeiro && <span className="mp-tabela-secundario">{periodo(l.primeiro, l.ultimo)}</span>}
+                {l.primeiro && (
+                  <span className="mp-tabela-secundario">
+                    <Periodo de={l.primeiro} ate={l.ultimo} />
+                  </span>
+                )}
               </td>
               <td className="mp-num">
                 {l.nContratos > 0 ? moedaCurta(l.contratado) : "—"}

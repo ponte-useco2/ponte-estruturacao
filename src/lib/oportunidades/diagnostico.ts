@@ -23,6 +23,7 @@
  */
 import { grupoDaSituacao, rotuloSituacaoHistorico, type Instrumento } from "./busca.ts";
 import { formatarData } from "./central.ts";
+import type { CanalV2 } from "./contrato-v2.ts";
 import type { ConclusaoFiscal, EstadoFiscal } from "./fiscal.ts";
 import { cnpjLegivel, lerSecaoFornecedores, type ColunasFornecedorInstrumento, type EntradaFornecedores, type SecaoFornecedores } from "./fornecedores.ts";
 import { DIAS_PARADO_ALTO, DIAS_PARADO_MODERADO, RODADAS_REUNIAO, diasEntre, type AcessoLivre, type Nivel, type Passo, type Risco } from "./laudo.ts";
@@ -104,6 +105,8 @@ export interface PortaAberta {
   mesmoOrgao: boolean;
   /** Algum tema da janela alcança um tema do instrumento: só desempata, não inclui ninguém sozinho. */
   mesmoTema: boolean;
+  /** Canal da janela (proposta voluntária, emenda, beneficiário específico, chamada); ausente = não informado. */
+  canal?: CanalV2 | null;
 }
 
 /** Nome de órgão para comparar: sem acento, maiúsculas, espaços simples. */
@@ -118,6 +121,16 @@ export function chaveOrgao(nome: string | null | undefined): string {
  */
 export function portaRelevante(p: Pick<PortaAberta, "mesmoPrograma" | "mesmoOrgao">): boolean {
   return p.mesmoPrograma || p.mesmoOrgao;
+}
+
+/**
+ * Janela de beneficiário específico só serve ao ente que ela nomeia: no laudo de Campina Grande entrava
+ * «Atendimento de demanda judicial - … - Município de Caem/BA», do mesmo órgão. Ela fica só quando o
+ * título cita o município do proponente; as dos outros canais ficam todas.
+ */
+export function portaServe(p: { canal?: CanalV2 | null; titulo: string }, municipio: string | null | undefined): boolean {
+  if (p.canal !== "beneficiario_especifico") return true;
+  return !!municipio && chaveOrgao(p.titulo).includes(chaveOrgao(municipio));
 }
 
 export interface EntradaDiagnostico {
@@ -1021,12 +1034,22 @@ function lerEstrategia(b: Base): Passo[] {
       porque: `O repasse veio da emenda ${tipo} nº ${autor.nr_emenda}, de ${autor.parlamentar}. Quem indicou o recurso tem interesse direto em que ele chegue.`,
     });
   }
-  // Quando o instrumento acabou ou não tem mais vigência, a próxima porta é uma proposta nova.
-  const porta = b.portas.find((x) => x.mesmoPrograma) ?? b.portas.find((x) => x.mesmoOrgao);
+  // Quando o instrumento acabou ou não tem mais vigência, a próxima porta é uma proposta nova. Janela que o
+  // proponente abre sozinho (voluntária, chamada) vem antes da de emenda, que depende de um parlamentar.
+  const semEmenda = (x: PortaAberta) => x.canal !== "emenda_parlamentar";
+  const porta =
+    b.portas.find((x) => x.mesmoPrograma && semEmenda(x)) ??
+    b.portas.find((x) => x.mesmoOrgao && semEmenda(x)) ??
+    b.portas.find((x) => x.mesmoPrograma) ??
+    b.portas.find((x) => x.mesmoOrgao);
   if (porta && (etapa === "extinto" || etapa === "concluido" || (v.dias !== null && v.dias < 0 && (etapa === "assinatura" || etapa === "proposta")))) {
+    // Concluído não precisa de plano B: a janela é a próxima oportunidade, não o conserto de uma perda.
+    const rotulo = etapa === "concluido" ? "Próxima porta" : "Plano B";
     p.push({
-      titulo: porta.mesmoPrograma ? "Plano B: o programa está com janela aberta" : "Plano B: o mesmo órgão tem janela aberta",
-      porque: `«${porta.titulo}»${porta.mesmoPrograma ? "" : ` (${tituloOrgao(porta.financiador)})`} recebe propostas${porta.prazo ? ` até ${data(porta.prazo)}` : ""}.`,
+      titulo: `${rotulo}: ${porta.mesmoPrograma ? "o programa está com janela aberta" : "o mesmo órgão tem janela aberta"}`,
+      porque:
+        `«${porta.titulo}»${porta.mesmoPrograma ? "" : ` (${tituloOrgao(porta.financiador)})`} recebe propostas${porta.prazo ? ` até ${data(porta.prazo)}` : ""}.` +
+        (porta.canal === "emenda_parlamentar" ? " É janela de emenda: a proposta depende da indicação de um parlamentar." : ""),
     });
   }
   return p;
