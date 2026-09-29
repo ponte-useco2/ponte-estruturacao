@@ -221,7 +221,8 @@ test("962210: a carteira do Estado — outros esperando assinatura e o que já f
 test("962210: Estado não entra no painel fiscal, e o laudo diz por quê; sem desembolso é 0%, não 999%", () => {
   const d = lerDiagnostico(entrada962210(), HOJE);
   assert.equal(d.fiscal, null);
-  assert.match(d.fiscalMotivo ?? "", /situação do Estado ainda não entra/);
+  // O CSV do CAUC dos estados parou em 03/11/2025: o laudo manda consultar o extrato, em vez de mostrar o retrato velho.
+  assert.match(d.fiscalMotivo ?? "", /o Estado não entra nele\. O relatório do CAUC dos estados .* desde 03\/11\/2025/);
   assert.equal(d.dinheiro.pctDesembolsado, 0);
   assert.equal(d.dinheiro.semDesembolso, 450000);
 });
@@ -573,4 +574,53 @@ test("vizinhança e funil somam do jeito certo", () => {
   );
   assert.deepEqual(funis([], "2041120240005", "PB"), []);
   assert.deepEqual(funis([desfecho("BR", 5, 5, 0, 0, 0)], null, "PB"), []);
+});
+
+test("fornecedores e o destino do dinheiro entram no laudo, com os riscos junto dos demais", () => {
+  const i = base({
+    vl_repasse: 1_000_000,
+    vl_desembolsado: 500_000,
+    dt_primeiro_desembolso: "2026-03-01",
+    dt_ultimo_desembolso: "2026-06-01",
+    dt_ultimo_pagamento: "2026-08-01",
+    pago_pj: 400_000,
+    pago_pf: 2_000,
+    n_pagamentos_pf: 4,
+    pago_convenente: null,
+    empenhado_corrente: 100_000,
+    empenhado_capital: 900_000,
+    dt_primeiro_ingresso_contrapartida: "2026-02-01",
+    dt_ultimo_ingresso_contrapartida: "2026-04-01",
+    n_ingressos_contrapartida: 2,
+    latitude: -6.88,
+    longitude: -38.56,
+  });
+  const inidoneo = {
+    cnpj: "09326532000198", nome: "LIVRAMENTO CONSTRUCOES", mei: false, pb_convenios: 3, pb_municipios: 2, pb_proponentes: 2, pb_orgaos: 1,
+    pb_pago: 400_000, pb_n_pagamentos: 2, pb_primeiro_pagamento: "2026-07-01", pb_ultimo_pagamento: "2026-08-01", pb_contratos: 1,
+    pb_contratado: 900_000, br_convenios: 3, br_ufs: 1, br_pago: 400_000, inidoneo_tcu: true, tcu_acordao: "821/2019-PL",
+    tcu_inicio: "2021-03-01", tcu_data_final: "2029-03-01", tcu_link: null,
+  };
+  const linha = {
+    cnpj: inidoneo.cnpj, nr_convenio: "1", cod_ibge: "2516201", municipio: "SOUSA", proponente: "MUNICIPIO DE SOUSA", tipo_agente: "municipio",
+    orgao_sup: "MINISTERIO DAS CIDADES", cod_programa: null, pago: 400_000, n_pagamentos: 2, primeiro_pagamento: "2026-07-01",
+    ultimo_pagamento: "2026-08-01", fatia: 1, n_contratos: 1, contratado: 900_000,
+  };
+  const d = lerDiagnostico(
+    { ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [], fornecedores: { linhas: [linha], fornecedores: [inidoneo], contratos: [], municipio: null } },
+    HOJE,
+  );
+  assert.equal(d.fornecedores?.linhas.length, 1);
+  // Pago dentro da sanção, sem contrato registrado: alto, na lista junto dos demais riscos.
+  const tcu = d.riscos.find((r) => /LIVRAMENTO CONSTRUCOES/.test(r.titulo));
+  assert.equal(tcu?.nivel, "alto");
+  assert.match(tcu?.titulo ?? "", /pago durante a sanção do TCU/);
+  assert.equal(d.dinheiro.empenhadoCapital, 900_000);
+  assert.deepEqual(d.dinheiro.ingressos, { primeiro: "2026-02-01", ultimo: "2026-04-01", n: 2 });
+  assert.deepEqual(d.coordenada, { latitude: -6.88, longitude: -38.56 });
+
+  // Sem a leitura (fora da PB, ou o laudo do cliente), nada de fornecedor.
+  const sem = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [] }, HOJE);
+  assert.equal(sem.fornecedores, null);
+  assert.ok(!sem.riscos.some((r) => /TCU/.test(r.titulo)));
 });

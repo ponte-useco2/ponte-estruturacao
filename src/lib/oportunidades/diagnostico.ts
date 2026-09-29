@@ -24,6 +24,7 @@
 import { grupoDaSituacao, rotuloSituacaoHistorico, type Instrumento } from "./busca.ts";
 import { formatarData } from "./central.ts";
 import type { ConclusaoFiscal, EstadoFiscal } from "./fiscal.ts";
+import { cnpjLegivel, lerSecaoFornecedores, type ColunasFornecedorInstrumento, type EntradaFornecedores, type SecaoFornecedores } from "./fornecedores.ts";
 import { DIAS_PARADO_ALTO, DIAS_PARADO_MODERADO, RODADAS_REUNIAO, diasEntre, type AcessoLivre, type Nivel, type Passo, type Risco } from "./laudo.ts";
 import { MINIMO_MEDICOES, percentual, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
 import { tituloOrgao } from "./padroes.ts";
@@ -31,8 +32,11 @@ import { moedaCurta } from "./radar.ts";
 
 // ================================================================ entrada
 
-/** A linha de `painel_instrumento` com as colunas da oport_19 — ausentes antes dela, por isso opcionais. */
-export interface InstrumentoLaudo extends Instrumento {
+/**
+ * A linha de `painel_instrumento` com as colunas da oport_19 e da oport_21 (fornecedores, empenho, contrapartida
+ * e coordenada) — ausentes antes delas, por isso opcionais.
+ */
+export interface InstrumentoLaudo extends Instrumento, ColunasFornecedorInstrumento {
   situacao_contratacao?: string | null;
   dt_fim_vigencia_original?: string | null;
   vl_global_original?: number | null;
@@ -134,6 +138,11 @@ export interface EntradaDiagnostico {
    * quem analisou e de quem é a vez. Ausente para quem não está na coleta.
    */
   acessoLivre?: AcessoLivre | null;
+  /**
+   * Fornecedores do convênio (onda 12, parte 3), só para administradores e só na PB. Ausente: não se
+   * aplica ou não foi lido; `null`: a leitura falhou (a falta vai em `faltas`).
+   */
+  fornecedores?: EntradaFornecedores | null;
   /** O que não veio e por quê, para a nota de método. */
   faltas: string[];
 }
@@ -308,7 +317,15 @@ export interface Diagnostico {
     contrapartidaIngressada: number | null;
     pctContrapartida: number | null;
     semDesembolso: number | null;
+    /** Empenho pela natureza da despesa (oport_21): 3 é corrente, 4 é capital. Só os da PB. */
+    empenhadoCorrente: number | null;
+    empenhadoCapital: number | null;
+    /** Datas dos depósitos da contrapartida (oport_21). */
+    ingressos: { primeiro: string; ultimo: string; n: number } | null;
   };
+  /** Ponto da obra cadastrado no SICONV (oport_21). */
+  coordenada: { latitude: number; longitude: number } | null;
+  fornecedores: SecaoFornecedores | null;
   liminar: string | null;
   programa: { nome: string | null; codigo: string | null; uf: string | null; naUf: Vizinhanca | null; funis: Funil[] } | null;
   proponente: { nome: string | null; cnpj: string | null; carteira: Vizinhanca } | null;
@@ -386,12 +403,8 @@ export function nomeProponente(i: Pick<Instrumento, "proponente">, semNome = "Pr
   return i.proponente ? tituloOrgao(i.proponente) : semNome;
 }
 
-/** "08761124000100" → "08.761.124/0001-00". Outro formato sai como veio. */
-export function cnpjLegivel(cnpj: string | null | undefined): string | null {
-  if (!cnpj) return null;
-  const d = cnpj.replace(/\D/g, "");
-  return d.length === 14 ? `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}` : cnpj;
-}
+// Mora em fornecedores.ts desde a onda 12, parte 3; segue exportado daqui para quem já importava.
+export { cnpjLegivel };
 
 /** O nível mais alto entre os riscos, para a cor da frase de abertura. */
 export function nivelMaisAlto(riscos: Risco[]): Nivel {
@@ -560,7 +573,16 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     contrapartidaIngressada: ingresso,
     pctContrapartida: i.vl_contrapartida && i.vl_contrapartida > 0 && ingresso !== null ? ingresso / i.vl_contrapartida : null,
     semDesembolso: repasse === null ? null : Math.max(0, repasse - (desembolsado ?? 0)),
+    empenhadoCorrente: i.empenhado_corrente ?? null,
+    empenhadoCapital: i.empenhado_capital ?? null,
+    ingressos:
+      i.dt_primeiro_ingresso_contrapartida && i.dt_ultimo_ingresso_contrapartida
+        ? { primeiro: i.dt_primeiro_ingresso_contrapartida, ultimo: i.dt_ultimo_ingresso_contrapartida, n: i.n_ingressos_contrapartida ?? 1 }
+        : null,
   };
+  const coordenada =
+    typeof i.latitude === "number" && typeof i.longitude === "number" ? { latitude: i.latitude, longitude: i.longitude } : null;
+  const fornecedores = e.fornecedores ? lerSecaoFornecedores(e.fornecedores, i) : null;
 
   const liminar = i.situacao_contratacao && /liminar/i.test(i.situacao_contratacao) ? i.situacao_contratacao : null;
 
@@ -583,7 +605,10 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     : municipioPb
       ? "A situação fiscal do município não pôde ser lida agora."
       : i.tipo_agente === "estado"
-        ? "O painel fiscal cobre os 223 municípios da PB; a situação do Estado ainda não entra nele."
+        ? // O CSV dos estados no Tesouro Transparente parou em 03/11/2025 (o dos municípios sai todo dia): mostrar a
+          // situação de lá seria mostrar um retrato de quase um ano atrás como se fosse o de hoje.
+          "O painel fiscal cobre os 223 municípios da PB; o Estado não entra nele. O relatório do CAUC dos estados nos dados abertos " +
+          "do Tesouro não é atualizado desde 03/11/2025: a situação do Estado deve ser consultada no extrato do CAUC, no portal do Tesouro."
         : "O painel fiscal cobre só os municípios da PB.";
 
   // O mesmo programa primeiro; depois o mesmo tema; depois o prazo mais próximo. O catálogo pode trazer
@@ -639,7 +664,9 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     portas,
     acessoLivre,
     acessoLivreVazio: motivoAcessoLivreVazio(i, acessoLivre),
-    riscos: lerRiscos(b).sort(porNivel),
+    coordenada,
+    fornecedores,
+    riscos: [...lerRiscos(b), ...(fornecedores?.riscos ?? [])].sort(porNivel),
     estrategia: lerEstrategia(b),
     inacao: b.comDossie ? [] : lerInacao(b),
     faltas: e.faltas,

@@ -20,6 +20,7 @@ import {
   type Vizinhanca,
 } from "@/lib/oportunidades/diagnostico";
 import { NOME_VERIFICACAO, ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
+import { NIVEL_MOMENTO, ROTULO_FAIXA, ROTULO_MOMENTO, nomeFornecedor, urlFornecedor, type SecaoFornecedores } from "@/lib/oportunidades/fornecedores";
 import type { Dossie, Nivel, Passo, Risco } from "@/lib/oportunidades/laudo";
 import { DIAS_JANELA_TEMPO, percentual } from "@/lib/oportunidades/painel";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
@@ -27,9 +28,9 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
 
-const AVISO =
-  "Leitura automática dos dados abertos do Transferegov e do painel fiscal. Não substitui o termo, o parecer do concedente nem " +
-  "orientação jurídica: confira no Transferegov a situação, a vigência e as condições do instrumento antes de agir.";
+const aviso = (cliente: boolean) =>
+  `Leitura automática dos dados abertos do Transferegov${cliente ? "" : " e do painel fiscal"}. Não substitui o termo, o parecer do ` +
+  "concedente nem orientação jurídica: confira no Transferegov a situação, a vigência e as condições do instrumento antes de agir.";
 
 const ROTULO_NIVEL: Record<Nivel, string> = { critico: "crítico", alto: "alto", moderado: "moderado", informativo: "informativo" };
 
@@ -38,19 +39,26 @@ const dias = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "dia" : "dias"}`;
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—");
 const diasArredondados = (x: number) => dias(Math.round(x));
 
-/** `dossie`: a coleta do Acesso Livre no recorte da assinatura, para a lista de documentos. */
+/**
+ * `dossie`: a coleta do Acesso Livre no recorte da assinatura, para a lista de documentos.
+ * `cliente`: a prefeitura vendo o laudo de um instrumento seu (onda 12, parte 3) — sem atalhos para
+ * páginas de administrador, sem a lista de instrumentos de outros entes e sem o painel fiscal. Nome de
+ * servidor e fornecedor já não chegam aqui (a página não os lê).
+ */
 export function DiagnosticoConteudo({
   d,
   i,
   referencia,
   hoje,
   dossie = null,
+  cliente = false,
 }: {
   d: Diagnostico;
   i: InstrumentoLaudo;
   referencia: string;
   hoje: string;
   dossie?: Dossie | null;
+  cliente?: boolean;
 }) {
   const municipio = i.municipio ? `${i.municipio}${i.uf ? `/${i.uf}` : ""}` : null;
   const titulo = i.tipo_agente === "municipio" || !i.proponente ? (municipio ?? "Proponente não informado") : nomeProponente(i);
@@ -76,13 +84,13 @@ export function DiagnosticoConteudo({
           <Link href={urlInstrumento(i.nr_convenio)} className="pa-btn pa-btn-pequeno">
             Ver o instrumento
           </Link>
-          {d.fiscal && (
+          {d.fiscal && !cliente && (
             <Link href={urlMunicipioFiscal(d.fiscal.ibge)} className="pa-btn pa-btn-pequeno">
               Painel fiscal do município
             </Link>
           )}
         </p>
-        <p className="mp-fiscal-aviso">{AVISO}</p>
+        <p className="mp-fiscal-aviso">{aviso(cliente)}</p>
       </div>
 
       <section aria-labelledby="diag-frase" className="mp-radar-secao">
@@ -203,7 +211,7 @@ export function DiagnosticoConteudo({
         </section>
       )}
 
-      <Cruzamentos d={d} i={i} />
+      <Cruzamentos d={d} i={i} cliente={cliente} />
 
       {/* Os registros dos requisitos para celebração, como no laudo da suspensiva: depois da leitura, antes da fonte. */}
       {d.acessoLivre && d.acessoLivre.linha.length > 0 && (
@@ -235,7 +243,7 @@ export function DiagnosticoConteudo({
  * O que o diagnóstico acrescenta ao laudo da suspensiva: outros riscos e frentes (liminar, fiscal,
  * carteira, emenda), o programa, o proponente e as janelas abertas. Entra antes da "Fonte e método" de lá.
  */
-export function DiagnosticoComplemento({ d, i }: { d: Diagnostico; i: InstrumentoLaudo }) {
+export function DiagnosticoComplemento({ d, i, cliente = false }: { d: Diagnostico; i: InstrumentoLaudo; cliente?: boolean }) {
   return (
     <>
       <Riscos riscos={d.riscos} titulo="Outros riscos do instrumento" id="diag-outros-riscos" />
@@ -245,7 +253,7 @@ export function DiagnosticoComplemento({ d, i }: { d: Diagnostico; i: Instrument
         id="diag-outras-frentes"
         nota="Frentes que andam junto com a retirada da suspensiva, tiradas do programa, do proponente e da origem do dinheiro."
       />
-      <Cruzamentos d={d} i={i} />
+      <Cruzamentos d={d} i={i} cliente={cliente} />
     </>
   );
 }
@@ -269,6 +277,14 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
       {d.proponente && <li>Proponente: os instrumentos do mesmo CNPJ na busca (todos, se o proponente é da PB; fora dela, só os vivos).</li>}
       <li>Emenda de origem: arquivo de emendas do SICONV, ligado pela proposta. O autor é agente público e aparece como registrado.</li>
       {d.fiscal && <li>Situação fiscal: painel de capacidade fiscal, decisão “receber transferência voluntária”, de {data(d.fiscal.referencia)}.</li>}
+      {d.fornecedores && (
+        <li>
+          Fornecedores: pagamentos, contratos (ligados pela licitação) e empenhos do SICONV. Pessoa física entra só somada, sem nome; o que vai
+          para a conta do próprio convenente ou do executor não é fornecedor. A marca de inidôneo é a lista do TCU no dia do painel
+          {d.fornecedores.tcuVerificado ? "" : " (não lida nesta execução: sem marca não quer dizer fora da lista)"}. Concentração é indicador
+          para olhar, não irregularidade.
+        </li>
+      )}
       <li>Janelas abertas: catálogo de oportunidades, filtrado pelo tipo de proponente e pela UF; entram as do mesmo programa ou do mesmo órgão concedente.</li>
       {d.acessoLivre && (
         <li>
@@ -375,8 +391,11 @@ function Passos({
   );
 }
 
-/** Programa, proponente, emenda de origem e janelas abertas: o que cerca o instrumento. */
-function Cruzamentos({ d, i }: { d: Diagnostico; i: InstrumentoLaudo }) {
+/**
+ * Programa, proponente, emenda de origem e janelas abertas: o que cerca o instrumento. No laudo do
+ * cliente, o programa sai só em números: sem a lista dos instrumentos de outros entes.
+ */
+function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: InstrumentoLaudo; cliente?: boolean }) {
   const pr = d.programa;
   const brasil = pr?.funis.find((f) => f.recorte === "BR");
   return (
@@ -390,7 +409,7 @@ function Cruzamentos({ d, i }: { d: Diagnostico; i: InstrumentoLaudo }) {
             {pr.nome ?? "Programa sem nome"}
             {pr.codigo ? ` · código ${pr.codigo}` : ""}
           </p>
-          {pr.naUf && <Distribuicao v={pr.naUf} rotulo={`Na ${pr.uf}`} etapa={d.etapa} />}
+          {pr.naUf && <Distribuicao v={pr.naUf} rotulo={`Na ${pr.uf}`} etapa={d.etapa} semNumeros={cliente} />}
           {pr.funis.length > 0 && (
             <div className="mp-tabela-rolagem">
               <table className="mp-tabela">
@@ -487,7 +506,9 @@ function Cruzamentos({ d, i }: { d: Diagnostico; i: InstrumentoLaudo }) {
         </section>
       )}
 
-      {!d.fiscal && d.fiscalMotivo && (
+      <DestinoDoDinheiro d={d} />
+
+      {!cliente && !d.fiscal && d.fiscalMotivo && (
         <section aria-labelledby="diag-fiscal" className="mp-radar-secao">
           <h2 id="diag-fiscal" className="mp-radar-h2">
             Situação fiscal
@@ -529,9 +550,19 @@ function Cruzamentos({ d, i }: { d: Diagnostico; i: InstrumentoLaudo }) {
   );
 }
 
-/** Quantos instrumentos em cada etapa, e os outros na mesma etapa deste, com o número. */
-function Distribuicao({ v, rotulo, etapa }: { v: Vizinhanca; rotulo: string; etapa: Diagnostico["etapa"] }) {
-  const mostrados = v.mesmaEtapa.numeros.slice(0, 12);
+/** Quantos instrumentos em cada etapa, e os outros na mesma etapa deste, com o número (menos com `semNumeros`). */
+function Distribuicao({
+  v,
+  rotulo,
+  etapa,
+  semNumeros = false,
+}: {
+  v: Vizinhanca;
+  rotulo: string;
+  etapa: Diagnostico["etapa"];
+  semNumeros?: boolean;
+}) {
+  const mostrados = semNumeros ? [] : v.mesmaEtapa.numeros.slice(0, 12);
   return (
     <>
       <div className="mp-tabela-rolagem">
@@ -576,5 +607,191 @@ function Distribuicao({ v, rotulo, etapa }: { v: Vizinhanca; rotulo: string; eta
         </p>
       )}
     </>
+  );
+}
+
+const pct = (x: number | null | undefined) => (x === null || x === undefined ? "—" : `${Math.round(x * 100)}%`);
+const periodo = (de: string, ate: string | null) => (ate && ate !== de ? `de ${data(de)} a ${data(ate)}` : `em ${data(de)}`);
+
+/**
+ * Para onde foi o dinheiro (onda 12, parte 3): empenho por natureza, depósitos da contrapartida, ponto da
+ * obra, as empresas que receberam, os contratos e a concentração nos convênios da prefeitura. As empresas
+ * só entram quando há leitura de fornecedores (PB e administrador).
+ */
+function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
+  const f = d.fornecedores;
+  const din = d.dinheiro;
+  const temEmpenho = din.empenhadoCorrente !== null || din.empenhadoCapital !== null;
+  if (!f && !temEmpenho && !din.ingressos && !d.coordenada) return null;
+  const m = f?.municipio;
+  const recebedores = f ? f.linhas.filter((l) => l.pago > 0).length : 0;
+  return (
+    <section aria-labelledby="diag-destino" className="mp-radar-secao">
+      <h2 id="diag-destino" className="mp-radar-h2">
+        Para onde foi o dinheiro
+      </h2>
+      <ul className="pa-cartao pa-cartao-plano mp-laudo-inacao">
+        {f && (
+          <li>
+            Pago a empresas: {moedaCurta(f.pagoPj ?? 0)}
+            {recebedores ? ` (${n(recebedores)} ${recebedores === 1 ? "fornecedor" : "fornecedores"})` : ""}
+            {f.pagoPf ? ` · a pessoas físicas ou sem CNPJ: ${moedaCurta(f.pagoPf)} em ${n(f.nPagamentosPf ?? 0)} pagamentos, sem nome` : ""}
+            {f.pagoConvenente ? ` · à conta do próprio convenente ou do executor: ${moedaCurta(f.pagoConvenente)}` : ""}.
+          </li>
+        )}
+        {temEmpenho && (
+          <li>
+            Empenhado:{" "}
+            {[
+              din.empenhadoCapital ? `${moedaCurta(din.empenhadoCapital)} em investimento (capital)` : null,
+              din.empenhadoCorrente ? `${moedaCurta(din.empenhadoCorrente)} em despesa corrente` : null,
+            ]
+              .filter(Boolean)
+              .join(" e ") || "saldo zero depois das anulações"}
+            , pelos empenhos do SICONV.
+          </li>
+        )}
+        {din.ingressos && (
+          <li>
+            Contrapartida depositada{" "}
+            {din.ingressos.n === 1
+              ? `em ${data(din.ingressos.primeiro)}`
+              : `${n(din.ingressos.n)} vezes, de ${data(din.ingressos.primeiro)} a ${data(din.ingressos.ultimo)}`}
+            {din.contrapartidaIngressada !== null ? ` (${moedaCurta(din.contrapartidaIngressada)} no total)` : ""}.
+          </li>
+        )}
+        {d.coordenada && (
+          <li>
+            Ponto da obra no SICONV: {d.coordenada.latitude.toLocaleString("pt-BR", { maximumFractionDigits: 5 })};{" "}
+            {d.coordenada.longitude.toLocaleString("pt-BR", { maximumFractionDigits: 5 })}
+            <span className="mp-nao-imprimir">
+              {" · "}
+              <a
+                href={`https://www.openstreetmap.org/?mlat=${d.coordenada.latitude}&mlon=${d.coordenada.longitude}#map=17/${d.coordenada.latitude}/${d.coordenada.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ver no mapa
+              </a>
+            </span>
+            .
+          </li>
+        )}
+      </ul>
+
+      {f && f.linhas.length > 0 && <TabelaFornecedores f={f} />}
+      {f && f.contratos.length > 0 && <TabelaContratos f={f} />}
+
+      {m && m.faixa !== "pouco_dado" && (
+        <p className={`pa-cartao pa-cartao-plano${m.faixa === "alta" ? " mp-laudo-informativo" : ""}`}>
+          Nos convênios federais da prefeitura de {m.municipio ?? "este município"}, {n(m.n_fornecedores)} fornecedores receberam{" "}
+          {moedaCurta(m.pago_pj)}. O maior, {nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj })}, levou {pct(m.maior_fatia)} (índice de
+          concentração {m.hhi !== null ? m.hhi.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : "—"}: {ROTULO_FAIXA[m.faixa]}).
+          {m.nesteConvenio ? " Ele também é fornecedor deste convênio." : ""} É um indicador para olhar, não uma irregularidade.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
+  return (
+    <div className="mp-tabela-rolagem">
+      <table className="mp-tabela">
+        <caption className="mp-laudo-legenda-tabela">Empresas que receberam ou foram contratadas neste convênio</caption>
+        <thead>
+          <tr>
+            <th scope="col">Empresa</th>
+            <th scope="col" className="mp-num">
+              Recebeu aqui
+            </th>
+            <th scope="col">Pagamentos</th>
+            <th scope="col" className="mp-num">
+              Contratado
+            </th>
+            <th scope="col" className="mp-num">
+              Na PB
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {f.linhas.map((l) => (
+            <tr key={l.cnpj}>
+              <th scope="row">
+                <Link href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
+                  {l.nome}
+                </Link>
+                <span className="mp-tabela-secundario">
+                  CNPJ {cnpjLegivel(l.cnpj)}
+                  {l.mei ? " · MEI" : ""}
+                </span>
+                {l.momento && (
+                  <span className={`pa-tag mp-laudo-nivel mp-laudo-${NIVEL_MOMENTO[l.momento]}`}>inidôneo (TCU) · {ROTULO_MOMENTO[l.momento]}</span>
+                )}
+              </th>
+              <td className="mp-num">
+                {moedaCurta(l.pago)}
+                {l.fatia !== null && l.pago > 0 && <span className="mp-tabela-secundario">{pct(l.fatia)} do pago a empresas</span>}
+              </td>
+              <td>
+                {l.nPagamentos > 0 ? n(l.nPagamentos) : "nenhum"}
+                {l.primeiro && <span className="mp-tabela-secundario">{periodo(l.primeiro, l.ultimo)}</span>}
+              </td>
+              <td className="mp-num">
+                {l.nContratos > 0 ? moedaCurta(l.contratado) : "—"}
+                {l.nContratos > 1 && <span className="mp-tabela-secundario">{n(l.nContratos)} contratos</span>}
+              </td>
+              <td className="mp-num">
+                {l.pbMunicipios !== null ? `${n(l.pbMunicipios)} ${l.pbMunicipios === 1 ? "município" : "municípios"}` : "—"}
+                {l.pbConvenios !== null && (
+                  <span className="mp-tabela-secundario">
+                    {n(l.pbConvenios)} {l.pbConvenios === 1 ? "convênio" : "convênios"}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TabelaContratos({ f }: { f: SecaoFornecedores }) {
+  return (
+    <div className="mp-tabela-rolagem">
+      <table className="mp-tabela">
+        <caption className="mp-laudo-legenda-tabela">Contratos do convênio</caption>
+        <thead>
+          <tr>
+            <th scope="col">Contrato</th>
+            <th scope="col">Objeto</th>
+            <th scope="col" className="mp-num">
+              Valor
+            </th>
+            <th scope="col">Vigência</th>
+          </tr>
+        </thead>
+        <tbody>
+          {f.contratos.map((c, k) => (
+            <tr key={`${c.id_licitacao}-${c.id_contrato}-${k}`}>
+              <th scope="row">
+                nº {c.nr_contrato ?? c.id_contrato}
+                <span className="mp-tabela-secundario">
+                  {c.pessoa_fisica ? "pessoa física" : nomeFornecedor({ nome: c.fornecedor, cnpj: c.cnpj })}
+                  {c.dt_assinatura ? ` · assinado em ${data(c.dt_assinatura)}` : ""}
+                </span>
+              </th>
+              <td>
+                {c.objeto ?? "—"}
+                {c.tipo_aquisicao && <span className="mp-tabela-secundario">{c.tipo_aquisicao}</span>}
+              </td>
+              <td className="mp-num">{moedaCurta(c.valor)}</td>
+              <td>{c.dt_inicio_vigencia || c.dt_fim_vigencia ? `${data(c.dt_inicio_vigencia)} a ${data(c.dt_fim_vigencia)}` : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

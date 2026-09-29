@@ -159,6 +159,8 @@ export function numeroValido(nr: string | undefined): nr is string {
 }
 
 export const urlInstrumento = (nr: string) => `/mapa/instrumento/${encodeURIComponent(nr)}`;
+/** O laudo do instrumento: o administrador abre qualquer um; o cliente, os do próprio município (a página confere). */
+export const urlLaudo = (nr: string) => `/mapa/instrumento/${encodeURIComponent(nr)}/laudo`;
 export const urlProposta = (id: string) => `/mapa/proposta/${encodeURIComponent(id)}`;
 export const urlInvestimentos = (ibge: string) => `/mapa/municipio/${ibge}/investimentos`;
 

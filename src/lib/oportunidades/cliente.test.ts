@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EXPLICACAO_SEM_FICHA, podeVerMunicipio, type MotivoSemFicha } from "./cliente.ts";
+import { EXPLICACAO_SEM_FICHA, podeVerInstrumento, podeVerMunicipio, type MotivoSemFicha } from "./cliente.ts";
 
 const PREFEITURA = { tipo: "municipio", municipioIbge: "2507507" };
 const CONFIRMADO = { municipio_ibge: "2507507", confirmado_em: "2026-09-15T12:00:00Z" };
@@ -34,4 +34,23 @@ test("o município liberado é o confirmado, não um que chegue de fora", () => 
 test("toda recusa tem explicação", () => {
   const motivos: MotivoSemFicha[] = ["nao_aprovado", "sem_organizacao", "nao_municipio", "sem_ibge", "aguardando_confirmacao", "municipio_mudou"];
   assert.ok(motivos.every((m) => EXPLICACAO_SEM_FICHA[m].titulo && EXPLICACAO_SEM_FICHA[m].texto));
+});
+
+test("laudo do cliente: só instrumento da administração municipal do próprio município", () => {
+  const acesso = podeVerMunicipio("aprovado", PREFEITURA, CONFIRMADO);
+  assert.deepEqual(podeVerInstrumento(acesso, { cod_ibge: "2507507", tipo_agente: "municipio" }), { ok: true });
+  // O Estado e as entidades têm o IBGE do município-sede, mas não são a prefeitura.
+  assert.deepEqual(podeVerInstrumento(acesso, { cod_ibge: "2507507", tipo_agente: "estado" }), { ok: false, motivo: "outro_proponente" });
+  assert.deepEqual(podeVerInstrumento(acesso, { cod_ibge: "2507507", tipo_agente: "osc" }), { ok: false, motivo: "outro_proponente" });
+  assert.deepEqual(podeVerInstrumento(acesso, { cod_ibge: "2504009", tipo_agente: "municipio" }), { ok: false, motivo: "outro_municipio" });
+  assert.deepEqual(podeVerInstrumento(acesso, { cod_ibge: null, tipo_agente: "municipio" }), { ok: false, motivo: "outro_municipio" });
+});
+
+test("laudo do cliente: sem acesso à ficha, sem laudo, com o mesmo motivo", () => {
+  const semVinculo = podeVerMunicipio("aprovado", PREFEITURA, null);
+  assert.deepEqual(podeVerInstrumento(semVinculo, { cod_ibge: "2507507", tipo_agente: "municipio" }), { ok: false, motivo: "aguardando_confirmacao" });
+  const outraOrg = podeVerMunicipio("aprovado", { tipo: "osc", municipioIbge: "2507507" }, CONFIRMADO);
+  assert.deepEqual(podeVerInstrumento(outraOrg, { cod_ibge: "2507507", tipo_agente: "municipio" }), { ok: false, motivo: "nao_municipio" });
+  const pendente = podeVerMunicipio("pendente", PREFEITURA, CONFIRMADO);
+  assert.deepEqual(podeVerInstrumento(pendente, { cod_ibge: "2507507", tipo_agente: "municipio" }), { ok: false, motivo: "nao_aprovado" });
 });

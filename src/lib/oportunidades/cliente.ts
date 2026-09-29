@@ -71,3 +71,22 @@ export const EXPLICACAO_SEM_FICHA: Record<MotivoSemFicha, { titulo: string; text
     texto: "A confirmação era para outro município. A PONTE precisa conferir o vínculo de novo antes de mostrar a ficha.",
   },
 };
+
+// ============================================================================ laudo do cliente (onda 12, parte 3)
+
+export type MotivoSemLaudo = MotivoSemFicha | "outro_proponente" | "outro_municipio";
+
+/**
+ * O cliente vê o laudo só dos instrumentos do próprio município: o proponente é da administração
+ * municipal (a prefeitura, o fundo, a autarquia) e o IBGE é o do vínculo confirmado. O município vem
+ * do acesso (organização ativa + confirmação), nunca do instrumento pedido na URL.
+ */
+export function podeVerInstrumento(
+  acesso: AcessoFicha,
+  i: { cod_ibge: string | null; tipo_agente: string | null },
+): { ok: true } | { ok: false; motivo: MotivoSemLaudo } {
+  if (!acesso.ok) return acesso;
+  if (i.tipo_agente !== "municipio") return { ok: false, motivo: "outro_proponente" };
+  if (i.cod_ibge !== acesso.ibge) return { ok: false, motivo: "outro_municipio" };
+  return { ok: true };
+}

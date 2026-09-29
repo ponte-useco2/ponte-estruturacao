@@ -26,6 +26,7 @@ import {
 } from "./diagnostico";
 import { ehEsquemaAusente } from "./esquema";
 import { lerResumoFiscal } from "./fiscal.server";
+import { lerFornecedoresDoConvenio } from "./fornecedores.server";
 import type { TipoAgente } from "./organizacao";
 import type { LinhaDesfecho, LinhaEtapa } from "./painel";
 import { todas } from "./padroes.server";
@@ -107,8 +108,25 @@ export async function portasAbertas(i: InstrumentoLaudo, hoje: string, faltas: s
   }
 }
 
+/** O laudo do cliente (onda 12, parte 3): o que ele não mostra, não se lê. */
+export interface OpcoesLeitura {
+  /** Não lê as empresas do convênio (nomes de fornecedor são só de administrador). */
+  semFornecedores?: boolean;
+  /** Não lê o painel fiscal (o MVP fiscal é só de administrador). */
+  semFiscal?: boolean;
+  /**
+   * Confere o instrumento antes de qualquer cruzamento. Recusado, a leitura volta "não encontrado":
+   * quem não pode ver não fica sabendo se o número existe.
+   */
+  podeVer?: (i: InstrumentoLaudo) => boolean;
+}
+
 /** Tudo o que o laudo de um instrumento cruza, da última execução concluída do painel. */
-export async function lerEntradaDiagnostico(numero: string, hoje: string): Promise<LeituraDiagnostico> {
+export async function lerEntradaDiagnostico(
+  numero: string,
+  hoje: string,
+  { semFornecedores = false, semFiscal = false, podeVer }: OpcoesLeitura = {},
+): Promise<LeituraDiagnostico> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
 
@@ -120,13 +138,13 @@ export async function lerEntradaDiagnostico(numero: string, hoje: string): Promi
   const linha = await db.from("painel_instrumento").select("*").eq("execucao_id", execucao.id).eq("nr_convenio", numero).limit(1);
   if (linha.error) return falha("lerEntradaDiagnostico (instrumento)", linha.error);
   const i = (linha.data as InstrumentoLaudo[] | null)?.[0];
-  if (!i) return { estado: "nao_encontrado", execucao };
+  if (!i || (podeVer && !podeVer(i))) return { estado: "nao_encontrado", execucao };
 
   const faltas: string[] = [];
   const recortes = i.uf && i.uf !== "BR" ? [i.uf, "BR"] : ["BR"];
   const nada = <T,>(): Promise<T[] | null> => Promise.resolve([]);
 
-  const [etapasOrgao, etapasPrograma, desfechos, pares, carteira, emendas, fiscal, portas] = await Promise.all([
+  const [etapasOrgao, etapasPrograma, desfechos, pares, carteira, emendas, fiscal, portas, fornecedores] = await Promise.all([
     i.orgao_sup
       ? parte<LinhaEtapa>(faltas, "tempos do órgão", () =>
           db.from("painel_etapa_tempo").select("*").eq("execucao_id", execucao.id).eq("dimensao", "orgao").eq("chave", i.orgao_sup as string).in("recorte", recortes).limit(100),
@@ -168,8 +186,10 @@ export async function lerEntradaDiagnostico(numero: string, hoje: string): Promi
         .order("nr_emenda")
         .limit(100),
     ),
-    i.tipo_agente === "municipio" && i.uf === "PB" && i.cod_ibge ? lerResumoFiscal(i.cod_ibge) : Promise.resolve(null),
+    !semFiscal && i.tipo_agente === "municipio" && i.uf === "PB" && i.cod_ibge ? lerResumoFiscal(i.cod_ibge) : Promise.resolve(null),
     portasAbertas(i, hoje, faltas),
+    // Fornecedores só na PB (o job só grava os de lá), para administradores (onda 12, parte 3).
+    i.uf === "PB" && !semFornecedores ? lerFornecedoresDoConvenio(db, execucao.id, i, faltas) : Promise.resolve(undefined),
   ]);
 
   return {
@@ -184,6 +204,7 @@ export async function lerEntradaDiagnostico(numero: string, hoje: string): Promi
       emendas,
       fiscal,
       portas,
+      fornecedores,
       faltas,
     },
   };

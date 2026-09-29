@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { numeroValido } from "@/lib/oportunidades/busca";
+import { podeVerInstrumento } from "@/lib/oportunidades/cliente";
+import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
 import { lerInstrumento } from "@/lib/oportunidades/busca.server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
@@ -42,13 +44,16 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
   }
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker={`Convênio nº ${numero}`} titulo="O convênio está indisponível agora" />;
   const i = leitura.instrumento;
+  // O laudo nomeia servidores e interpreta o andamento: o administrador vê o atalho em todo instrumento.
+  // Desde a onda 12, parte 3, a prefeitura também, nos instrumentos do próprio município (a página do
+  // laudo confere de novo no servidor e mostra a versão do cliente).
+  const admin = ehAdministrador(visitante.email);
+  const laudo = admin || (i.tipo_agente === "municipio" && podeVerInstrumento((await lerAcessoFicha(visitante)).acesso, i).ok);
   return (
     <InstrumentoConteudo
       leitura={leitura}
       seguindo={seguidas ? seguidas.has(chaveSeguida("instrumento", i.nr_convenio)) : null}
-      // O laudo nomeia servidores e interpreta o andamento: só administradores veem o atalho (e a
-      // página do laudo confere de novo no servidor). Desde a onda 12, vale para qualquer instrumento.
-      laudo={ehAdministrador(visitante.email)}
+      laudo={laudo}
     />
   );
 }

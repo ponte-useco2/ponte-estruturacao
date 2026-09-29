@@ -4,6 +4,7 @@
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { urlLaudo } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
 import {
   ROTULO_ETAPA_LICITACAO,
@@ -99,6 +100,9 @@ export function CelulaConvenio({ c, naFicha }: { c: ConvenioPainel; naFicha?: bo
       <span className="mp-tabela-secundario">
         {!naFicha && c.cod_ibge ? <Link href={urlFicha({ ibge: c.cod_ibge })}>{lugar}</Link> : lugar} · nº {c.nr_convenio}{" "}
         <CopiarNumero numero={c.nr_convenio} />
+        {/* Na ficha da prefeitura, todo convênio é do próprio município: o cliente também abre o laudo. */}
+        {" · "}
+        <Link href={urlLaudo(c.nr_convenio)}>laudo</Link>
       </span>
       {c.dias_sem_movimentacao !== null && c.dias_sem_movimentacao !== undefined && (
         <span className={`mp-tabela-secundario${c.dias_sem_movimentacao > 365 ? " mp-painel-urgente" : ""}`}>

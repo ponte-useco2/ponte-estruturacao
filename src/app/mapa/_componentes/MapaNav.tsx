@@ -42,6 +42,8 @@ const ABAS: readonly Aba[] = [
   { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
   { href: "/mapa/fiscal", nome: "Fiscal", exata: false, admin: true, municipio: false },
   { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false, tambem: [LAUDO_PELAS_SUSPENSIVAS] },
+  // O dossiê de cada empresa (/mapa/fornecedor/<cnpj>) acende a lista.
+  { href: "/mapa/fornecedores", nome: "Fornecedores", exata: false, admin: true, municipio: false, tambem: ["/mapa/fornecedor/"] },
 ];
 
 export function MapaNav({

@@ -369,6 +369,20 @@ export interface AcessoLivre {
   envios: number;
 }
 
+/**
+ * O dossiê sem o nome e a atribuição de quem registrou cada evento — para o laudo do cliente (onda 12,
+ * parte 3). É o único caminho por onde nome de servidor entra no laudo: tirado aqui, somem juntos o
+ * "Quem analisou", o "por Fulano" das frases e da estratégia, e o nome na linha do tempo. O texto do
+ * concedente fica: é a comunicação oficial ao próprio proponente.
+ */
+export function dossieSemNomes(d: Dossie): Dossie {
+  return {
+    ...d,
+    eventos: d.eventos.map((e) => ({ ...e, responsavel: null })),
+    detalhes: d.detalhes.map((x) => ({ ...x, responsavel: null, atribuicao: null })),
+  };
+}
+
 export function lerAcessoLivre(dossie: Dossie, hoje: string): AcessoLivre {
   const recorte: RecorteColeta = dossie.recorte ?? "suspensiva";
   const referencia = diaBrasilia(dossie.referencia ?? dossie.coletado_em ?? hoje);

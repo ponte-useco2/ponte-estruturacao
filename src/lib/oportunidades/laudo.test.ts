@@ -6,6 +6,8 @@ import {
   compararUrgencia,
   diaBrasilia,
   diasEntre,
+  dossieSemNomes,
+  lerAcessoLivre,
   lerCondicoes,
   lerLaudo,
   nivelPrazo,
@@ -492,4 +494,23 @@ test("tempo no órgão: a inação cita a perda do órgão só com padrão e com
 test("tempo no órgão: com a suspensiva retirada, a comparação some", () => {
   const l = lerLaudo(joaoPessoa979063(), { ...CONTEXTO, dt_retirada_suspensiva: "2026-03-01" }, HOJE, tempo());
   assert.equal(l.tempoOrgao, null);
+});
+
+test("dossiê sem nomes: nenhum servidor no laudo do cliente, e o texto do concedente fica", () => {
+  const d = joaoPessoa979063();
+  d.detalhes = [
+    { id_situacao: "3", analise: "Atendido", responsavel: "HELLEN", atribuicao: "Analista", analisada_em: null, situacao: null,
+      observacao: "Documentação conferida.", solicitacao: null },
+  ];
+  const com = lerAcessoLivre(d, HOJE);
+  assert.ok(com.analistas.length > 0);
+  const sem = lerAcessoLivre(dossieSemNomes(d), HOJE);
+  assert.deepEqual(sem.analistas, []);
+  const texto = JSON.stringify(sem);
+  for (const nome of ["ANDERSON", "HELDER", "HELLEN", "Analista"]) assert.ok(!texto.includes(nome), nome);
+  assert.ok(texto.includes("Documentação conferida."));
+  // O laudo da suspensiva, montado do dossiê limpo, também não nomeia ninguém.
+  assert.ok(!JSON.stringify(lerLaudo(dossieSemNomes(d), CONTEXTO, HOJE)).includes("HELLEN"));
+  // O original não muda.
+  assert.equal(d.eventos[0].responsavel, "ANDERSON");
 });

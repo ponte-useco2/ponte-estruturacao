@@ -28,3 +28,12 @@ test("aba exata só no caminho exato; convênio com 'laudo' no número não conf
   assert.equal(abaAtiva(SUSPENSIVAS, "/mapa/instrumento/laudo", ORIGEM_SUSPENSIVAS), false);
   assert.equal(abaAtiva(BUSCA, "/mapa/proposta/123"), true);
 });
+
+test("o dossiê do fornecedor acende a aba Fornecedores, e só ela", () => {
+  const FORNECEDORES: RegraAba = { href: "/mapa/fornecedores", exata: false, tambem: ["/mapa/fornecedor/"] };
+  assert.equal(abaAtiva(FORNECEDORES, "/mapa/fornecedores"), true);
+  assert.equal(abaAtiva(FORNECEDORES, "/mapa/fornecedor/05476456000146"), true);
+  assert.equal(abaAtiva(BUSCA, "/mapa/fornecedor/05476456000146"), false);
+  // O laudo aberto pelo dossiê é da Busca.
+  assert.equal(abaAtiva(FORNECEDORES, "/mapa/instrumento/962210/laudo"), false);
+});

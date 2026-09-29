@@ -45,6 +45,7 @@ export function LaudoConteudo({
   hoje,
   complemento = null,
   fontesExtras = null,
+  cliente = false,
 }: {
   laudo: Laudo;
   dossie: Dossie;
@@ -52,6 +53,8 @@ export function LaudoConteudo({
   hoje: string;
   complemento?: ReactNode;
   fontesExtras?: ReactNode;
+  /** A prefeitura vendo o próprio laudo: sem os atalhos para as páginas de administrador. */
+  cliente?: boolean;
 }) {
   const numero = contexto.nr_convenio;
   const inst = dossie.instrumento;
@@ -81,10 +84,12 @@ export function LaudoConteudo({
           <Link href={urlInstrumento(numero)} className="pa-btn pa-btn-pequeno">
             Ver o convênio
           </Link>
-          <Link href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
-            Todas as suspensivas
-          </Link>
-          {contexto.orgao_sup && (
+          {!cliente && (
+            <Link href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
+              Todas as suspensivas
+            </Link>
+          )}
+          {!cliente && contexto.orgao_sup && (
             <Link href={`/mapa/suspensivas/checklist?orgao=${encodeURIComponent(contexto.orgao_sup)}`} className="pa-btn pa-btn-pequeno">
               Checklist deste órgão
             </Link>
