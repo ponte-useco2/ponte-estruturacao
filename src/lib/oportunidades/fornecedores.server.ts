@@ -22,6 +22,7 @@ import {
   type FornecedorConvenio,
 } from "./fornecedores";
 import { todas } from "./padroes.server";
+import { lerTceDoConvenio } from "./tce.server";
 
 type Falha = { estado: "nao_ativado" } | { estado: "sem_execucao" } | { estado: "erro" };
 type Banco = ReturnType<typeof clienteServidor>;
@@ -98,7 +99,10 @@ export async function lerFornecedoresDoConvenio(
     faltas.push(nome);
     return null;
   }
+  // O TCE-PB é complemento do complemento: sem ele, a seção sai sem a coluna.
+  const tce = i.cod_ibge ? await lerTceDoConvenio(db, i.cod_ibge, [...new Set(ls.map((l) => l.cnpj))], faltas) : null;
   return {
+    tce,
     linhas: ls,
     fornecedores,
     contratos: (contratos.data ?? []) as unknown as Contrato[],

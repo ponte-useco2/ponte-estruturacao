@@ -57,6 +57,10 @@ export function PixConteudo({ p, leitura }: { p: ParametrosPix; leitura: Leitura
         <Link href="/mapa/painel" className="pa-chip">
           ← Painel de execução
         </Link>
+        {/* Onda 12, parte 3B: o Pix como o município gastou, nas despesas que ele presta ao TCE-PB (só PB). */}
+        <Link href="/mapa/painel/tce" className="pa-chip">
+          Pix nas contas dos municípios (TCE-PB) →
+        </Link>
         {(
           [
             ["especiais", "Transferências especiais (Pix)"],

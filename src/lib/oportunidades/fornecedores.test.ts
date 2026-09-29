@@ -239,3 +239,22 @@ test("convênio sem fornecedor: seção vazia, sem risco", () => {
   assert.equal(s.tcuVerificado, false);
   assert.equal(s.pagoPj, null);
 });
+
+test("pago no SICONV sem registro no TCE-PB: risco moderado, com o convênio do laudo", () => {
+  const tce = [
+    { ibge: "2504009", ano: 2020, cnpj: ACM, nome: null, tce_convenio: 0, tce_pix: 0, tce_outras: 0, siconv: 600_000, convenios: ["900001"], situacao: "so_siconv" as const },
+    { ibge: "2504009", ano: 2020, cnpj: MEI, nome: null, tce_convenio: 0, tce_pix: 0, tce_outras: 0, siconv: 100_000, convenios: ["900001"], situacao: "casado" as const },
+    // Outro convênio: não entra neste laudo.
+    { ibge: "2504009", ano: 2021, cnpj: MEI, nome: null, tce_convenio: 0, tce_pix: 0, tce_outras: 0, siconv: 5, convenios: ["999"], situacao: "so_siconv" as const },
+  ];
+  const s = lerSecaoFornecedores(entrada({ tce }), { ...PREFEITURA, nr_convenio: "900001" });
+  const acm = s.linhas.find((l) => l.cnpj === ACM);
+  assert.equal(acm?.tce, "sem registro no TCE-PB em 2020");
+  assert.equal(s.linhas.find((l) => l.cnpj === MEI)?.tce, "no TCE-PB em 2020");
+  const r = s.riscos.filter((x) => /sem registro no TCE-PB/.test(x.titulo));
+  assert.equal(r.length, 1);
+  assert.equal(r[0].nivel, "moderado");
+  assert.match(r[0].fato, /R\$ 600 mil pagos à empresa em 2020/);
+  // Sem a leitura do TCE, nada muda.
+  assert.ok(lerSecaoFornecedores(entrada(), PREFEITURA).linhas.every((l) => l.tce === null));
+});

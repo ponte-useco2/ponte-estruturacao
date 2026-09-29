@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cnpjLegivel, cnpjValido } from "@/lib/oportunidades/fornecedores";
 import { lerDossieFornecedor } from "@/lib/oportunidades/fornecedores.server";
+import { lerTceDoFornecedor } from "@/lib/oportunidades/tce.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { FornecedorConteudo } from "./FornecedorConteudo";
@@ -23,7 +24,7 @@ export default async function FornecedorPage({ params }: { params: Promise<{ cnp
 
   const cnpj = cnpjValido(decodeURIComponent((await params).cnpj));
   if (!cnpj) notFound();
-  const leitura = await lerDossieFornecedor(cnpj);
+  const [leitura, tce] = await Promise.all([lerDossieFornecedor(cnpj), lerTceDoFornecedor(cnpj)]);
 
   if (leitura.estado === "nao_encontrado") {
     return (
@@ -43,5 +44,5 @@ export default async function FornecedorPage({ params }: { params: Promise<{ cnp
     );
   }
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker={`Fornecedor · CNPJ ${cnpjLegivel(cnpj)}`} titulo="O dossiê está indisponível agora" />;
-  return <FornecedorConteudo leitura={leitura} />;
+  return <FornecedorConteudo leitura={leitura} tce={tce} />;
 }

@@ -18,6 +18,7 @@
 import { formatarData } from "./central.ts";
 import type { Risco } from "./laudo.ts";
 import { moedaCurta } from "./radar.ts";
+import { tceDoFornecedor, type TceFederalPar } from "./tce.ts";
 
 // ================================================================ linhas do banco
 
@@ -235,6 +236,8 @@ export interface EntradaFornecedores {
   contratos: Contrato[];
   /** Concentração nos convênios da prefeitura, quando o proponente é a prefeitura. */
   municipio: ConcentracaoMunicipio | null;
+  /** Os pares do TCE-PB (município, CNPJ, ano) dos fornecedores; ausente ou `null`: sem leitura. */
+  tce?: TceFederalPar[] | null;
 }
 
 export interface LinhaFornecedor {
@@ -256,6 +259,8 @@ export interface LinhaFornecedor {
   /** Onde este convênio cai em relação à sanção do TCU; `null` fora da lista. */
   momento: MomentoSancao | null;
   sancao: string | null;
+  /** Como o TCE-PB vê o pagamento deste convênio à empresa ("no TCE-PB em 2024 e 2025"). */
+  tce: string | null;
 }
 
 export interface SecaoFornecedores {
@@ -271,15 +276,23 @@ export interface SecaoFornecedores {
   riscos: Risco[];
 }
 
-type InstrumentoFornecedor = ColunasFornecedorInstrumento & { tipo_agente?: string | null; municipio?: string | null };
+type InstrumentoFornecedor = ColunasFornecedorInstrumento & {
+  tipo_agente?: string | null;
+  municipio?: string | null;
+  nr_convenio?: string;
+};
 
 export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoFornecedor): SecaoFornecedores {
   const porCnpj = new Map(e.fornecedores.map((f) => [f.cnpj, f]));
+  // Pares "só no SICONV" deste convênio, por CNPJ: viram risco, não coluna.
+  const soSiconv = new Map<string, TceFederalPar[]>();
   const linhas: LinhaFornecedor[] = e.linhas
     .map((l) => {
       const f = porCnpj.get(l.cnpj);
       const contratos = e.contratos.filter((c) => c.cnpj === l.cnpj);
       const momento = f ? momentoDaSancao(f, { primeiro: l.primeiro_pagamento, ultimo: l.ultimo_pagamento }, contratos) : null;
+      const noTce = e.tce && i.nr_convenio ? tceDoFornecedor(e.tce, l.cnpj, i.nr_convenio) : null;
+      if (noTce?.soSiconv.length) soSiconv.set(l.cnpj, noTce.soSiconv);
       return {
         cnpj: l.cnpj,
         nome: nomeFornecedor({ nome: f?.nome ?? null, cnpj: l.cnpj }),
@@ -297,6 +310,7 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
         tcu: f ? situacaoTcu(f) : "nao_verificado",
         momento,
         sancao: f?.inidoneo_tcu ? periodoSancao(f) : null,
+        tce: noTce?.frase ?? null,
       };
     })
     .sort((a, b) => b.pago - a.pago || b.contratado - a.contratado || a.nome.localeCompare(b.nome));
@@ -330,6 +344,22 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
       },
     };
     riscos.push({ nivel: NIVEL_MOMENTO[l.momento], ...texto[l.momento] });
+  }
+  // Pago no SICONV e sem nenhum pagamento a esse CNPJ nas despesas do município no TCE-PB, no ano nem no
+  // seguinte. O TCE não traz o número do convênio: o casamento é por município, CNPJ e ano.
+  for (const l of linhas) {
+    const so = soSiconv.get(l.cnpj);
+    if (!so) continue;
+    const valor = so.reduce((s, p) => s + p.siconv, 0);
+    const anos = so.map((p) => String(p.ano));
+    riscos.push({
+      nivel: "moderado",
+      titulo: `${l.nome}: pago no SICONV sem registro no TCE-PB`,
+      fato:
+        `O SICONV registra ${moedaCurta(valor)} pagos à empresa em ${anos.length > 1 ? `${anos.slice(0, -1).join(", ")} e ${anos.at(-1)}` : anos[0]} ` +
+        `nos convênios da administração municipal, entre eles este, e as despesas do município no TCE-PB não têm pagamento a esse CNPJ ` +
+        "nesse ano nem no seguinte. Pode ser lançamento com outro CNPJ (filial) ou atraso na prestação de contas ao TCE; vale conferir.",
+    });
   }
   if (municipio?.faixa === "alta" && municipio.nesteConvenio && municipio.maior_fatia !== null) {
     riscos.push({

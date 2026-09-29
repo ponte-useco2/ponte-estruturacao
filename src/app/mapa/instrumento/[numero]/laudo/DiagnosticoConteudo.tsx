@@ -281,7 +281,8 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
       {d.fornecedores && (
         <li>
           Fornecedores: pagamentos, contratos (ligados pela licitação) e empenhos do SICONV. Pessoa física entra só somada, sem nome; o que vai
-          para a conta do próprio convenente ou do executor não é fornecedor. A marca de inidôneo é a lista do TCU no dia do painel
+          para a conta do próprio convenente ou do executor não é fornecedor. O “no TCE-PB” casa o pagamento com as despesas do município no
+          TCE-PB pelo CNPJ e pelo ano (o TCE não traz o número do convênio). A marca de inidôneo é a lista do TCU no dia do painel
           {d.fornecedores.tcuVerificado ? "" : " (não lida nesta execução: sem marca não quer dizer fora da lista)"}. Concentração é indicador
           para olhar, não irregularidade.
         </li>
@@ -734,6 +735,7 @@ function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
                   CNPJ {cnpjLegivel(l.cnpj)}
                   {l.mei ? " · MEI" : ""}
                 </span>
+                {l.tce && <span className="mp-tabela-secundario">{l.tce}</span>}
                 {l.momento && (
                   <span className={`pa-tag mp-laudo-nivel mp-laudo-${NIVEL_MOMENTO[l.momento]}`}>inidôneo (TCU) · {ROTULO_MOMENTO[l.momento]}</span>
                 )}

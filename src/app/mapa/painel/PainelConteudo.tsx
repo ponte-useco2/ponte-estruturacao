@@ -151,6 +151,9 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         <Link href="/mapa/fiscal" className="pa-chip">
           Capacidade fiscal (PB) →
         </Link>
+        <Link href="/mapa/painel/tce" className="pa-chip">
+          Dinheiro federal no TCE-PB →
+        </Link>
       </nav>
 
       <Filtros p={p} orgaos={orgaos} municipios={leitura.opcoesMunicipio} referencia={execucao.referencia} />

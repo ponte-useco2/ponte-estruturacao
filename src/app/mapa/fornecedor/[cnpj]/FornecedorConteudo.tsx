@@ -11,6 +11,8 @@ import { NIVEL_MOMENTO, ROTULO_MOMENTO, cnpjLegivel, momentoDaSancao, nomeFornec
 import type { LeituraDossieFornecedor } from "@/lib/oportunidades/fornecedores.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { ROTULO_SITUACAO, urlTce, type TceFederalPar, type TcePixCredor } from "@/lib/oportunidades/tce";
+import type { TceDoFornecedor } from "@/lib/oportunidades/tce.server";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 
 type LeituraOk = Extract<LeituraDossieFornecedor, { estado: "ok" }>;
@@ -24,7 +26,8 @@ const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—
 const pct = (x: number | null | undefined) => (x === null || x === undefined ? "—" : `${Math.round(x * 100)}%`);
 const urlLaudo = (nr: string) => `/mapa/instrumento/${encodeURIComponent(nr)}/laudo`;
 
-export function FornecedorConteudo({ leitura }: { leitura: LeituraOk }) {
+/** `tce`: o que o TCE-PB registra pago à empresa (onda 12, parte 3B); `null` = a leitura falhou. */
+export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk; tce?: TceDoFornecedor | null }) {
   const { fornecedor: f, convenios, contratos, instrumentos, lidera } = leitura;
   const nome = nomeFornecedor(f);
   const porNr = new Map(instrumentos.map((i) => [i.nr_convenio, i]));
@@ -255,6 +258,8 @@ export function FornecedorConteudo({ leitura }: { leitura: LeituraOk }) {
         </div>
       </section>
 
+      <NoTce tce={tce} nomes={new Map([...Object.entries(tce?.nomes ?? {}), ...convenios.map((c) => [c.cod_ibge ?? "", c.municipio ?? ""] as [string, string])])} />
+
       {contratos.length > 0 && (
         <section aria-labelledby="forn-contratos" className="mp-radar-secao">
           <h2 id="forn-contratos" className="mp-radar-h2">
@@ -319,6 +324,89 @@ export function FornecedorConteudo({ leitura }: { leitura: LeituraOk }) {
         </ul>
       </section>
     </div>
+  );
+}
+
+/**
+ * O que as despesas dos municípios no TCE-PB registram pago à empresa com dinheiro federal: fonte de
+ * convênio, Pix e, onde há par no SICONV, o resto. Casado pelo CNPJ e pelo ano.
+ */
+function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string, string> }) {
+  const municipio = (ibge: string) => nomes.get(ibge) || `IBGE ${ibge}`;
+  const linhas: { chave: string; ibge: string; ano: number; par: TceFederalPar | null; pix: TcePixCredor | null }[] = [];
+  if (tce) {
+    const pix = new Map(tce.pix.map((x) => [`${x.ibge}-${x.ano}`, x]));
+    for (const p of tce.pares) linhas.push({ chave: `${p.ibge}-${p.ano}`, ibge: p.ibge, ano: p.ano, par: p, pix: pix.get(`${p.ibge}-${p.ano}`) ?? null });
+    const vistos = new Set(linhas.map((l) => l.chave));
+    for (const x of tce.pix) if (!vistos.has(`${x.ibge}-${x.ano}`)) linhas.push({ chave: `${x.ibge}-${x.ano}`, ibge: x.ibge, ano: x.ano, par: null, pix: x });
+  }
+  linhas.sort((a, b) => b.ano - a.ano || municipio(a.ibge).localeCompare(municipio(b.ibge), "pt-BR"));
+  return (
+    <section aria-labelledby="forn-tce" className="mp-radar-secao">
+      <h2 id="forn-tce" className="mp-radar-h2">
+        Nas contas dos municípios (TCE-PB)
+      </h2>
+      {tce === null ? (
+        <p className="pa-cartao pa-cartao-plano">As despesas do TCE-PB não puderam ser lidas agora.</p>
+      ) : linhas.length === 0 ? (
+        <p className="pa-cartao pa-cartao-plano">
+          O TCE-PB não registra pagamento a esta empresa com dinheiro federal (convênio ou Pix) nos arquivos lidos, desde 2024.
+        </p>
+      ) : (
+        <div className="mp-tabela-rolagem">
+          <table className="mp-tabela">
+            <thead>
+              <tr>
+                <th scope="col">Município</th>
+                <th scope="col">Ano</th>
+                <th scope="col" className="mp-num">
+                  TCE-PB
+                </th>
+                <th scope="col" className="mp-num">
+                  SICONV
+                </th>
+                <th scope="col">Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map((l) => (
+                <tr key={l.chave}>
+                  <th scope="row">
+                    <Link href={urlTce(l.ibge)}>{municipio(l.ibge)}</Link>
+                  </th>
+                  <td>{l.ano}</td>
+                  <td className="mp-num">
+                    <ValorTce par={l.par} pix={l.pix} />
+                  </td>
+                  <td className="mp-num">{l.par && l.par.siconv > 0 ? moedaCurta(l.par.siconv) : "—"}</td>
+                  <td>{l.par ? ROTULO_SITUACAO[l.par.situacao] : "Pix"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="pa-nota">
+        Despesas abertas do TCE-PB desde 2024: fontes 700, 631 e 570 (convênios da União) e 706 (Pix). O TCE não traz o número do convênio; o
+        casamento com o SICONV é pelo CNPJ e pelo ano, e o que não casa é para conferir.
+      </p>
+    </section>
+  );
+}
+
+/** O total pago pelo município à empresa no TCE-PB e, embaixo, quanto foi de convênio federal e de Pix. */
+function ValorTce({ par, pix }: { par: TceFederalPar | null; pix: TcePixCredor | null }) {
+  const convenio = par?.tce_convenio ?? 0;
+  const doPix = pix?.pago ?? par?.tce_pix ?? 0;
+  const total = par ? par.tce_convenio + par.tce_pix + par.tce_outras : doPix;
+  if (total <= 0) return <>—</>;
+  return (
+    <>
+      {moedaCurta(total)}
+      {convenio > 0 && <span className="mp-tabela-secundario">{moedaCurta(convenio)} de convênio</span>}
+      {doPix > 0 && <span className="mp-tabela-secundario">{moedaCurta(doPix)} do Pix</span>}
+      {par && par.tce_outras > 0 && <span className="mp-tabela-secundario">{moedaCurta(par.tce_outras)} de outras fontes</span>}
+    </>
   );
 }
 
