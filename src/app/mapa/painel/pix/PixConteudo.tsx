@@ -27,6 +27,8 @@ import {
   type PlanoEspecial,
   type PlanoFundo,
 } from "@/lib/oportunidades/pix";
+import { resumoPorItem, urlEntePix, urlLaudoPix } from "@/lib/oportunidades/pix-laudo";
+import type { ResumoPainelLaudoPix } from "@/lib/oportunidades/pix-laudo.server";
 import type { LeituraPix } from "@/lib/oportunidades/pix.server";
 import { LIMITE_LISTA } from "@/lib/oportunidades/pix.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -36,7 +38,7 @@ type LeituraOk = Extract<LeituraPix, { estado: "ok" }>;
 
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—");
 
-export function PixConteudo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
+export function PixConteudo({ p, leitura, laudo = null }: { p: ParametrosPix; leitura: LeituraOk; laudo?: ResumoPainelLaudoPix | null }) {
   const c = leitura.execucao.contagens;
   const onde = p.uf ?? "Brasil";
 
@@ -99,7 +101,7 @@ export function PixConteudo({ p, leitura }: { p: ParametrosPix; leitura: Leitura
       </div>
 
       <section className="mp-radar-secao">
-        {p.aba === "especiais" ? <Especiais p={p} leitura={leitura} /> : <Fundo p={p} leitura={leitura} />}
+        {p.aba === "especiais" ? <Especiais p={p} leitura={leitura} laudo={laudo} /> : <Fundo p={p} leitura={leitura} />}
       </section>
     </div>
   );
@@ -107,7 +109,7 @@ export function PixConteudo({ p, leitura }: { p: ParametrosPix; leitura: Leitura
 
 // ============================================================================ especiais
 
-function Especiais({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
+function Especiais({ p, leitura, laudo }: { p: ParametrosPix; leitura: LeituraOk; laudo: ResumoPainelLaudoPix | null }) {
   const recorte = p.uf ?? "BR";
   const { anos } = leitura;
   const s = (campo: Numericas<LinhaEspecialAno>) => soma(anos, recorte, campo);
@@ -165,6 +167,8 @@ function Especiais({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
       <PorAnoEspeciais recorte={recorte} leitura={leitura} />
       <Motivos recorte={recorte} leitura={leitura} />
       <Reapresentacao recorte={recorte} leitura={leitura} />
+
+      {leitura.especiais && <ResumoLaudo laudo={laudo} uf={leitura.ufLista} />}
 
       {leitura.especiais ? (
         <>
@@ -354,6 +358,59 @@ function Reapresentacao({ recorte, leitura }: { recorte: string; leitura: Leitur
   );
 }
 
+/** Quantos planos da UF em cada estado de cada item do laudo (onda 13A). */
+function ResumoLaudo({ laudo, uf }: { laudo: ResumoPainelLaudoPix | null; uf: string }) {
+  if (!laudo || !laudo.resumo.length) {
+    return (
+      <div className="mp-radar-recorte">
+        <h3 className="mp-radar-h3">O laudo dos planos de {uf}</h3>
+        <p className="pa-cartao pa-cartao-plano">O laudo plano a plano ainda não foi gravado (oport_23 e a próxima rodada do job).</p>
+      </div>
+    );
+  }
+  const linhas = resumoPorItem(laudo.resumo, laudo.titulos);
+  return (
+    <div className="mp-radar-recorte">
+      <h3 className="mp-radar-h3">O laudo dos planos de {uf}</h3>
+      <p className="pa-nota">
+        Cada item do roteiro da IN-TCU 93/2024, conferido plano a plano nos dados abertos. &quot;A conferir&quot; é ponto para olhar, não
+        irregularidade. O laudo de cada plano está nas listas abaixo e na página do ente.
+      </p>
+      <div className="mp-tabela-rolagem">
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Item</th>
+              <th scope="col" className="mp-num">Crítico</th>
+              <th scope="col" className="mp-num">Alto</th>
+              <th scope="col" className="mp-num">Moderado</th>
+              <th scope="col" className="mp-num">Atendido</th>
+              <th scope="col" className="mp-num">Outros</th>
+              <th scope="col" className="mp-num">Pago a conferir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l) => (
+              <tr key={l.item}>
+                <th scope="row">
+                  {l.item} · {l.titulo}
+                </th>
+                <td className="mp-num">{l.critico ? n(l.critico) : "—"}</td>
+                <td className="mp-num">{l.alto ? n(l.alto) : "—"}</td>
+                <td className="mp-num">{l.moderado ? n(l.moderado) : "—"}</td>
+                <td className="mp-num">{n(l.atendido)}</td>
+                <td className="mp-num">{n(l.outros)}</td>
+                <td className="mp-num">{l.valorConferir ? moedaCurta(l.valorConferir) : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="pa-nota">Outros: informação, no prazo, legado e não verificável. Planos impedidos ficam de fora da contagem.</p>
+    </div>
+  );
+}
+
 function TabelaPlanosEspeciais({ linhas, coluna }: { linhas: PlanoEspecial[]; coluna: "pago" | "motivo" | "fim" }) {
   return (
     <table className="mp-tabela mp-pix-planos">
@@ -368,9 +425,15 @@ function TabelaPlanosEspeciais({ linhas, coluna }: { linhas: PlanoEspecial[]; co
         {linhas.map((l) => (
           <tr key={l.id_plano_acao}>
             <th scope="row">
-              <span className="mp-tabela-principal">{l.beneficiario ?? "—"}</span>
+              {l.cnpj ? (
+                <Link href={urlEntePix(l.cnpj)} className="mp-tabela-principal">
+                  {l.beneficiario ?? "—"}
+                </Link>
+              ) : (
+                <span className="mp-tabela-principal">{l.beneficiario ?? "—"}</span>
+              )}
               <span className="mp-tabela-secundario">
-                plano {l.codigo_plano_acao ?? l.id_plano_acao} · {l.ano}
+                <Link href={urlLaudoPix(l.id_plano_acao)}>laudo do plano {l.codigo_plano_acao ?? l.id_plano_acao}</Link> · {l.ano}
                 {l.numero_emenda ? ` · emenda ${l.numero_emenda}` : ""}
                 {l.duplicado ? " · contado duas vezes" : ""}
               </span>

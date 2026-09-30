@@ -11,7 +11,9 @@
  *
  * Regra de redação: o que não casa é "a conferir", nunca irregularidade. O TCE não traz o número do
  * convênio: o casamento é por evidência (município, CNPJ, ano). As marcas do Pix citam o dispositivo da
- * Constituição e ficam versionadas; a LC 210/2024 e a IN 93/2024 ainda não foram lidas para elas.
+ * Constituição e ficam versionadas. As normas foram lidas em 29/09/2026 (onda 13A): os 70% em capital da
+ * LC 210/2024 (art. 10, XIX) contam por autor, e o laudo do plano (pix-laudo.ts) os confere assim; a marca
+ * de capital por município, aqui, é indício para olhar.
  *
  * Função pura, sem banco e sem relógio.
  */

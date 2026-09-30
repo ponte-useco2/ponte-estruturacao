@@ -35,11 +35,12 @@ const ABAS: readonly Aba[] = [
   },
   // Só para quem está numa organização de município. A página confere o vínculo
   // confirmado e explica o que falta; a aba só evita mostrar a porta a quem não é prefeitura.
-  { href: "/mapa/meu-municipio", nome: "Meu município", exata: false, admin: false, municipio: true },
+  // O laudo do Pix (/mapa/pix/…) serve às duas: o cliente chega pelo Meu município, o administrador pelo Painel.
+  { href: "/mapa/meu-municipio", nome: "Meu município", exata: false, admin: false, municipio: true, tambem: ["/mapa/pix/"] },
   // Uso interno da PONTE. Esconder a aba é conveniência; quem protege é a página,
   // que confere o administrador no servidor antes de ler qualquer dado.
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
-  { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false },
+  { href: "/mapa/painel", nome: "Painel", exata: false, admin: true, municipio: false, tambem: ["/mapa/pix/"] },
   { href: "/mapa/fiscal", nome: "Fiscal", exata: false, admin: true, municipio: false },
   { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false, tambem: [LAUDO_PELAS_SUSPENSIVAS] },
   // O dossiê de cada empresa (/mapa/fornecedor/<cnpj>) acende a lista.

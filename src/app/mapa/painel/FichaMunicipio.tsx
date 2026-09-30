@@ -34,6 +34,7 @@ import {
   type FichaMunicipio,
   type MunicipioPainel,
 } from "@/lib/oportunidades/painel.server";
+import { urlEntePix } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Tag } from "../../_design/primitivos";
 import { CopiarNumero } from "./CopiarNumero";
@@ -98,6 +99,12 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
         {!cliente && f.uf === "PB" && (
           <p className="pa-nota">
             <Link href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</Link>
+          </p>
+        )}
+        {/* O laudo do Pix (onda 13A) cobre os planos da PB e vale para os dois: o cliente vê o do próprio município. */}
+        {f.uf === "PB" && (
+          <p className="pa-nota">
+            <Link href={urlEntePix(f.ibge)}>Emendas Pix do município: o laudo de cada plano de ação →</Link>
           </p>
         )}
       </div>

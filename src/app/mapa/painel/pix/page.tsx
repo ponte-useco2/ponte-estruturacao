@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { parametrosPix } from "@/lib/oportunidades/pix";
+import { lerResumoLaudoPix } from "@/lib/oportunidades/pix-laudo.server";
 import { lerPix } from "@/lib/oportunidades/pix.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { PixConteudo, PixIndisponivel } from "./PixConteudo";
@@ -28,5 +29,7 @@ export default async function PixPage({
   const p = parametrosPix(await searchParams);
   const leitura = await lerPix(p);
   if (leitura.estado !== "ok") return <PixIndisponivel estado={leitura.estado} />;
-  return <PixConteudo p={p} leitura={leitura} />;
+  // O resumo do laudo (onda 13A) só entra no recorte plano a plano (PB, especiais).
+  const laudo = leitura.especiais && p.aba === "especiais" ? await lerResumoLaudoPix(leitura.execucao.id) : null;
+  return <PixConteudo p={p} leitura={leitura} laudo={laudo} />;
 }

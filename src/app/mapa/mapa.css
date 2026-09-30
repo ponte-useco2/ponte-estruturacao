@@ -703,6 +703,11 @@
 .pa-root .mp-laudo-nivel.mp-laudo-critico { background: var(--pa-danger); color: #fff; border-color: var(--pa-danger); }
 .pa-root .mp-laudo-nivel.mp-laudo-alto { background: #b08a3e; color: #fff; border-color: #b08a3e; }
 .pa-root .mp-laudo-nivel.mp-laudo-moderado { background: #2d5580; color: #fff; border-color: #2d5580; }
+/* Laudo do Pix (onda 13A): o item atendido tem cor própria e discreta; informação, prazo e legado ficam neutros. */
+.pa-root .mp-laudo-risco.mp-laudo-atendido { border-left-color: #3d7a4f; }
+.pa-root .mp-laudo-nivel.mp-laudo-atendido { color: #3d7a4f; border-color: #3d7a4f; }
+.pa-root .mp-laudo-marca.mp-laudo-atendido { color: #3d7a4f; font-weight: 400; }
+.pa-root .mp-laudo-marca.mp-laudo-informativo { font-weight: 400; }
 .pa-root .mp-laudo-inacao { margin: 0; padding-left: 1.4rem; }
 .pa-root .mp-laudo-inacao li + li { margin-top: 0.35rem; }
 .pa-root .mp-laudo-causas { margin: 0; padding-left: 1.2rem; }
