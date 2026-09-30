@@ -28,6 +28,7 @@ import { DIAS_JANELA_TEMPO, percentual } from "@/lib/oportunidades/painel";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { rotuloDemaisPc33, secaoPc33 } from "@/lib/oportunidades/portaria33";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { descreverTce, tituloDebito, type SecaoTceTcu } from "@/lib/oportunidades/tce-tcu";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
 
@@ -280,6 +281,12 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
       {d.proponente && <li>Proponente: os instrumentos do mesmo CNPJ na busca (todos, se o proponente é da PB; fora dela, só os vivos).</li>}
       <li>Emenda de origem: arquivo de emendas do SICONV, ligado pela proposta. O autor é agente público e aparece como registrado.</li>
       {d.fiscal && <li>Situação fiscal: painel de capacidade fiscal, decisão “receber transferência voluntária”, de {data(d.fiscal.referencia)}.</li>}
+      {d.tceTcu && (
+        <li>
+          Tomada de Contas Especial: API pública do e-TCE do TCU, uma consulta por convênio, toda semana, para os convênios assinados da PB. A
+          resposta não traz responsável.
+        </li>
+      )}
       {d.fornecedores && (
         <li>
           Fornecedores: pagamentos, contratos (ligados pela licitação) e empenhos do SICONV. Pessoa física entra só somada, sem nome; o que vai
@@ -513,6 +520,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
       <DestinoDoDinheiro d={d} />
 
       <ExecucaoPc33 i={i} />
+      <ContasNoTcu s={d.tceTcu} />
 
       {!cliente && !d.fiscal && d.fiscalMotivo && (
         <section aria-labelledby="diag-fiscal" className="mp-radar-secao">
@@ -667,6 +675,57 @@ function ExecucaoPc33({ i }: { i: InstrumentoLaudo }) {
         Conferido nos dados abertos do SICONV (cronograma de desembolso, metas, plano de aplicação, histórico do projeto, desembolsos,
         pagamentos e contrapartida). &quot;A conferir&quot; é ponto para olhar, não irregularidade: a exceção pode estar justificada fora dos
         dados abertos.
+      </p>
+    </section>
+  );
+}
+
+/** Tomada de Contas Especial no e-TCE do TCU (onda 13C). Sem nome de responsável: também para o cliente. */
+function ContasNoTcu({ s }: { s: SecaoTceTcu | null }) {
+  if (!s) return null;
+  return (
+    <section aria-labelledby="diag-tce-tcu" className="mp-radar-secao">
+      <h2 id="diag-tce-tcu" className="mp-radar-h2">
+        Tomada de Contas Especial
+      </h2>
+      <p className="pa-sub">{s.frase}</p>
+      {s.tces.length > 0 && (
+        <ul className="mp-laudo-lista">
+          {s.tces.map((t, k) => (
+            <li key={`${t.codigo ?? k}`} className="pa-cartao mp-laudo-risco mp-laudo-critico">
+              <p>
+                <span className="pa-tag mp-laudo-nivel mp-laudo-critico">{t.situacao ?? "TCE"}</span>{" "}
+                <strong>{tituloDebito(t)}</strong>
+              </p>
+              <p>{descreverTce(t)}</p>
+              {(t.submotivo || t.parecer_controle_interno) && (
+                <p className="mp-laudo-miudo">
+                  {[t.submotivo ? `Detalhe do motivo: ${t.submotivo}.` : null, t.parecer_controle_interno ? `Controle interno: ${t.parecer_controle_interno}.` : null]
+                    .filter(Boolean)
+                    .join(" ")}
+                </p>
+              )}
+              {(t.numero_processo || t.numero_acordao) && (
+                <p className="mp-laudo-miudo">
+                  {t.numero_processo &&
+                    (t.url_processo ? (
+                      <a href={t.url_processo} target="_blank" rel="noopener noreferrer">
+                        Processo TC {t.numero_processo} no TCU
+                      </a>
+                    ) : (
+                      `Processo TC ${t.numero_processo} no TCU`
+                    ))}
+                  {t.numero_acordao ? ` · acórdão ${t.numero_acordao}${t.origem_acordao ? ` (${t.origem_acordao})` : ""}` : ""}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="pa-nota">
+        Fonte: API pública do e-TCE do Tribunal de Contas da União, consultada toda semana para os convênios assinados da PB. A aba
+        &quot;TCE&quot; do convênio no Transferegov fica vazia mesmo quando há TCE, porque a TCE hoje corre no e-TCE. TCE instaurada é o órgão
+        apurando dano; quem julga é o TCU, e &quot;processo autuado&quot; não é condenação.
       </p>
     </section>
   );

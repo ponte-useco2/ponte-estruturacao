@@ -30,6 +30,7 @@ import { DIAS_PARADO_ALTO, DIAS_PARADO_MODERADO, RODADAS_REUNIAO, diasEntre, typ
 import { MINIMO_MEDICOES, percentual, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
 import { tituloOrgao } from "./padroes.ts";
 import { riscoPc33, type ColunasPc33 } from "./portaria33.ts";
+import { riscoTceTcu, secaoTceTcu, type EntradaTceTcu, type SecaoTceTcu } from "./tce-tcu.ts";
 import { moedaCurta } from "./radar.ts";
 
 // ================================================================ entrada
@@ -157,6 +158,11 @@ export interface EntradaDiagnostico {
    * aplica ou não foi lido; `null`: a leitura falhou (a falta vai em `faltas`).
    */
   fornecedores?: EntradaFornecedores | null;
+  /**
+   * Tomada de Contas Especial no e-TCE do TCU (onda 13C), só na PB. Ausente: fora do universo do job ou
+   * antes da oport_25; `null`: a leitura falhou (a falta vai em `faltas`).
+   */
+  tceTcu?: EntradaTceTcu | null;
   /** O que não veio e por quê, para a nota de método. */
   faltas: string[];
 }
@@ -340,6 +346,8 @@ export interface Diagnostico {
   /** Ponto da obra cadastrado no SICONV (oport_21). */
   coordenada: { latitude: number; longitude: number } | null;
   fornecedores: SecaoFornecedores | null;
+  /** TCE no e-TCE do TCU (onda 13C); `null` fora da PB ou sem a leitura. */
+  tceTcu: SecaoTceTcu | null;
   liminar: string | null;
   programa: { nome: string | null; codigo: string | null; uf: string | null; naUf: Vizinhanca | null; funis: Funil[] } | null;
   proponente: { nome: string | null; cnpj: string | null; carteira: Vizinhanca } | null;
@@ -680,8 +688,14 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     acessoLivreVazio: motivoAcessoLivreVazio(i, acessoLivre),
     coordenada,
     fornecedores,
-    // Onda 13B: os pontos a conferir da PC 33 viram um risco só no quadro; o detalhe fica na seção própria.
-    riscos: [...lerRiscos(b), ...(fornecedores?.riscos ?? []), ...[riscoPc33(i)].filter((r): r is Risco => r !== null)].sort(porNivel),
+    tceTcu: secaoTceTcu(e.tceTcu),
+    // Onda 13B: os pontos a conferir da PC 33 viram um risco só no quadro; o detalhe fica na seção própria. Onda 13C: a TCE
+    // no TCU, também.
+    riscos: [
+      ...lerRiscos(b),
+      ...(fornecedores?.riscos ?? []),
+      ...[riscoPc33(i), riscoTceTcu(e.tceTcu)].filter((r): r is Risco => r !== null),
+    ].sort(porNivel),
     estrategia: lerEstrategia(b),
     inacao: b.comDossie ? [] : lerInacao(b),
     faltas: e.faltas,
