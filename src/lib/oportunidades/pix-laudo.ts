@@ -12,19 +12,13 @@
  * Função pura, sem banco e sem relógio.
  */
 import type { AcessoFicha } from "./cliente.ts";
+import { ROTULO_NIVEL, rotuloItem, type EstadoItem, type ItemLaudo, type NivelItem } from "./itens-laudo.ts";
 import type { ColunaCsv } from "./painel.ts";
 
-export type EstadoItem = "atendido" | "nao_atendido" | "informativo" | "pendente" | "legado" | "nao_verificavel" | "nao_se_aplica";
-export type NivelItem = "critico" | "alto" | "moderado";
-
-export interface ItemLaudoPix {
-  item: string;
-  titulo: string;
-  dispositivo: string;
-  estado: EstadoItem;
-  nivel: NivelItem | null;
-  fato: string;
-}
+export type { EstadoItem, NivelItem } from "./itens-laudo.ts";
+export { ROTULO_ESTADO, ROTULO_NIVEL, classeEstado, pontosAConferir, rotuloItem } from "./itens-laudo.ts";
+/** O item do laudo do Pix é o item genérico (`itens-laudo.ts`). */
+export type ItemLaudoPix = ItemLaudo;
 
 export interface PlanoLaudoPix {
   id_plano_acao: number;
@@ -75,18 +69,6 @@ export interface ResumoLaudoPix {
   valor: number;
 }
 
-export const ROTULO_ESTADO: Record<EstadoItem, string> = {
-  atendido: "atendido",
-  nao_atendido: "a conferir",
-  informativo: "informação",
-  pendente: "no prazo",
-  legado: "legado",
-  nao_verificavel: "não verificável",
-  nao_se_aplica: "não se aplica",
-};
-
-export const ROTULO_NIVEL: Record<NivelItem, string> = { critico: "crítico", alto: "alto", moderado: "moderado" };
-
 /** Os grupos do roteiro, na ordem da IN 93: comunicação e conta, destino, relatórios, prazo, dinheiro. */
 export const GRUPOS: { letra: string; titulo: string }[] = [
   { letra: "A", titulo: "Comunicação, conta e plano de trabalho" },
@@ -96,32 +78,9 @@ export const GRUPOS: { letra: string; titulo: string }[] = [
   { letra: "E", titulo: "Dinheiro na conta" },
 ];
 
-const PESO_NIVEL: Record<NivelItem, number> = { critico: 0, alto: 1, moderado: 2 };
-
 /** Os itens de um grupo, na ordem do catálogo (o job já grava na ordem). */
 export function itensDoGrupo(itens: ItemLaudoPix[], letra: string): ItemLaudoPix[] {
   return itens.filter((i) => i.item.startsWith(letra));
-}
-
-/** Os pontos a conferir, do mais grave ao mais leve, para o topo do laudo. */
-export function pontosAConferir(itens: ItemLaudoPix[]): ItemLaudoPix[] {
-  return itens
-    .map((i, k) => ({ i, k }))
-    .filter(({ i }) => i.estado === "nao_atendido" && i.nivel)
-    .sort((a, b) => PESO_NIVEL[a.i.nivel as NivelItem] - PESO_NIVEL[b.i.nivel as NivelItem] || a.k - b.k)
-    .map(({ i }) => i);
-}
-
-/** Classe de cor do estado (as mesmas etiquetas do laudo do convênio). */
-export function classeEstado(i: Pick<ItemLaudoPix, "estado" | "nivel">): string {
-  if (i.estado === "nao_atendido" && i.nivel) return `mp-laudo-${i.nivel}`;
-  if (i.estado === "atendido") return "mp-laudo-atendido";
-  return "mp-laudo-informativo";
-}
-
-export function rotuloItem(i: Pick<ItemLaudoPix, "estado" | "nivel">): string {
-  if (i.estado === "nao_atendido" && i.nivel) return `a conferir · ${ROTULO_NIVEL[i.nivel]}`;
-  return ROTULO_ESTADO[i.estado];
 }
 
 // ================================================================ resumo por item (painel)

@@ -29,6 +29,7 @@ import { cnpjLegivel, lerSecaoFornecedores, type ColunasFornecedorInstrumento, t
 import { DIAS_PARADO_ALTO, DIAS_PARADO_MODERADO, RODADAS_REUNIAO, diasEntre, type AcessoLivre, type Nivel, type Passo, type Risco } from "./laudo.ts";
 import { MINIMO_MEDICOES, percentual, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
 import { tituloOrgao } from "./padroes.ts";
+import { riscoPc33, type ColunasPc33 } from "./portaria33.ts";
 import { moedaCurta } from "./radar.ts";
 
 // ================================================================ entrada
@@ -37,7 +38,7 @@ import { moedaCurta } from "./radar.ts";
  * A linha de `painel_instrumento` com as colunas da oport_19 e da oport_21 (fornecedores, empenho, contrapartida
  * e coordenada) — ausentes antes delas, por isso opcionais.
  */
-export interface InstrumentoLaudo extends Instrumento, ColunasFornecedorInstrumento {
+export interface InstrumentoLaudo extends Instrumento, ColunasFornecedorInstrumento, ColunasPc33 {
   situacao_contratacao?: string | null;
   dt_fim_vigencia_original?: string | null;
   vl_global_original?: number | null;
@@ -679,7 +680,8 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     acessoLivreVazio: motivoAcessoLivreVazio(i, acessoLivre),
     coordenada,
     fornecedores,
-    riscos: [...lerRiscos(b), ...(fornecedores?.riscos ?? [])].sort(porNivel),
+    // Onda 13B: os pontos a conferir da PC 33 viram um risco só no quadro; o detalhe fica na seção própria.
+    riscos: [...lerRiscos(b), ...(fornecedores?.riscos ?? []), ...[riscoPc33(i)].filter((r): r is Risco => r !== null)].sort(porNivel),
     estrategia: lerEstrategia(b),
     inacao: b.comDossie ? [] : lerInacao(b),
     faltas: e.faltas,

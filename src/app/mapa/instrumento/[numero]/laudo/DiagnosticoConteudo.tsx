@@ -23,8 +23,10 @@ import { ROTULO_CANAL } from "@/lib/oportunidades/contrato-v2";
 import { NOME_VERIFICACAO, ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { NIVEL_MOMENTO, ROTULO_FAIXA, ROTULO_MOMENTO, nomeFornecedor, urlFornecedor, type SecaoFornecedores } from "@/lib/oportunidades/fornecedores";
 import type { Dossie, Nivel, Passo, Risco } from "@/lib/oportunidades/laudo";
+import { classeEstado, rotuloItem, type ItemLaudo } from "@/lib/oportunidades/itens-laudo";
 import { DIAS_JANELA_TEMPO, percentual } from "@/lib/oportunidades/painel";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
+import { rotuloDemaisPc33, secaoPc33 } from "@/lib/oportunidades/portaria33";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
@@ -510,6 +512,8 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
 
       <DestinoDoDinheiro d={d} />
 
+      <ExecucaoPc33 i={i} />
+
       {!cliente && !d.fiscal && d.fiscalMotivo && (
         <section aria-labelledby="diag-fiscal" className="mp-radar-secao">
           <h2 id="diag-fiscal" className="mp-radar-h2">
@@ -628,6 +632,59 @@ function Periodo({ de, ate }: { de: string; ate: string | null }) {
  * obra, as empresas que receberam, os contratos e a concentração nos convênios da prefeitura. As empresas
  * só entram quando há leitura de fornecedores (PB e administrador).
  */
+/**
+ * Onda 13B: a execução pela Portaria Conjunta 33/2023, na redação da época, item a item (o job grava pronto).
+ * Entra também no laudo do cliente: não tem nome de pessoa.
+ */
+function ExecucaoPc33({ i }: { i: InstrumentoLaudo }) {
+  const s = secaoPc33(i);
+  if (!s) return null;
+  return (
+    <section aria-labelledby="diag-pc33" className="mp-radar-secao">
+      <h2 id="diag-pc33" className="mp-radar-h2">
+        Execução pela norma de convênios
+      </h2>
+      <p className="pa-sub">{s.rotulo}</p>
+      {s.abertura && <p className="pa-nota">{s.abertura.fato}</p>}
+      {s.conferir.length > 0 && (
+        <ul className="mp-laudo-lista">
+          {s.conferir.map((x) => (
+            <ItemPc33 key={x.item} x={x} />
+          ))}
+        </ul>
+      )}
+      {s.demais.length > 0 && (
+        <details className="mp-fiscal-detalhe" open={s.conferir.length === 0}>
+          <summary>{rotuloDemaisPc33(s.demais.length, s.conferir.length > 0)}</summary>
+          <ul className="mp-laudo-lista">
+            {s.demais.map((x) => (
+              <ItemPc33 key={x.item} x={x} />
+            ))}
+          </ul>
+        </details>
+      )}
+      <p className="pa-nota">
+        Conferido nos dados abertos do SICONV (cronograma de desembolso, metas, plano de aplicação, histórico do projeto, desembolsos,
+        pagamentos e contrapartida). &quot;A conferir&quot; é ponto para olhar, não irregularidade: a exceção pode estar justificada fora dos
+        dados abertos.
+      </p>
+    </section>
+  );
+}
+
+function ItemPc33({ x }: { x: ItemLaudo }) {
+  return (
+    <li className={`pa-cartao mp-laudo-risco ${classeEstado(x)}`}>
+      <p>
+        <span className={`pa-tag mp-laudo-nivel ${classeEstado(x)}`}>{rotuloItem(x)}</span> <strong>{x.titulo}</strong>
+      </p>
+      <p>
+        {x.fato} <span className="mp-laudo-miudo">({x.dispositivo})</span>
+      </p>
+    </li>
+  );
+}
+
 function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
   const f = d.fornecedores;
   const din = d.dinheiro;
