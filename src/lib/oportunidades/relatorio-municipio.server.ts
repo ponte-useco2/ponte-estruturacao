@@ -1,12 +1,13 @@
 /**
- * Leitura do relatório crítico do município (onda 14, camada 1) — só servidor, só chave de serviço.
+ * Leitura do relatório crítico do município (onda 14, camadas 1 e 2) — só servidor, só chave de serviço.
  *
  * Quem decide se a pessoa pode ver é a página (só administradores, decisão de 01/10/2026). Cada fonte é
  * lida pela sua última execução e falha sozinha: o que cair entra em `faltas` e o relatório sai sem a
  * seção, dizendo o que faltou. O município é a prefeitura e os seus fundos (`tipo_agente = municipio`).
  *
  * Volume (Patos, 01/10/2026): ~110 instrumentos e ~100 propostas desde 2008 — uma página de mil linhas.
- * Os cruzamentos por convênio (emendas, TCU, Acesso Livre) vão em lotes de números.
+ * Os cruzamentos por convênio (emendas, TCU, Acesso Livre) vão em lotes de números. Os indicadores da
+ * camada 2 são ~45 linhas do município e ~200 referências da PB e do Brasil.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { montarCatalogo } from "./catalogo-v2";
@@ -16,6 +17,8 @@ import { lerContasObrasDosConvenios } from "./contas-obras.server";
 import { portaServe } from "./diagnostico";
 import { ehEsquemaAusente } from "./esquema";
 import { lerFiscalMunicipio } from "./fiscal.server";
+import catalogoIndicadores from "./indicadores-municipio.json";
+import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio";
 import { lerPainelFornecedores } from "./fornecedores.server";
 import { todas } from "./padroes.server";
 import type { PlanoFundo } from "./pix";
@@ -106,6 +109,44 @@ async function lerFundo(db: Banco, ibge: string, faltas: string[]): Promise<Plan
   return paginas<PlanoFundo>(faltas, nome, (a, b) => db.from("pix_fundo_plano").select("*").eq("execucao_id", ex.id).eq("cod_ibge", ibge).order("id_plano_acao").range(a, b));
 }
 
+/** Camada 2: a última execução do job `municipios/`. Sem a `oport_27` ou sem execução, null sem falta. */
+async function lerIndicadores(db: Banco, ibge: string, faltas: string[]): Promise<EntradaIndicadores | null> {
+  const nome = "indicadores do município";
+  const r = await db.rpc("mun_ultima_execucao");
+  if (r.error) {
+    if (!ehEsquemaAusente(r.error.code)) {
+      console.error(`relatório do município (${nome}):`, r.error.message);
+      faltas.push(nome);
+    }
+    return null;
+  }
+  const ex = ((r.data as { id: number; concluida_em: string | null }[] | null) ?? [])[0];
+  if (!ex) return null;
+  const [linhas, referencias, grupo] = await Promise.all([
+    db
+      .from("mun_indicador")
+      .select("indicador,ano,valor,fonte,url,nota,posicao_pb,total_pb,mediana_porte,mediana_regiao")
+      .eq("execucao_id", ex.id)
+      .eq("ibge", ibge)
+      .limit(1000),
+    db.from("mun_referencia").select("indicador,ano,recorte,valor").eq("execucao_id", ex.id).limit(5000),
+    db.from("mun_grupo").select("porte,regiao_imediata,regiao_intermediaria,regic,arranjo,polo").eq("execucao_id", ex.id).eq("ibge", ibge).limit(1),
+  ]);
+  const erro = linhas.error ?? referencias.error ?? grupo.error;
+  if (erro) {
+    console.error(`relatório do município (${nome}):`, erro.message);
+    faltas.push(nome);
+    return null;
+  }
+  return {
+    catalogo: (catalogoIndicadores as { indicadores: ItemCatalogo[] }).indicadores,
+    linhas: (linhas.data ?? []) as LinhaIndicador[],
+    referencias: (referencias.data ?? []) as ReferenciaIndicador[],
+    grupo: ((grupo.data ?? []) as GrupoMunicipio[])[0] ?? null,
+    coletadoEm: ex.concluida_em,
+  };
+}
+
 async function lerJanelas(nome: string, hoje: string, faltas: string[]): Promise<EntradaRelatorio["janelas"]> {
   try {
     const [v2, v1] = await Promise.all([lerCatalogoV2(), lerCatalogo()]);
@@ -145,7 +186,7 @@ export async function lerRelatorioMunicipio(ibge: string, hoje: string): Promise
   const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
-  const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo] = await Promise.all([
+  const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo, indicadores] = await Promise.all([
     lerFiscalMunicipio(ibge),
     paginas<InstrumentoRelatorio & { municipio: string | null }>(faltas, "convênios", (a, b) =>
       db.from("painel_instrumento").select(COLUNAS_INSTRUMENTO).eq("execucao_id", ex.id).eq("cod_ibge", ibge).eq("tipo_agente", "municipio").order("nr_convenio").range(a, b),
@@ -158,6 +199,7 @@ export async function lerRelatorioMunicipio(ibge: string, hoje: string): Promise
     lerTceMunicipio(ibge),
     lerPainelFornecedores({ q: null, municipio: ibge, ordem: "valor", marca: "inidoneos" }),
     lerFundo(db, ibge, faltas),
+    lerIndicadores(db, ibge, faltas),
   ]);
 
   const nome = (fiscal.estado === "ok" ? fiscal.municipio.nome : null) ?? instrumentos?.[0]?.municipio ?? null;
@@ -205,6 +247,7 @@ export async function lerRelatorioMunicipio(ibge: string, hoje: string): Promise
           }
         : null,
     janelas,
+    indicadores,
     faltas,
   };
   return { estado: "ok", relatorio: montarRelatorio(entrada, hoje) };

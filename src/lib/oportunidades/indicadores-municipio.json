@@ -1,0 +1,417 @@
+{
+  "versao": "2026-10-01.1",
+  "nota": "Catálogo dos indicadores do relatório do município (onda 14, camada 2). O job `municipios/` grava os ids; o site lê nome, unidade e direção daqui. direcao: maior = quanto maior melhor; menor = quanto menor melhor; null = contexto, sem nível. chave = vira achado no relatório.",
+  "indicadores": [
+    {
+      "id": "populacao_censo",
+      "dimensao": "municipio",
+      "nome": "População (Censo)",
+      "unidade": "pessoas",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "populacao_estimada",
+      "dimensao": "municipio",
+      "nome": "População estimada",
+      "unidade": "pessoas",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "idhm",
+      "dimensao": "municipio",
+      "nome": "IDHM",
+      "unidade": "índice",
+      "casas": 3,
+      "direcao": "maior",
+      "chave": false,
+      "nota": "Atlas do Desenvolvimento Humano, Censo 2010: o dado municipal mais recente; defasado."
+    },
+    {
+      "id": "pib",
+      "dimensao": "economia",
+      "nome": "PIB",
+      "unidade": "mil R$",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "pessoal_ocupado",
+      "dimensao": "economia",
+      "nome": "Pessoal ocupado em empresas e organizações",
+      "unidade": "pessoas",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "salario_medio_sm",
+      "dimensao": "economia",
+      "nome": "Salário médio do emprego formal",
+      "unidade": "salários mínimos",
+      "casas": 1,
+      "direcao": "maior",
+      "chave": true
+    },
+    {
+      "id": "empresas",
+      "dimensao": "economia",
+      "nome": "Empresas e outras organizações atuantes",
+      "unidade": "unidades",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "adm_publica_pct",
+      "dimensao": "economia",
+      "nome": "Administração pública no pessoal ocupado",
+      "unidade": "%",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": true,
+      "nota": "Seção O da CNAE (administração pública, defesa e seguridade social). Mede a dependência do emprego público."
+    },
+    {
+      "id": "comercio_pct",
+      "dimensao": "economia",
+      "nome": "Comércio no pessoal ocupado",
+      "unidade": "%",
+      "casas": 1,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "pam_valor",
+      "dimensao": "economia",
+      "nome": "Valor da produção agrícola",
+      "unidade": "mil R$",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "ppm_valor",
+      "dimensao": "economia",
+      "nome": "Valor da produção de origem animal",
+      "unidade": "mil R$",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "caged_saldo_12m",
+      "dimensao": "economia",
+      "nome": "Saldo de empregos formais em 12 meses (Caged)",
+      "unidade": "postos",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "caged_saldo_por_mil",
+      "dimensao": "economia",
+      "nome": "Saldo de empregos formais em 12 meses por mil habitantes",
+      "unidade": "por mil hab.",
+      "casas": 2,
+      "direcao": "maior",
+      "chave": true
+    },
+    {
+      "id": "analfabetismo_15",
+      "dimensao": "educacao",
+      "nome": "Analfabetismo de 15 anos ou mais",
+      "unidade": "%",
+      "casas": 2,
+      "direcao": "menor",
+      "chave": true
+    },
+    {
+      "id": "mortalidade_infantil",
+      "dimensao": "saude",
+      "nome": "Mortalidade infantil",
+      "unidade": "por mil nascidos vivos",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": true,
+      "nota": "Óbitos de menores de 1 ano por mil nascidos vivos, por residência, em 3 anos somados (o número anual é pequeno e oscila)."
+    },
+    {
+      "id": "mortalidade_materna",
+      "dimensao": "saude",
+      "nome": "Mortalidade materna",
+      "unidade": "por 100 mil nascidos vivos",
+      "casas": 0,
+      "direcao": "menor",
+      "chave": false,
+      "nota": "Evento raro: 3 anos somados, só como contexto."
+    },
+    {
+      "id": "icsap_taxa",
+      "dimensao": "saude",
+      "nome": "Internações por condições sensíveis à atenção primária",
+      "unidade": "por 100 mil hab.",
+      "casas": 0,
+      "direcao": "menor",
+      "chave": true,
+      "nota": "Internação que uma atenção primária resolutiva evitaria (RIPSA, MRB.4.02)."
+    },
+    {
+      "id": "aps_cobertura",
+      "dimensao": "saude",
+      "nome": "Cobertura potencial da atenção primária",
+      "unidade": "%",
+      "casas": 1,
+      "direcao": "maior",
+      "chave": true,
+      "nota": "Capacidade das equipes sobre a população. Passa de 100% quando a capacidade supera a população; para comparar, fica em 100% (cobertura plena)."
+    },
+    {
+      "id": "leitos_por_mil",
+      "dimensao": "saude",
+      "nome": "Leitos hospitalares",
+      "unidade": "por mil hab.",
+      "casas": 2,
+      "direcao": "maior",
+      "chave": false,
+      "nota": "Leito é regional: o polo atende a região, e município pequeno costuma não ter hospital."
+    },
+    {
+      "id": "ubs_por_10mil",
+      "dimensao": "saude",
+      "nome": "Unidades básicas de saúde",
+      "unidade": "por 10 mil hab.",
+      "casas": 1,
+      "direcao": "maior",
+      "chave": false
+    },
+    {
+      "id": "homicidios_taxa",
+      "dimensao": "seguranca",
+      "nome": "Homicídios",
+      "unidade": "por 100 mil hab.",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": true,
+      "nota": "Óbitos por agressão (CID X85–Y09), por residência, média de 3 anos."
+    },
+    {
+      "id": "transito_taxa",
+      "dimensao": "seguranca",
+      "nome": "Mortes no trânsito",
+      "unidade": "por 100 mil hab.",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": true,
+      "nota": "Óbitos por acidente de transporte (CID V01–V89), por residência, média de 3 anos."
+    },
+    {
+      "id": "ideb_ai_municipal",
+      "dimensao": "educacao",
+      "nome": "IDEB da rede municipal, anos iniciais",
+      "unidade": "nota de 0 a 10",
+      "casas": 1,
+      "direcao": "maior",
+      "chave": true
+    },
+    {
+      "id": "ideb_af_municipal",
+      "dimensao": "educacao",
+      "nome": "IDEB da rede municipal, anos finais",
+      "unidade": "nota de 0 a 10",
+      "casas": 1,
+      "direcao": "maior",
+      "chave": true
+    },
+    {
+      "id": "tdi_ai",
+      "dimensao": "educacao",
+      "nome": "Distorção idade-série, anos iniciais",
+      "unidade": "%",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": false,
+      "nota": "Todas as redes."
+    },
+    {
+      "id": "tdi_af",
+      "dimensao": "educacao",
+      "nome": "Distorção idade-série, anos finais",
+      "unidade": "%",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": true,
+      "nota": "Todas as redes."
+    },
+    {
+      "id": "cadunico_pessoas_pct",
+      "dimensao": "assistencia",
+      "nome": "Pessoas no CadÚnico",
+      "unidade": "% da população",
+      "casas": 1,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "extrema_pobreza_por_mil",
+      "dimensao": "assistencia",
+      "nome": "Famílias em extrema pobreza no CadÚnico",
+      "unidade": "por mil hab.",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": true
+    },
+    {
+      "id": "bolsa_familia_por_mil",
+      "dimensao": "assistencia",
+      "nome": "Famílias no Bolsa Família",
+      "unidade": "por mil hab.",
+      "casas": 1,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "bpc_por_mil",
+      "dimensao": "assistencia",
+      "nome": "Benefícios de Prestação Continuada",
+      "unidade": "por mil hab.",
+      "casas": 1,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "cvli_taxa",
+      "dimensao": "seguranca",
+      "nome": "Mortes violentas intencionais (registros policiais)",
+      "unidade": "por 100 mil hab.",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": false,
+      "nota": "Homicídio doloso, feminicídio, latrocínio e lesão corporal seguida de morte no SINESP; complementa os homicídios do SIM, que chegam com dois anos de atraso."
+    },
+    {
+      "id": "feminicidios",
+      "dimensao": "seguranca",
+      "nome": "Feminicídios",
+      "unidade": "vítimas no ano",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "agua_atendimento_pct",
+      "dimensao": "territorio",
+      "nome": "População atendida com rede de água",
+      "unidade": "%",
+      "casas": 2,
+      "direcao": "maior",
+      "chave": true
+    },
+    {
+      "id": "esgoto_atendimento_pct",
+      "dimensao": "territorio",
+      "nome": "População atendida com rede coletora de esgoto",
+      "unidade": "%",
+      "casas": 2,
+      "direcao": "maior",
+      "chave": true,
+      "nota": "Só onde o serviço foi declarado ao SINISA; sem declaração não quer dizer zero."
+    },
+    {
+      "id": "ish_urbano",
+      "dimensao": "territorio",
+      "nome": "Segurança hídrica urbana (ANA)",
+      "unidade": "classe de 1 (mínima) a 5 (máxima)",
+      "casas": 0,
+      "direcao": "maior",
+      "chave": false,
+      "nota": "Retrato de 2021, sem série."
+    },
+    {
+      "id": "seca_5anos",
+      "dimensao": "territorio",
+      "nome": "Registros de estiagem e seca em 5 anos",
+      "unidade": "registros",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "desastres_5anos",
+      "dimensao": "territorio",
+      "nome": "Desastres registrados em 5 anos",
+      "unidade": "registros",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "banda_larga_densidade",
+      "dimensao": "territorio",
+      "nome": "Banda larga fixa",
+      "unidade": "acessos por 100 domicílios",
+      "casas": 2,
+      "direcao": "maior",
+      "chave": true
+    },
+    {
+      "id": "frota_por_mil",
+      "dimensao": "territorio",
+      "nome": "Frota de veículos",
+      "unidade": "por mil hab.",
+      "casas": 1,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "automoveis_por_mil",
+      "dimensao": "territorio",
+      "nome": "Automóveis",
+      "unidade": "por mil hab.",
+      "casas": 1,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "pntp_prefeitura",
+      "dimensao": "governanca",
+      "nome": "Índice de transparência da prefeitura (PNTP)",
+      "unidade": "pontos de 0 a 100",
+      "casas": 2,
+      "direcao": "maior",
+      "chave": true
+    },
+    {
+      "id": "pntp_camara",
+      "dimensao": "governanca",
+      "nome": "Índice de transparência da câmara (PNTP)",
+      "unidade": "pontos de 0 a 100",
+      "casas": 2,
+      "direcao": "maior",
+      "chave": false
+    },
+    {
+      "id": "licitacoes_processos",
+      "dimensao": "governanca",
+      "nome": "Processos de contratação homologados",
+      "unidade": "processos",
+      "casas": 0,
+      "direcao": null,
+      "chave": false
+    },
+    {
+      "id": "contratacao_direta_pct",
+      "dimensao": "governanca",
+      "nome": "Contratação direta (dispensa e inexigibilidade)",
+      "unidade": "% dos processos",
+      "casas": 1,
+      "direcao": "menor",
+      "chave": true,
+      "nota": "Ponto para olhar, não irregularidade: a lei permite a contratação direta nos casos que lista."
+    }
+  ]
+}

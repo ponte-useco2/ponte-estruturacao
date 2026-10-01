@@ -1,10 +1,12 @@
 /**
- * Relatório crítico do município (onda 14, camada 1).
+ * Relatório crítico do município (onda 14, camadas 1 e 2).
  *
  * O diagnóstico de Patos de 30/09/2026 para os 223 municípios da PB, montado só com o que a base já tem:
  * fiscal (com a série do RGF desde 2021), convênios, TCU, Acesso Livre, propostas, emendas, Pix, fundo a
- * fundo, TCE-PB e fornecedores. Cada fonte vira uma seção com a sua data, e cada ponto que pede atenção vira
- * um achado com nível. Os achados montam o "Em uma página" e o "O que fazer primeiro".
+ * fundo, TCE-PB e fornecedores (camada 1); e os indicadores do município em social, economia, território e
+ * governança, lidos em lote de fontes oficiais pelo job `municipios/` (camada 2, `indicadores-municipio.ts`).
+ * Cada fonte vira uma seção com a sua data, e cada ponto que pede atenção vira um achado com nível. Os achados
+ * montam o "Em uma página" e o "O que fazer primeiro".
  *
  * Níveis: **crítico** só para bloqueio legal ou financeiro e para apontamento de órgão de controle; o resto
  * vai a alto, moderado ou informativo. "Em dia" registra o que foi conferido e está em ordem. "A conferir" é
@@ -17,6 +19,16 @@ import { DIAS_SEM_MOVIMENTO, DIAS_VIGENCIA_CRITICA, PCT_FINANCEIRO_ALTO, PCT_FIS
 import { NOME_CURTO, conclusaoDe, type ConclusaoFiscal, type MunicipioFiscal, type VerificacaoFiscal } from "./fiscal.ts";
 import { faixaConcentracao, type ConcentracaoMunicipio } from "./fornecedores.ts";
 import { pontosAConferir } from "./itens-laudo.ts";
+import {
+  VERSAO_REGRA_INDICADOR,
+  frasesReferencia,
+  indicadoresComNivel,
+  lerIndicadores,
+  type DimensaoIndicador,
+  type EntradaIndicadores,
+  type IndicadorLido,
+  type LeituraIndicadores,
+} from "./indicadores-municipio.ts";
 import { diasEntre, type Nivel } from "./laudo.ts";
 import { GRUPOS_SITUACAO } from "./busca.ts";
 import { ROTULO_DESFECHO, type ColunaCsv } from "./painel.ts";
@@ -27,7 +39,7 @@ import { moedaCurta } from "./radar.ts";
 import { marcasPix, resumirConciliacao, type TceFederalMunicipio, type TcePixMunicipio } from "./tce.ts";
 import { riscoTceTcu, type ConsultaTcu, type TceTcu } from "./tce-tcu.ts";
 
-export const VERSAO_RELATORIO = "2026-10-01.1";
+export const VERSAO_RELATORIO = "2026-10-01.2";
 
 // ================================================================ entrada
 
@@ -122,12 +134,14 @@ export interface EntradaRelatorio {
   conciliacao: TceFederalMunicipio[] | null;
   fornecedores: { concentracao: ConcentracaoMunicipio | null; inidoneos: { cnpj: string; nome: string | null; pago: number }[] } | null;
   janelas: { elegiveis: number; urgentes: JanelaRelatorio[] } | null;
+  /** Camada 2: a última execução do job `municipios/`; null sem a migração ou sem execução. */
+  indicadores?: EntradaIndicadores | null;
   faltas: string[];
 }
 
 // ================================================================ saída
 
-export type Dimensao = "fiscal" | "convenios" | "controle" | "propostas" | "pix" | "tce_pb" | "fornecedores";
+export type Dimensao = "fiscal" | "convenios" | "controle" | "propostas" | "pix" | "tce_pb" | "fornecedores" | "social" | "economia" | "territorio" | "governanca";
 
 export const ROTULO_DIMENSAO: Record<Dimensao, string> = {
   fiscal: "Capacidade fiscal",
@@ -137,6 +151,10 @@ export const ROTULO_DIMENSAO: Record<Dimensao, string> = {
   pix: "Pix e fundo a fundo",
   tce_pb: "TCE-PB",
   fornecedores: "Fornecedores",
+  social: "Social",
+  economia: "Economia",
+  territorio: "Território",
+  governanca: "Governança",
 };
 
 export type NivelAchado = Nivel | "em_dia";
@@ -201,6 +219,8 @@ export interface Relatorio {
   tcePb: SecaoTcePb | null;
   fornecedores: SecaoFornecedores | null;
   janelas: EntradaRelatorio["janelas"];
+  /** Camada 2: o município, social, economia, território e governança. */
+  indicadores: LeituraIndicadores | null;
   fontes: { fonte: string; data: string | null; nota: string }[];
   faltas: string[];
 }
@@ -213,6 +233,8 @@ const pct = (v: number) => `${v.toLocaleString("pt-BR", { minimumFractionDigits:
 const plural = (q: number, um: string, varios: string) => `${n(q)} ${q === 1 ? um : varios}`;
 const soma = <T>(xs: T[], f: (x: T) => number | null | undefined) => xs.reduce((t, x) => t + (f(x) ?? 0), 0);
 const lista = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} e ${xs.at(-1)}`);
+/** "Mortalidade infantil" → "mortalidade infantil"; sigla ("IDEB …") fica como está. */
+const minuscula = (t: string) => (t.length > 1 && t[1] === t[1].toLowerCase() ? `${t.charAt(0).toLowerCase()}${t.slice(1)}` : t);
 
 export function rotuloPeriodo(p: Pick<PontoSerie, "exercicio" | "periodicidade" | "periodo">): string {
   return p.periodicidade === "S" ? `${p.periodo}º semestre de ${p.exercicio}` : `${p.periodo}º quadrimestre de ${p.exercicio}`;
@@ -857,6 +879,65 @@ function achadosFornecedores(s: SecaoFornecedores): Achado[] {
   return a;
 }
 
+// ================================================================ indicadores (camada 2)
+
+const DIMENSAO_DO_INDICADOR: Record<DimensaoIndicador, Dimensao | null> = {
+  municipio: null,
+  saude: "social",
+  educacao: "social",
+  assistencia: "social",
+  seguranca: "social",
+  economia: "economia",
+  territorio: "territorio",
+  governanca: "governanca",
+};
+
+function fatoIndicador(x: IndicadorLido): string {
+  const grupos = [x.porte ? `do porte ${x.porte}` : null, x.regiao ? `da região imediata ${x.regiao}` : null].filter(Boolean);
+  return [
+    `${x.texto} (${x.ano}).`,
+    frasesReferencia(x) ? `${frasesReferencia(x)}.` : null,
+    grupos.length ? `Mediana ${grupos.join("; ")}.` : null,
+    `Fonte: ${x.fonte}.`,
+    x.nota,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Um achado por indicador-chave alto ou moderado; os em dia viram um registro por dimensão. */
+function achadosIndicadores(l: LeituraIndicadores): Achado[] {
+  const a: Achado[] = [];
+  const emDia = new Map<Dimensao, IndicadorLido[]>();
+  for (const x of indicadoresComNivel(l)) {
+    const dimensao = DIMENSAO_DO_INDICADOR[x.dimensao];
+    if (!dimensao) continue;
+    if (x.nivel === "em_dia") {
+      emDia.set(dimensao, [...(emDia.get(dimensao) ?? []), x]);
+      continue;
+    }
+    a.push({
+      nivel: x.nivel === "alto" ? "alto" : "moderado",
+      dimensao,
+      titulo: `${x.nome}: ${x.porque}`,
+      fato: fatoIndicador(x),
+      acao: null,
+      peso: x.nivel === "alto" ? 6 : 7,
+    });
+  }
+  for (const [dimensao, xs] of emDia) {
+    a.push({
+      nivel: "em_dia",
+      dimensao,
+      titulo: `${ROTULO_DIMENSAO[dimensao]}: ${plural(xs.length, "indicador-chave", "indicadores-chave")} na mediana da PB ou melhor`,
+      fato: `${lista(xs.map((x) => `${minuscula(x.nome)} (${x.texto})`))}.`,
+      acao: null,
+      peso: 10,
+    });
+  }
+  return a;
+}
+
 // ================================================================ montagem
 
 /** Os quatro números do topo, como no relatório de Patos. */
@@ -925,6 +1006,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
       }
     : null;
   const comTce = new Set((controle?.tces ?? []).map((t) => t.nr_convenio));
+  const indicadores = e.indicadores ? lerIndicadores(e.indicadores) : null;
 
   const achados = [
     ...(fiscal ? achadosFiscais(fiscal) : []),
@@ -933,6 +1015,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     ...(propostas ? achadosPropostas(propostas) : []),
     ...(pix ? achadosPix(pix) : []),
     ...(fornecedores ? achadosFornecedores(fornecedores) : []),
+    ...(indicadores ? achadosIndicadores(indicadores) : []),
   ].sort(ordenar);
 
   const emendas = e.emendas
@@ -970,6 +1053,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     tcePb,
     fornecedores,
     janelas: e.janelas,
+    indicadores,
     fontes: [
       { fonte: "Painel fiscal (Siconfi, CAUC, SIOPE, SIOPS, SADIPEM)", data: e.fiscal?.referencia ?? null, nota: "RGF do Executivo; série desde 2021 na evidência da despesa com pessoal." },
       { fonte: "SICONV / Transferegov (arquivos abertos)", data: e.referenciaPainel, nota: "Convênios, propostas, emendas e os pontos da Portaria Conjunta 33/2023." },
@@ -977,6 +1061,11 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
       { fonte: "Acesso Livre do Transferegov", data: null, nota: "Prestação de contas e obras, só nos convênios das coletas." },
       { fonte: "API das transferências especiais e do fundo a fundo", data: null, nota: "Laudo do Pix pelo roteiro da IN-TCU 93/2024." },
       { fonte: "TCE-PB (despesas abertas)", data: null, nota: "Pix na despesa do município e conciliação com o SICONV." },
+      {
+        fonte: "Indicadores do município (IBGE, Ministério da Saúde, INEP, MDS, MJSP, MTE, Ministério das Cidades, MIDR, ANA, Anatel, Senatran, Atricon e TCE-PB)",
+        data: e.indicadores?.coletadoEm ?? null,
+        nota: `Arquivos e APIs abertos, lidos em lote pela PONTE; cada indicador traz o seu ano e a sua fonte. Nível pela regra ${VERSAO_REGRA_INDICADOR}: alto no pior quartil da PB e pior que o Brasil; moderado pior que a mediana da PB ou que o Brasil; diferença de até 5% conta como empate.`,
+      },
     ],
     faltas: e.faltas,
   };

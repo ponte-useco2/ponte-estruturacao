@@ -820,8 +820,21 @@
 .pa-root .mp-rel-ponto { fill: var(--pa-surface); stroke: var(--pa-brand-2); stroke-width: 2; }
 .pa-root .mp-rel-ponto-acima { fill: var(--pa-danger); stroke: var(--pa-danger); stroke-width: 2; }
 .pa-root .mp-rel-valor { fill: var(--pa-text); font-size: 13px; font-weight: 600; font-family: var(--pa-mono); }
+.pa-root .mp-rel-fonte { display: block; font-size: 0.75rem; margin-top: 0.15rem; color: var(--pa-muted); }
+.pa-root .mp-rel-contexto { font-size: 0.75rem; color: var(--pa-muted); }
+.pa-root .mp-rel-indicadores td:first-child { min-width: 14rem; }
+.pa-root .mp-rel-indicadores th { font-size: 0.78rem; }
 @media print {
   .pa-root .mp-rel .mp-rel-grafico { break-inside: avoid; }
   .pa-root .mp-rel-h3 { break-after: avoid; }
   .pa-root .mp-rel-grafico svg * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .pa-root .mp-rel-indicadores { font-size: 0.7rem; }
+  .pa-root .mp-rel-indicadores { table-layout: fixed; width: 100%; }
+  .pa-root .mp-rel-indicadores td:first-child { min-width: 0; }
+  .pa-root .mp-rel-indicadores th:first-child { width: 30%; }
+  .pa-root .mp-rel-indicadores th:nth-child(2) { width: 14%; }
+  .pa-root .mp-rel-indicadores th:nth-child(8) { width: 12%; }
+  .pa-root .mp-rel .mp-rel-indicadores thead th { white-space: normal; overflow-wrap: break-word; font-size: 0.6rem; letter-spacing: 0; }
+  .pa-root .mp-rel-indicadores .mp-rel-num { white-space: normal; }
+  .pa-root .mp-rel-indicadores tr { break-inside: avoid; }
 }

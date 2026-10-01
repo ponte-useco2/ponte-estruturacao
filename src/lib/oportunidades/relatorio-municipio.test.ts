@@ -216,3 +216,45 @@ test("CSV: um achado por linha, com nível e dimensão por extenso", () => {
   assert.ok(linhas.some((l) => l.endsWith(";703764 736216")));
   assert.equal(linhas.filter(Boolean).length, r.achados.length + 1);
 });
+
+test("camada 2: indicador-chave alto ou moderado vira achado da dimensão, sem passar à frente do fiscal", () => {
+  const catalogo = [
+    { id: "homicidios_taxa", dimensao: "seguranca", nome: "Homicídios", unidade: "por 100 mil hab.", casas: 2, direcao: "menor", chave: true },
+    { id: "ideb_ai_municipal", dimensao: "educacao", nome: "IDEB, anos iniciais", unidade: "pontos", casas: 1, direcao: "maior", chave: true },
+    { id: "pntp_prefeitura", dimensao: "governanca", nome: "Transparência da prefeitura", unidade: "pontos de 0 a 100", casas: 2, direcao: "maior", chave: true },
+  ] as const;
+  const l = (indicador: string, ano: string, valor: number) => ({ indicador, ano, valor, fonte: "F", url: null, nota: null, posicao_pb: null, total_pb: null, mediana_porte: null, mediana_regiao: null });
+  const q = (indicador: string, ano: string, v: [number, number, number], br?: number) => [
+    { indicador, ano, recorte: "q1_pb" as const, valor: v[0] }, { indicador, ano, recorte: "mediana_pb" as const, valor: v[1] },
+    { indicador, ano, recorte: "q3_pb" as const, valor: v[2] }, ...(br !== undefined ? [{ indicador, ano, recorte: "BR" as const, valor: br }] : []),
+  ];
+  const r = montarRelatorio(patos({
+    indicadores: {
+      catalogo: [...catalogo],
+      linhas: [l("homicidios_taxa", "2022-2024", 36.19), l("ideb_ai_municipal", "2025", 6.8), l("pntp_prefeitura", "2025", 50)],
+      referencias: [...q("homicidios_taxa", "2022-2024", [8, 15, 25], 21.5), ...q("ideb_ai_municipal", "2025", [5.2, 5.8, 6.3]), ...q("pntp_prefeitura", "2025", [60, 75, 90])],
+      grupo: null,
+      coletadoEm: "2026-10-05T12:00:00Z",
+    },
+  }), HOJE);
+  const social = r.achados.filter((a) => a.dimensao === "social");
+  assert.deepEqual(social.map((a) => [a.nivel, a.titulo]), [
+    ["alto", "Homicídios: entre os 25% piores da PB e pior que o Brasil"],
+    ["em_dia", "Social: 1 indicador-chave na mediana da PB ou melhor"],
+  ]);
+  assert.match(social[0].fato, /^36,19 por 100 mil hab\. \(2022-2024\)\. mediana dos municípios da PB 15,00; Brasil 21,50\. Fonte: F\.$/);
+  const gov = r.achados.find((a) => a.dimensao === "governanca");
+  assert.equal(gov?.nivel, "moderado");
+  assert.equal(gov?.titulo, "Transparência da prefeitura: entre os 25% piores da PB");
+  // os críticos do fiscal e do controle seguem na frente; indicador não vira passo
+  assert.equal(r.destaques[0].nivel, "critico");
+  assert.ok(r.passos.every((p) => !p.porque.includes("homicídios")));
+  assert.equal(r.indicadores?.contagem.alto, 1);
+  assert.ok(r.fontes.some((f) => f.fonte.startsWith("Indicadores do município") && f.data === "2026-10-05T12:00:00Z"));
+});
+
+test("camada 2 ausente: o relatório da camada 1 sai igual, sem seção de indicadores", () => {
+  const r = montarRelatorio(patos(), HOJE);
+  assert.equal(r.indicadores, null);
+  assert.ok(!r.achados.some((a) => ["social", "economia", "territorio", "governanca"].includes(a.dimensao)));
+});

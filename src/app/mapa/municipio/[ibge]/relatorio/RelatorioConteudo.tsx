@@ -1,11 +1,12 @@
 /**
- * O relatório crítico do município (onda 14, camada 1): o diagnóstico de Patos de 30/09/2026 para qualquer
- * município da PB. Recebe a leitura pronta (lib/oportunidades/relatorio-municipio.ts); aqui só se apresenta.
- * Só administradores (decisão de 01/10/2026).
+ * O relatório crítico do município (onda 14, camadas 1 e 2): o diagnóstico de Patos de 30/09/2026 para qualquer
+ * município da PB, com os indicadores de social, economia, território e governança. Recebe a leitura pronta
+ * (lib/oportunidades/relatorio-municipio.ts); aqui só se apresenta. Só administradores (decisão de 01/10/2026).
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
+import { rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraIndicadores } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -114,6 +115,108 @@ function TabelaConvenios({ linhas, nota = "Situação" }: { linhas: LinhaConveni
   );
 }
 
+const ROTULO_NIVEL_INDICADOR = { alto: "alto", moderado: "moderado", em_dia: "em dia" } as const;
+
+function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
+  if (!itens.length) return null;
+  return (
+    <div className="mp-tabela-rolagem">
+      <table className="mp-tabela mp-rel-indicadores">
+        <thead>
+          <tr>
+            <th scope="col">Indicador</th>
+            <th scope="col">Valor</th>
+            <th scope="col">PB</th>
+            <th scope="col">Brasil</th>
+            <th scope="col">Mediana PB</th>
+            <th scope="col">Mediana porte · região</th>
+            <th scope="col">Posição PB</th>
+            <th scope="col">Nível</th>
+          </tr>
+        </thead>
+        <tbody>
+          {itens.map((x) => (
+            <tr key={x.id}>
+              <td>
+                {x.nome}
+                <span className="mp-rel-fonte">
+                  {" "}
+                  {x.url ? (
+                    <a href={x.url} rel="noreferrer" target="_blank">
+                      {x.fonte}
+                    </a>
+                  ) : (
+                    x.fonte
+                  )}
+                  , {x.ano}.{x.nota ? ` ${x.nota}` : ""}
+                </span>
+              </td>
+              <td className="mp-rel-num">{x.texto}</td>
+              <td className="mp-rel-num">{x.pb ?? "—"}</td>
+              <td className="mp-rel-num">{x.br ?? "—"}</td>
+              <td className="mp-rel-num">{x.mediana ?? "—"}</td>
+              <td className="mp-rel-num">{x.porte || x.regiao ? `${x.porte ?? "—"} · ${x.regiao ?? "—"}` : "—"}</td>
+              <td className="mp-rel-num">{x.posicao ?? "—"}</td>
+              <td>
+                {x.nivel ? (
+                  <span className={`pa-tag mp-laudo-nivel mp-laudo-${x.nivel === "em_dia" ? "atendido" : x.nivel}`} title={x.porque ?? undefined}>
+                    {ROTULO_NIVEL_INDICADOR[x.nivel]}
+                  </span>
+                ) : (
+                  <span className="mp-rel-contexto">{x.chave ? "sem comparação" : "contexto"}</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BlocosIndicadores({ blocos }: { blocos: (BlocoIndicadores | null)[] }) {
+  const validos = blocos.filter((b): b is BlocoIndicadores => b !== null);
+  // Seção de um bloco só (economia, território, governança): o título da seção já diz o que é.
+  if (validos.length === 1) return <TabelaIndicadores itens={validos[0].itens} />;
+  return (
+    <>
+      {validos.map((b) => (
+        <Sub key={b.dimensao} titulo={b.titulo}>
+          <TabelaIndicadores itens={b.itens} />
+        </Sub>
+      ))}
+    </>
+  );
+}
+
+function OMunicipio({ l }: { l: LeituraIndicadores }) {
+  const g = l.grupo;
+  const regic = g?.regic ? `${rotuloRegic(g.regic)}${g.polo ? ", cidade-polo" : ""}${g.arranjo ? `, no ${g.arranjo}` : ""}` : null;
+  return (
+    <>
+      <div className="pa-grade pa-grade-4 mp-painel-cartoes">
+        {l.municipio.map((x) => (
+          <article key={x.id} className="pa-cartao mp-rel-cartao">
+            <h3 className="pa-mono">{x.nome}</h3>
+            <p className="pa-numero">{x.texto}</p>
+            <p className="pa-nota">
+              {x.ano} · {x.fonte}
+              {x.mediana ? ` · mediana da PB ${x.mediana}` : ""}
+            </p>
+          </article>
+        ))}
+      </div>
+      {g && (
+        <p>
+          Comparado com os municípios de porte <strong>{g.porte ?? "—"}</strong> (tercil da população da PB) e com os da região imediata de{" "}
+          <strong>{g.regiao_imediata ?? "—"}</strong>
+          {g.regiao_intermediaria ? ` (região intermediária de ${g.regiao_intermediaria})` : ""}.{regic ? ` Na hierarquia urbana do IBGE (REGIC 2018): ${regic}.` : ""}
+        </p>
+      )}
+    </>
+  );
+}
+
 function Sub({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <div className="mp-rel-sub">
@@ -129,6 +232,8 @@ export function RelatorioConteudo({ r }: { r: Relatorio }) {
   const ct = r.controle;
   const p = r.propostas;
   const px = r.pix;
+  const ind = r.indicadores;
+  const notaIndicadores = ind?.coletadoEm ? `Fontes oficiais em lote, lidas em ${data(ind.coletadoEm)}; cada indicador traz o seu ano.` : undefined;
   const dim = (d: Achado["dimensao"]) => r.achados.filter((a) => a.dimensao === d && a.nivel !== "em_dia");
 
   return (
@@ -136,7 +241,9 @@ export function RelatorioConteudo({ r }: { r: Relatorio }) {
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">Relatório crítico do município · PB · IBGE {r.ibge}</p>
         <h1 className="pa-titulo">{r.nome}</h1>
-        <p className="pa-sub">Captação federal, contas e capacidade fiscal · posição de {data(r.hoje)}</p>
+        <p className="pa-sub">
+          Captação federal, contas, capacidade fiscal{ind ? ", social, economia, território e governança" : ""} · posição de {data(r.hoje)}
+        </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">
@@ -197,6 +304,12 @@ export function RelatorioConteudo({ r }: { r: Relatorio }) {
               </li>
             ))}
           </ol>
+        </Secao>
+      )}
+
+      {ind && ind.municipio.length > 0 && (
+        <Secao id="rel-municipio" titulo="O município" nota={notaIndicadores}>
+          <OMunicipio l={ind} />
         </Secao>
       )}
 
@@ -427,6 +540,34 @@ export function RelatorioConteudo({ r }: { r: Relatorio }) {
         <Secao id="rel-fornecedores" titulo="Fornecedores">
           <ListaAchados achados={dim("fornecedores")} />
           {!dim("fornecedores").length && <p>Sem fornecedor inidôneo no TCU e sem concentração a apontar.</p>}
+        </Secao>
+      )}
+
+      {ind && ind.social.length > 0 && (
+        <Secao id="rel-social" titulo="Social" nota="Saúde, educação, assistência social e segurança. PB e Brasil são os valores das fontes; «mediana PB» é a dos 223 municípios; porte e região comparam com os parecidos. Na posição, 1º é o melhor. «Contexto» não tem nível.">
+          <BlocosIndicadores blocos={ind.social} />
+          <ListaAchados achados={dim("social")} />
+        </Secao>
+      )}
+
+      {ind?.economia && (
+        <Secao id="rel-economia" titulo="Economia">
+          <BlocosIndicadores blocos={[ind.economia]} />
+          <ListaAchados achados={dim("economia")} />
+        </Secao>
+      )}
+
+      {ind?.territorio && (
+        <Secao id="rel-territorio" titulo="Território" nota="Saneamento, água, desastres, conectividade e frota.">
+          <BlocosIndicadores blocos={[ind.territorio]} />
+          <ListaAchados achados={dim("territorio")} />
+        </Secao>
+      )}
+
+      {ind?.governanca && (
+        <Secao id="rel-governanca" titulo="Governança" nota="Transparência e contratações. Contratação direta é ponto para olhar, não irregularidade.">
+          <BlocosIndicadores blocos={[ind.governanca]} />
+          <ListaAchados achados={dim("governanca")} />
         </Secao>
       )}
 
