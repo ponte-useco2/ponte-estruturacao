@@ -101,6 +101,12 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
             <Link href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</Link>
           </p>
         )}
+        {/* O relatório crítico (onda 14) é só de administrador, como o painel fiscal. */}
+        {!cliente && f.uf === "PB" && (
+          <p className="pa-nota">
+            <Link href={`/mapa/municipio/${f.ibge}/relatorio`}>Relatório crítico do município: tudo o que a base sabe, numa página →</Link>
+          </p>
+        )}
         {/* O laudo do Pix (onda 13A) cobre os planos da PB e vale para os dois: o cliente vê o do próprio município. */}
         {f.uf === "PB" && (
           <p className="pa-nota">

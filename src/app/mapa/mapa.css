@@ -796,3 +796,32 @@
 
 /* Laudo de qualquer instrumento (onda 12): legenda das tabelas de programa e proponente, à esquerda e sem a barra das notas. */
 .pa-root .mp-laudo .mp-tabela caption.mp-laudo-legenda-tabela { caption-side: top; text-align: left; padding: 0 0 0.4rem; font-size: 0.85rem; color: var(--pa-muted); }
+
+/* Relatório crítico do município (onda 14): subtítulos, o "em dia" e o gráfico da despesa com pessoal.
+   As cores do gráfico vêm dos tokens: linha na cor da marca, limite máximo na cor de perigo. */
+.pa-root .mp-rel-sub { margin-top: 1rem; }
+.pa-root .mp-rel-h3 { font-size: 1rem; margin: 0 0 0.5rem; }
+.pa-root .mp-rel-dimensao { font-size: 0.72rem; color: var(--pa-muted); margin-left: 0.3rem; }
+.pa-root .mp-rel-emdia { margin-top: 0.5rem; }
+.pa-root .mp-rel-emdia ul, .pa-root .mp-rel-verificacoes { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+.pa-root .mp-rel-emdia li + li, .pa-root .mp-rel-verificacoes li + li { margin-top: 0.3rem; }
+.pa-root .mp-rel-cartao .pa-numero { overflow-wrap: anywhere; }
+.pa-root .mp-rel-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pa-root .mp-rel-grafico { margin: 0; max-width: 760px; }
+/* No celular o gráfico rola dentro da própria caixa: encolhido à largura da tela, os rótulos ficariam ilegíveis. */
+.pa-root .mp-rel-grafico-rolagem { overflow-x: auto; }
+.pa-root .mp-rel-grafico svg { width: 100%; min-width: 540px; height: auto; display: block; }
+.pa-root .mp-rel-grade { stroke: var(--pa-border); stroke-width: 1; }
+.pa-root .mp-rel-eixo { fill: var(--pa-muted); font-size: 12px; font-family: var(--pa-mono); }
+.pa-root .mp-rel-limite { stroke: var(--pa-danger); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.pa-root .mp-rel-limite-rotulo { fill: var(--pa-danger); font-size: 12px; font-family: var(--pa-mono); }
+.pa-root .mp-rel-prudencial { stroke: var(--pa-muted); stroke-width: 1; stroke-dasharray: 3 4; }
+.pa-root .mp-rel-linha { fill: none; stroke: var(--pa-brand-2); stroke-width: 2; }
+.pa-root .mp-rel-ponto { fill: var(--pa-surface); stroke: var(--pa-brand-2); stroke-width: 2; }
+.pa-root .mp-rel-ponto-acima { fill: var(--pa-danger); stroke: var(--pa-danger); stroke-width: 2; }
+.pa-root .mp-rel-valor { fill: var(--pa-text); font-size: 13px; font-weight: 600; font-family: var(--pa-mono); }
+@media print {
+  .pa-root .mp-rel .mp-rel-grafico { break-inside: avoid; }
+  .pa-root .mp-rel-h3 { break-after: avoid; }
+  .pa-root .mp-rel-grafico svg * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
