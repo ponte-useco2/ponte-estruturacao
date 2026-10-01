@@ -653,3 +653,23 @@ test("concluído: a janela é a 'próxima porta', não plano B; e a voluntária 
   const soEmenda = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [], portas: [emenda] }, HOJE);
   assert.match(soEmenda.estrategia.find((p) => p.titulo.startsWith("Próxima porta"))?.porque ?? "", /depende da indicação de um parlamentar/);
 });
+
+test("prestação de contas em diligência (onda 13C.2): a vez passa ao convenente, com o passo de responder", () => {
+  const i = base({ nr_convenio: "919058", situacao: "Prestação de Contas em Análise", dt_assinatura: "2021-12-31", dt_limite_contas: "2026-05-30" });
+  const pc = {
+    nr_convenio: "919058", n_eventos: 1, valor_comprovado: 8221565.33, valor_aprovado: null, valor_impugnado: null,
+    dt_comprovacao: "2026-09-18T18:13:25+00:00", dt_ultimo_evento: "2026-09-18T18:13:25+00:00", ultimo_evento: "Comprovação",
+    cumprimento: "integralmente", pct_fisico_declarado: 100, n_pareceres: 1, parecer_data: "2026-09-11", parecer_tipo: "Técnico",
+    parecer_situacao: "Em Diligência", erro: null,
+  };
+  const entrada: EntradaDiagnostico = { ...entrada962210(), instrumento: i, etapas: [], carteira: null, pares: null, emendas: [] };
+  const sem = lerDiagnostico(entrada, HOJE);
+  assert.equal(sem.vez, "concedente");
+  assert.ok(sem.estrategia.some((x) => x.titulo === "Acompanhar a análise da prestação de contas"));
+  const com = lerDiagnostico({ ...entrada, contasObras: { prestacao: { convenio: pc, eventos: [], pareceres: [], referencia: "2026-09-30" }, obra: null } }, HOJE);
+  assert.equal(com.vez, "proponente");
+  const passo = com.estrategia.find((x) => x.titulo === "Responder à diligência da prestação de contas");
+  assert.ok(passo);
+  assert.equal(passo.porque, "O parecer técnico de 11/09/2026 está «Em Diligência»: o concedente pediu complemento, e a vez é do convenente.");
+  assert.ok(com.riscos.some((r) => r.titulo === "Prestação de contas em diligência"));
+});

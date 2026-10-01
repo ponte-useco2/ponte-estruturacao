@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { lerPainelDasColetas } from "@/lib/oportunidades/contas-obras.server";
 import { lerPainelContas } from "@/lib/oportunidades/tce-tcu.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { ContasConteudo } from "./ContasConteudo";
 
 export const metadata: Metadata = {
-  title: "Tomadas de Contas Especiais · Painel · PONTE",
+  title: "Contas e obras · Painel · PONTE",
   robots: { index: false, follow: false },
 };
 
@@ -19,8 +20,9 @@ export default async function ContasPage() {
   if (!visitante || visitante.status !== "aprovado") return null;
   if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
-  const leitura = await lerPainelContas();
-  if (leitura.estado !== "ok") {
+  const [leitura, coletas] = await Promise.all([lerPainelContas(), lerPainelDasColetas()]);
+  const temColeta = !!coletas && (coletas.impugnacoes !== null || coletas.obras !== null);
+  if (leitura.estado !== "ok" && !temColeta) {
     return (
       <DadoIndisponivel
         kicker="Painel · TCE no TCU"
@@ -28,5 +30,5 @@ export default async function ContasPage() {
       />
     );
   }
-  return <ContasConteudo leitura={leitura} />;
+  return <ContasConteudo leitura={leitura.estado === "ok" ? leitura : null} coletas={coletas} />;
 }

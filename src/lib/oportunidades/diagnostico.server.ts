@@ -29,6 +29,7 @@ import { ehEsquemaAusente } from "./esquema";
 import { lerResumoFiscal } from "./fiscal.server";
 import { lerFornecedoresDoConvenio } from "./fornecedores.server";
 import { lerTceTcuDoConvenio } from "./tce-tcu.server";
+import { lerContasObrasDoConvenio } from "./contas-obras.server";
 import type { TipoAgente } from "./organizacao";
 import type { LinhaDesfecho, LinhaEtapa } from "./painel";
 import { todas } from "./padroes.server";
@@ -147,7 +148,7 @@ export async function lerEntradaDiagnostico(
   const recortes = i.uf && i.uf !== "BR" ? [i.uf, "BR"] : ["BR"];
   const nada = <T,>(): Promise<T[] | null> => Promise.resolve([]);
 
-  const [etapasOrgao, etapasPrograma, desfechos, pares, carteira, emendas, fiscal, portas, fornecedores, tceTcu] = await Promise.all([
+  const [etapasOrgao, etapasPrograma, desfechos, pares, carteira, emendas, fiscal, portas, fornecedores, tceTcu, contasObras] = await Promise.all([
     i.orgao_sup
       ? parte<LinhaEtapa>(faltas, "tempos do órgão", () =>
           db.from("painel_etapa_tempo").select("*").eq("execucao_id", execucao.id).eq("dimensao", "orgao").eq("chave", i.orgao_sup as string).in("recorte", recortes).limit(100),
@@ -195,6 +196,8 @@ export async function lerEntradaDiagnostico(
     i.uf === "PB" && !semFornecedores ? lerFornecedoresDoConvenio(db, execucao.id, i, faltas) : Promise.resolve(undefined),
     // TCE no e-TCE do TCU (onda 13C): o job consulta os convênios assinados da PB. Sem nome: também para o cliente.
     i.uf === "PB" && i.dt_assinatura ? lerTceTcuDoConvenio(db, numero, faltas) : Promise.resolve(undefined),
+    // Prestação de contas e obra pelas coletas do Acesso Livre (onda 13C.2 e 13C.3), só da PB.
+    i.uf === "PB" && i.dt_assinatura ? lerContasObrasDoConvenio(db, numero, faltas) : Promise.resolve(undefined),
   ]);
 
   return {
@@ -211,6 +214,7 @@ export async function lerEntradaDiagnostico(
       portas,
       fornecedores,
       tceTcu,
+      contasObras,
       faltas,
     },
   };

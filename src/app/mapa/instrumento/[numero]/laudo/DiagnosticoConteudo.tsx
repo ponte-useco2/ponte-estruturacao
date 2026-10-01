@@ -29,6 +29,7 @@ import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { rotuloDemaisPc33, secaoPc33 } from "@/lib/oportunidades/portaria33";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { descreverTce, tituloDebito, type SecaoTceTcu } from "@/lib/oportunidades/tce-tcu";
+import { moedaContas, type SecaoContasObras } from "@/lib/oportunidades/contas-obras";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
 
@@ -281,6 +282,12 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
       {d.proponente && <li>Proponente: os instrumentos do mesmo CNPJ na busca (todos, se o proponente é da PB; fora dela, só os vivos).</li>}
       <li>Emenda de origem: arquivo de emendas do SICONV, ligado pela proposta. O autor é agente público e aparece como registrado.</li>
       {d.fiscal && <li>Situação fiscal: painel de capacidade fiscal, decisão “receber transferência voluntária”, de {data(d.fiscal.referencia)}.</li>}
+      {d.contasObras && (
+        <li>
+          Prestação de contas e obra: coletas assistidas no Acesso Livre do Transferegov (a tela da prestação de contas, com os eventos
+          SIAFI e os pareceres, e o módulo de acompanhamento de obras). Não estão nos dados abertos.
+        </li>
+      )}
       {d.tceTcu && (
         <li>
           Tomada de Contas Especial: API pública do e-TCE do TCU, uma consulta por convênio, toda semana, para os convênios assinados da PB. A
@@ -521,6 +528,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
 
       <ExecucaoPc33 i={i} />
       <ContasNoTcu s={d.tceTcu} />
+      <ContasEObra s={d.contasObras} cliente={cliente} />
 
       {!cliente && !d.fiscal && d.fiscalMotivo && (
         <section aria-labelledby="diag-fiscal" className="mp-radar-secao">
@@ -675,6 +683,89 @@ function ExecucaoPc33({ i }: { i: InstrumentoLaudo }) {
         Conferido nos dados abertos do SICONV (cronograma de desembolso, metas, plano de aplicação, histórico do projeto, desembolsos,
         pagamentos e contrapartida). &quot;A conferir&quot; é ponto para olhar, não irregularidade: a exceção pode estar justificada fora dos
         dados abertos.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Prestação de contas e obra pelas coletas do Acesso Livre (onda 13C.2 e 13C.3). O nome do servidor que deu o
+ * parecer só aparece para administrador.
+ */
+function ContasEObra({ s, cliente }: { s: SecaoContasObras | null; cliente: boolean }) {
+  if (!s) return null;
+  const p = s.prestacao;
+  const o = s.obra;
+  return (
+    <section aria-labelledby="diag-contas-obra" className="mp-radar-secao">
+      <h2 id="diag-contas-obra" className="mp-radar-h2">
+        Prestação de contas e obra no Transferegov
+      </h2>
+      {p && (
+        <>
+          <p className="pa-sub">{p.frase}</p>
+          {p.cumprimento && <p className="pa-nota">{p.cumprimento}</p>}
+          {p.eventos.length > 0 && (
+            <div className="mp-tabela-rolagem">
+              <table className="mp-tabela">
+                <thead>
+                  <tr>
+                    <th scope="col">Evento no SIAFI</th>
+                    <th scope="col">Data</th>
+                    <th scope="col" className="mp-num">
+                      Valor
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {p.eventos.map((e) => (
+                    <tr key={e.ordem}>
+                      <td>
+                        {e.evento ?? "—"}
+                        {e.situacao && e.situacao !== "Enviada" ? <span className="mp-laudo-miudo"> · {e.situacao}</span> : null}
+                      </td>
+                      <td>{e.data_hora ? formatarData(e.data_hora.slice(0, 10)) : "—"}</td>
+                      <td className="mp-num">{e.valor !== null ? moedaContas(e.valor) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {p.pareceres.length > 0 && (
+            <ul className="mp-laudo-lista">
+              {p.pareceres.slice(0, 5).map((x) => (
+                <li key={x.ordem} className="pa-cartao mp-laudo-risco mp-laudo-informativo">
+                  <p>
+                    <strong>
+                      Parecer {x.tipo ? x.tipo.toLowerCase() : ""} de {x.data ? formatarData(x.data) : "—"}
+                    </strong>
+                    {x.situacao ? ` · ${x.situacao}` : ""}
+                  </p>
+                  {x.texto && <p>{x.texto.length > 600 ? `${x.texto.slice(0, 600)}…` : x.texto}</p>}
+                  <p className="mp-laudo-miudo">
+                    {[x.emitido_por, !cliente ? x.responsavel : null, !cliente ? x.atribuicao : null].filter(Boolean).join(" · ")}
+                    {x.n_anexos ? ` · ${x.n_anexos} ${x.n_anexos === 1 ? "anexo" : "anexos"} no Transferegov` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {o && (
+        <>
+          <p className="pa-sub">{o.frase}</p>
+          {o.atestado && <p className="pa-nota">{o.atestado}</p>}
+        </>
+      )}
+      <p className="pa-nota">
+        Coletado no Acesso Livre do Transferegov
+        {p?.referencia ? ` (prestação de contas em ${formatarData(p.referencia)}` : ""}
+        {o?.referencia ? `${p?.referencia ? "; " : " ("}acompanhamento de obras em ${formatarData(o.referencia)}` : ""}
+        {p?.referencia || o?.referencia ? ")" : ""}.
+        {p ? " Impugnação é o concedente recusando parte da comprovação, não julgamento; o texto completo dos pareceres fica nos anexos do Transferegov." : ""}
+        {o ? " O atestado da obra é o executado que cada lado registrou nas medições." : ""}
       </p>
     </section>
   );

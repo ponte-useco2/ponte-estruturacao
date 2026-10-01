@@ -155,7 +155,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
           Dinheiro federal no TCE-PB →
         </Link>
         <Link href="/mapa/painel/contas" className="pa-chip">
-          TCE no TCU (PB) →
+          Contas e obras (PB) →
         </Link>
       </nav>
 

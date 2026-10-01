@@ -31,6 +31,7 @@ import { MINIMO_MEDICOES, percentual, type LinhaDesfecho, type LinhaEtapa } from
 import { tituloOrgao } from "./padroes.ts";
 import { riscoPc33, type ColunasPc33 } from "./portaria33.ts";
 import { riscoTceTcu, secaoTceTcu, type EntradaTceTcu, type SecaoTceTcu } from "./tce-tcu.ts";
+import { riscosContasObras, secaoContasObras, type EntradaContasObras, type SecaoContasObras } from "./contas-obras.ts";
 import { moedaCurta } from "./radar.ts";
 
 // ================================================================ entrada
@@ -163,6 +164,11 @@ export interface EntradaDiagnostico {
    * antes da oport_25; `null`: a leitura falhou (a falta vai em `faltas`).
    */
   tceTcu?: EntradaTceTcu | null;
+  /**
+   * Prestação de contas e obra pelas coletas do Acesso Livre (onda 13C.2 e 13C.3). Ausente: nenhuma coleta
+   * publicada; `null`: a leitura falhou (a falta vai em `faltas`).
+   */
+  contasObras?: EntradaContasObras | null;
   /** O que não veio e por quê, para a nota de método. */
   faltas: string[];
 }
@@ -348,6 +354,8 @@ export interface Diagnostico {
   fornecedores: SecaoFornecedores | null;
   /** TCE no e-TCE do TCU (onda 13C); `null` fora da PB ou sem a leitura. */
   tceTcu: SecaoTceTcu | null;
+  /** Prestação de contas e obra das coletas do Acesso Livre (onda 13C.2 e 13C.3). */
+  contasObras: SecaoContasObras | null;
   liminar: string | null;
   programa: { nome: string | null; codigo: string | null; uf: string | null; naUf: Vizinhanca | null; funis: Funil[] } | null;
   proponente: { nome: string | null; cnpj: string | null; carteira: Vizinhanca } | null;
@@ -566,7 +574,12 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
   // Antes da assinatura, a coleta do Acesso Livre diz de quem é a vez melhor que a situação: um
   // aprovado "esperando assinatura" pode estar com um pedido de complementação aberto para o proponente.
   const acessoLivre = e.acessoLivre && (etapa === "assinatura" || etapa === "proposta") ? e.acessoLivre : null;
-  const vez = acessoLivre?.vez.lado ?? vezDo(i, etapa);
+  // Na prestação de contas, o parecer "Em Diligência" (coleta do Acesso Livre, onda 13C.2) devolve a vez ao convenente,
+  // mesmo com a situação dizendo "em análise".
+  const pc = e.contasObras?.prestacao?.convenio;
+  const diligencia =
+    etapa === "contas" && pc && /dilig/i.test(pc.parecer_situacao ?? "") ? { data: pc.parecer_data, tipo: pc.parecer_tipo } : null;
+  const vez = diligencia ? "proponente" : (acessoLivre?.vez.lado ?? vezDo(i, etapa));
   const tempo = tempoNaEtapa(i, etapa, e.etapas, hoje);
 
   const vigDias = i.dt_fim_vigencia ? diasEntre(hoje, i.dt_fim_vigencia) : null;
@@ -666,6 +679,7 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     fiscal: e.fiscal,
     portas,
     acessoLivre,
+    diligencia,
     hoje,
     comDossie: !!opcoes.comDossie,
   };
@@ -689,12 +703,14 @@ export function lerDiagnostico(e: EntradaDiagnostico, hoje: string, opcoes: Opco
     coordenada,
     fornecedores,
     tceTcu: secaoTceTcu(e.tceTcu),
+    contasObras: secaoContasObras(e.contasObras),
     // Onda 13B: os pontos a conferir da PC 33 viram um risco só no quadro; o detalhe fica na seção própria. Onda 13C: a TCE
     // no TCU, também.
     riscos: [
       ...lerRiscos(b),
       ...(fornecedores?.riscos ?? []),
       ...[riscoPc33(i), riscoTceTcu(e.tceTcu)].filter((r): r is Risco => r !== null),
+      ...riscosContasObras(e.contasObras, { comTce: (e.tceTcu?.tces.length ?? 0) > 0 }),
     ].sort(porNivel),
     estrategia: lerEstrategia(b),
     inacao: b.comDossie ? [] : lerInacao(b),
@@ -716,6 +732,8 @@ interface Base {
   fiscal: FiscalProponente | null;
   portas: PortaAberta[];
   acessoLivre: AcessoLivre | null;
+  /** Parecer da prestação de contas em diligência (onda 13C.2): a vez é do convenente. */
+  diligencia: { data: string | null; tipo: string | null } | null;
   hoje: string;
   comDossie: boolean;
 }
@@ -1005,7 +1023,14 @@ function lerEstrategia(b: Base): Passo[] {
         }
         break;
       case "contas":
-        if (b.vez === "proponente") {
+        if (b.diligencia) {
+          p.push({
+            titulo: "Responder à diligência da prestação de contas",
+            porque:
+              `O parecer${b.diligencia.tipo ? ` ${b.diligencia.tipo.toLowerCase()}` : ""}${b.diligencia.data ? ` de ${data(b.diligencia.data)}` : ""} ` +
+              "está «Em Diligência»: o concedente pediu complemento, e a vez é do convenente.",
+          });
+        } else if (b.vez === "proponente") {
           p.push({
             titulo: i.situacao === "Prestação de Contas em Complementação" ? "Responder à complementação da prestação de contas" : "Enviar a prestação de contas",
             porque: `Situação: «${i.situacao}»${i.dt_limite_contas ? `; prazo ${i.dt_limite_contas < b.hoje ? "vencido em" : "até"} ${data(i.dt_limite_contas)}` : ""}.`,
