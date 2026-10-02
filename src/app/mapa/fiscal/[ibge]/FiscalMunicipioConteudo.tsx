@@ -63,7 +63,7 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
     <div className="pa-pagina mp-radar mp-painel mp-fiscal">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <Link href="/mapa/fiscal">Capacidade fiscal · Paraíba</Link>
+          <Link href="/mapa/fiscal">Capacidade fiscal · Paraíba</Link> · município em análise
         </p>
         <h1 className="pa-titulo">{m.nome}/PB</h1>
         <p className="pa-sub">

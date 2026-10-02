@@ -89,3 +89,9 @@ test("filtro das abas e soma dos não lidos", () => {
   assert.equal(somaNaoLidos(null, 2), 2);
   assert.equal(somaNaoLidos(null, null), null);
 });
+
+test("aviso de prazo de janela que já fechou não repete a contagem velha", () => {
+  const a = { tipo: "janela" as const, evento: "fechando", antes: "2026-09-18", depois: "1" };
+  assert.deepEqual(fraseDoAviso(a, "2026-10-02"), { rotulo: "A janela fechou", detalhe: "O prazo era 18/09/2026; o aviso foi do dia em que faltava 1 dia." });
+  assert.equal(fraseDoAviso(a, "2026-09-17").rotulo, "Falta 1 dia");
+});

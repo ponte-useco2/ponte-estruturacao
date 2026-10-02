@@ -163,7 +163,7 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
                     {ROTULO_NIVEL_INDICADOR[x.nivel]}
                   </span>
                 ) : (
-                  <span className="mp-rel-contexto">{x.chave ? "sem comparação" : "contexto"}</span>
+                  <span className="mp-rel-contexto">{x.chave ? "? não verificado" : "contexto"}</span>
                 )}
               </td>
             </tr>
@@ -239,7 +239,7 @@ export function RelatorioConteudo({ r }: { r: Relatorio }) {
   return (
     <div className="pa-pagina mp-radar mp-laudo mp-rel">
       <div className="pa-pilha mp-radar-cabeca">
-        <p className="pa-kicker">Relatório crítico do município · PB · IBGE {r.ibge}</p>
+        <p className="pa-kicker">Município em análise · relatório crítico · PB · IBGE {r.ibge}</p>
         <h1 className="pa-titulo">{r.nome}</h1>
         <p className="pa-sub">
           Captação federal, contas, capacidade fiscal{ind ? ", social, economia, território e governança" : ""} · posição de {data(r.hoje)}

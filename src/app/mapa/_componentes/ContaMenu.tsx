@@ -96,8 +96,13 @@ export function ContaMenu({
       >
         <span aria-hidden="true">{inicial(nome, email)}</span>
         {/* A entidade ativa vence o nome da pessoa no chip: quem cuida de várias
-            precisa saber, de relance, em qual está trabalhando. */}
-        <span className="pa-esconde-mobile mp-conta-nome">{ativa?.nome ?? nome ?? email}</span>
+            precisa saber, de relance, em qual está trabalhando. O rótulo separa a
+            organização da conta do município que a página está mostrando (revisão
+            de 02/10/2026: lendo outro município, o cabeçalho parecia falar dele). */}
+        <span className="pa-esconde-mobile mp-conta-nome">
+          {ativa && <span className="mp-conta-rotulo">Sua organização</span>}
+          <span className="mp-conta-entidade">{ativa?.nome ?? nome ?? email}</span>
+        </span>
       </button>
 
       {aberto && (

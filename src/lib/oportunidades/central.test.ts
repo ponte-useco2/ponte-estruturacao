@@ -199,3 +199,18 @@ test("tudo novo ou tudo velho não ganha divisória", () => {
   assert.equal(indiceDivisor(todosNovos, VISITA), null);
   assert.equal(indiceDivisor(todosVelhos, VISITA), null);
 });
+
+test("o que já fechou vai para o histórico, no fim da fila, e a frase diz que fechou", () => {
+  const agora = new Date("2026-10-02T12:00:00Z");
+  const xs = [
+    item("passou", { tipo: "fechando", limiar: 1, fecha: "2026-09-28" }),
+    item("semana", { tipo: "fechando", limiar: 3, fecha: "2026-10-05" }),
+    item("mes", { tipo: "nova", fecha: "2026-10-20" }),
+  ];
+  const g = agruparPorPrazo(xs, agora);
+  assert.deepEqual(g.map((x) => [x.id, x.itens.map((i) => i.id)]), [["ate7", ["semana"]], ["ate30", ["mes"]], ["fechou", ["passou"]]]);
+  assert.equal(g.at(-1)?.recolhido, true);
+  assert.deepEqual(ids(ordenarPorUrgencia(xs, "2026-10-02")), ["semana", "mes", "passou"]);
+  assert.match(descrever(xs[0], "2026-10-02"), /^Fechou em 28\/09\/2026 · histórico: faltam 1 dia/);
+  assert.equal(descrever(xs[1], "2026-10-02"), "Faltam 3 dias ou menos · fecha em 05/10/2026");
+});

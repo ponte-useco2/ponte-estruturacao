@@ -37,6 +37,18 @@
 
 /* Nome longo no chip de conta não pode empurrar o cabeçalho. */
 .mp-conta-nome {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.mp-conta-rotulo {
+  font-size: 0.6rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+}
+.mp-conta-entidade {
   max-width: 16ch;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -708,6 +720,15 @@
 .pa-root .mp-laudo-nivel.mp-laudo-atendido { color: #3d7a4f; border-color: #3d7a4f; }
 .pa-root .mp-laudo-marca.mp-laudo-atendido { color: #3d7a4f; font-weight: 400; }
 .pa-root .mp-laudo-marca.mp-laudo-informativo { font-weight: 400; }
+/* Ícone junto da cor em toda marca de nível (revisão de 02/10/2026): a cor sozinha não diz nada a quem não
+   distingue as cores, nem numa impressão em preto e branco. O texto do nível continua ao lado. */
+.pa-root :is(.mp-laudo-nivel, .mp-laudo-marca)::before { margin-right: 0.35em; font-weight: 700; }
+.pa-root :is(.mp-laudo-nivel, .mp-laudo-marca).mp-laudo-critico::before { content: "✕"; }
+.pa-root :is(.mp-laudo-nivel, .mp-laudo-marca).mp-laudo-alto::before { content: "▲"; }
+.pa-root :is(.mp-laudo-nivel, .mp-laudo-marca).mp-laudo-moderado::before { content: "●"; }
+.pa-root :is(.mp-laudo-nivel, .mp-laudo-marca).mp-laudo-atendido::before { content: "✓"; }
+.pa-root :is(.mp-laudo-nivel, .mp-laudo-marca).mp-laudo-informativo::before { content: "i"; font-style: italic; }
+.pa-root :is(.mp-laudo-nivel, .mp-laudo-marca).mp-laudo-semdado::before { content: "?"; font-style: normal; }
 .pa-root .mp-laudo-inacao { margin: 0; padding-left: 1.4rem; }
 .pa-root .mp-laudo-inacao li + li { margin-top: 0.35rem; }
 .pa-root .mp-laudo-causas { margin: 0; padding-left: 1.2rem; }

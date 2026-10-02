@@ -199,7 +199,7 @@ function ler(item: ItemCatalogo, linha: LinhaIndicador, refs: ReferenciaIndicado
     direcao: item.direcao,
     ano: linha.ano,
     valor: linha.valor,
-    texto: linha.valor === null ? "sem dado" : classe ?? formatarValor(linha.valor, item),
+    texto: linha.valor === null ? "sem informação" : classe ?? formatarValor(linha.valor, item),
     fonte: linha.fonte,
     url: linha.url,
     nota: notas.length ? notas.join(" ") : null,

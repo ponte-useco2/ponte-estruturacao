@@ -7,11 +7,14 @@
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
+import { diaBrasilia } from "./laudo";
 import {
   ANOS_MOTIVOS,
   DESFECHOS_ABERTOS,
   anoPadrao,
+  contarAteHoje,
   datasAssinatura,
+  deslocamentoAteHoje,
   ehVisaoConvenio,
   type ContagemMudanca,
   type LadoContas,
@@ -494,14 +497,15 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
   }
   // O seletor de município é conveniência: sem ele, o resto do painel continua de pé.
   if (m.error) console.error("lerPainel (municípios):", m.error.message);
+  const desloc = deslocamentoAteHoje(execucao.referencia, diaBrasilia(new Date().toISOString()));
   return {
     estado: "ok",
     execucao,
     resumo: (r.data ?? []) as LinhaResumo[],
     ...VAZIO,
     porOrgao: (o.data ?? []) as LinhaOrgao[],
-    convenios: (c.data ?? []) as unknown as ConvenioPainel[],
-    vencidos: (v.data ?? []) as unknown as ConvenioPainel[],
+    convenios: ((c.data ?? []) as unknown as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    vencidos: ((v.data ?? []) as unknown as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
     opcoesMunicipio: m.error ? [] : ((m.data ?? []) as OpcaoMunicipio[]),
     aditivosMotivo: (a.data ?? []) as LinhaAditivoMotivo[],
   };
@@ -702,6 +706,7 @@ export async function lerFichaMunicipio(f: ParametrosFicha): Promise<LeituraFich
   const [sinais, resumo, suspensiva, nunca, vigencia, contas, saldo, fisico, porAno, semDesfecho, negadas, assinadas, nomeP, nomeC] =
     leituras.map((l) => (l.data ?? []) as unknown[]);
   const municipio = (sinais as MunicipioPainel[])[0] ?? null;
+  const desloc = deslocamentoAteHoje(execucao.referencia, diaBrasilia(new Date().toISOString()));
   const nome =
     municipio?.municipio ??
     (nomeC as { municipio: string }[])[0]?.municipio ??
@@ -714,12 +719,12 @@ export async function lerFichaMunicipio(f: ParametrosFicha): Promise<LeituraFich
     nome,
     sinais: municipio,
     resumo: resumo as LinhaResumo[],
-    suspensiva: suspensiva as ConvenioPainel[],
-    nunca: nunca as ConvenioPainel[],
-    vigencia: vigencia as ConvenioPainel[],
-    contas: contas as ConvenioPainel[],
-    saldo: saldo as ConvenioPainel[],
-    fisico: fisico as ConvenioPainel[],
+    suspensiva: (suspensiva as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    nunca: (nunca as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    vigencia: (vigencia as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    contas: (contas as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    saldo: (saldo as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    fisico: (fisico as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
     porAno: porAno as PropostasDoAno[],
     semDesfecho: semDesfecho as PropostaPainel[],
     negadas: negadas as PropostaPainel[],

@@ -5,6 +5,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { UFS } from "@/lib/oportunidades/organizacao";
 import {
   CHAVE_TODOS,
@@ -127,8 +128,9 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         <p className="pa-kicker">Painel da PONTE · uso interno</p>
         <h1 className="pa-titulo">Onde o dinheiro trava · {onde}</h1>
         <p className="pa-sub">
-          Dado até <strong>{formatarPublicacao(execucao.dado_ate)}</strong>. Prazos e idades contados a partir de{" "}
-          {formatarData(execucao.referencia)}, o dia que o arquivo do Transferegov retrata.
+          Dado até <strong>{formatarPublicacao(execucao.dado_ate)}</strong>: o arquivo do Transferegov retrata{" "}
+          {formatarData(execucao.referencia)}. Prazos e idades contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}; a
+          seleção de cada lista segue o dia do arquivo.
         </p>
       </div>
 

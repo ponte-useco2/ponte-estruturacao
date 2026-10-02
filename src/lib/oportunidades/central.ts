@@ -58,7 +58,16 @@ const URGENCIA: Record<TipoMudanca, number> = {
   encerrada: 7,
 };
 
-function urgencia(i: ItemCentral): number {
+/** Prazo que já passou não é urgência: é histórico, e vai para o fim da fila. */
+const URGENCIA_HISTORICO = 9;
+
+/** O dia (UTC) de um instante, no formato das datas de prazo. */
+export function diaDe(agora: Date): string {
+  return agora.toISOString().slice(0, 10);
+}
+
+function urgencia(i: ItemCentral, hoje?: string): number {
+  if (hoje && i.fecha < hoje) return URGENCIA_HISTORICO;
   if (i.tipo !== "fechando") return URGENCIA[i.tipo];
   return i.limiar === 1 ? 0 : i.limiar === 3 ? 1 : 2;
 }
@@ -67,11 +76,14 @@ function comparar(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Urgência; depois o prazo mais próximo; depois a publicação mais recente. */
-export function ordenarPorUrgencia(itens: readonly ItemCentral[]): ItemCentral[] {
+/**
+ * Urgência; depois o prazo mais próximo; depois a publicação mais recente. Com `hoje`, o que já fechou vai para o
+ * fim, qualquer que tenha sido o aviso (o "faltam 3 dias" de uma janela que fechou ontem não é mais urgente).
+ */
+export function ordenarPorUrgencia(itens: readonly ItemCentral[], hoje?: string): ItemCentral[] {
   return [...itens].sort(
     (a, b) =>
-      urgencia(a) - urgencia(b) ||
+      urgencia(a, hoje) - urgencia(b, hoje) ||
       comparar(a.fecha, b.fecha) ||
       comparar(b.publicado_em, a.publicado_em) ||
       comparar(a.id, b.id),
@@ -161,7 +173,14 @@ const DESCRICAO: Record<TipoMudanca, (i: ItemCentral) => string> = {
   encerrada: (i) => `Encerrou em ${formatarData(i.fecha)}`,
 };
 
-export function descrever(i: ItemCentral): string {
+/**
+ * A frase do aviso. Com `hoje`, um aviso de prazo cuja janela já fechou diz que fechou, em vez de repetir a
+ * contagem do dia em que foi gerado.
+ */
+export function descrever(i: ItemCentral, hoje?: string): string {
+  if (hoje && i.fecha < hoje && (i.tipo === "fechando" || i.tipo === "prazo_alterado" || i.tipo === "nova" || i.tipo === "reaberta")) {
+    return `Fechou em ${formatarData(i.fecha)} · histórico: ${DESCRICAO[i.tipo](i).charAt(0).toLowerCase()}${DESCRICAO[i.tipo](i).slice(1)}`;
+  }
   return DESCRICAO[i.tipo](i);
 }
 
@@ -246,10 +265,14 @@ function somaDias(agora: Date, dias: number): string {
  *
  * A faixa relativa nomeia o grupo ("em até 7 dias") e a data absoluta o define
  * ("até 18/09/2026") — contagem relativa sozinha erra quando o dado é de ontem.
+ * O que já fechou vai para o histórico, recolhido: antes caía em "até 7 dias"
+ * e misturava urgência com passado (achado da revisão de 02/10/2026).
  * Grupo vazio não aparece: cabeçalho sem item é ruído.
  */
 export function agruparPorPrazo(itens: ItemCentral[], agora: Date): GrupoPrazo[] {
+  const hoje = diaDe(agora);
   const [c7, c30, c90] = CORTES_PRAZO.map((d) => somaDias(agora, d));
+  const historico: GrupoPrazo = { id: "fechou", titulo: `Já fechou · histórico dos avisos, antes de ${formatarData(hoje)}`, itens: [], naoLidas: 0, recolhido: true };
   const grupos: GrupoPrazo[] = [
     { id: "ate7", titulo: `Fecha em até 7 dias · até ${formatarData(c7)}`, itens: [], naoLidas: 0, recolhido: false },
     { id: "ate30", titulo: `Fecha em 8 a 30 dias · até ${formatarData(c30)}`, itens: [], naoLidas: 0, recolhido: false },
@@ -258,12 +281,12 @@ export function agruparPorPrazo(itens: ItemCentral[], agora: Date): GrupoPrazo[]
   ];
 
   for (const i of itens) {
-    const g = i.fecha <= c7 ? grupos[0] : i.fecha <= c30 ? grupos[1] : i.fecha <= c90 ? grupos[2] : grupos[3];
+    const g = i.fecha < hoje ? historico : i.fecha <= c7 ? grupos[0] : i.fecha <= c30 ? grupos[1] : i.fecha <= c90 ? grupos[2] : grupos[3];
     g.itens.push(i);
     if (!i.lida_em) g.naoLidas += 1;
   }
 
-  return grupos.filter((g) => g.itens.length > 0);
+  return [...grupos, historico].filter((g) => g.itens.length > 0);
 }
 
 /**

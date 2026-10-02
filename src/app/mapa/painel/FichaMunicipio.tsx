@@ -5,6 +5,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import {
   DESCRICAO_SINAL,
   MOVIMENTOS,
@@ -84,7 +85,7 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
             "Meu município · ficha da prefeitura"
           ) : (
             <>
-              <Link href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · ficha do município
+              <Link href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · município em análise
             </>
           )}
         </p>
@@ -92,8 +93,8 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
           {nome}/{f.uf}
         </h1>
         <p className="pa-sub">
-          IBGE {f.ibge}. Dado até <strong>{formatarPublicacao(ficha.execucao.dado_ate)}</strong>; prazos contados a partir
-          de {formatarData(ficha.execucao.referencia)}.
+          IBGE {f.ibge}. Dado até <strong>{formatarPublicacao(ficha.execucao.dado_ate)}</strong>: o arquivo retrata{" "}
+          {formatarData(ficha.execucao.referencia)}. Prazos contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}.
         </p>
         {/* O painel fiscal (onda 8) só cobre a PB, e é só de administrador: o cliente não vê o link. */}
         {!cliente && f.uf === "PB" && (

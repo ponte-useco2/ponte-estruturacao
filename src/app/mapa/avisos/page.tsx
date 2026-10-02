@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { after } from "next/server";
 import { lerCatalogo } from "@/lib/oportunidades/catalogo.server";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import {
   LIMITE_SEGUIDOS,
   ROTULO_TIPO_ITEM,
@@ -138,12 +139,13 @@ async function MuralItens() {
   const nomeDoItem = (tipo: TipoItem, chave: string, titulo: string | null) =>
     titulo ?? titulos.get(chaveSeguida(tipo, chave)) ?? `${ROTULO_TIPO_ITEM[tipo]} ${chave}`;
 
+  const hoje = diaBrasilia(new Date().toISOString());
   const avisos: AvisoVista[] = leitura.avisos.map((a) => ({
     id: a.id,
     tipoRotulo: tipo(a.tipo, a.chave),
     titulo: nomeDoItem(a.tipo, a.chave, a.titulo),
     url: urlDoItem(a.tipo, a.chave),
-    ...fraseDoAviso(a),
+    ...fraseDoAviso(a, hoje),
     quando: formatarPublicacao(a.criado_em),
     lida_em: a.lida_em,
     arquivada_em: a.arquivada_em,

@@ -106,7 +106,7 @@ test("Patos: nível, posição e referências de cada indicador", () => {
   assert.equal(x("homicidios_taxa")?.nivel, "alto");
   assert.equal(x("ideb_ai_municipal")?.nivel, "em_dia");
   assert.equal(x("contratacao_direta_pct")?.nivel, null);   // referência de outro ano
-  assert.equal(x("esgoto_atendimento_pct")?.texto, "sem dado");
+  assert.equal(x("esgoto_atendimento_pct")?.texto, "sem informação");
   assert.match(x("esgoto_atendimento_pct")?.nota ?? "", /não quer dizer zero/);
   assert.equal(x("ish_urbano")?.texto, "Média");
   assert.equal(x("ish_urbano")?.nivel, null);   // não é chave

@@ -46,6 +46,8 @@ export function pontosAConferir<T extends Pick<ItemLaudo, "estado" | "nivel">>(i
 export function classeEstado(i: Pick<ItemLaudo, "estado" | "nivel">): string {
   if (i.estado === "nao_atendido" && i.nivel) return `mp-laudo-${i.nivel}`;
   if (i.estado === "atendido") return "mp-laudo-atendido";
+  // "não verificável" tem marca própria (?): não é informação, é falta dela.
+  if (i.estado === "nao_verificavel") return "mp-laudo-informativo mp-laudo-semdado";
   return "mp-laudo-informativo";
 }
 

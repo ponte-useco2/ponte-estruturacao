@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   anoPadrao,
+  contarAteHoje,
+  deslocamentoAteHoje,
   anosAssinatura,
   anosEnvio,
   canceladas,
@@ -418,4 +420,14 @@ test("exigências e sinais só contam o que é verdadeiro", () => {
     "saldo",
     "contas_negativas",
   ]);
+});
+
+test("contagem até hoje: prazo diminui, idade aumenta, nulo fica nulo, e o dia do arquivo não conta para trás", () => {
+  const c = { suspensiva_dias: 0, dias_para_fim: 30, dias_apos_limite: 10, dias_com_concedente: null, dias_sem_movimentacao: 5 };
+  assert.deepEqual(contarAteHoje(c, 2), { suspensiva_dias: -2, dias_para_fim: 28, dias_apos_limite: 12, dias_com_concedente: null, dias_sem_movimentacao: 7 });
+  assert.equal(contarAteHoje(c, 0), c);
+  assert.equal(deslocamentoAteHoje("2026-09-30", "2026-10-02"), 2);
+  assert.equal(deslocamentoAteHoje("2026-10-03", "2026-10-02"), 0);
+  // a suspensiva que vencia "hoje" no arquivo de 30/09 aparece vencida há 2 dias em 02/10, como no laudo
+  assert.equal(prazoPorExtenso(contarAteHoje(c, 2).suspensiva_dias), "venceu há 2 dias");
 });

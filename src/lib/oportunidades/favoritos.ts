@@ -99,9 +99,10 @@ export interface FraseAviso {
 
 /**
  * O aviso em palavras. Campo desconhecido (a tabela aceita campo novo antes da tela)
- * vira uma frase genérica com antes e depois, nunca some.
+ * vira uma frase genérica com antes e depois, nunca some. Com `hoje`, o aviso de prazo
+ * de uma janela que já fechou diz que fechou, em vez de repetir a contagem do dia do aviso.
  */
-export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "depois">): FraseAviso {
+export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "depois">, hoje?: string): FraseAviso {
   const { antes, depois } = a;
   switch (a.evento) {
     case "situacao":
@@ -154,6 +155,9 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
       return { rotulo: "A janela abriu de novo", detalhe: depois ? `Fecha em ${formatarData(depois)}.` : "Sem prazo informado pela fonte." };
     case "fechando": {
       const dias = numero(depois);
+      if (hoje && antes && antes < hoje) {
+        return { rotulo: "A janela fechou", detalhe: `O prazo era ${formatarData(antes)}; o aviso foi do dia em que ${dias === 1 ? "faltava 1 dia" : `faltavam ${dias ?? "poucos"} dias`}.` };
+      }
       const quando = dias === 0 ? "Fecha hoje" : dias === 1 ? "Falta 1 dia" : `Faltam ${dias ?? "poucos"} dias`;
       return { rotulo: quando, detalhe: antes ? `O prazo é ${formatarData(antes)}.` : "Prazo curto." };
     }

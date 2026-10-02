@@ -94,3 +94,7 @@ test("CSV do ente: um plano por linha, um item por coluna, identificadores intac
   assert.ok(l1.includes("a conferir · alto"));
   assert.ok(l1.includes('" - Pavimentação"'));           // texto com sinal não vira fórmula
 });
+
+test("não verificável tem marca própria, separada da informação", () => {
+  assert.equal(classeEstado(it("A1b", "nao_verificavel")), "mp-laudo-informativo mp-laudo-semdado");
+});

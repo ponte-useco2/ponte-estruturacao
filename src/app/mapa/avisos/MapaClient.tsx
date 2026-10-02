@@ -45,6 +45,7 @@ import { PreferenciasPainel, type Eixo } from "../PreferenciasPainel";
 import {
   agruparPorPrazo,
   codigosDaChave,
+  diaDe,
   indiceDivisor,
   type ResumoCatalogo,
 } from "@/lib/oportunidades/central";
@@ -310,9 +311,11 @@ function Central({
   }, [agoraIso]);
 
   const visiveis = useMemo(() => {
-    const base = ordenarPorUrgencia(filtrar(itens, aba, tipos));
-    return soCurto ? base.filter((i) => i.fecha <= limiteCurto) : base;
-  }, [itens, aba, tipos, soCurto, limiteCurto]);
+    const hoje = diaDe(new Date(agoraIso));
+    const base = ordenarPorUrgencia(filtrar(itens, aba, tipos), hoje);
+    // "Ver só essas" é o que fecha nesta semana: o que já fechou não entra.
+    return soCurto ? base.filter((i) => i.fecha >= hoje && i.fecha <= limiteCurto) : base;
+  }, [itens, aba, tipos, soCurto, limiteCurto, agoraIso]);
 
   const grupos = useMemo(() => agruparPorPrazo(visiveis, new Date(agoraIso)), [visiveis, agoraIso]);
   const porTipo = useMemo(() => contarPorTipo(itens, aba), [itens, aba]);
@@ -775,7 +778,7 @@ function Central({
                             )}
                           </div>
 
-                          <p className="pa-mapa-descricao">{descrever(i)}</p>
+                          <p className="pa-mapa-descricao">{descrever(i, diaDe(new Date(agoraIso)))}</p>
 
                           {aberto && (
                             <div className="pa-cartao-plano pa-mapa-detalhe">

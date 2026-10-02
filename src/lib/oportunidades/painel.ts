@@ -831,6 +831,34 @@ function plural(n: number, um: string, varios: string): string {
   return `${n} ${Math.abs(n) === 1 ? um : varios}`;
 }
 
+// ============================ CONTAGEM ATÉ HOJE ============================
+
+/** Contagens até um prazo: diminuem com o tempo. */
+const CONTAGENS_PRAZO = ["suspensiva_dias", "dias_para_fim"] as const;
+/** Contagens desde um fato: aumentam com o tempo. */
+const CONTAGENS_IDADE = ["dias_apos_limite", "dias_com_concedente", "dias_sem_movimentacao", "dias_sem_movimento"] as const;
+type Contagens = Partial<Record<(typeof CONTAGENS_PRAZO)[number] | (typeof CONTAGENS_IDADE)[number], number | null>>;
+
+/** Dias do dia que o arquivo do Transferegov retrata até hoje (nunca negativo). */
+export function deslocamentoAteHoje(referencia: string, hoje: string): number {
+  const d = (Date.parse(`${hoje.slice(0, 10)}T00:00:00Z`) - Date.parse(`${referencia.slice(0, 10)}T00:00:00Z`)) / 86_400_000;
+  return Number.isFinite(d) ? Math.max(0, Math.round(d)) : 0;
+}
+
+/**
+ * Leva as contagens de um convênio do dia do arquivo para hoje. O job conta os dias na data que o arquivo do
+ * Transferegov retrata; o laudo e as suspensivas contam até hoje. Com o arquivo de dois dias atrás, a mesma
+ * suspensiva aparecia "vence hoje" no painel e "venceu há 2 dias" no laudo (revisão de 02/10/2026). A tela usa
+ * sempre a contagem até hoje e diz de que dia é o dado; o CSV mantém a contagem do arquivo, com o título dizendo isso.
+ */
+export function contarAteHoje<T extends Contagens>(c: T, deslocamento: number): T {
+  if (!deslocamento) return c;
+  const r: Contagens = { ...c };
+  for (const k of CONTAGENS_PRAZO) if (typeof c[k] === "number") r[k] = (c[k] as number) - deslocamento;
+  for (const k of CONTAGENS_IDADE) if (typeof c[k] === "number") r[k] = (c[k] as number) + deslocamento;
+  return r as T;
+}
+
 /** "vence hoje", "vence em 12 dias", "venceu há 3 dias". */
 export function prazoPorExtenso(dias: number | null | undefined, verbo: { futuro: string; passado: string } = {
   futuro: "vence",
