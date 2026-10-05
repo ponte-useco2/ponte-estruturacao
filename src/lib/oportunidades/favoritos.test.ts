@@ -28,12 +28,27 @@ test("chave: as mesmas regras da tabela", () => {
   assert.ok(!chaveValida("janela", "x/../y"));
   assert.ok(!chaveValida("programa", "123"));
   assert.ok(!chaveValida("janela", 123));
+  assert.ok(chaveValida("municipio", "2510808"), "município é o IBGE de 7 dígitos");
+  assert.ok(!chaveValida("municipio", "251080"));
+  assert.ok(!chaveValida("municipio", "25108O8"));
 });
 
 test("url do item: convênio e proposta têm página; janela é âncora no catálogo", () => {
   assert.equal(urlDoItem("instrumento", "7AAAAA"), "/mapa/instrumento/7AAAAA");
   assert.equal(urlDoItem("proposta", "2241841"), "/mapa/proposta/2241841");
   assert.equal(urlDoItem("janela", "cnpq-24-2026"), "/mapa#janela-cnpq-24-2026");
+  assert.equal(urlDoItem("municipio", "2510808"), "/mapa/municipio/2510808/investimentos", "o relatório é só do administrador");
+  assert.equal(urlDoItem("municipio", "2510808", { admin: true }), "/mapa/municipio/2510808/relatorio");
+});
+
+test("frases do município: contagens, decisão fiscal, CAUC e pessoal em português", () => {
+  const f = (evento: string, antes: string | null, depois: string | null) => fraseDoAviso({ tipo: "municipio", evento, antes, depois });
+  assert.deepEqual(f("contas_atrasadas", "1", "2"), { rotulo: "Prestações de contas atrasadas", detalhe: "1 → 2" });
+  assert.deepEqual(f("tce_tcu", null, "2"), { rotulo: "Tomadas de Contas Especiais no TCU", detalhe: "0 → 2" });
+  assert.deepEqual(f("fiscal_b", "nao_atendido", "atencao"), { rotulo: "Painel fiscal: receber transferência voluntária", detalhe: "não atendido → atenção" });
+  assert.deepEqual(f("fiscal_a", "atendido", null), { rotulo: "Painel fiscal: declarações fiscais em dia", detalhe: "atendido → sem dado" });
+  assert.deepEqual(f("cauc", "", "1.5, 3.2.3"), { rotulo: "Pendências no CAUC", detalhe: "nenhuma → 1.5, 3.2.3" });
+  assert.deepEqual(f("pessoal_pct", "53.9", "54.54"), { rotulo: "Despesa com pessoal (% da RCL ajustada)", detalhe: "53,90% → 54,54%" });
 });
 
 test("janelas abertas para a geração: só as abertas no dia, com prazo sem hora", () => {

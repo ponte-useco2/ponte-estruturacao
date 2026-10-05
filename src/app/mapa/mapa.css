@@ -859,3 +859,35 @@
   .pa-root .mp-rel-indicadores .mp-rel-num { white-space: normal; }
   .pa-root .mp-rel-indicadores tr { break-inside: avoid; }
 }
+
+/* Carteira (02/10/2026) */
+.pa-root .mp-cart-cabeca { margin: 0 0 0.4rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem; }
+.pa-root .mp-cart-cabeca a { font-weight: 600; }
+.pa-root .mp-cart-mudo { color: var(--pa-muted); font-size: 0.82rem; }
+.pa-root .mp-cart-mudancas, .pa-root .mp-cart-recs { margin: 0.3rem 0 0; padding-left: 0; list-style: none; display: grid; gap: 0.35rem; }
+.pa-root .mp-cart-fato { color: var(--pa-muted); }
+.pa-root .mp-cart-proxima { margin: 0.5rem 0 0; padding-top: 0.45rem; border-top: 1px dashed var(--pa-border); }
+.pa-root .mp-cart-marcar { display: inline-flex; gap: 0.5rem; align-items: center; }
+.pa-root .mp-cart-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.75rem; }
+.pa-root .mp-cart-cartao { min-width: 0; }
+.pa-root .mp-cart-numeros { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.3rem 0 0.5rem; }
+.pa-root .mp-cart-numero { display: inline-flex; flex-direction: column; border: 1px solid var(--pa-border); border-left-width: 3px; border-radius: 6px; padding: 0.2rem 0.55rem; min-width: 0; }
+.pa-root .mp-cart-numero .pa-mono { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pa-muted); }
+.pa-root .mp-cart-numero b { font-size: 0.95rem; overflow-wrap: anywhere; }
+.pa-root .mp-cart-numero.mp-cart-alto { border-left-color: #b08a3e; }
+.pa-root .mp-cart-numero.mp-cart-moderado { border-left-color: #2d5580; }
+.pa-root .mp-cart-lista { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
+.pa-root .mp-cart-passos { list-style: disc; }
+.pa-root .mp-cart :is(.mp-cart-passos, .mp-cart-lista, .mp-cart-mudo) a { text-decoration: underline; text-underline-offset: 2px; }
+/* No celular, cada convênio vira um bloco: quatro colunas não cabem em 375 px sem espremer a próxima ação. */
+@media (max-width: 640px) {
+  .pa-root .mp-cart-tabela thead { display: none; }
+  .pa-root .mp-cart-tabela, .pa-root .mp-cart-tabela tbody, .pa-root .mp-cart-tabela tr, .pa-root .mp-cart-tabela td { display: block; width: 100%; }
+  .pa-root .mp-cart-tabela tr { border-bottom: 1px solid var(--pa-border); padding: 0.5rem 0; }
+  .pa-root .mp-cart-tabela td { border: 0; padding: 0.2rem 0.75rem; text-align: left; }
+  .pa-root .mp-cart-tabela td[data-rotulo]::before { content: attr(data-rotulo); display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pa-muted); }
+  .pa-root .mp-cart-tabela td.mp-num[data-rotulo]::before { display: inline; margin-right: 0.4rem; }
+}
+@media print {
+  .pa-root .mp-cart .pa-cartao { break-inside: avoid; }
+}

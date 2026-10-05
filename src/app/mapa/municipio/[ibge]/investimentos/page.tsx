@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { lerInvestimentos } from "@/lib/oportunidades/busca.server";
+import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { ufDoIbge } from "@/lib/oportunidades/painel";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
@@ -26,5 +28,6 @@ export default async function InvestimentosPage({ params }: { params: Promise<{ 
   if (!uf) notFound();
   const leitura = await lerInvestimentos(ibge);
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Investimentos federais" titulo="Os investimentos estão indisponíveis agora" />;
-  return <InvestimentosConteudo ibge={ibge} uf={uf} leitura={leitura} />;
+  const seguidas = await lerSeguidas();
+  return <InvestimentosConteudo ibge={ibge} uf={uf} leitura={leitura} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} />;
 }

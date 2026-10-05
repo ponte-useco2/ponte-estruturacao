@@ -3,6 +3,7 @@
  * transferências especiais e de fundo a fundo do ente. Recebe os dados já lidos.
  */
 import Link from "next/link";
+import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
 import {
   ROTULO_GRUPO_INVESTIMENTO,
   ROTULO_TIPO_INVESTIMENTO,
@@ -24,7 +25,7 @@ type LeituraOk = Extract<LeituraInvestimentos, { estado: "ok" }>;
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 
-export function InvestimentosConteudo({ ibge, uf, leitura }: { ibge: string; uf: string; leitura: LeituraOk }) {
+export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: string; uf: string; leitura: LeituraOk; seguindo?: boolean }) {
   const nome = leitura.municipio ?? `IBGE ${ibge}`;
   const tipos = linhasDe(leitura.linhas, "tipo");
   const temas = linhasDe(leitura.linhas, "tema");
@@ -41,6 +42,11 @@ export function InvestimentosConteudo({ ibge, uf, leitura }: { ibge: string; uf:
         <h1 className="pa-titulo">
           {nome}/{uf}
         </h1>
+        {seguindo !== undefined && (
+          <p className="mp-nao-imprimir">
+            <EstrelaSeguir tipo="municipio" chave={ibge} nome={`o município ${nome}`} seguindo={seguindo} />
+          </p>
+        )}
         <p className="pa-sub">
           {completo
             ? "Todos os convênios e contratos de repasse de proponentes do município desde 2008, e os planos de transferências especiais e de fundo a fundo da prefeitura."

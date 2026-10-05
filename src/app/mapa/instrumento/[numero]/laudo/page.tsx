@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { numeroValido } from "@/lib/oportunidades/busca";
 import { EXPLICACAO_SEM_FICHA, podeVerInstrumento } from "@/lib/oportunidades/cliente";
 import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
@@ -10,6 +11,7 @@ import { lerEntradaDiagnostico, type OpcoesLeitura } from "@/lib/oportunidades/d
 import { diaBrasilia, dossieSemNomes, lerAcessoLivre, lerLaudo } from "@/lib/oportunidades/laudo";
 import { lerLaudoInstrumento } from "@/lib/oportunidades/laudo.server";
 import { tempoNoOrgao } from "@/lib/oportunidades/padroes";
+import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
 import { DiagnosticoComplemento, DiagnosticoConteudo, FontesDiagnostico } from "./DiagnosticoConteudo";
@@ -54,6 +56,7 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
     opcoes = { semFornecedores: true, semFiscal: true, podeVer: (i) => podeVerInstrumento(acesso, i).ok };
   }
   const cliente = !admin;
+  after(() => registrarUso("mapa_laudo_instrumento", { numero, cliente }));
 
   const hoje = diaBrasilia(new Date().toISOString());
   // Administrador: dossiê em paralelo com o resto. Cliente: só depois de o instrumento passar pela conferência.

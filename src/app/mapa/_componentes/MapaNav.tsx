@@ -22,6 +22,8 @@ const ABAS: readonly Aba[] = [
   // abas apareceriam ativas ao mesmo tempo.
   { href: "/mapa", nome: "Janelas", exata: true, admin: false, municipio: false },
   { href: "/mapa/avisos", nome: "Avisos", exata: false, admin: false, municipio: false },
+  // A carteira (02/10/2026): os municípios e itens seguidos, o que mudou e a próxima ação.
+  { href: "/mapa/carteira", nome: "Carteira", exata: false, admin: false, municipio: false },
   // As páginas abertas a partir da busca não têm aba própria: acendem a da busca.
   {
     href: "/mapa/busca",

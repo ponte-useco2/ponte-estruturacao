@@ -5,6 +5,7 @@ import { clienteSessao, visitanteAtual } from "@/lib/supabase-auth";
 import { lerCatalogo, lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server";
 import { hojeLocal } from "@/lib/oportunidades/contrato-v2";
 import { LIMITE_SEGUIDOS, chaveValida, retratoDaJanela } from "@/lib/oportunidades/favoritos";
+import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { ehTemaConhecido } from "@/lib/oportunidades/temas";
 
 /**
@@ -130,11 +131,14 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
     if (error.code === "23514") {
       return { ok: false, erro: `Você já segue ${LIMITE_SEGUIDOS} itens. Deixe de seguir algum para seguir este.` };
     }
-    if (error.code === "23503") return { ok: false, erro: "Este item não está mais na busca." };
+    if (error.code === "23503") {
+      return { ok: false, erro: tipo === "municipio" ? "Este município não está nas fontes do painel." : "Este item não está mais na busca." };
+    }
     console.error("seguir:", error.message);
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
+  await registrarUso("mapa_seguir", { tipo: tipo as string, chave: alvo });
   revalidatePath(ROTA, "layout");
   return { ok: true };
 }
@@ -157,6 +161,7 @@ export async function deixarDeSeguir(tipo: unknown, chave: unknown): Promise<Res
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
+  await registrarUso("mapa_deixar_de_seguir", { tipo: tipo as string, chave: chave as string });
   revalidatePath(ROTA, "layout");
   return { ok: true };
 }

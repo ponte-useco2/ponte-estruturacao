@@ -11,9 +11,9 @@ import { ehAberta, type PayloadV2 } from "./contrato-v2.ts";
 import { ROTULO_DESFECHO, percentual } from "./painel.ts";
 import { moedaCurta } from "./radar.ts";
 
-export type TipoItem = "janela" | "instrumento" | "proposta";
+export type TipoItem = "janela" | "instrumento" | "proposta" | "municipio";
 
-export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta"];
+export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta", "municipio"];
 
 /** O mesmo teto da oport_15 (`oport_favorito_limite`). */
 export const LIMITE_SEGUIDOS = 300;
@@ -24,6 +24,7 @@ export function chaveValida(tipo: unknown, chave: unknown): tipo is TipoItem {
   if (tipo === "janela") return /^[A-Za-z0-9._-]{1,160}$/.test(chave);
   if (tipo === "instrumento") return /^[0-9A-Za-z]{1,20}$/.test(chave);
   if (tipo === "proposta") return /^[0-9]{1,12}$/.test(chave);
+  if (tipo === "municipio") return /^[0-9]{7}$/.test(chave);
   return false;
 }
 
@@ -33,12 +34,18 @@ export const ROTULO_TIPO_ITEM: Record<TipoItem, string> = {
   janela: "Janela",
   instrumento: "Convênio",
   proposta: "Proposta",
+  municipio: "Município",
 };
 
 /** Para onde o item leva. A janela não tem página própria: o cartão no catálogo tem âncora. */
-export function urlDoItem(tipo: TipoItem, chave: string): string {
+/**
+ * Onde o item abre. O município abre o relatório crítico para quem é administrador (decisão de 01/10/2026:
+ * relatório só de administrador) e os investimentos federais para os demais aprovados.
+ */
+export function urlDoItem(tipo: TipoItem, chave: string, opcoes: { admin?: boolean } = {}): string {
   if (tipo === "instrumento") return `/mapa/instrumento/${encodeURIComponent(chave)}`;
   if (tipo === "proposta") return `/mapa/proposta/${encodeURIComponent(chave)}`;
+  if (tipo === "municipio") return `/mapa/municipio/${encodeURIComponent(chave)}/${opcoes.admin ? "relatorio" : "investimentos"}`;
   return `/mapa#janela-${chave}`;
 }
 
@@ -97,6 +104,29 @@ export interface FraseAviso {
   detalhe: string;
 }
 
+/** As três decisões do painel fiscal, como o relatório do município as nomeia. */
+const DECISAO_FISCAL: Record<string, string> = {
+  fiscal_a: "declarações fiscais em dia",
+  fiscal_b: "receber transferência voluntária",
+  fiscal_c: "contratar operação de crédito",
+};
+
+const ROTULO_ESTADO_FISCAL: Record<string, string> = {
+  atendido: "atendido",
+  nao_atendido: "não atendido",
+  atencao: "atenção",
+  nao_verificavel: "não verificável",
+  desatualizado: "desatualizado",
+};
+
+function contagem(antes: string | null, depois: string | null): string {
+  return `${antes ?? "0"} → ${depois ?? "0"}`;
+}
+
+function pct(v: number | null): string {
+  return v === null ? "sem dado" : `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
 /**
  * O aviso em palavras. Campo desconhecido (a tabela aceita campo novo antes da tela)
  * vira uma frase genérica com antes e depois, nunca some. Com `hoje`, o aviso de prazo
@@ -142,6 +172,31 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
       return depois
         ? { rotulo: "A proposta virou convênio", detalhe: `convênio nº ${depois}` }
         : { rotulo: "O convênio saiu do registro da proposta", detalhe: `era o nº ${antes ?? "—"}` };
+    case "em_execucao":
+      return { rotulo: "Convênios em execução", detalhe: contagem(antes, depois) };
+    case "em_suspensiva":
+      return { rotulo: "Convênios em cláusula suspensiva", detalhe: contagem(antes, depois) };
+    case "contas_atrasadas":
+      return { rotulo: "Prestações de contas atrasadas", detalhe: contagem(antes, depois) };
+    case "contas_rejeitadas":
+      return { rotulo: "Contas rejeitadas ou inadimplência", detalhe: contagem(antes, depois) };
+    case "saldo_parado":
+      return { rotulo: "Convênios com saldo parado em conta", detalhe: contagem(antes, depois) };
+    case "sem_desembolso":
+      return { rotulo: "Convênios assinados sem desembolso", detalhe: contagem(antes, depois) };
+    case "tce_tcu":
+      return { rotulo: "Tomadas de Contas Especiais no TCU", detalhe: contagem(antes, depois) };
+    case "fiscal_a":
+    case "fiscal_b":
+    case "fiscal_c":
+      return {
+        rotulo: `Painel fiscal: ${DECISAO_FISCAL[a.evento]}`,
+        detalhe: `${ROTULO_ESTADO_FISCAL[antes ?? ""] ?? antes ?? "sem dado"} → ${ROTULO_ESTADO_FISCAL[depois ?? ""] ?? depois ?? "sem dado"}`,
+      };
+    case "cauc":
+      return { rotulo: "Pendências no CAUC", detalhe: `${antes || "nenhuma"} → ${depois || "nenhuma"}` };
+    case "pessoal_pct":
+      return { rotulo: "Despesa com pessoal (% da RCL ajustada)", detalhe: `${pct(numero(antes))} → ${pct(numero(depois))}` };
     case "fora_do_recorte":
       return {
         rotulo: "Saiu da busca",

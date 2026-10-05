@@ -19,6 +19,7 @@ import {
   type NivelAchado,
   type Relatorio,
 } from "@/lib/oportunidades/relatorio-municipio";
+import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { GraficoPessoal } from "./GraficoPessoal";
 
@@ -226,7 +227,7 @@ function Sub({ titulo, children }: { titulo: string; children: ReactNode }) {
   );
 }
 
-export function RelatorioConteudo({ r }: { r: Relatorio }) {
+export function RelatorioConteudo({ r, seguindo }: { r: Relatorio; seguindo?: boolean }) {
   const f = r.fiscal;
   const c = r.convenios;
   const ct = r.controle;
@@ -245,6 +246,7 @@ export function RelatorioConteudo({ r }: { r: Relatorio }) {
           Captação federal, contas, capacidade fiscal{ind ? ", social, economia, território e governança" : ""} · posição de {data(r.hoje)}
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
+          {seguindo !== undefined && <EstrelaSeguir tipo="municipio" chave={r.ibge} nome={`o município ${r.nome}`} seguindo={seguindo} />}
           <BotaoImprimir />
           <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">
             Achados em CSV
