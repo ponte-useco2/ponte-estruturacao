@@ -39,13 +39,13 @@ export const ROTULO_TIPO_ITEM: Record<TipoItem, string> = {
 
 /** Para onde o item leva. A janela não tem página própria: o cartão no catálogo tem âncora. */
 /**
- * Onde o item abre. O município abre o relatório crítico para quem é administrador (decisão de 01/10/2026:
- * relatório só de administrador) e os investimentos federais para os demais aprovados.
+ * Onde o item abre. O município abre a página com abas para todo aprovado (F1, 06/10/2026): o que cada um vê
+ * lá dentro depende do nível de acesso, e o relatório completo é uma das abas.
  */
-export function urlDoItem(tipo: TipoItem, chave: string, opcoes: { admin?: boolean } = {}): string {
+export function urlDoItem(tipo: TipoItem, chave: string): string {
   if (tipo === "instrumento") return `/mapa/instrumento/${encodeURIComponent(chave)}`;
   if (tipo === "proposta") return `/mapa/proposta/${encodeURIComponent(chave)}`;
-  if (tipo === "municipio") return `/mapa/municipio/${encodeURIComponent(chave)}/${opcoes.admin ? "relatorio" : "investimentos"}`;
+  if (tipo === "municipio") return `/mapa/municipio/${encodeURIComponent(chave)}`;
   return `/mapa#janela-${chave}`;
 }
 

@@ -4,7 +4,7 @@ import { montarCarteira } from "@/lib/oportunidades/carteira";
 import { lerCarteira } from "@/lib/oportunidades/carteira.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
-import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
+import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../busca/BuscaConteudo";
 import { CarteiraConteudo } from "./CarteiraConteudo";
 
@@ -20,7 +20,7 @@ export default async function CarteiraPage() {
   const leitura = await lerCarteira();
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Carteira" titulo="A carteira está indisponível agora" />;
   const hoje = diaBrasilia(new Date().toISOString());
-  const carteira = montarCarteira({ seguidos: leitura.seguidos, avisos: leitura.avisos, admin: ehAdministrador(visitante.email) }, hoje);
-  after(() => registrarUso("mapa_carteira", { itens: carteira.itens.length, nao_lidas: carteira.naoLidas }));
+  const carteira = montarCarteira({ seguidos: leitura.seguidos, avisos: leitura.avisos }, hoje);
+  after(() => registrarUso(visitante, "mapa_carteira", { itens: carteira.itens.length, nao_lidas: carteira.naoLidas }));
   return <CarteiraConteudo c={carteira} hoje={hoje} truncada={leitura.truncada} />;
 }

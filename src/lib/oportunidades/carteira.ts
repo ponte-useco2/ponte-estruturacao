@@ -314,7 +314,7 @@ function numerosDoInstrumento(e: Record<string, unknown>, hoje: string): ItemCar
 // ================================================================ montagem
 
 export function montarCarteira(
-  entrada: { seguidos: SeguidoCarteira[]; avisos: AvisoItem[]; admin: boolean },
+  entrada: { seguidos: SeguidoCarteira[]; avisos: AvisoItem[] },
   hoje: string,
 ): Carteira {
   const avisosPorItem = new Map<string, AvisoItem[]>();
@@ -342,7 +342,7 @@ export function montarCarteira(
       tipo: s.tipo,
       chave: s.chave,
       titulo: s.titulo ?? `${s.tipo === "municipio" ? "Município" : s.tipo === "instrumento" ? "Convênio" : s.tipo === "proposta" ? "Proposta" : "Janela"} ${s.chave}`,
-      url: urlDoItem(s.tipo, s.chave, { admin: entrada.admin }),
+      url: urlDoItem(s.tipo, s.chave),
       ausente: e.ausente === true,
       dadoDe,
       numeros,

@@ -46,7 +46,7 @@
 .mp-root .pa-tag-aderente { border-color: var(--mp-borda-soft); }
 .mp-root :is(.pa-chip, .pa-tracejado, .pa-ressalva) { border-color: var(--mp-tracejado); }
 .mp-root .pa-chip:is([aria-pressed="true"], .pa-ativo) { border-color: var(--pa-brand); }
-.mp-root .pa-chip[aria-pressed="true"] .pa-mono { color: var(--mp-sobre-marca); }
+.mp-root .pa-chip[aria-pressed="true"] :is(.pa-mono, .pa-chip-contagem) { color: var(--mp-sobre-marca); opacity: 1; }
 .mp-root .pa-escuro { color: #e6eff2; }
 .mp-root .pa-escuro :is(p, .pa-mono) { color: #9db8c2; }
 
@@ -301,7 +301,11 @@
 .pa-root .mp-org-botao:hover { background: var(--pa-surface-2); }
 .pa-root .mp-org-botao[aria-current="true"] { background: var(--pa-brand); color: #fff; }
 .pa-root .mp-org-botao[aria-current="true"] .mp-org-tipo { color: var(--mp-sobre-marca); }
-.pa-root .mp-org-tipo { font-family: var(--pa-mono); font-size: 0.66rem; color: var(--pa-brand-2); flex: none; }
+/* Nome e tipo quebram linha dentro dos 278px do menu: "Organização da sociedade civil" ao lado de um nome
+   longo saía pela borda e criava rolagem lateral na página (teste de 06/10/2026). */
+.pa-root .mp-org-botao { flex-wrap: wrap; row-gap: 0.1rem; }
+.pa-root .mp-org-botao > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.pa-root .mp-org-tipo { font-family: var(--pa-mono); font-size: 0.66rem; color: var(--pa-brand-2); flex: 0 1 auto; min-width: 0; margin-left: auto; overflow-wrap: anywhere; }
 
 /* Convite discreto para declarar a entidade. Não é alerta: nada está errado. */
 .pa-root .mp-convite { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; }

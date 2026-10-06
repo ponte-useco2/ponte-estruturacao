@@ -44,7 +44,7 @@ export default async function MunicipioPage({
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Município" titulo="A página do município está indisponível agora" />;
   const aba = abaEscolhida(sp.aba, nivel);
   const seguidas = await lerSeguidas();
-  after(() => registrarUso("mapa_municipio", { ibge, aba, nivel }));
+  after(() => registrarUso(visitante, "mapa_municipio", { ibge, aba, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
   return <MunicipioConteudo r={r} aba={aba} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} />;
 }

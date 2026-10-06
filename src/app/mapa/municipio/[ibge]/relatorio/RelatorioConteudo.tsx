@@ -37,6 +37,11 @@ const AVISO =
   "irregularidade; não substitui certidão, parecer do concedente, decisão do Tribunal de Contas nem orientação jurídica.";
 
 /** Para onde vai o número de um convênio. */
+/**
+ * Para onde vai cada número de convênio. Os links de convênio saem com `prefetch={false}` (teste de 06/10/2026):
+ * a página de Patos tem 30 ou mais deles, e a pré-carga de cada um renderizava um laudo inteiro no servidor ao
+ * mesmo tempo; parte voltava com 503 e o clique às vezes não levava a lugar nenhum.
+ */
 export type Destino = (nr: string) => string;
 
 const n = (x: number) => x.toLocaleString("pt-BR");
@@ -83,7 +88,7 @@ export function ListaAchados({ achados, destino }: { achados: Achado[]; destino:
               {a.numeros.map((nr, k) => (
                 <span key={nr}>
                   {k > 0 && " · "}
-                  <Link href={destino(nr)}>{nr}</Link>
+                  <Link href={destino(nr)} prefetch={false}>{nr}</Link>
                 </span>
               ))}
             </p>
@@ -113,7 +118,7 @@ function TabelaConvenios({ linhas, destino, nota = "Situação" }: { linhas: Lin
           {linhas.map((l) => (
             <tr key={l.nr_convenio}>
               <td>
-                <Link href={destino(l.nr_convenio)}>{l.nr_convenio}</Link>
+                <Link href={destino(l.nr_convenio)} prefetch={false}>{l.nr_convenio}</Link>
               </td>
               <td>{l.orgao ? tituloOrgao(l.orgao) : "—"}</td>
               <td>{l.objeto ?? "—"}</td>
@@ -442,7 +447,7 @@ export function BlocoControle({ r, destino }: { r: Relatorio; destino: Destino }
               {ct.tces.map((t) => (
                 <tr key={`${t.nr_convenio}-${t.numero_processo}`}>
                   <td>
-                    <Link href={destino(t.nr_convenio)}>{t.nr_convenio}</Link>
+                    <Link href={destino(t.nr_convenio)} prefetch={false}>{t.nr_convenio}</Link>
                   </td>
                   <td>{t.numero_processo ?? "—"}</td>
                   <td>{t.situacao ?? "—"}</td>

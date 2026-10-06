@@ -21,7 +21,7 @@ import {
 } from "@/lib/oportunidades/notificacoes.server";
 import { opcoesDePreferencia } from "@/lib/oportunidades/opcoes";
 import { sincronizarCentral } from "@/lib/oportunidades/sincronizar.server";
-import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
+import { visitanteAtual } from "@/lib/supabase-auth";
 import { MapaClient } from "./MapaClient";
 import { MeusItensClient, type AvisoVista, type SeguidoVista } from "./MeusItensClient";
 import { MuralAbas, muralDe } from "./MuralAbas";
@@ -51,7 +51,7 @@ export default async function MapaDeOportunidadesPage({
 
   // Onda 7: o mural tem três partes. O catálogo continua sendo a de entrada.
   const mural = muralDe((await searchParams).mural);
-  if (mural === "itens") return <MuralItens admin={ehAdministrador(visitante.email)} />;
+  if (mural === "itens") return <MuralItens />;
   if (mural === "normas") return <MuralNormas />;
 
   // `registrarVisita` devolve a marca ANTERIOR e só então carimba a de agora: é a
@@ -118,7 +118,7 @@ export default async function MapaDeOportunidadesPage({
 }
 
 /** Os avisos dos itens seguidos, com as frases montadas aqui no servidor. */
-async function MuralItens({ admin }: { admin: boolean }) {
+async function MuralItens() {
   const [leitura, naoLidasCatalogo] = await Promise.all([lerItensSeguidos(), contarNaoLidas()]);
   if (leitura.estado !== "ok") {
     return (
@@ -144,7 +144,7 @@ async function MuralItens({ admin }: { admin: boolean }) {
     id: a.id,
     tipoRotulo: tipo(a.tipo, a.chave),
     titulo: nomeDoItem(a.tipo, a.chave, a.titulo),
-    url: urlDoItem(a.tipo, a.chave, { admin }),
+    url: urlDoItem(a.tipo, a.chave),
     ...fraseDoAviso(a, hoje),
     quando: formatarPublicacao(a.criado_em),
     lida_em: a.lida_em,
@@ -155,7 +155,7 @@ async function MuralItens({ admin }: { admin: boolean }) {
     chave: s.chave,
     tipoRotulo: tipo(s.tipo, s.chave),
     titulo: nomeDoItem(s.tipo, s.chave, s.titulo),
-    url: urlDoItem(s.tipo, s.chave, { admin }),
+    url: urlDoItem(s.tipo, s.chave),
     ausente: s.ausente,
   }));
   const naoLidasItens = avisos.filter((a) => !a.lida_em && !a.arquivada_em).length;

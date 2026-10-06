@@ -5,8 +5,12 @@
  * Mesma tabela e mesma regra do registro do painel antigo (`app/oportunidades/eventos.ts`): quem (id e e-mail),
  * o quê (tipo), detalhe mínimo e quando. Endereço IP e aparelho NÃO são gravados. Só para quem está aprovado.
  * Falha de registro nunca derruba a página: vai para o log do servidor e a navegação segue.
+ *
+ * Quem visita entra como parâmetro, lido ANTES do `after()`: numa página (Server Component) o Next 16 não
+ * deixa ler cookies dentro do `after`, e a leitura antiga (`visitanteAtual()` lá dentro) falhava em silêncio.
+ * De 02 a 06/10/2026 nenhuma visita foi gravada por isso; só seguir e deixar de seguir, que são ações.
  */
-import { clienteServidor, visitanteAtual } from "@/lib/supabase-auth";
+import { clienteServidor, type Visitante } from "@/lib/supabase-auth";
 
 export type UsoMapa =
   | "mapa_carteira"
@@ -29,11 +33,14 @@ export function detalheLimpo(detalhe: Record<string, unknown>): Record<string, s
   return limpo;
 }
 
-export async function registrarUso(tipo: UsoMapa, detalhe: Record<string, unknown> = {}): Promise<void> {
+export async function registrarUso(
+  visitante: Pick<Visitante, "id" | "email" | "status"> | null,
+  tipo: UsoMapa,
+  detalhe: Record<string, unknown> = {},
+): Promise<void> {
   if (!TIPOS.includes(tipo)) return;
+  if (!visitante || visitante.status !== "aprovado") return;
   try {
-    const visitante = await visitanteAtual();
-    if (!visitante || visitante.status !== "aprovado") return;
     const { error } = await clienteServidor().from("oport_evento").insert({
       user_id: visitante.id,
       email: visitante.email,

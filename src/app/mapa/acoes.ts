@@ -138,7 +138,7 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
-  await registrarUso("mapa_seguir", { tipo: tipo as string, chave: alvo });
+  await registrarUso(visitante, "mapa_seguir", { tipo: tipo as string, chave: alvo });
   revalidatePath(ROTA, "layout");
   return { ok: true };
 }
@@ -161,7 +161,7 @@ export async function deixarDeSeguir(tipo: unknown, chave: unknown): Promise<Res
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 
-  await registrarUso("mapa_deixar_de_seguir", { tipo: tipo as string, chave: chave as string });
+  await registrarUso(visitante, "mapa_deixar_de_seguir", { tipo: tipo as string, chave: chave as string });
   revalidatePath(ROTA, "layout");
   return { ok: true };
 }

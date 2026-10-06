@@ -33,7 +33,7 @@ export default async function RelatorioMunicipioPage({ params }: { params: Promi
   if (leitura.estado === "nao_encontrado") notFound();
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Relatório do município" titulo="O relatório está indisponível agora" />;
   const seguidas = await lerSeguidas();
-  after(() => registrarUso("mapa_relatorio_municipio", { ibge, nivel }));
+  after(() => registrarUso(visitante, "mapa_relatorio_municipio", { ibge, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
   return <RelatorioConteudo r={r} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} />;
 }

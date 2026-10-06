@@ -56,7 +56,7 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
     opcoes = { semFornecedores: true, semFiscal: true, podeVer: (i) => podeVerInstrumento(acesso, i).ok };
   }
   const cliente = !admin;
-  after(() => registrarUso("mapa_laudo_instrumento", { numero, cliente }));
+  after(() => registrarUso(visitante, "mapa_laudo_instrumento", { numero, cliente }));
 
   const hoje = diaBrasilia(new Date().toISOString());
   // Administrador: dossiê em paralelo com o resto. Cliente: só depois de o instrumento passar pela conferência.

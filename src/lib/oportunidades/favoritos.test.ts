@@ -37,8 +37,7 @@ test("url do item: convênio e proposta têm página; janela é âncora no catá
   assert.equal(urlDoItem("instrumento", "7AAAAA"), "/mapa/instrumento/7AAAAA");
   assert.equal(urlDoItem("proposta", "2241841"), "/mapa/proposta/2241841");
   assert.equal(urlDoItem("janela", "cnpq-24-2026"), "/mapa#janela-cnpq-24-2026");
-  assert.equal(urlDoItem("municipio", "2510808"), "/mapa/municipio/2510808/investimentos", "o relatório é só do administrador");
-  assert.equal(urlDoItem("municipio", "2510808", { admin: true }), "/mapa/municipio/2510808/relatorio");
+  assert.equal(urlDoItem("municipio", "2510808"), "/mapa/municipio/2510808", "a página com abas, para todo aprovado");
 });
 
 test("frases do município: contagens, decisão fiscal, CAUC e pessoal em português", () => {

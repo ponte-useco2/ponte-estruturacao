@@ -88,13 +88,12 @@ test("carteira: agrupa por item, põe o pior primeiro, ignora arquivado e abre o
     aviso({ id: "d", tipo: "instrumento", chave: "942082", evento: "dt_limite_contas", antes: null, depois: "2026-11-29" }),
     aviso({ id: "e", evento: "tce_tcu", antes: "1", depois: "2", arquivada_em: "2026-10-02T11:00:00Z" }),
   ];
-  const k = montarCarteira({ seguidos, avisos, admin: false }, HOJE);
+  const k = montarCarteira({ seguidos, avisos }, HOJE);
   assert.equal(k.naoLidas, 3);
   assert.deepEqual(k.comMudanca.map((i) => [i.chave, i.pior]), [["2510808", "alto"], ["942082", "moderado"]]);
   const patos = k.porTipo.municipio[0];
   assert.deepEqual(patos.mudancas.map((m) => m.id), ["b", "a"]);
-  assert.equal(patos.url, "/mapa/municipio/2510808/investimentos");
-  assert.equal(montarCarteira({ seguidos, avisos, admin: true }, HOJE).porTipo.municipio[0].url, "/mapa/municipio/2510808/relatorio");
+  assert.equal(patos.url, "/mapa/municipio/2510808");
   assert.equal(patos.recomendacoes.length, 3, "a carteira mostra três");
   assert.equal(patos.restantes, 3, "e diz quantos pontos ficaram na página do município");
   assert.deepEqual(patos.numeros.map((n) => `${n.rotulo}=${n.valor}`), ["Transferência voluntária=bloqueada", "CAUC=1.5, 3.2.3, 4.2", "Em execução=13", "TCE no TCU=2"]);
@@ -103,7 +102,7 @@ test("carteira: agrupa por item, põe o pior primeiro, ignora arquivado e abre o
   assert.deepEqual(conv.mudancas.map((m) => [m.id, m.lida]), [["d", false], ["c", true]]);
   assert.equal(conv.numeros.find((n) => n.rotulo === "Físico")?.valor, "50%");
   assert.equal(k.porTipo.janela[0].recomendacoes[0].acao, "Decidir se vale preparar a proposta até 01/12/2026");
-  assert.equal(montarCarteira({ seguidos: [], avisos: [], admin: false }, HOJE).vazia, true);
+  assert.equal(montarCarteira({ seguidos: [], avisos: [] }, HOJE).vazia, true);
 });
 
 test("data da referência do retrato", () => {
