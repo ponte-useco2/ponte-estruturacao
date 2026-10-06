@@ -8,6 +8,11 @@
  * Volume (Patos, 01/10/2026): ~110 instrumentos e ~100 propostas desde 2008 — uma página de mil linhas.
  * Os cruzamentos por convênio (emendas, TCU, Acesso Livre) vão em lotes de números. Os indicadores da
  * camada 2 são ~45 linhas do município e ~200 referências da PB e do Brasil.
+ *
+ * Memória de 10 minutos (06/10/2026): a página do município relia tudo a cada troca de aba (~3 s). O
+ * relatório montado fica guardado por município e dia na memória da instância do servidor (`memoria.ts`); o
+ * que cada visitante vê (sem nomes, nível de acesso) é aplicado DEPOIS, na página, sobre uma cópia. Erro e
+ * fonte fora do ar não ficam guardados. As fontes mudam uma vez por dia, então 10 minutos não escondem nada.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { montarCatalogo } from "./catalogo-v2";
@@ -17,6 +22,7 @@ import { lerContasObrasDosConvenios } from "./contas-obras.server";
 import { portaServe } from "./diagnostico";
 import { ehEsquemaAusente } from "./esquema";
 import { lerFiscalMunicipio } from "./fiscal.server";
+import { criarMemoria } from "./memoria";
 import catalogoIndicadores from "./indicadores-municipio.json";
 import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio";
 import { lerPainelFornecedores } from "./fornecedores.server";
@@ -172,7 +178,18 @@ async function lerJanelas(nome: string, hoje: string, faltas: string[]): Promise
 }
 
 /** Tudo o que o relatório de um município cruza. */
-export async function lerRelatorioMunicipio(ibge: string, hoje: string): Promise<LeituraRelatorio> {
+const memoria = criarMemoria<LeituraRelatorio>({
+  validadeMs: 10 * 60 * 1000,
+  maximo: 30,
+  guardar: (l) => l.estado === "ok" || l.estado === "nao_encontrado",
+});
+
+/** O relatório do município, da memória quando há (ver o cabeçalho). Não altere o objeto devolvido. */
+export function lerRelatorioMunicipio(ibge: string, hoje: string): Promise<LeituraRelatorio> {
+  return memoria.obter(`${ibge}|${hoje}`, () => lerDoBanco(ibge, hoje));
+}
+
+async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const faltas: string[] = [];
