@@ -8,6 +8,7 @@ import {
   COLUNAS_CSV_ACHADOS,
   acimaDoLimite,
   montarRelatorio,
+  relatorioSemNomes,
   rotuloPeriodo,
   type EntradaRelatorio,
   type InstrumentoRelatorio,
@@ -257,4 +258,22 @@ test("camada 2 ausente: o relatório da camada 1 sai igual, sem seção de indic
   const r = montarRelatorio(patos(), HOJE);
   assert.equal(r.indicadores, null);
   assert.ok(!r.achados.some((a) => ["social", "economia", "territorio", "governanca"].includes(a.dimensao)));
+});
+
+test("sem nomes (D1): fornecedor sai do relatório de quem não é administrador; o resto fica igual", () => {
+  const fornecedores = {
+    concentracao: { cod_ibge: "2510808", municipio: "Patos", convenios: 30, n_fornecedores: 56, pago_pj: 61_600_000, pago_pf: 0,
+                    maior_cnpj: "12345678000199", maior_nome: "CONSTRUTORA EXEMPLO LTDA", maior_pago: 40_000_000, maior_fatia: 0.65, hhi: 0.45 },
+    inidoneos: [{ cnpj: "98765432000111", nome: "EMPRESA INIDONEA SA", pago: 1_200_000 }],
+  };
+  const r = montarRelatorio(patos({ fornecedores }), HOJE);
+  const s = relatorioSemNomes(r);
+  const texto = JSON.stringify(s);
+  assert.ok(!texto.includes("CONSTRUTORA EXEMPLO") && !texto.includes("EMPRESA INIDONEA") && !texto.includes("98765432000111") && !texto.includes("12345678000199"));
+  const inidoneo = s.achados.find((a) => a.titulo.includes("inidôneos do TCU"));
+  assert.match(inidoneo!.fato, /^Somam R\$ 1,2 mi pagos nos convênios do município\. O nome de cada empresa fica no painel interno/);
+  assert.match(s.achados.find((a) => a.titulo === "Um fornecedor com mais da metade do pago")!.fato, /^Uma empresa recebeu 65% do pago/);
+  assert.equal(s.destaques.length, r.destaques.length);
+  assert.deepEqual(s.achados.filter((a) => a.dimensao !== "fornecedores"), r.achados.filter((a) => a.dimensao !== "fornecedores"), "só a dimensão de fornecedores muda");
+  assert.ok(JSON.stringify(r).includes("CONSTRUTORA EXEMPLO"), "o original, do administrador, não é alterado");
 });

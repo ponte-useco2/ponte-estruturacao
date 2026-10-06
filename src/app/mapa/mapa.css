@@ -891,3 +891,19 @@
 @media print {
   .pa-root .mp-cart .pa-cartao { break-inside: avoid; }
 }
+
+/* ------------------------------------------------------------------------------------------------
+   A página do município em abas (F1a, 06/10/2026): trilha, identificação e as abas como links (?aba=).
+   ------------------------------------------------------------------------------------------------ */
+.pa-root .mp-mun-trilha { display: flex; flex-wrap: wrap; gap: 0.35rem; font-size: 0.82rem; color: var(--pa-muted); }
+.pa-root .mp-mun-trilha span + span::before { content: "›"; margin-right: 0.35rem; color: var(--pa-border); }
+.pa-root .mp-mun-trilha [aria-current] { color: var(--pa-text); font-weight: 600; }
+.pa-root .mp-mun-chips { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.pa-root .mp-mun-abas { display: flex; gap: 0.15rem; overflow-x: auto; border-bottom: 1px solid var(--pa-border); margin: 0.4rem 0 0.2rem; scrollbar-width: thin; }
+.pa-root .mp-mun-abas a { flex: none; padding: 0.6rem 0.85rem; white-space: nowrap; color: var(--pa-muted); text-decoration: none; border-bottom: 3px solid transparent; font-size: 0.92rem; }
+.pa-root .mp-mun-abas a:hover { color: var(--pa-text); }
+.pa-root .mp-mun-abas a[aria-current="page"] { color: var(--pa-brand); border-bottom-color: var(--pa-brand); font-weight: 600; }
+.pa-root .mp-so-imprimir { display: none; }
+@media print {
+  .pa-root .mp-so-imprimir { display: block; }
+}

@@ -1071,6 +1071,46 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
   };
 }
 
+/**
+ * A versão do relatório para quem não é administrador (decisão D1 de 06/10/2026: o cadastrado vê o relatório, mas
+ * o fornecedor com nome fica no painel interno). Sai só o que identifica a empresa: a razão social e o CNPJ do
+ * inidôneo e do maior fornecedor. Contagens, valores e o resto do relatório ficam como estão.
+ */
+export function relatorioSemNomes(r: Relatorio): Relatorio {
+  const s = r.fornecedores;
+  if (!s) return r;
+  const semNome = (a: Achado): Achado => {
+    if (a.dimensao !== "fornecedores") return a;
+    if (a.titulo.includes("inidôneos do TCU")) {
+      return {
+        ...a,
+        fato: `Somam ${moedaCurta(soma(s.inidoneos, (f) => f.pago))} pagos nos convênios do município. O nome de cada empresa fica no painel interno da PONTE; o laudo de cada convênio diz se o contrato é anterior ou posterior à sanção.`,
+      };
+    }
+    if (a.titulo === "Um fornecedor com mais da metade do pago") {
+      const fatia = s.concentracao?.maior_fatia;
+      return {
+        ...a,
+        fato: `Uma empresa recebeu ${fatia !== null && fatia !== undefined ? `${Math.round(fatia * 100)}%` : "mais da metade"} do pago a empresas nos convênios do município. É indicador para olhar, não irregularidade.`,
+      };
+    }
+    return a;
+  };
+  const trocados = new Map(r.achados.map((a) => [a, semNome(a)]));
+  const troca = (xs: Achado[]) => xs.map((a) => trocados.get(a) ?? semNome(a));
+  return {
+    ...r,
+    achados: troca(r.achados),
+    destaques: troca(r.destaques),
+    emDia: troca(r.emDia),
+    fornecedores: {
+      ...s,
+      concentracao: s.concentracao ? { ...s.concentracao, maior_nome: null, maior_cnpj: null } : null,
+      inidoneos: s.inidoneos.map((f) => ({ cnpj: "", nome: null, pago: f.pago })),
+    },
+  };
+}
+
 /** O CSV do relatório: um achado por linha (pelo `paraCsv` do painel). */
 export const COLUNAS_CSV_ACHADOS: ColunaCsv<Achado>[] = [
   { titulo: "Nível", valor: (a) => ROTULO_NIVEL_ACHADO[a.nivel] },
