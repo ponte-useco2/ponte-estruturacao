@@ -8,6 +8,7 @@
  */
 
 import Link from "next/link";
+import { Carregando } from "./Carregando";
 import { usePathname, useSearchParams } from "next/navigation";
 import { LAUDO_PELAS_SUSPENSIVAS, abaAtiva, type RegraAba } from "@/lib/oportunidades/abas";
 
@@ -74,8 +75,10 @@ export function MapaNav({
             href={aba.href}
             className="pa-aba"
             aria-current={atual ? "page" : undefined}
+            prefetch={false}
           >
             {aba.nome}
+            <Carregando />
             {contagem !== null && (
               <>
                 <span className="mp-aba-contagem" aria-hidden="true">

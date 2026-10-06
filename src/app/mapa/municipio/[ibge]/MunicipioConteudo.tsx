@@ -10,6 +10,7 @@ import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { ABAS_MUNICIPIO, PODE, destinoConvenio, urlMunicipio, type AbaMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
+import { Carregando } from "../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
@@ -62,7 +63,7 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
         <EstrelaSeguir tipo="municipio" chave={r.ibge} nome={`o município ${r.nome}`} seguindo={seguindo} />
         <BotaoImprimir />
         {PODE.interno(nivel) && (
-          <Link href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+          <Link href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
             Ficha no painel
           </Link>
         )}
@@ -75,8 +76,9 @@ function Abas({ ibge, aba, nivel }: { ibge: string; aba: AbaMunicipio; nivel: Ni
   return (
     <nav aria-label="Partes do município" className="mp-mun-abas mp-nao-imprimir">
       {ABAS_MUNICIPIO.filter((a) => nivel >= a.minimo).map((a) => (
-        <Link key={a.id} href={urlMunicipio(ibge, a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false}>
+        <Link key={a.id} href={urlMunicipio(ibge, a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false} prefetch={false}>
           {a.nome}
+          <Carregando />
         </Link>
       ))}
     </nav>
@@ -121,11 +123,11 @@ export function MunicipioConteudo({ r, aba, nivel, seguindo }: { r: Relatorio; a
         <>
           <BlocoConvenios r={r} destino={destino} />
           <Mais>
-            <Link href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno">
+            <Link href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno" prefetch={false}>
               Por tema, modalidade e tipo
             </Link>
             {PODE.laudo(nivel) && (
-              <Link href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+              <Link href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
                 Laudo do Pix
               </Link>
             )}
@@ -143,10 +145,10 @@ export function MunicipioConteudo({ r, aba, nivel, seguindo }: { r: Relatorio; a
           <BlocoFiscal r={r} destino={destino} />
           {PODE.interno(nivel) && (
             <Mais>
-              <Link href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
+              <Link href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno" prefetch={false}>
                 Painel fiscal completo
               </Link>
-              <Link href={`/mapa/fiscal/${r.ibge}/simular`} className="pa-btn pa-btn-pequeno">
+              <Link href={`/mapa/fiscal/${r.ibge}/simular`} className="pa-btn pa-btn-pequeno" prefetch={false}>
                 Simulador de crédito
               </Link>
             </Mais>
@@ -161,7 +163,7 @@ export function MunicipioConteudo({ r, aba, nivel, seguindo }: { r: Relatorio; a
           <BlocoTramita />
           {PODE.interno(nivel) && (
             <Mais>
-              <Link href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+              <Link href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
                 Despesas no TCE-PB
               </Link>
             </Mais>
@@ -176,7 +178,7 @@ export function MunicipioConteudo({ r, aba, nivel, seguindo }: { r: Relatorio; a
         <>
           <Secao id="mun-relatorio" titulo="O relatório completo" nota="Todas as abas numa peça só, com a fonte de cada número, para imprimir ou anexar.">
             <Mais>
-              <Link href={`/mapa/municipio/${r.ibge}/relatorio`} className="pa-btn">
+              <Link href={`/mapa/municipio/${r.ibge}/relatorio`} className="pa-btn" prefetch={false}>
                 Abrir o relatório para imprimir
               </Link>
               <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">

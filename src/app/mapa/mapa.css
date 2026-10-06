@@ -73,6 +73,18 @@
   line-height: 1;
 }
 
+/* Clique recebido, página a caminho (`Carregando`, 06/10/2026): os links do menu, das abas do município e dos
+   convênios não pré-carregam, então o ponto pulsa ao lado do link clicado até a página chegar. */
+.mp-carregando { display: none; }
+.mp-carregando-ativo {
+  display: inline-block; width: 0.42em; height: 0.42em; margin-left: 0.35em; border-radius: 999px;
+  background: currentColor; vertical-align: middle; animation: mp-pulso 0.9s ease-in-out infinite;
+}
+.pa-root a:has(> .mp-carregando-ativo) { cursor: progress; }
+@keyframes mp-pulso { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .mp-carregando-ativo { animation: none; opacity: 0.6; } }
+@media print { .mp-carregando { display: none !important; } }
+
 /* Nome longo no chip de conta não pode empurrar o cabeçalho. */
 .mp-conta-nome {
   display: inline-flex;

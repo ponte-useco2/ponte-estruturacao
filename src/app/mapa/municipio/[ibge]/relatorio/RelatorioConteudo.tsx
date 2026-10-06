@@ -25,6 +25,7 @@ import {
   type NivelAchado,
   type Relatorio,
 } from "@/lib/oportunidades/relatorio-municipio";
+import { Carregando } from "../../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { GraficoPessoal } from "./GraficoPessoal";
@@ -88,7 +89,10 @@ export function ListaAchados({ achados, destino }: { achados: Achado[]; destino:
               {a.numeros.map((nr, k) => (
                 <span key={nr}>
                   {k > 0 && " · "}
-                  <Link href={destino(nr)} prefetch={false}>{nr}</Link>
+                  <Link href={destino(nr)} prefetch={false}>
+                    {nr}
+                    <Carregando />
+                  </Link>
                 </span>
               ))}
             </p>
@@ -118,7 +122,10 @@ function TabelaConvenios({ linhas, destino, nota = "Situação" }: { linhas: Lin
           {linhas.map((l) => (
             <tr key={l.nr_convenio}>
               <td>
-                <Link href={destino(l.nr_convenio)} prefetch={false}>{l.nr_convenio}</Link>
+                <Link href={destino(l.nr_convenio)} prefetch={false}>
+                  {l.nr_convenio}
+                  <Carregando />
+                </Link>
               </td>
               <td>{l.orgao ? tituloOrgao(l.orgao) : "—"}</td>
               <td>{l.objeto ?? "—"}</td>
@@ -447,7 +454,10 @@ export function BlocoControle({ r, destino }: { r: Relatorio; destino: Destino }
               {ct.tces.map((t) => (
                 <tr key={`${t.nr_convenio}-${t.numero_processo}`}>
                   <td>
-                    <Link href={destino(t.nr_convenio)} prefetch={false}>{t.nr_convenio}</Link>
+                    <Link href={destino(t.nr_convenio)} prefetch={false}>
+                      {t.nr_convenio}
+                      <Carregando />
+                    </Link>
                   </td>
                   <td>{t.numero_processo ?? "—"}</td>
                   <td>{t.situacao ?? "—"}</td>
@@ -670,24 +680,24 @@ export function RelatorioConteudo({ r, seguindo, nivel = 3 }: { r: Relatorio; se
           <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">
             Achados em CSV
           </a>
-          <Link href={`/mapa/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+          <Link href={`/mapa/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
             Página do município
           </Link>
           {PODE.interno(nivel) && (
             <>
-              <Link href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
+              <Link href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno" prefetch={false}>
                 Painel fiscal
               </Link>
-              <Link href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+              <Link href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
                 Ficha no painel
               </Link>
-              <Link href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+              <Link href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
                 TCE-PB
               </Link>
             </>
           )}
           {PODE.laudo(nivel) && (
-            <Link href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+            <Link href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
               Laudo do Pix
             </Link>
           )}
