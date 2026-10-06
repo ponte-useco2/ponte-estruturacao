@@ -12,6 +12,44 @@
    inteiro para não mudar um pixel.
    ===================================================================== */
 
+/* Azul petróleo (06/10/2026, decisão do titular): só no Mapa. O resto do site
+   continua com os tokens verdes de `globals.css`. `.pa-root.mp-root` tem duas
+   classes e vence o `.pa-root` de `estilos.css` em qualquer ordem.
+   Contraste: texto 15,2:1 sobre o fundo; sobre branco, marca 13,2:1, marca-2 7,0:1,
+   moderado 7,3:1 e o cinza 5,9:1 (AA; o texto branco sobre os três primeiros também).
+   O moderado sai do azul para o violeta: azul ao lado de uma marca azul
+   deixaria de dizer "nível". O lado do concedente usa a marca-2, que é neutra;
+   o "atendido" segue verde (#3d7a4f), porque verde ali é significado. */
+.pa-root.mp-root {
+  --pa-bg: #f5f8f9;
+  --pa-surface: #ffffff;
+  --pa-surface-2: #ecf3f5;
+  --pa-text: #10232b;
+  --pa-muted: #516870;
+  --pa-border: #d1dfe4;
+  --pa-brand: #0b3445;
+  --pa-brand-2: #14607a;
+  --pa-brand-soft: #d6eaf0;
+  --pa-dark: #08151b;
+  --pa-dark-surface: #0f222a;
+  --mp-moderado: #5b4a9a;
+  --mp-concedente: var(--pa-brand-2);
+  /* Texto miúdo sobre o fundo da marca (chip marcado, organização ativa). */
+  --mp-sobre-marca: #9cc8d8;
+  --mp-borda-soft: #b0d0dc;
+  --mp-tracejado: #b4c7ce;
+}
+/* Os literais verdes do design system que aparecem dentro do Mapa. */
+.mp-root .pa-top { background: rgba(245, 248, 249, 0.94); }
+.mp-root .pa-menu { box-shadow: 0 24px 60px rgba(8, 28, 38, 0.16); }
+.mp-root .pa-aba[aria-selected="true"],
+.mp-root .pa-tag-aderente { border-color: var(--mp-borda-soft); }
+.mp-root :is(.pa-chip, .pa-tracejado, .pa-ressalva) { border-color: var(--mp-tracejado); }
+.mp-root .pa-chip:is([aria-pressed="true"], .pa-ativo) { border-color: var(--pa-brand); }
+.mp-root .pa-chip[aria-pressed="true"] .pa-mono { color: var(--mp-sobre-marca); }
+.mp-root .pa-escuro { color: #e6eff2; }
+.mp-root .pa-escuro :is(p, .pa-mono) { color: #9db8c2; }
+
 /* Até 12/09/2026 esta moldura tinha uma linha só no topo, e zerava `--pa-abas`
    para a barra de lote grudada (`.pa-mapa-lote`, posicionada por
    `--pa-top-total`) não flutuar 38px abaixo do lugar. Com Janelas e Avisos, a
@@ -262,7 +300,7 @@
 }
 .pa-root .mp-org-botao:hover { background: var(--pa-surface-2); }
 .pa-root .mp-org-botao[aria-current="true"] { background: var(--pa-brand); color: #fff; }
-.pa-root .mp-org-botao[aria-current="true"] .mp-org-tipo { color: #9dc6b6; }
+.pa-root .mp-org-botao[aria-current="true"] .mp-org-tipo { color: var(--mp-sobre-marca); }
 .pa-root .mp-org-tipo { font-family: var(--pa-mono); font-size: 0.66rem; color: var(--pa-brand-2); flex: none; }
 
 /* Convite discreto para declarar a entidade. Não é alerta: nada está errado. */
@@ -613,7 +651,7 @@
 .pa-root .mp-fiscal-verificacao { border-left: 4px solid var(--pa-border); }
 .pa-root .mp-fiscal-verificacao.mp-fiscal-nao_atendido, .pa-root .mp-fiscal-decisao.mp-fiscal-nao_atendido { border-left: 4px solid var(--pa-danger); }
 .pa-root .mp-fiscal-verificacao.mp-fiscal-atencao, .pa-root .mp-fiscal-decisao.mp-fiscal-atencao { border-left: 4px solid #b08a3e; }
-.pa-root .mp-fiscal-verificacao.mp-fiscal-desatualizado { border-left: 4px solid #2d5580; }
+.pa-root .mp-fiscal-verificacao.mp-fiscal-desatualizado { border-left: 4px solid var(--mp-moderado); }
 .pa-root .mp-fiscal-verificacao.mp-fiscal-atendido, .pa-root .mp-fiscal-decisao.mp-fiscal-atendido { border-left: 4px solid var(--pa-brand); }
 .pa-root .mp-fiscal-verificacao-cabeca { align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .pa-root .mp-fiscal-verificacao-cabeca h3 { margin: 0; }
@@ -698,7 +736,7 @@
 .pa-root .mp-radar-filtro-rotulo { align-self: center; margin-right: 0.2rem; }
 
 /* Onda 11 — laudo da cláusula suspensiva e lista das suspensivas.
-   Nível do risco: crítico em vermelho, alto em âmbar, moderado em azul — as mesmas cores do painel fiscal.
+   Nível do risco: crítico em vermelho, alto em âmbar, moderado em violeta desde 06/10/2026 (era azul) — as mesmas cores do painel fiscal.
    Os dois lados (concedente e município) têm cores próprias e neutras: não são "bom" nem "ruim". */
 .pa-root .mp-laudo-acoes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.4rem 0 0; }
 .pa-root .mp-laudo-frase { border-left: 4px solid var(--pa-border); }
@@ -710,11 +748,11 @@
 .pa-root .mp-laudo-risco p + p { margin-top: 0.3rem; }
 .pa-root .mp-laudo-frase.mp-laudo-critico, .pa-root .mp-laudo-risco.mp-laudo-critico { border-left-color: var(--pa-danger); }
 .pa-root .mp-laudo-frase.mp-laudo-alto, .pa-root .mp-laudo-risco.mp-laudo-alto { border-left-color: #b08a3e; }
-.pa-root .mp-laudo-frase.mp-laudo-moderado, .pa-root .mp-laudo-risco.mp-laudo-moderado { border-left-color: #2d5580; }
+.pa-root .mp-laudo-frase.mp-laudo-moderado, .pa-root .mp-laudo-risco.mp-laudo-moderado { border-left-color: var(--mp-moderado); }
 .pa-root .mp-laudo-nivel { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .pa-root .mp-laudo-nivel.mp-laudo-critico { background: var(--pa-danger); color: #fff; border-color: var(--pa-danger); }
 .pa-root .mp-laudo-nivel.mp-laudo-alto { background: #b08a3e; color: #fff; border-color: #b08a3e; }
-.pa-root .mp-laudo-nivel.mp-laudo-moderado { background: #2d5580; color: #fff; border-color: #2d5580; }
+.pa-root .mp-laudo-nivel.mp-laudo-moderado { background: var(--mp-moderado); color: #fff; border-color: var(--mp-moderado); }
 /* Laudo do Pix (onda 13A): o item atendido tem cor própria e discreta; informação, prazo e legado ficam neutros. */
 .pa-root .mp-laudo-risco.mp-laudo-atendido { border-left-color: #3d7a4f; }
 .pa-root .mp-laudo-nivel.mp-laudo-atendido { color: #3d7a4f; border-color: #3d7a4f; }
@@ -737,11 +775,11 @@
 /* Tempo com cada lado: uma barra só, dividida na proporção dos dias. */
 .pa-root .mp-laudo-tempo { margin: 0 0 0.8rem; }
 .pa-root .mp-laudo-barra { display: flex; height: 0.9rem; border-radius: 999px; overflow: hidden; background: var(--pa-surface-2); }
-.pa-root .mp-laudo-barra-concedente { background: #2d5580; }
+.pa-root .mp-laudo-barra-concedente { background: var(--mp-concedente); }
 .pa-root .mp-laudo-barra-proponente { background: #8a6a2a; }
 .pa-root .mp-laudo-tempo figcaption { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin-top: 0.35rem; }
 .pa-root .mp-laudo-legenda::before { content: ""; display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; margin-right: 0.35rem; vertical-align: -0.05rem; }
-.pa-root .mp-laudo-legenda-concedente::before { background: #2d5580; }
+.pa-root .mp-laudo-legenda-concedente::before { background: var(--mp-concedente); }
 .pa-root .mp-laudo-legenda-proponente::before { background: #8a6a2a; }
 
 /* Linha do tempo: cada evento com a cor de quem agiu; a espera que vem depois, na cor de quem ficou com a vez. */
@@ -749,7 +787,7 @@
 .pa-root .mp-laudo-evento { border-left: 4px solid var(--pa-border); padding: 0.5rem 0 0.5rem 0.8rem; }
 .pa-root .mp-laudo-evento p { margin: 0; }
 .pa-root .mp-laudo-evento > * + * { margin-top: 0.3rem; }
-.pa-root .mp-laudo-evento-concedente { border-left-color: #2d5580; }
+.pa-root .mp-laudo-evento-concedente { border-left-color: var(--mp-concedente); }
 .pa-root .mp-laudo-evento-proponente { border-left-color: #8a6a2a; }
 .pa-root .mp-laudo-evento-cabeca .pa-mono { margin-right: 0.3rem; }
 .pa-root .mp-laudo-texto { margin: 0.4rem 0 0; padding: 0.6rem 0.8rem; background: var(--pa-surface-2); border-radius: var(--pa-r); overflow-wrap: anywhere; }
@@ -757,7 +795,7 @@
 .pa-root .mp-laudo-texto footer { margin-top: 0.3rem; }
 .pa-root .mp-laudo-espera { font-style: italic; }
 .pa-root .mp-laudo-espera::before { content: "↓ "; font-style: normal; }
-.pa-root .mp-laudo-espera-concedente { color: #2d5580; }
+.pa-root .mp-laudo-espera-concedente { color: var(--mp-concedente); }
 .pa-root .mp-laudo-espera-proponente { color: #8a6a2a; }
 
 /* Documentos e lista. */
@@ -875,7 +913,7 @@
 .pa-root .mp-cart-numero .pa-mono { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pa-muted); }
 .pa-root .mp-cart-numero b { font-size: 0.95rem; overflow-wrap: anywhere; }
 .pa-root .mp-cart-numero.mp-cart-alto { border-left-color: #b08a3e; }
-.pa-root .mp-cart-numero.mp-cart-moderado { border-left-color: #2d5580; }
+.pa-root .mp-cart-numero.mp-cart-moderado { border-left-color: var(--mp-moderado); }
 .pa-root .mp-cart-lista { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
 .pa-root .mp-cart-passos { list-style: disc; }
 .pa-root .mp-cart :is(.mp-cart-passos, .mp-cart-lista, .mp-cart-mudo) a { text-decoration: underline; text-underline-offset: 2px; }
