@@ -77,12 +77,21 @@
    convênios não pré-carregam, então o ponto pulsa ao lado do link clicado até a página chegar. */
 .mp-carregando { display: none; }
 .mp-carregando-ativo {
-  display: inline-block; width: 0.42em; height: 0.42em; margin-left: 0.35em; border-radius: 999px;
+  display: inline-block; width: 0.55em; height: 0.55em; margin-left: 0.4em; border-radius: 999px;
   background: currentColor; vertical-align: middle; animation: mp-pulso 0.9s ease-in-out infinite;
 }
 .pa-root a:has(> .mp-carregando-ativo) { cursor: progress; }
+/* Nas abas, o ponto sozinho passava despercebido (teste de 06/10/2026): a aba clicada ganha o texto escuro e
+   um sublinhado que pulsa até o conteúdo chegar. */
+.pa-root :is(.mp-mun-abas a, .pa-aba):has(> .mp-carregando-ativo) {
+  color: var(--pa-text); border-bottom-color: var(--pa-brand-2); animation: mp-pulso-borda 0.9s ease-in-out infinite;
+}
 @keyframes mp-pulso { 50% { opacity: 0.25; } }
-@media (prefers-reduced-motion: reduce) { .mp-carregando-ativo { animation: none; opacity: 0.6; } }
+@keyframes mp-pulso-borda { 50% { border-bottom-color: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .mp-carregando-ativo { animation: none; opacity: 0.6; }
+  .pa-root :is(.mp-mun-abas a, .pa-aba):has(> .mp-carregando-ativo) { animation: none; }
+}
 @media print { .mp-carregando { display: none !important; } }
 
 /* Nome longo no chip de conta não pode empurrar o cabeçalho. */
