@@ -370,3 +370,54 @@ test("aba «o que trava» (F1b): Patos em classes, com quem resolve; a mesma ord
   const topo = r.destaques.filter((a) => a.dimensao !== "social").map((a) => a.titulo);
   assert.deepEqual(fila.slice(0, topo.length), topo);
 });
+
+test("teste de 07/10: obras sem medição viram um cartão só, e toda cobrança que o município resolve diz o que fazer", () => {
+  const obra = (nr: string, dias: number, x: Record<string, unknown> = {}) => ({
+    prestacao: null,
+    obra: {
+      convenio: {
+        nr_convenio: nr, codigo: "ok", mensagem: null, n_lotes: 1, ultima_medicao: 3, dias_sem_medicao: dias, atrasado: true, paralisado: false,
+        valor_total: 1_000_000, realizado_convenente: 500_000, realizado_concedente: 480_000, pct_convenente: 50, pct_concedente: 48, ...x,
+      },
+      referencia: "2026-10-01",
+    },
+  });
+  const impugnada = {
+    prestacao: {
+      convenio: {
+        nr_convenio: "943029", n_eventos: 1, valor_comprovado: 500_000, valor_aprovado: 246_000, valor_impugnado: 254_000, dt_comprovacao: null,
+        dt_ultimo_evento: null, ultimo_evento: "Impugnação", cumprimento: null, pct_fisico_declarado: null, n_pareceres: 0, parecer_data: null,
+        parecer_tipo: null, parecer_situacao: null, erro: null,
+      },
+      eventos: [],
+      pareceres: [],
+      referencia: "2026-09-30",
+    },
+    obra: null,
+  };
+  const r = montarRelatorio(
+    patos({
+      contasObras: {
+        "939495": obra("939495", 400),
+        "939496": obra("939496", 200),
+        "939497": obra("939497", 120),
+        "947793": obra("947793", 474, { pct_convenente: 100, pct_concedente: 82, realizado_convenente: 1_000_000 }),
+        "943029": impugnada,
+      } as never,
+    }),
+    HOJE,
+  );
+  const obras = r.achados.filter((a) => /obras? sem medição/.test(a.titulo));
+  assert.deepEqual(obras.map((a) => [a.titulo, a.nivel, a.numeros]), [["3 obras sem medição há 90 dias ou mais", "alto", ["939495", "939496", "939497"]]]);
+  // agrupadas, cada obra guarda os seus dias no fato (o título do grupo não os tem)
+  assert.match(obras[0].fato, /^939495: A última medição registrada é a 3ª, há 400 dias,.* 939497: .*há 120 dias,/);
+  const aceite = r.achados.find((a) => /aceite da concedente pendente/.test(a.titulo));
+  assert.deepEqual([aceite?.classe, aceite?.quem], ["atencao", "orgao"]);
+  const imp = r.achados.find((a) => /impugnados/.test(a.titulo));
+  assert.match(imp?.acao ?? "", /^Devolver o valor impugnado/);
+  // a regra: o que trava, cobra ou tem prazo e é do município sempre traz a ação
+  const semAcao = r.achados.filter((a) => a.classe && a.classe !== "atencao" && a.quem === "municipio" && a.nivel !== "em_dia" && !a.acao);
+  assert.deepEqual(semAcao.map((a) => a.titulo), []);
+  // o 70% de capital do Pix é somado por autor: não é o município quem acerta
+  assert.ok(r.achados.filter((a) => /70% em despesas de capital/.test(a.titulo)).every((a) => a.quem === "autor"));
+});

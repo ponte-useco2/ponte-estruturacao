@@ -14,7 +14,7 @@
  * das emendas ficam, como agentes públicos). Função pura, sem banco e sem relógio.
  */
 import { formatarData } from "./central.ts";
-import { riscosContasObras, type EntradaContasObras } from "./contas-obras.ts";
+import { DIAS_SEM_MEDICAO_MODERADO, riscosContasObras, type EntradaContasObras } from "./contas-obras.ts";
 import { DIAS_SEM_MOVIMENTO, DIAS_VIGENCIA_CRITICA, PCT_FINANCEIRO_ALTO, PCT_FISICO_BAIXO } from "./diagnostico.ts";
 import { NOME_CURTO, conclusaoDe, type ConclusaoFiscal, type MunicipioFiscal, type VerificacaoFiscal } from "./fiscal.ts";
 import { faixaConcentracao, type ConcentracaoMunicipio } from "./fornecedores.ts";
@@ -553,7 +553,7 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
       quem: "municipio",
       titulo: s.semMovimento.length === 1 ? "Convênio sem movimento financeiro há mais de um ano" : `${n(s.semMovimento.length)} convênios sem movimento financeiro há mais de um ano`,
       fato: `${lista(s.semMovimento.map((l) => `${l.nr_convenio} (${l.nota})`))}.`,
-      acao: null,
+      acao: "Retomar a execução (licitar, contratar, pagar) ou tratar com o concedente a rescisão e a devolução do saldo, antes do bloqueio da conta.",
       peso: 4,
       numeros: s.semMovimento.map((l) => l.nr_convenio),
     });
@@ -582,7 +582,7 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
       quem: "municipio",
       titulo: frente.length === 1 ? "Dinheiro na frente da obra" : `${n(frente.length)} convênios com o dinheiro na frente da obra`,
       fato: `${lista(frente.map((i) => i.nr_convenio))}: 80% ou mais do repasse desembolsado e menos de 30% de execução física registrada.`,
-      acao: null,
+      acao: "Atualizar a execução física no Transferegov ou explicar a diferença ao concedente.",
       peso: 5,
       numeros: frente.map((i) => i.nr_convenio),
     });
@@ -596,7 +596,7 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
       quem: "municipio",
       titulo: `${plural(s.pc33.length, "convênio", "convênios")} com pontos a conferir na norma de convênios`,
       fato: `${lista(s.pc33.map((x) => `${x.nr_convenio} (${x.nota})`))}. O detalhe de cada ponto está no laudo do convênio.`,
-      acao: null,
+      acao: "Conferir no laudo de cada convênio os pontos apontados e resolver com o concedente o que depende do município.",
       peso: 5,
       numeros: s.pc33.map((x) => x.nr_convenio),
     });
@@ -686,29 +686,88 @@ function achadosControle(s: SecaoControle, e: EntradaRelatorio): Achado[] {
       peso: 9,
     });
   }
-  const grupos = new Map<string, { nivel: Nivel; nrs: string[]; fatos: string[] }>();
+  // Um ponto por tipo: o título de cada risco traz número (valor impugnado, dias sem medição), e agrupar pelo título
+  // fazia cada obra virar um cartão (teste de 07/10/2026).
+  const grupos = new Map<string, { tipo: TipoContas | null; titulo: string; nivel: Nivel; nrs: string[]; fatos: string[] }>();
   for (const c of s.contas) {
-    const g = grupos.get(c.titulo) ?? { nivel: c.nivel, nrs: [], fatos: [] };
+    const tipo = TIPOS_CONTAS.find((t) => t.re.test(c.titulo)) ?? null;
+    const k = tipo ? tipo.re.source : c.titulo;
+    const g = grupos.get(k) ?? { tipo, titulo: c.titulo, nivel: c.nivel, nrs: [], fatos: [] };
     g.nrs.push(c.nr_convenio);
     g.fatos.push(`${c.nr_convenio}: ${c.fato}`);
     if (ORDEM_NIVEL[c.nivel] < ORDEM_NIVEL[g.nivel]) g.nivel = c.nivel;
-    grupos.set(c.titulo, g);
+    grupos.set(k, g);
   }
-  for (const [titulo, g] of grupos) {
+  for (const g of grupos.values()) {
+    const varios = g.nrs.length > 1;
     a.push({
       nivel: g.nivel,
       dimensao: "controle",
-      classe: "cobranca",
-      quem: "municipio",
-      titulo: g.nrs.length === 1 ? titulo : `${titulo} (${n(g.nrs.length)} convênios)`,
+      classe: g.tipo?.classe ?? "cobranca",
+      quem: g.tipo?.quem ?? "municipio",
+      titulo: !varios ? g.titulo : g.tipo ? g.tipo.varios(g.nrs.length) : `${g.titulo} (${n(g.nrs.length)} convênios)`,
       fato: g.fatos.join(" "),
-      acao: /diligência/i.test(titulo) ? "Responder à diligência da prestação de contas." : null,
+      acao: g.tipo?.acao ?? null,
       peso: 3,
       numeros: g.nrs,
     });
   }
   return a;
 }
+
+interface TipoContas {
+  re: RegExp;
+  varios: (k: number) => string;
+  classe: ClasseFila;
+  quem: QuemResolve;
+  acao: string;
+}
+
+/** Os riscos de contas e obras (`contas-obras.ts`) por tipo: título para vários, classe da fila, quem resolve e o que fazer. */
+const TIPOS_CONTAS: readonly TipoContas[] = [
+  {
+    re: /impugnados na prestação de contas$/,
+    varios: (k) => `Valores impugnados na prestação de contas de ${n(k)} convênios`,
+    classe: "cobranca",
+    quem: "municipio",
+    acao: "Devolver o valor impugnado ou apresentar ao concedente a justificativa e os documentos que faltam; sem isso, vira tomada de contas especial.",
+  },
+  {
+    re: /^Prestação de contas em diligência$/,
+    varios: (k) => `Prestação de contas em diligência em ${n(k)} convênios`,
+    classe: "cobranca",
+    quem: "municipio",
+    acao: "Responder à diligência da prestação de contas.",
+  },
+  {
+    re: /^Obra paralisada$/,
+    varios: (k) => `${n(k)} obras paralisadas`,
+    classe: "cobranca",
+    quem: "municipio",
+    acao: "Registrar no Transferegov o motivo da paralisação e o plano de retomada, ou tratar com o concedente a rescisão e a devolução do saldo.",
+  },
+  {
+    re: /^Obra sem medição há \d+ dias$/,
+    varios: (k) => `${n(k)} obras sem medição há ${DIAS_SEM_MEDICAO_MODERADO} dias ou mais`,
+    classe: "cobranca",
+    quem: "municipio",
+    acao: "Lançar no acompanhamento de obras do Transferegov as medições em atraso, ou registrar a paralisação com o motivo.",
+  },
+  {
+    re: /^Obra atestada por inteiro, aceite da concedente pendente$/,
+    varios: (k) => `${n(k)} obras atestadas por inteiro com o aceite da concedente pendente`,
+    classe: "atencao",
+    quem: "orgao",
+    acao: "Cobrar da concedente ou da mandatária o aceite das medições já atestadas.",
+  },
+  {
+    re: /^Executado atestado pelo convenente acima do da concedente$/,
+    varios: (k) => `Executado atestado pelo convenente acima do da concedente em ${n(k)} convênios`,
+    classe: "cobranca",
+    quem: "municipio",
+    acao: "Conferir com a mandatária as medições ainda não aceitas e completar o que falta para o aceite.",
+  },
+];
 
 // ================================================================ propostas
 
@@ -787,7 +846,7 @@ function achadosPropostas(s: SecaoPropostas): Achado[] {
 export interface SecaoPix {
   planos: number;
   pago: number;
-  pontos: { titulo: string; nivel: Nivel; planos: number; valor: number }[];
+  pontos: { item: string; titulo: string; nivel: Nivel; planos: number; valor: number }[];
   marcas: { ano: number; titulo: string; nivel: Nivel; fato: string }[];
   semMarcaNoTce: boolean;
   fundo: { planos: number; repasse: number; encerradosComSaldo: number; saldoEncerrados: number; parados: number } | null;
@@ -803,11 +862,11 @@ export const SALDO_MINIMO_FUNDO = 1000;
 function secaoPix(e: EntradaRelatorio, hoje: string): SecaoPix | null {
   if (!e.pix && !e.pixTce && !e.fundo && !e.pixCiclo?.length) return null;
   const planos = e.pix ?? [];
-  const pontos = new Map<string, { titulo: string; nivel: Nivel; planos: number; valor: number }>();
+  const pontos = new Map<string, { item: string; titulo: string; nivel: Nivel; planos: number; valor: number }>();
   for (const p of planos) {
     for (const i of pontosAConferir(p.itens)) {
       const k = `${i.item}|${i.titulo}`;
-      const g = pontos.get(k) ?? { titulo: i.titulo, nivel: i.nivel as Nivel, planos: 0, valor: 0 };
+      const g = pontos.get(k) ?? { item: i.item, titulo: i.titulo, nivel: i.nivel as Nivel, planos: 0, valor: 0 };
       g.planos += 1;
       g.valor += p.pago || p.valor;
       pontos.set(k, g);
@@ -836,6 +895,18 @@ function secaoPix(e: EntradaRelatorio, hoje: string): SecaoPix | null {
   };
 }
 
+/** O que o município faz em cada item do laudo do Pix (`pix_fundo/laudo.py`, ITENS). Sem ação: o que depende de outro. */
+const ACAO_PIX: Record<string, string> = {
+  A1: "Cadastrar no plano de ação do Transferegov o e-mail da Câmara Municipal.",
+  A4: "Manter cada transferência numa conta específica, em banco oficial, informada no plano de ação.",
+  A4b: "Conferir no extrato cada saída para outra conta do município: retenção de tributo se explica; o resto volta à conta do plano.",
+  C1: "Entregar os relatórios de gestão do Pix no Transferegov.",
+  C1b: "Entregar os relatórios de gestão do Pix no Transferegov.",
+  C3: "Anexar ao relatório de gestão os documentos de liquidação das despesas.",
+  D1: "Concluir a execução no prazo; a prorrogação só cabe por atraso na liberação ou por paralisação (IN-TCU 93/2024, art. 5º).",
+  D2: "Atualizar no relatório de gestão a execução do plano ou explicar o atraso.",
+};
+
 function achadosPix(s: SecaoPix): Achado[] {
   const a: Achado[] = [];
   for (const p of s.pontos) {
@@ -844,15 +915,25 @@ function achadosPix(s: SecaoPix): Achado[] {
       dimensao: "pix",
       // o título do item é a regra ("Relatório de gestão no prazo"), e não o resultado: vai com "a conferir" na frente
       classe: /relat[óo]rio/i.test(p.titulo) ? "cobranca" : "atencao",
-      quem: "municipio",
+      // os 70% de capital são somados por autor da emenda (LC 210, art. 10, XIX): quem acerta é ele, não o município
+      quem: p.item === "B4" ? "autor" : "municipio",
       titulo: `Pix, a conferir: ${p.titulo.charAt(0).toLowerCase()}${p.titulo.slice(1)} (${plural(p.planos, "plano", "planos")})`,
       fato: `${plural(p.planos, "plano", "planos")} do Pix com este ponto a conferir no roteiro da IN-TCU 93/2024, somando ${moedaCurta(p.valor)}. O detalhe está no laudo do Pix do ente.`,
-      acao: /relat[óo]rio/i.test(p.titulo) ? "Entregar os relatórios de gestão do Pix no Transferegov." : null,
+      acao: ACAO_PIX[p.item] ?? (/relat[óo]rio/i.test(p.titulo) ? ACAO_PIX.C1 : null),
       peso: 4,
     });
   }
   for (const m of s.marcas) {
-    a.push({ nivel: m.nivel, dimensao: "pix", classe: "cobranca", quem: "municipio", titulo: `Pix no TCE-PB: ${m.titulo.toLowerCase()} (${m.ano})`, fato: m.fato, acao: null, peso: 5 });
+    a.push({
+      nivel: m.nivel,
+      dimensao: "pix",
+      classe: "cobranca",
+      quem: "municipio",
+      titulo: `Pix no TCE-PB: ${m.titulo.toLowerCase()} (${m.ano})`,
+      fato: m.fato,
+      acao: "Conferir com a contabilidade as despesas pagas com a fonte 706 que o TCE-PB mostra e corrigir a classificação ou a destinação.",
+      peso: 5,
+    });
   }
   // Ciclo em curso: plano à espera do município pesa como o bloqueio fiscal (sem resposta no prazo, impedimento).
   for (const c of s.ciclo) {
@@ -940,7 +1021,7 @@ function achadosFornecedores(s: SecaoFornecedores): Achado[] {
       quem: "municipio",
       titulo: `${plural(s.inidoneos.length, "fornecedor", "fornecedores")} na lista de inidôneos do TCU`,
       fato: `${lista(s.inidoneos.map((f) => `${f.nome ?? f.cnpj} (${moedaCurta(f.pago)} pagos)`))}. O laudo de cada convênio diz se o contrato é anterior ou posterior à sanção.`,
-      acao: null,
+      acao: "Conferir no laudo de cada convênio se o contrato é posterior à sanção e, se for, comunicar ao concedente.",
       peso: 3,
     });
   }

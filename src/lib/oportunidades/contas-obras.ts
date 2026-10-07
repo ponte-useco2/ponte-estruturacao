@@ -212,7 +212,7 @@ export function riscosContasObras(e: EntradaContasObras | null | undefined, { co
       riscos.push({
         nivel: (o.dias_sem_medicao ?? 0) >= DIAS_SEM_MEDICAO_ALTO ? "alto" : "moderado",
         titulo: `Obra sem medição há ${o.dias_sem_medicao} dias`,
-        fato: `A última medição registrada é a ${o.ultima_medicao ?? "—"}ª, e o acompanhamento de obras marca o contrato como atrasado.`,
+        fato: `A última medição registrada é a ${o.ultima_medicao ?? "—"}ª, há ${o.dias_sem_medicao} dias, e o acompanhamento de obras marca o contrato como atrasado.`,
       });
     }
     if (!obraCompleta(o) && o.pct_convenente !== null && o.pct_concedente !== null && diferenca >= PONTOS_ATESTADO) {

@@ -130,3 +130,13 @@ test("Pix em curso (oport_30): plano à espera do município é alto, na classe 
   assert.match(semPrazo[0].fato, /O prazo do comunicado ainda não foi cadastrado/);
   assert.equal(recomendacoesMunicipio({ pix_vez_ente: 0, pix_vez_orgao: 3 }, null).length, 0, "vez do órgão não pede ação do município");
 });
+
+test("F1b: convênio e janela também saem com a classe da fila (vencido cobra; o que vence tem prazo)", () => {
+  const vencida = recomendacoesInstrumento({ situacao: "Em execução", dt_fim_vigencia: "2026-09-30" }, HOJE, null);
+  assert.equal(vencida[0].classe, "cobranca");
+  const acabando = recomendacoesInstrumento({ situacao: "Em execução", dt_fim_vigencia: "2026-11-15" }, HOJE, null);
+  assert.deepEqual([acabando[0].classe, acabando[0].prazo], ["prazo", "2026-11-15"]);
+  const pc = recomendacoesInstrumento({ situacao: "Aguardando Prestação de Contas", dt_limite_contas: "2026-10-20" }, HOJE, null);
+  assert.deepEqual([pc[0].classe, pc[0].prazo], ["prazo", "2026-10-20"]);
+  assert.deepEqual(recomendacoesJanela({ aberta: true, prazo: "2026-11-30" }, HOJE).map((x) => [x.classe, x.prazo]), [["prazo", "2026-11-30"]]);
+});

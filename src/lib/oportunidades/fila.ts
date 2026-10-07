@@ -7,10 +7,10 @@
  * pede atenção. Dentro da classe: o prazo mais próximo (o vencido primeiro), depois o nível, depois o peso. O que
  * está em dia vai sempre por último.
  *
- * Cada ponto diz também quem resolve: o município, o órgão federal, o Tribunal, a Justiça ou terceiros. Função pura.
+ * Cada ponto diz também quem resolve: o município, o órgão federal, o Tribunal, a Justiça, o autor da emenda ou terceiros. Função pura.
  */
 export type ClasseFila = "bloqueio" | "cobranca" | "prazo" | "atencao";
-export type QuemResolve = "municipio" | "orgao" | "tribunal" | "justica" | "outro";
+export type QuemResolve = "municipio" | "orgao" | "tribunal" | "justica" | "autor" | "outro";
 
 export const ORDEM_CLASSE: Record<ClasseFila, number> = { bloqueio: 0, cobranca: 1, prazo: 2, atencao: 3 };
 
@@ -33,6 +33,7 @@ export const ROTULO_QUEM: Record<QuemResolve, string> = {
   orgao: "o órgão federal",
   tribunal: "o Tribunal",
   justica: "a Justiça",
+  autor: "o autor da emenda",
   outro: "terceiros",
 };
 

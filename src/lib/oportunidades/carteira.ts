@@ -33,7 +33,7 @@ export interface Recomendacao {
   acao: string;
   /** O fato que sustenta a ação, com a data do dado. */
   fato: string;
-  /** A classe da fila (F1b, `fila.ts`), só nas recomendações do município. */
+  /** A classe da fila (F1b, `fila.ts`): a carteira mostra o rótulo ao lado do nível. */
   classe?: ClasseFila;
   prazo?: string | null;
 }
@@ -288,13 +288,13 @@ export function recomendacoesInstrumento(e: Record<string, unknown>, hoje: strin
   const diasFim = diasAte(fim, hoje);
   const diasLimite = diasAte(limite, hoje);
   if (/rejeitad|inadimplent/i.test(situacao)) {
-    r.push({ nivel: "alto", acao: "Tratar a rejeição das contas antes que vire TCE", fato: `Situação: ${situacao}${em}.` });
+    r.push({ nivel: "alto", classe: "cobranca", acao: "Tratar a rejeição das contas antes que vire TCE", fato: `Situação: ${situacao}${em}.` });
   }
   if (/aguardando presta/i.test(situacao) && diasLimite !== null) {
     r.push(
       diasLimite < 0
-        ? { nivel: "alto", acao: "Enviar a prestação de contas", fato: `O prazo venceu em ${formatarData(limite as string)}, há ${plural(-diasLimite, "dia", "dias")}${em}.` }
-        : { nivel: diasLimite <= 30 ? "alto" : "moderado", acao: `Enviar a prestação de contas até ${formatarData(limite as string)}`, fato: `${diasLimite === 1 ? "Falta" : "Faltam"} ${plural(diasLimite, "dia", "dias")}${em}.` },
+        ? { nivel: "alto", classe: "cobranca", acao: "Enviar a prestação de contas", fato: `O prazo venceu em ${formatarData(limite as string)}, há ${plural(-diasLimite, "dia", "dias")}${em}.` }
+        : { nivel: diasLimite <= 30 ? "alto" : "moderado", classe: "prazo", prazo: limite, acao: `Enviar a prestação de contas até ${formatarData(limite as string)}`, fato: `${diasLimite === 1 ? "Falta" : "Faltam"} ${plural(diasLimite, "dia", "dias")}${em}.` },
     );
   }
   if (/em execu/i.test(situacao) && diasFim !== null && diasFim <= 60) {
@@ -302,14 +302,15 @@ export function recomendacoesInstrumento(e: Record<string, unknown>, hoje: strin
     r.push(
       diasFim < 0
         ? aditivo
-          ? { nivel: "alto", acao: "Acompanhar a aprovação do aditivo; sem ele, preparar a prestação de contas e a devolução do saldo", fato: `A vigência terminou em ${formatarData(fim as string)} com um aditivo em andamento ("${txt(e.subsituacao)}")${em}.` }
-          : { nivel: "alto", acao: "Pedir a prorrogação (se há objeto a executar) ou preparar a prestação de contas e a devolução do saldo", fato: `A vigência terminou em ${formatarData(fim as string)} e o SICONV ainda mostra "Em execução"${em}.` }
+          ? { nivel: "alto", classe: "cobranca", acao: "Acompanhar a aprovação do aditivo; sem ele, preparar a prestação de contas e a devolução do saldo", fato: `A vigência terminou em ${formatarData(fim as string)} com um aditivo em andamento ("${txt(e.subsituacao)}")${em}.` }
+          : { nivel: "alto", classe: "cobranca", acao: "Pedir a prorrogação (se há objeto a executar) ou preparar a prestação de contas e a devolução do saldo", fato: `A vigência terminou em ${formatarData(fim as string)} e o SICONV ainda mostra "Em execução"${em}.` }
         : aditivo
-          ? { nivel: "moderado", acao: "Acompanhar o aditivo antes do fim da vigência", fato: `A vigência termina em ${formatarData(fim as string)}, daqui a ${plural(diasFim, "dia", "dias")}, com um aditivo em andamento${em}.` }
-          : { nivel: "moderado", acao: "Decidir entre pedir prorrogação e preparar a prestação de contas", fato: `A vigência termina em ${formatarData(fim as string)}, daqui a ${plural(diasFim, "dia", "dias")}${em}.` },
+          ? { nivel: "moderado", classe: "prazo", prazo: fim, acao: "Acompanhar o aditivo antes do fim da vigência", fato: `A vigência termina em ${formatarData(fim as string)}, daqui a ${plural(diasFim, "dia", "dias")}, com um aditivo em andamento${em}.` }
+          : { nivel: "moderado", classe: "prazo", prazo: fim, acao: "Decidir entre pedir prorrogação e preparar a prestação de contas", fato: `A vigência termina em ${formatarData(fim as string)}, daqui a ${plural(diasFim, "dia", "dias")}${em}.` },
     );
   }
-  return r.sort((a, b) => ORDEM[a.nivel] - ORDEM[b.nivel]);
+  // A mesma fila do município (fila.ts): o que pode virar cobrança antes do que só tem prazo.
+  return r.sort(compararFila);
 }
 
 /** Janela aberta: a decisão que ela pede. */
@@ -318,7 +319,7 @@ export function recomendacoesJanela(e: Record<string, unknown>, hoje: string): R
   if (e.aberta !== true) return [];
   const dias = diasAte(prazo, hoje);
   if (prazo && dias !== null && dias >= 0) {
-    return [{ nivel: dias <= 7 ? "alto" : "moderado", acao: `Decidir se vale preparar a proposta até ${formatarData(prazo)}`, fato: dias === 0 ? "Fecha hoje." : `${dias === 1 ? "Falta" : "Faltam"} ${plural(dias, "dia", "dias")}.` }];
+    return [{ nivel: dias <= 7 ? "alto" : "moderado", classe: "prazo", prazo, acao: `Decidir se vale preparar a proposta até ${formatarData(prazo)}`, fato: dias === 0 ? "Fecha hoje." : `${dias === 1 ? "Falta" : "Faltam"} ${plural(dias, "dia", "dias")}.` }];
   }
   return [];
 }
