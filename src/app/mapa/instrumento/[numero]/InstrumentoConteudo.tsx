@@ -2,6 +2,7 @@
  * A página de um convênio: valores, prazos e, na PB, a linha do tempo. Recebe os dados já lidos.
  */
 import Link from "next/link";
+import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import {
   ROTULO_TIPO_EVENTO,
   contagem,
@@ -58,7 +59,13 @@ export function InstrumentoConteudo({
         <h1 className="pa-titulo">{i.programa ?? "Programa não informado"}</h1>
         {i.objeto && <p className="pa-sub">{i.objeto}</p>}
         <p className="pa-sub">
-          <strong>{i.proponente ?? "Proponente não informado"}</strong>
+          {i.cnpj ? (
+            <Link href={urlEntidade(i.cnpj)} prefetch={false}>
+              <strong>{i.proponente ?? "Proponente não informado"}</strong>
+            </Link>
+          ) : (
+            <strong>{i.proponente ?? "Proponente não informado"}</strong>
+          )}
           {i.cod_ibge ? (
             <>
               {" · "}

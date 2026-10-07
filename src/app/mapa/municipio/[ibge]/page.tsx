@@ -4,10 +4,11 @@ import { after } from "next/server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
+import { quemRecebe } from "@/lib/oportunidades/pagina-entidade";
 import { PODE, abaEscolhida } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
-import { lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
+import { lerEntidadesDoMunicipio, lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
@@ -46,5 +47,8 @@ export default async function MunicipioPage({
   const seguidas = await lerSeguidas();
   after(() => registrarUso(visitante, "mapa_municipio", { ibge, aba, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
-  return <MunicipioConteudo r={r} aba={aba} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} />;
+  // "Quem recebe no município" (E1): só na aba do dinheiro, que é onde o bloco aparece.
+  const linhas = aba === "dinheiro" ? await lerEntidadesDoMunicipio(ibge) : undefined;
+  const entidades = linhas === undefined ? undefined : linhas ? quemRecebe(linhas) : null;
+  return <MunicipioConteudo r={r} aba={aba} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} entidades={entidades} />;
 }

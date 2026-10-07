@@ -7,6 +7,7 @@
  * complemento (`DiagnosticoComplemento`), que entra no fim do laudo da suspensiva quando há dossiê.
  */
 import Link from "next/link";
+import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
@@ -483,6 +484,14 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
           <p className="pa-nota">
             {nomeProponente(i)}
             {d.proponente.cnpj ? ` · CNPJ ${cnpjLegivel(d.proponente.cnpj)}` : ""}
+            {d.proponente.cnpj && (
+              <>
+                {" · "}
+                <Link href={urlEntidade(d.proponente.cnpj)} prefetch={false}>
+                  página da entidade
+                </Link>
+              </>
+            )}
           </p>
           <Distribuicao v={d.proponente.carteira} rotulo="Instrumentos do proponente" etapa={d.etapa} />
         </section>

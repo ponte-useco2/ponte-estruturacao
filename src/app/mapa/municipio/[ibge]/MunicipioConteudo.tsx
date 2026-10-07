@@ -9,9 +9,11 @@ import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { ABAS_MUNICIPIO, PODE, destinoConvenio, urlMunicipio, type AbaMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import { Carregando } from "../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
+import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
   BlocoControle,
@@ -88,7 +90,20 @@ function Mais({ children }: { children: React.ReactNode }) {
   return <p className="mp-nao-imprimir mp-laudo-acoes">{children}</p>;
 }
 
-export function MunicipioConteudo({ r, aba, nivel, seguindo }: { r: Relatorio; aba: AbaMunicipio; nivel: NivelAcesso; seguindo: boolean }) {
+export function MunicipioConteudo({
+  r,
+  aba,
+  nivel,
+  seguindo,
+  entidades,
+}: {
+  r: Relatorio;
+  aba: AbaMunicipio;
+  nivel: NivelAcesso;
+  seguindo: boolean;
+  /** "Quem recebe no município" (E1): lido só na aba do dinheiro; null quando a leitura falhou. */
+  entidades?: { lente: LenteEntidade; entidades: EntidadeNoMunicipio[] }[] | null;
+}) {
   const destino = destinoConvenio(nivel);
   const nomeAba = ABAS_MUNICIPIO.find((a) => a.id === aba)?.nome ?? "";
   return (
@@ -116,6 +131,7 @@ export function MunicipioConteudo({ r, aba, nivel, seguindo }: { r: Relatorio; a
 
       {aba === "dinheiro" && (
         <>
+          {entidades !== undefined && <QuemRecebe grupos={entidades} municipio={r.nome} />}
           <BlocoConvenios r={r} destino={destino} />
           <Mais>
             <Link href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno" prefetch={false}>

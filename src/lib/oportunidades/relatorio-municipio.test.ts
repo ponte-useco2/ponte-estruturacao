@@ -421,3 +421,13 @@ test("teste de 07/10: obras sem medição viram um cartão só, e toda cobrança
   // o 70% de capital do Pix é somado por autor: não é o município quem acerta
   assert.ok(r.achados.filter((a) => /70% em despesas de capital/.test(a.titulo)).every((a) => a.quem === "autor"));
 });
+
+test("escopo da entidade (E1): o mesmo motor, sem indicadores nem janelas; o relatório sabe que é de entidade", () => {
+  const m = montarRelatorio(patos(), HOJE);
+  const e = montarRelatorio(patos({ escopo: "entidade", indicadores: null, janelas: null }), HOJE);
+  assert.equal(m.escopo, "municipio");
+  assert.equal(e.escopo, "entidade");
+  assert.equal(e.janelas, null);
+  // a fila é a mesma regra: com a mesma entrada, os mesmos pontos na mesma ordem
+  assert.deepEqual(e.achados.map((a) => a.titulo), m.achados.map((a) => a.titulo));
+});

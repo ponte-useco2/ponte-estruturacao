@@ -890,6 +890,19 @@
 /* A fila do município (F1b): quem resolve e prazo numa linha discreta; a ação com o rótulo na mesma linha. */
 .pa-root .mp-fila-quem { font-size: 0.85rem; color: var(--pa-muted); }
 .pa-root .mp-fila-acao .pa-kicker { display: inline; margin-right: 0.35rem; }
+/* Página da entidade (E1): a ficha "Quem é" em duas colunas e os grupos que abrem e fecham (carteira, lentes). */
+.pa-root .mp-ent-sobre { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0 0 0.75rem; }
+.pa-root .mp-ent-sobre dt { color: var(--pa-muted); font-size: 0.85rem; }
+.pa-root .mp-ent-sobre dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.pa-root .mp-ent-grupo { border: 1px solid var(--pa-border); border-radius: var(--pa-r); padding: 0.5rem 0.75rem; background: var(--pa-surface); }
+.pa-root .mp-ent-grupo + .mp-ent-grupo { margin-top: 0.5rem; }
+.pa-root .mp-ent-grupo > summary { cursor: pointer; }
+.pa-root .mp-ent-grupo[open] > summary { margin-bottom: 0.5rem; }
+/* impressa, a carteira sai inteira: o grupo fechado abre (mesma regra do `mp-fiscal-detalhe`); o resumo fica, é o título */
+@media print {
+  .pa-root .mp-ent-grupo { border: 0; padding: 0; }
+  .pa-root .mp-ent-grupo::details-content { content-visibility: visible; display: block; }
+}
 .pa-root .mp-rel-emdia ul, .pa-root .mp-rel-verificacoes { margin: 0.4rem 0 0; padding-left: 1.2rem; }
 .pa-root .mp-rel-emdia li + li, .pa-root .mp-rel-verificacoes li + li { margin-top: 0.3rem; }
 .pa-root .mp-rel-cartao .pa-numero { overflow-wrap: anywhere; }

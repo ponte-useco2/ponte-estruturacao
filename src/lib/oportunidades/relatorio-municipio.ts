@@ -140,6 +140,8 @@ export interface EntradaRelatorio {
   janelas: { elegiveis: number; urgentes: JanelaRelatorio[] } | null;
   /** Camada 2: a última execução do job `municipios/`; null sem a migração ou sem execução. */
   indicadores?: EntradaIndicadores | null;
+  /** O relatório de um município (prefeitura e fundos) ou de uma entidade, um CNPJ só (página da entidade, E1). */
+  escopo?: "municipio" | "entidade";
   faltas: string[];
 }
 
@@ -213,6 +215,7 @@ export interface Relatorio {
   nome: string;
   hoje: string;
   versao: string;
+  escopo: "municipio" | "entidade";
   achados: Achado[];
   /** O "Em uma página": os quatro números e os achados que mais pesam. */
   cartoes: Cartao[];
@@ -1210,6 +1213,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     nome: e.nome,
     hoje,
     versao: VERSAO_RELATORIO,
+    escopo: e.escopo ?? "municipio",
     achados,
     cartoes: cartoes(base, e),
     destaques: achados.filter((a) => a.nivel !== "em_dia" && a.nivel !== "informativo").slice(0, MAX_DESTAQUES),

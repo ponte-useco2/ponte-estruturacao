@@ -13,6 +13,11 @@
  * relatório montado fica guardado por município e dia na memória da instância do servidor (`memoria.ts`); o
  * que cada visitante vê (sem nomes, nível de acesso) é aplicado DEPOIS, na página, sobre uma cópia. Erro e
  * fonte fora do ar não ficam guardados. As fontes mudam uma vez por dia, então 10 minutos não escondem nada.
+ *
+ * Página da entidade (E1, 07/10/2026): o mesmo relatório, lido por CNPJ (`lerRelatorioEntidade`). TCU, emendas,
+ * Acesso Livre e fornecedores vão pelos números dos convênios da entidade; Pix, fundo a fundo e o ciclo, pelo CNPJ;
+ * o fiscal entra só para entidade municipal (o CAUC e a LRF são do ente federativo), o TCE-PB só para a
+ * prefeitura; janelas e indicadores são do território e ficam fora.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { montarCatalogo } from "./catalogo-v2";
@@ -23,6 +28,7 @@ import { portaServe } from "./diagnostico";
 import { ehEsquemaAusente } from "./esquema";
 import { lerFiscalMunicipio } from "./fiscal.server";
 import { criarMemoria } from "./memoria";
+import { ehMunicipal, especieDe, type EspecieEntidade, type LinhaEntidadeMunicipio } from "./pagina-entidade";
 import catalogoIndicadores from "./indicadores-municipio.json";
 import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio";
 import { lerPainelFornecedores } from "./fornecedores.server";
@@ -93,13 +99,17 @@ async function execucao(db: Banco, rpc: string, faltas: string[], nome: string):
   return ((r.data as { id: number; referencia: string | null }[] | null) ?? [])[0] ?? null;
 }
 
-async function lerTcu(db: Banco, ibge: string, faltas: string[]): Promise<EntradaRelatorio["tcu"]> {
+async function lerTcu(db: Banco, filtro: { ibge: string } | { numeros: string[] }, faltas: string[]): Promise<EntradaRelatorio["tcu"]> {
   const nome = "e-TCE do TCU";
   const ex = await execucao(db, "tcu_ultima_execucao", faltas, nome);
   if (!ex) return null;
-  const consultas = await paginas<ConsultaTcu>(faltas, nome, (a, b) =>
-    db.from("tcu_consulta").select("nr_convenio,situacao_convenio,cod_ibge,n_tce,erro").eq("execucao_id", ex.id).eq("cod_ibge", ibge).order("nr_convenio").range(a, b),
-  );
+  const colunas = "nr_convenio,situacao_convenio,cod_ibge,n_tce,erro";
+  const consultas =
+    "ibge" in filtro
+      ? await paginas<ConsultaTcu>(faltas, nome, (a, b) =>
+          db.from("tcu_consulta").select(colunas).eq("execucao_id", ex.id).eq("cod_ibge", filtro.ibge).order("nr_convenio").range(a, b),
+        )
+      : await emLotes<ConsultaTcu>(faltas, nome, filtro.numeros, (lote) => db.from("tcu_consulta").select(colunas).eq("execucao_id", ex.id).in("nr_convenio", lote).limit(1000));
   if (!consultas) return null;
   const comTce = consultas.filter((c) => (c.n_tce ?? 0) > 0).map((c) => c.nr_convenio);
   const tces = comTce.length
@@ -110,20 +120,24 @@ async function lerTcu(db: Banco, ibge: string, faltas: string[]): Promise<Entrad
 }
 
 /** Pix do exercício com o plano de trabalho pendente (oport_30). Antes da primeira coleta do ciclo, nada. */
-async function lerCiclo(db: Banco, ibge: string, faltas: string[]): Promise<PlanoCicloPix[] | null> {
+type Chave = { campo: "cod_ibge" | "cnpj"; valor: string };
+
+async function lerCiclo(db: Banco, chave: Chave, faltas: string[]): Promise<PlanoCicloPix[] | null> {
   const nome = "Pix em curso";
   const ex = await execucao(db, "pixc_ultima_execucao", faltas, nome);
   if (!ex) return null;
   return paginas<PlanoCicloPix>(faltas, nome, (a, b) =>
-    db.from("pix_ciclo_plano").select("*").eq("execucao_id", ex.id).eq("cod_ibge", ibge).order("id_plano_acao").range(a, b),
+    db.from("pix_ciclo_plano").select("*").eq("execucao_id", ex.id).eq(chave.campo, chave.valor).order("id_plano_acao").range(a, b),
   );
 }
 
-async function lerFundo(db: Banco, ibge: string, faltas: string[]): Promise<PlanoFundo[] | null> {
+async function lerFundo(db: Banco, chave: Chave, faltas: string[]): Promise<PlanoFundo[] | null> {
   const nome = "fundo a fundo";
   const ex = await execucao(db, "pix_ultima_execucao", faltas, nome);
   if (!ex) return null;
-  return paginas<PlanoFundo>(faltas, nome, (a, b) => db.from("pix_fundo_plano").select("*").eq("execucao_id", ex.id).eq("cod_ibge", ibge).order("id_plano_acao").range(a, b));
+  return paginas<PlanoFundo>(faltas, nome, (a, b) =>
+    db.from("pix_fundo_plano").select("*").eq("execucao_id", ex.id).eq(chave.campo, chave.valor).order("id_plano_acao").range(a, b),
+  );
 }
 
 /** Camada 2: a última execução do job `municipios/`. Sem a `oport_27` ou sem execução, null sem falta. */
@@ -222,13 +236,13 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
     paginas<PropostaRelatorio>(faltas, "propostas", (a, b) =>
       db.from("painel_proposta").select(COLUNAS_PROPOSTA).eq("execucao_id", ex.id).eq("cod_ibge", ibge).eq("tipo_agente", "municipio").order("id_proposta").range(a, b),
     ),
-    lerTcu(db, ibge, faltas),
+    lerTcu(db, { ibge }, faltas),
     lerLaudoEntePix({ tipo: "ibge", valor: ibge }),
     lerTceMunicipio(ibge),
     lerPainelFornecedores({ q: null, municipio: ibge, ordem: "valor", marca: "inidoneos" }),
-    lerFundo(db, ibge, faltas),
+    lerFundo(db, { campo: "cod_ibge", valor: ibge }, faltas),
     lerIndicadores(db, ibge, faltas),
-    lerCiclo(db, ibge, faltas),
+    lerCiclo(db, { campo: "cod_ibge", valor: ibge }, faltas),
   ]);
 
   const nome = (fiscal.estado === "ok" ? fiscal.municipio.nome : null) ?? instrumentos?.[0]?.municipio ?? null;
@@ -281,4 +295,185 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
     faltas,
   };
   return { estado: "ok", relatorio: montarRelatorio(entrada, hoje) };
+}
+
+// ================================================================ entidade (E1, 07/10/2026)
+
+// `municipio` já vem nas colunas do instrumento; na proposta, não.
+const IDENTIDADE_INSTRUMENTO = "proponente,tipo_agente,cod_ibge,uf";
+const IDENTIDADE_PROPOSTA = "proponente,tipo_agente,cod_ibge,municipio,uf";
+type ComIdentidade = { proponente: string | null; tipo_agente: string | null; cod_ibge: string | null; municipio: string | null; uf: string | null };
+
+export interface IdentidadeEntidade {
+  cnpj: string;
+  nome: string;
+  especie: EspecieEntidade;
+  tipoAgente: string | null;
+  cod_ibge: string | null;
+  municipio: string | null;
+  uf: string | null;
+  /** Ano do primeiro instrumento assinado ou da primeira proposta na base. */
+  desde: number | null;
+}
+
+export type LeituraEntidade =
+  | { estado: "nao_ativado" }
+  | { estado: "sem_execucao" }
+  | { estado: "erro" }
+  | { estado: "nao_encontrado" }
+  | { estado: "ok"; entidade: IdentidadeEntidade; relatorio: Relatorio; instrumentos: InstrumentoRelatorio[]; propostas: PropostaRelatorio[] };
+
+/** Nome, tipo e sede pelo instrumento mais recente (a razão social muda com o tempo); sem instrumento, pela proposta. */
+function identidade(
+  cnpj: string,
+  instrumentos: (InstrumentoRelatorio & ComIdentidade)[],
+  propostas: (PropostaRelatorio & ComIdentidade)[],
+): IdentidadeEntidade {
+  const recente = [...instrumentos].sort((a, b) => (b.dt_assinatura ?? "").localeCompare(a.dt_assinatura ?? ""))[0];
+  const ref: ComIdentidade | undefined = recente ?? [...propostas].sort((a, b) => (b.ano_envio ?? 0) - (a.ano_envio ?? 0))[0];
+  const anos = [
+    ...instrumentos.map((i) => (i.dt_assinatura ? Number(i.dt_assinatura.slice(0, 4)) : null)),
+    ...propostas.map((p) => p.ano_envio ?? null),
+  ].filter((x): x is number => typeof x === "number" && x > 1990);
+  const nome = ref?.proponente ?? cnpj;
+  return {
+    cnpj,
+    nome,
+    especie: especieDe(nome, ref?.tipo_agente),
+    tipoAgente: ref?.tipo_agente ?? null,
+    cod_ibge: ref?.cod_ibge ?? null,
+    municipio: ref?.municipio ?? null,
+    uf: ref?.uf ?? null,
+    desde: anos.length ? Math.min(...anos) : null,
+  };
+}
+
+/** Fornecedores inidôneos nos convênios da entidade, com o que receberam neles. A concentração fica para depois. */
+async function lerInidoneosDosConvenios(db: Banco, execucaoId: number, numeros: string[], faltas: string[]): Promise<EntradaRelatorio["fornecedores"]> {
+  if (!numeros.length) return { concentracao: null, inidoneos: [] };
+  const pares = await emLotes<{ cnpj: string; pago: number | null }>(faltas, "fornecedores", numeros, (lote) =>
+    db.from("painel_fornecedor_convenio").select("cnpj,pago").eq("execucao_id", execucaoId).in("nr_convenio", lote).limit(5000),
+  );
+  if (!pares) return null;
+  const pago = new Map<string, number>();
+  for (const p of pares) pago.set(p.cnpj, (pago.get(p.cnpj) ?? 0) + (p.pago ?? 0));
+  const marcados = pago.size
+    ? await emLotes<{ cnpj: string; nome: string | null }>(faltas, "fornecedores", [...pago.keys()], (lote) =>
+        db.from("painel_fornecedor").select("cnpj,nome").eq("execucao_id", execucaoId).eq("inidoneo_tcu", true).in("cnpj", lote).limit(1000),
+      )
+    : [];
+  if (!marcados) return null;
+  return {
+    concentracao: null,
+    inidoneos: marcados.map((m) => ({ cnpj: m.cnpj, nome: m.nome, pago: pago.get(m.cnpj) ?? 0 })).filter((f) => f.pago > 0),
+  };
+}
+
+const memoriaEntidade = criarMemoria<LeituraEntidade>({
+  validadeMs: 10 * 60 * 1000,
+  maximo: 30,
+  guardar: (l) => l.estado === "ok" || l.estado === "nao_encontrado",
+});
+
+/** O relatório de uma entidade (um CNPJ), da memória quando há. Não altere o objeto devolvido. */
+export function lerRelatorioEntidade(cnpj: string, hoje: string): Promise<LeituraEntidade> {
+  return memoriaEntidade.obter(`${cnpj}|${hoje}`, () => lerEntidadeDoBanco(cnpj, hoje));
+}
+
+async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEntidade> {
+  if (!authConfigurada()) return { estado: "nao_ativado" };
+  const db = clienteServidor();
+  const faltas: string[] = [];
+
+  const painel = await db.rpc("painel_ultima_execucao");
+  if (painel.error) {
+    if (ehEsquemaAusente(painel.error.code)) return { estado: "nao_ativado" };
+    console.error("relatório da entidade (painel):", painel.error.message);
+    return { estado: "erro" };
+  }
+  const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
+  if (!ex) return { estado: "sem_execucao" };
+
+  const [instrumentos, propostas] = await Promise.all([
+    paginas<InstrumentoRelatorio & ComIdentidade>(faltas, "convênios", (a, b) =>
+      db.from("painel_instrumento").select(`${COLUNAS_INSTRUMENTO},${IDENTIDADE_INSTRUMENTO}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("nr_convenio").range(a, b),
+    ),
+    paginas<PropostaRelatorio & ComIdentidade>(faltas, "propostas", (a, b) =>
+      db.from("painel_proposta").select(`${COLUNAS_PROPOSTA},${IDENTIDADE_PROPOSTA}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("id_proposta").range(a, b),
+    ),
+  ]);
+  if (!instrumentos && !propostas) return { estado: "erro" };
+  if (!(instrumentos ?? []).length && !(propostas ?? []).length) return { estado: "nao_encontrado" };
+
+  const ent = identidade(cnpj, instrumentos ?? [], propostas ?? []);
+  const ibge = ent.cod_ibge;
+  const municipal = ehMunicipal(ent.especie) && !!ibge;
+  const prefeitura = ent.especie === "prefeitura" && !!ibge;
+  const numeros = (instrumentos ?? []).map((i) => i.nr_convenio);
+
+  const [fiscal, tcu, pix, tce, fundo, pixCiclo, emendas, contasObras, fornecedores] = await Promise.all([
+    municipal ? lerFiscalMunicipio(ibge as string) : Promise.resolve(null),
+    numeros.length ? lerTcu(db, { numeros }, faltas) : Promise.resolve(null),
+    lerLaudoEntePix({ tipo: "cnpj", valor: cnpj }),
+    prefeitura ? lerTceMunicipio(ibge as string) : Promise.resolve(null),
+    lerFundo(db, { campo: "cnpj", valor: cnpj }, faltas),
+    lerCiclo(db, { campo: "cnpj", valor: cnpj }, faltas),
+    numeros.length
+      ? emLotes<EmendaRelatorio>(faltas, "emendas", numeros, (lote) =>
+          db.from("painel_instrumento_emenda").select("nr_convenio,parlamentar,tipo_parlamentar,valor").eq("execucao_id", ex.id).in("nr_convenio", lote).limit(5000),
+        )
+      : Promise.resolve([] as EmendaRelatorio[]),
+    numeros.length ? lerContasObrasDosConvenios(db, numeros, faltas) : Promise.resolve(undefined),
+    lerInidoneosDosConvenios(db, ex.id, numeros, faltas),
+  ]);
+
+  if (fiscal && fiscal.estado !== "ok" && fiscal.estado !== "nao_encontrado") faltas.push("painel fiscal");
+  if (pix.estado === "erro") faltas.push("Pix");
+  if (tce && tce.estado === "erro") faltas.push("TCE-PB");
+  const g2 = fiscal?.estado === "ok" ? fiscal.verificacoes.find((v) => v.codigo === "G2") : undefined;
+
+  const entrada: EntradaRelatorio = {
+    ibge: ibge ?? "",
+    nome: ent.nome,
+    fiscal: fiscal?.estado === "ok" ? { municipio: fiscal.municipio, verificacoes: fiscal.verificacoes, referencia: fiscal.execucao.referencia ?? null } : null,
+    serie: (g2?.evidencia as { serie?: SeriePessoal } | undefined)?.serie ?? null,
+    instrumentos,
+    referenciaPainel: ex.referencia ?? ex.dado_ate ?? null,
+    emendas,
+    propostas,
+    tcu,
+    contasObras: contasObras === undefined ? null : contasObras,
+    pix: pix.estado === "ok" ? pix.planos : pix.estado === "nao_encontrado" ? [] : null,
+    pixCiclo,
+    pixTce: prefeitura ? (tce?.estado === "ok" ? tce.pix : pix.estado === "ok" ? pix.tce : null) : null,
+    fundo,
+    conciliacao: prefeitura && tce?.estado === "ok" ? tce.municipios : null,
+    fornecedores,
+    janelas: null,
+    indicadores: null,
+    escopo: "entidade",
+    faltas,
+  };
+  return { estado: "ok", entidade: ent, relatorio: montarRelatorio(entrada, hoje), instrumentos: instrumentos ?? [], propostas: propostas ?? [] };
+}
+
+const memoriaEntidades = criarMemoria<LinhaEntidadeMunicipio[] | null>({ validadeMs: 10 * 60 * 1000, maximo: 30, guardar: (l) => l !== null });
+
+/** Os instrumentos de um município, de todos os proponentes, para o bloco "Quem recebe no município". */
+export function lerEntidadesDoMunicipio(ibge: string): Promise<LinhaEntidadeMunicipio[] | null> {
+  return memoriaEntidades.obter(ibge, async () => {
+    if (!authConfigurada()) return null;
+    const db = clienteServidor();
+    const painel = await db.rpc("painel_ultima_execucao");
+    if (painel.error) {
+      if (!ehEsquemaAusente(painel.error.code)) console.error("entidades do município (painel):", painel.error.message);
+      return null;
+    }
+    const ex = ((painel.data as { id: number }[] | null) ?? [])[0];
+    if (!ex) return null;
+    const r = await todas<LinhaEntidadeMunicipio>("entidades do município", (a, b) =>
+      db.from("painel_instrumento").select("cnpj,proponente,tipo_agente,situacao,vl_global,dt_assinatura").eq("execucao_id", ex.id).eq("cod_ibge", ibge).order("nr_convenio").range(a, b),
+    );
+    return Array.isArray(r) ? r : null;
+  });
 }

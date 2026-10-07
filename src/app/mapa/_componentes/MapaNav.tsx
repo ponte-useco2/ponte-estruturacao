@@ -32,7 +32,7 @@ const ABAS: readonly Aba[] = [
     exata: false,
     admin: false,
     municipio: false,
-    tambem: ["/mapa/instrumento/", "/mapa/proposta/", "/mapa/municipio/"],
+    tambem: ["/mapa/instrumento/", "/mapa/proposta/", "/mapa/municipio/", "/mapa/entidade/"],
     // O laudo de qualquer instrumento acende a Busca; o aberto pela lista das suspensivas, não.
     exceto: [LAUDO_PELAS_SUSPENSIVAS],
   },

@@ -328,7 +328,11 @@ export function EmOrdem({ r }: { r: Relatorio }) {
 export function BlocoPassos({ r }: { r: Relatorio }) {
   if (!r.passos.length) return null;
   return (
-    <Secao id="rel-passos" titulo="O que fazer primeiro" nota="Do que destrava mais para o que destrava menos. Só o que depende do município.">
+    <Secao
+      id="rel-passos"
+      titulo="O que fazer primeiro"
+      nota={`Do que destrava mais para o que destrava menos. Só o que depende ${r.escopo === "entidade" ? "da entidade" : "do município"}.`}
+    >
       <ol className="mp-simulador-caminho">
         {r.passos.map((s) => (
           <li key={s.titulo} className="pa-cartao mp-simulador-passo">
@@ -448,7 +452,7 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
   const c = r.convenios;
   if (!c) return null;
   return (
-    <Secao id="rel-convenios" titulo="Convênios e contratos de repasse" nota={`Da prefeitura e dos fundos municipais, no arquivo aberto do SICONV de ${data(c.referencia)}.`}>
+    <Secao id="rel-convenios" titulo="Convênios e contratos de repasse" nota={`${r.escopo === "entidade" ? "Desta entidade" : "Da prefeitura e dos fundos municipais"}, no arquivo aberto do SICONV de ${data(c.referencia)}.`}>
       <div className="mp-tabela-rolagem">
         <table className="mp-tabela">
           <thead>
@@ -590,7 +594,7 @@ export function BlocoPropostas({ r, destino }: { r: Relatorio; destino: Destino 
 export function BlocoEmendas({ r }: { r: Relatorio }) {
   if (!r.emendas || !r.emendas.length) return null;
   return (
-    <Secao id="rel-emendas" titulo="De onde vieram as emendas dos convênios" nota="Parlamentares como agentes públicos; valor indicado nas emendas ligadas aos convênios do município.">
+    <Secao id="rel-emendas" titulo="De onde vieram as emendas dos convênios" nota={`Parlamentares como agentes públicos; valor indicado nas emendas ligadas aos convênios ${r.escopo === "entidade" ? "da entidade" : "do município"}.`}>
       <div className="mp-tabela-rolagem">
         <table className="mp-tabela">
           <thead>
