@@ -7,6 +7,7 @@ import { paraCsv } from "./painel.ts";
 import {
   COLUNAS_CSV_ACHADOS,
   acimaDoLimite,
+  filaDoMunicipio,
   montarRelatorio,
   relatorioSemNomes,
   rotuloPeriodo,
@@ -125,7 +126,13 @@ test("Patos: os críticos do v1 de 30/09 (transferência travada e as duas TCE)"
   const travada = r.achados[0];
   assert.match(travada.fato, /por Pessoal e CAUC\. O CAUC registra pendência nos itens 1\.5 e 4\.2\./);
   assert.match(travada.fato, /art\. 25, § 3º/);
-  const tces = r.achados[1];
+  // F1b: o que trava dinheiro novo vem antes da cobrança, qualquer que seja o nível
+  assert.deepEqual(r.achados.slice(0, 3).map((a) => [a.classe, a.titulo.slice(0, 35)]), [
+    ["bloqueio", "Transferência voluntária e crédito "],
+    ["bloqueio", "Despesa com pessoal acima do limite"],
+    ["cobranca", "2 Tomadas de Contas Especiais no TC"],
+  ]);
+  const tces = r.achados[2];
   assert.match(tces.fato, /O SICONV mostra 736216 como «Prestação de Contas Concluída»/);
   assert.deepEqual(tces.numeros, ["703764", "736216"]);
   // a rejeição que já virou TCE não aparece duas vezes
@@ -303,8 +310,20 @@ test("Pix impedido (oport_29): os dois últimos anos viram pontos; pela vez do m
   assert.equal(pix[1].acao, null);
 });
 
-test("Pix em curso (oport_30): plano à espera do município é alto e entra entre os destaques", () => {
+test("Pix em curso (oport_30): plano à espera do município é alto, na classe dos prazos, e entra nos destaques de quem não tem bloqueio", () => {
+  const limpo = {
+    fiscal: {
+      municipio: { ...municipio, conclusoes: municipio.conclusoes.map((c) => ({ ...c, estado: "atendido" as const, bloqueantes: [] })), indicadores: { pessoal_pct: 45, cauc_pendencias: [] } },
+      verificacoes,
+      referencia: "2026-09-30",
+    },
+    serie: { anos: [2026], periodos: [{ exercicio: 2026, periodicidade: "Q" as const, periodo: 2, dtp_pct: 45, limite_maximo_pct: 54, limite_prudencial_pct: 51.3 }] },
+    instrumentos: [inst({})],
+    tcu: { consultas: [{ nr_convenio: "900000", situacao_convenio: null, cod_ibge: "2510808", n_tce: 0, erro: null }], tces: [], referencia: "2026-09-30" },
+    propostas: [],
+  };
   const r = montarRelatorio(patos({
+    ...limpo,
     pixCiclo: [{
       id_plano_acao: 9, codigo_plano_acao: "09032026-000009", ano: 2026, ciclo: 1, beneficiario: "Patos", cnpj: "09084815000170", cod_ibge: "2510808",
       autor: "Fulano", valor: 400000, situacao_plano: "CIENTE", situacao_pt: "Em Complementação", desde: "2026-09-20", vez: "ente",
@@ -314,6 +333,40 @@ test("Pix em curso (oport_30): plano à espera do município é alto e entra ent
   const a = r.achados.find((x) => x.titulo.startsWith("Pix em curso"));
   assert.ok(a);
   assert.equal(a.nivel, "alto");
+  assert.equal(a.classe, "prazo");
+  assert.equal(a.quem, "municipio");
+  assert.equal(a.prazo, "2026-10-15");
   assert.match(a.fato, /faltam 14 dias/);
   assert.ok(r.destaques.some((x) => x.titulo.startsWith("Pix em curso")), "vai para o que mais pesa");
+});
+
+test("aba «o que trava» (F1b): Patos em classes, com quem resolve; a mesma ordem do «Em uma página»; indicadores fora", () => {
+  const catalogo = [{ id: "homicidios_taxa", dimensao: "seguranca", nome: "Homicídios", unidade: "por 100 mil hab.", casas: 2, direcao: "menor", chave: true }] as const;
+  const r = montarRelatorio(patos({
+    indicadores: {
+      catalogo: [...catalogo],
+      linhas: [{ indicador: "homicidios_taxa", ano: "2022-2024", valor: 36.19, fonte: "F", url: null, nota: null, posicao_pb: null, total_pb: null, mediana_porte: null, mediana_regiao: null }],
+      referencias: [
+        { indicador: "homicidios_taxa", ano: "2022-2024", recorte: "q1_pb", valor: 8 },
+        { indicador: "homicidios_taxa", ano: "2022-2024", recorte: "mediana_pb", valor: 15 },
+        { indicador: "homicidios_taxa", ano: "2022-2024", recorte: "q3_pb", valor: 25 },
+        { indicador: "homicidios_taxa", ano: "2022-2024", recorte: "BR", valor: 21.5 },
+      ],
+      grupo: null,
+      coletadoEm: "2026-10-05T12:00:00Z",
+    },
+  }), HOJE);
+  const f = filaDoMunicipio(r);
+  const classes = f.grupos.map((g) => g.classe);
+  assert.deepEqual(classes, [...classes].sort((a, b) => ["bloqueio", "cobranca", "prazo", "atencao"].indexOf(a) - ["bloqueio", "cobranca", "prazo", "atencao"].indexOf(b)));
+  assert.equal(classes[0], "bloqueio");
+  assert.deepEqual(f.grupos[0].itens.map((a) => a.titulo.slice(0, 35)), ["Transferência voluntária e crédito ", "Despesa com pessoal acima do limite"]);
+  const cobranca = f.grupos.find((g) => g.classe === "cobranca");
+  assert.equal(cobranca?.itens[0].quem, "tribunal", "a TCE se resolve no TCU");
+  assert.ok(f.grupos.every((g) => g.itens.every((a) => a.nivel !== "em_dia" && a.nivel !== "informativo" && a.dimensao !== "social")));
+  assert.equal(f.indicadores, 1, "o homicídio fica na aba dos indicadores");
+  // o «Em uma página» é o começo da mesma fila (os indicadores entram nele, mas não mudam a ordem do resto)
+  const fila = f.grupos.flatMap((g) => g.itens.map((a) => a.titulo));
+  const topo = r.destaques.filter((a) => a.dimensao !== "social").map((a) => a.titulo);
+  assert.deepEqual(fila.slice(0, topo.length), topo);
 });

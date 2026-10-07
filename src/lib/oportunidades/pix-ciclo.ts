@@ -8,6 +8,7 @@
  * diz que o prazo não foi cadastrado, nunca inventa um. Função pura, sem banco e sem relógio.
  */
 import { formatarData } from "./central.ts";
+import type { ClasseFila, QuemResolve } from "./fila.ts";
 import type { AnalisePtPix } from "./pix-laudo.ts";
 import { moedaCurta } from "./radar.ts";
 
@@ -39,6 +40,10 @@ export function diasAte(prazo: string | null, hoje: string): number | null {
 
 export interface PontoCiclo {
   nivel: "alto" | "moderado" | "informativo";
+  classe: ClasseFila;
+  /** Ausente quando a leitura não sabe de quem é a vez (situação a conferir). */
+  quem?: QuemResolve;
+  prazo: string | null;
   titulo: string;
   fato: string;
   acao: string | null;
@@ -75,6 +80,9 @@ export function pontoDoCiclo(p: PlanoCicloPix, hoje: string): PontoCiclo {
     const ate = p.prazo ? ` até ${formatarData(p.prazo)}` : "";
     return {
       nivel: "alto",
+      classe: "prazo",
+      quem: "municipio",
+      prazo: p.prazo,
       titulo: `Pix em curso: o município precisa ${p.etapa ?? "responder no Transferegov"} (${plano(p)})`,
       fato: `${situacao}.${textoPrazo(p, hoje)} Sem resposta no prazo, o plano fica impedido e o dinheiro não vem.${textoAnalise(p.ultima_analise)}`,
       acao: `${(p.etapa ?? "responder").charAt(0).toUpperCase()}${(p.etapa ?? "responder").slice(1)} no Transferegov${ate}.`,
@@ -83,6 +91,9 @@ export function pontoDoCiclo(p: PlanoCicloPix, hoje: string): PontoCiclo {
   if (p.vez === "orgao") {
     return {
       nivel: "informativo",
+      classe: "atencao",
+      quem: "orgao",
+      prazo: null,
       titulo: `Pix em curso: plano em análise no órgão federal (${plano(p)})`,
       fato: `${situacao}; a vez é do órgão.${textoAnalise(p.ultima_analise)} Se o órgão pedir complementação, a vez volta ao município.`,
       acao: null,
@@ -90,6 +101,8 @@ export function pontoDoCiclo(p: PlanoCicloPix, hoje: string): PontoCiclo {
   }
   return {
     nivel: "moderado",
+    classe: "atencao",
+    prazo: null,
     titulo: `Pix em curso: situação a conferir (${plano(p)})`,
     fato: `${p.etapa ?? "Situação que a leitura automática não conhece"}. Conferir no Transferegov de quem é a vez.`,
     acao: null,

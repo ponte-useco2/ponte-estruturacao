@@ -2,7 +2,7 @@
  * A página de uma proposta: onde ela está, de quem é a vez e quanto o órgão costuma levar.
  */
 import Link from "next/link";
-import { parametrosBusca, urlBusca, urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
+import { parametrosBusca, urlBusca, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import type { LeituraProposta } from "@/lib/oportunidades/busca.server";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
@@ -58,7 +58,7 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           {p.cod_ibge ? (
             <>
               {" · "}
-              <Link href={urlInvestimentos(p.cod_ibge)}>
+              <Link href={urlDoMunicipio(p.cod_ibge)}>
                 {p.municipio ?? `IBGE ${p.cod_ibge}`}/{p.uf}
               </Link>
             </>

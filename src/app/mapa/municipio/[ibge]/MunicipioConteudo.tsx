@@ -1,8 +1,8 @@
 /**
  * A página do município em abas (F1a, decisões de 06/10/2026): um endereço no lugar das telas espalhadas. Cada
  * aba junta os blocos do relatório que já existem (RelatorioConteudo); aqui só se escolhe o que entra em cada
- * uma e o que o nível de acesso alcança. A ordem da aba "o que trava" é a do relatório até a F1b unificar a
- * regra com a da carteira.
+ * uma e o que o nível de acesso alcança. A aba "o que trava" é a fila do município (F1b, `fila.ts`): a mesma ordem
+ * do "Em uma página" do relatório e da carteira.
  */
 import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
@@ -17,12 +17,12 @@ import {
   BlocoControle,
   BlocoConvenios,
   BlocoEmendas,
+  BlocoFila,
   BlocoFiscal,
   BlocoFontes,
   BlocoFornecedores,
   BlocoJanelas,
   BlocoMunicipio,
-  BlocoPassos,
   BlocoPix,
   BlocoPropostas,
   BlocoTcePb,
@@ -30,7 +30,6 @@ import {
   BlocosIndicadoresMunicipio,
   Cartoes,
   EmOrdem,
-  ListaAchados,
   Secao,
 } from "./relatorio/RelatorioConteudo";
 
@@ -100,11 +99,7 @@ export function MunicipioConteudo({ r, aba, nivel, seguindo }: { r: Relatorio; a
 
       {aba === "trava" && (
         <>
-          <Secao id="mun-trava" titulo="O que mais pesa" nota="Do que trava dinheiro novo para o que pede atenção, cada ponto com o fato e a fonte.">
-            <ListaAchados achados={r.destaques} destino={destino} />
-            {!r.destaques.length && <p>Nada travando nas fontes lidas.</p>}
-          </Secao>
-          <BlocoPassos r={r} />
+          <BlocoFila r={r} destino={destino} linkIndicadores={urlMunicipio(r.ibge, "indicadores")} />
           <BlocoJanelas r={r} />
         </>
       )}

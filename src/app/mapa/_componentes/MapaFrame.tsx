@@ -66,6 +66,7 @@ export async function MapaFrame({
           naoLidas={naoLidas}
           admin={ehAdministrador(email)}
           municipio={ativa?.tipo === "municipio" && Boolean(ativa.municipioIbge)}
+          meuIbge={ativa?.tipo === "municipio" ? ativa.municipioIbge : null}
         />
       </header>
 

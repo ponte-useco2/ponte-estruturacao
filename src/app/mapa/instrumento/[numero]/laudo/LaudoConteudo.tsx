@@ -5,7 +5,7 @@
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { rotuloModalidade, urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
+import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   agruparLinha,
@@ -311,7 +311,7 @@ export function LaudoConteudo({
         </ul>
         {contexto.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <Link href={urlInvestimentos(contexto.cod_ibge)}>Outros investimentos em {contexto.municipio ?? "neste município"}</Link>
+            <Link href={urlDoMunicipio(contexto.cod_ibge, "dinheiro")}>Outros investimentos em {contexto.municipio ?? "neste município"}</Link>
           </p>
         )}
       </section>

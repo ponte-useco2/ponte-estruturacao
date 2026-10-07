@@ -67,7 +67,7 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
     // Para o cliente, "não encontrado" também é "de outro proponente": a página não diz qual dos dois.
     return cliente ? (
       <SemLaudo numero={numero} kicker={null} titulo="Este laudo não está disponível para a sua organização">
-        O laudo mostra os instrumentos da prefeitura do seu município (e dos fundos e autarquias municipais). Os convênios estão na ficha do{" "}
+        O laudo mostra os instrumentos da prefeitura do seu município (e dos fundos e autarquias municipais). Os convênios estão na página do{" "}
         <Link href="/mapa/meu-municipio">Meu município</Link>.
       </SemLaudo>
     ) : (

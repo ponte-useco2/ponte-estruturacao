@@ -7,7 +7,7 @@
  * complemento (`DiagnosticoComplemento`), que entra no fim do laudo da suspensiva quando há dossiê.
  */
 import Link from "next/link";
-import { rotuloModalidade, urlInstrumento, urlInvestimentos } from "@/lib/oportunidades/busca";
+import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   ROTULO_ETAPA_LAUDO,
@@ -236,7 +236,7 @@ export function DiagnosticoConteudo({
         </ul>
         {i.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <Link href={urlInvestimentos(i.cod_ibge)}>Outros investimentos em {i.municipio ?? "neste município"}</Link>
+            <Link href={urlDoMunicipio(i.cod_ibge, "dinheiro")}>Outros investimentos em {i.municipio ?? "neste município"}</Link>
           </p>
         )}
       </section>

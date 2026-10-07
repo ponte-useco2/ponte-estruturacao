@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { LAUDO_PELAS_SUSPENSIVAS, ORIGEM_SUSPENSIVAS, abaAtiva, type RegraAba } from "./abas.ts";
+import { LAUDO_PELAS_SUSPENSIVAS, ORIGEM_SUSPENSIVAS, abaAtiva, noMeuMunicipio, type RegraAba } from "./abas.ts";
 
 const JANELAS: RegraAba = { href: "/mapa", exata: true };
 const BUSCA: RegraAba = { href: "/mapa/busca", exata: false, tambem: ["/mapa/instrumento/", "/mapa/proposta/"], exceto: [LAUDO_PELAS_SUSPENSIVAS] };
@@ -36,4 +36,14 @@ test("o dossiê do fornecedor acende a aba Fornecedores, e só ela", () => {
   assert.equal(abaAtiva(BUSCA, "/mapa/fornecedor/05476456000146"), false);
   // O laudo aberto pelo dossiê é da Busca.
   assert.equal(abaAtiva(FORNECEDORES, "/mapa/instrumento/962210/laudo"), false);
+});
+
+test("F1c: a página do próprio município (e o que fica debaixo dela) é do «Meu município»; a de outro, não", () => {
+  assert.equal(noMeuMunicipio("/mapa/municipio/2513802", "2513802"), true);
+  assert.equal(noMeuMunicipio("/mapa/municipio/2513802/relatorio", "2513802"), true);
+  assert.equal(noMeuMunicipio("/mapa/municipio/2510808", "2513802"), false);
+  // prefixo do número não confunde
+  assert.equal(noMeuMunicipio("/mapa/municipio/25138021", "2513802"), false);
+  assert.equal(noMeuMunicipio("/mapa/municipio/2513802", null), false);
+  assert.equal(noMeuMunicipio("/mapa/busca", "2513802"), false);
 });

@@ -10,7 +10,7 @@ import {
   rotuloModalidade,
   rotuloSituacaoHistorico,
   urlBusca,
-  urlInvestimentos,
+  urlDoMunicipio,
   urlProposta,
   parametrosBusca,
   type EventoInstrumento,
@@ -62,7 +62,7 @@ export function InstrumentoConteudo({
           {i.cod_ibge ? (
             <>
               {" · "}
-              <Link href={urlInvestimentos(i.cod_ibge)}>
+              <Link href={urlDoMunicipio(i.cod_ibge)}>
                 {i.municipio ?? `IBGE ${i.cod_ibge}`}/{i.uf}
               </Link>
             </>

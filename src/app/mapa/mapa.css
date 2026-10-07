@@ -887,6 +887,9 @@
 .pa-root .mp-rel-h3 { font-size: 1rem; margin: 0 0 0.5rem; }
 .pa-root .mp-rel-dimensao { font-size: 0.72rem; color: var(--pa-muted); margin-left: 0.3rem; }
 .pa-root .mp-rel-emdia { margin-top: 0.5rem; }
+/* A fila do município (F1b): quem resolve e prazo numa linha discreta; a ação com o rótulo na mesma linha. */
+.pa-root .mp-fila-quem { font-size: 0.85rem; color: var(--pa-muted); }
+.pa-root .mp-fila-acao .pa-kicker { display: inline; margin-right: 0.35rem; }
 .pa-root .mp-rel-emdia ul, .pa-root .mp-rel-verificacoes { margin: 0.4rem 0 0; padding-left: 1.2rem; }
 .pa-root .mp-rel-emdia li + li, .pa-root .mp-rel-verificacoes li + li { margin-top: 0.3rem; }
 .pa-root .mp-rel-cartao .pa-numero { overflow-wrap: anywhere; }

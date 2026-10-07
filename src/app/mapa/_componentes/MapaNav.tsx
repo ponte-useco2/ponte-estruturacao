@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { Carregando } from "./Carregando";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LAUDO_PELAS_SUSPENSIVAS, abaAtiva, type RegraAba } from "@/lib/oportunidades/abas";
+import { LAUDO_PELAS_SUSPENSIVAS, abaAtiva, noMeuMunicipio, type RegraAba } from "@/lib/oportunidades/abas";
 
 interface Aba extends RegraAba {
   nome: string;
@@ -38,6 +38,7 @@ const ABAS: readonly Aba[] = [
   },
   // Só para quem está numa organização de município. A página confere o vínculo
   // confirmado e explica o que falta; a aba só evita mostrar a porta a quem não é prefeitura.
+  // Com o vínculo confirmado, a página redireciona para a do município em abas, que também acende esta aba.
   // O laudo do Pix (/mapa/pix/…) serve às duas: o cliente chega pelo Meu município, o administrador pelo Painel.
   { href: "/mapa/meu-municipio", nome: "Meu município", exata: false, admin: false, municipio: true, tambem: ["/mapa/pix/"] },
   // Uso interno da PONTE. Esconder a aba é conveniência; quem protege é a página,
@@ -54,20 +55,24 @@ export function MapaNav({
   naoLidas,
   admin,
   municipio = false,
+  meuIbge = null,
 }: {
   naoLidas: number | null;
   admin: boolean;
   /** A organização ativa é de município: mostra a aba "Meu município". */
   municipio?: boolean;
+  /** O IBGE dessa organização: na página dele, a aba acesa é "Meu município", não a Busca. */
+  meuIbge?: string | null;
 }) {
   const pathname = usePathname() ?? "/mapa";
   // De onde se chegou (`?de=suspensivas`): decide a aba acesa no laudo.
   const de = useSearchParams()?.get("de") ?? null;
+  const noMeu = municipio && noMeuMunicipio(pathname, meuIbge);
 
   return (
     <nav className="pa-abas" aria-label="Mapa de Oportunidades">
       {ABAS.filter((aba) => (admin || !aba.admin) && (municipio || !aba.municipio)).map((aba) => {
-        const atual = abaAtiva(aba, pathname, de);
+        const atual = noMeu ? aba.municipio : abaAtiva(aba, pathname, de);
         const contagem = aba.href === "/mapa/avisos" && naoLidas !== null && naoLidas > 0 ? naoLidas : null;
         return (
           <Link

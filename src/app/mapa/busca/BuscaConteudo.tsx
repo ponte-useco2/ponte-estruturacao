@@ -12,7 +12,8 @@ import {
   totalDePaginas,
   urlBusca,
   urlInstrumento,
-  urlInvestimentos,
+  ehMunicipioPb,
+  urlDoMunicipio,
   urlProposta,
   type InstrumentoBusca,
   type ParametrosBusca,
@@ -151,7 +152,7 @@ export function BuscaConteudo({
           {p.municipio ? (
             <>
               {" "}
-              · <Link href={urlInvestimentos(p.municipio)}>ver os investimentos do município</Link>
+              · <Link href={urlDoMunicipio(p.municipio, "dinheiro")}>{ehMunicipioPb(p.municipio) ? "ver a página do município" : "ver os investimentos do município"}</Link>
             </>
           ) : null}
         </h2>

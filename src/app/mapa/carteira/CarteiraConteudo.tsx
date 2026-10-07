@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
 import { ROTULO_TIPO_ITEM } from "@/lib/oportunidades/favoritos";
+import { ROTULO_CLASSE } from "@/lib/oportunidades/fila";
 import type { Carteira, Consequencia, ItemCarteira, MudancaCarteira, Recomendacao } from "@/lib/oportunidades/carteira";
 import { EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../fiscal/[ibge]/simular/BotaoImprimir";
@@ -49,7 +50,8 @@ function Recomendacoes({ r }: { r: Recomendacao[] }) {
     <ul className="mp-cart-recs">
       {r.map((x) => (
         <li key={x.acao}>
-          <Nivel nivel={x.nivel} /> <strong>{x.acao}.</strong> <span className="mp-cart-fato">{x.fato}</span>
+          <Nivel nivel={x.nivel} /> {x.classe && <span className="pa-mono mp-rel-dimensao">{ROTULO_CLASSE[x.classe]}</span>} <strong>{x.acao}.</strong>{" "}
+          <span className="mp-cart-fato">{x.fato}</span>
         </li>
       ))}
     </ul>

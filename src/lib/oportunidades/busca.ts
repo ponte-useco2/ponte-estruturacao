@@ -9,6 +9,7 @@
 import { UFS } from "./organizacao.ts";
 import { ufDoIbge } from "./painel.ts";
 import { ehTemaConhecido } from "./temas.ts";
+import { urlMunicipio, type AbaMunicipio } from "./pagina-municipio.ts";
 
 export type AbaBusca = "instrumentos" | "propostas";
 
@@ -163,6 +164,13 @@ export const urlInstrumento = (nr: string) => `/mapa/instrumento/${encodeURIComp
 export const urlLaudo = (nr: string) => `/mapa/instrumento/${encodeURIComponent(nr)}/laudo`;
 export const urlProposta = (id: string) => `/mapa/proposta/${encodeURIComponent(id)}`;
 export const urlInvestimentos = (ibge: string) => `/mapa/municipio/${ibge}/investimentos`;
+/** A página do município em abas cobre a PB (o relatório lê a base da PB). */
+export const ehMunicipioPb = (ibge: string) => /^25\d{5}$/.test(ibge);
+/**
+ * O município a partir de qualquer tela (F1c, 07/10/2026): a página em abas na PB; fora dela, os investimentos,
+ * a única tela de município que cobre o Brasil.
+ */
+export const urlDoMunicipio = (ibge: string, aba?: AbaMunicipio) => (ehMunicipioPb(ibge) ? urlMunicipio(ibge, aba) : urlInvestimentos(ibge));
 
 // ============================ LINHAS (como a oport_14 devolve) ============================
 

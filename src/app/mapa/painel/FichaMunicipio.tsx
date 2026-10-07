@@ -35,6 +35,7 @@ import {
   type FichaMunicipio,
   type MunicipioPainel,
 } from "@/lib/oportunidades/painel.server";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { urlEntePix } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Tag } from "../../_design/primitivos";
@@ -54,25 +55,22 @@ import {
 } from "./Pecas";
 
 /**
- * `cliente`: a prefeitura vendo a própria ficha (/mapa/meu-municipio). Sem links para o
- * painel interno, sem CSV e sem "todos os proponentes" — o que ela vê é o que é dela.
+ * A ficha do município no painel, só do administrador. Desde a F1c (07/10/2026) a prefeitura vai para a página do
+ * município em abas (`/mapa/meu-municipio` redireciona), e a ficha deixou de ter o modo cliente.
  */
-export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFicha; ficha: FichaMunicipio; cliente?: boolean }) {
+export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMunicipio }) {
   const nome = ficha.nome ?? `IBGE ${f.ibge}`;
   const r = (v: Visao) => resumoDe(ficha.resumo, v);
   const contas = r("contas");
   const periodo = periodoPorExtenso(f.assinadoDe, f.assinadoAte);
   const anoMinimoPropostas = Number(ficha.execucao.referencia.slice(0, 4)) - 2;
-  // Link para a mesma visão no painel, já filtrada por este município e período. O
-  // cliente não tem painel: sem link.
+  // Link para a mesma visão no painel, já filtrada por este município e período.
   const noPainel = (visao: Visao) =>
-    cliente
-      ? undefined
-      : urlPainel(parametrosPainel({ visao, municipio: f.ibge }), {
-          assinadoDe: f.assinadoDe,
-          assinadoAte: f.assinadoAte,
-          movimento: f.movimento,
-        });
+    urlPainel(parametrosPainel({ visao, municipio: f.ibge }), {
+      assinadoDe: f.assinadoDe,
+      assinadoAte: f.assinadoAte,
+      movimento: f.movimento,
+    });
   const semConvenio = [ficha.suspensiva, ficha.nunca, ficha.vigencia, ficha.contas, ficha.saldo, ficha.fisico].every(
     (l) => l.length === 0,
   );
@@ -81,13 +79,7 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
     <div className="pa-pagina mp-radar mp-painel">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          {cliente ? (
-            "Meu município · ficha da prefeitura"
-          ) : (
-            <>
-              <Link href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · município em análise
-            </>
-          )}
+          <Link href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · município em análise
         </p>
         <h1 className="pa-titulo">
           {nome}/{f.uf}
@@ -96,19 +88,17 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
           IBGE {f.ibge}. Dado até <strong>{formatarPublicacao(ficha.execucao.dado_ate)}</strong>: o arquivo retrata{" "}
           {formatarData(ficha.execucao.referencia)}. Prazos contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}.
         </p>
-        {/* O painel fiscal (onda 8) só cobre a PB, e é só de administrador: o cliente não vê o link. */}
-        {!cliente && f.uf === "PB" && (
+        {/* A página do município em abas (F1) e o painel fiscal (onda 8) cobrem só a PB. */}
+        {f.uf === "PB" && (
+          <p className="pa-nota">
+            <Link href={urlMunicipio(f.ibge)}>Página do município: o que trava, dinheiro, contas, controle e indicadores →</Link>
+          </p>
+        )}
+        {f.uf === "PB" && (
           <p className="pa-nota">
             <Link href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</Link>
           </p>
         )}
-        {/* O relatório crítico (onda 14) é só de administrador, como o painel fiscal. */}
-        {!cliente && f.uf === "PB" && (
-          <p className="pa-nota">
-            <Link href={`/mapa/municipio/${f.ibge}/relatorio`}>Relatório crítico do município: tudo o que a base sabe, numa página →</Link>
-          </p>
-        )}
-        {/* O laudo do Pix (onda 13A) cobre os planos da PB e vale para os dois: o cliente vê o do próprio município. */}
         {f.uf === "PB" && (
           <p className="pa-nota">
             <Link href={urlEntePix(f.ibge)}>Emendas Pix do município: o laudo de cada plano de ação →</Link>
@@ -116,28 +106,26 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
         )}
       </div>
 
-      {!cliente && (
-        <nav aria-label="Quais proponentes" className="pa-chips mp-painel-lados mp-painel-quem">
-          {(["prefeitura", "todos"] as const).map((q) => (
-            <Link
-              key={q}
-              href={urlFicha(f, { quem: q })}
-              className={`pa-chip${f.quem === q ? " pa-ativo" : ""}`}
-              aria-current={f.quem === q ? "true" : undefined}
-            >
-              {q === "prefeitura" ? "Prefeitura" : "Todos os proponentes no município"}
-            </Link>
-          ))}
-        </nav>
-      )}
+      <nav aria-label="Quais proponentes" className="pa-chips mp-painel-lados mp-painel-quem">
+        {(["prefeitura", "todos"] as const).map((q) => (
+          <Link
+            key={q}
+            href={urlFicha(f, { quem: q })}
+            className={`pa-chip${f.quem === q ? " pa-ativo" : ""}`}
+            aria-current={f.quem === q ? "true" : undefined}
+          >
+            {q === "prefeitura" ? "Prefeitura" : "Todos os proponentes no município"}
+          </Link>
+        ))}
+      </nav>
 
       <div className="mp-filtros mp-radar-filtros">
         <form
           method="get"
-          action={cliente ? "/mapa/meu-municipio" : `/mapa/painel/municipio/${f.ibge}`}
+          action={`/mapa/painel/municipio/${f.ibge}`}
           className="pa-linha mp-radar-uf mp-painel-filtros"
         >
-          {!cliente && f.quem !== "prefeitura" && <input type="hidden" name="quem" value={f.quem} />}
+          {f.quem !== "prefeitura" && <input type="hidden" name="quem" value={f.quem} />}
           <label htmlFor="ficha-movimento" className="pa-campo-rotulo">
             Movimentação
           </label>
@@ -193,13 +181,11 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
           </p>
         ) : (
           <>
-            {!cliente && (
-              <p className="pa-nota">
-                <Link href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
-                  Ver no painel, com a contagem por tipo
-                </Link>
-              </p>
-            )}
+            <p className="pa-nota">
+              <Link href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
+                Ver no painel, com a contagem por tipo
+              </Link>
+            </p>
             <div className="mp-tabela-rolagem">
               <TabelaMudancas linhas={ficha.mudancas} naFicha comData />
             </div>
@@ -213,7 +199,7 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
             Convênios que travam{periodo ? ` · ${periodo}` : ""}
             {f.movimento ? ` · ${ROTULO_MOVIMENTO[f.movimento]}` : ""}
           </h2>
-          {!cliente && !semConvenio && <BotaoCsv href={urlExportarFicha(f)} rotulo="Baixar os convênios (CSV)" />}
+          {!semConvenio && <BotaoCsv href={urlExportarFicha(f)} rotulo="Baixar os convênios (CSV)" />}
         </div>
         <div className="pa-grade pa-grade-3 mp-painel-cartoes">
           <Cartao rotulo="Suspensiva pendente" quantidade={r("suspensiva")("total").n} valor={r("suspensiva")("total").valor} legenda="de repasse" />
@@ -268,7 +254,7 @@ export function FichaConteudo({ f, ficha, cliente = false }: { f: ParametrosFich
       <section aria-labelledby="ficha-propostas" className="mp-radar-secao">
         <div className="mp-painel-lista-cabeca">
           <h2 id="ficha-propostas" className="mp-radar-h2">Propostas</h2>
-          {!cliente && ficha.porAno.length > 0 && <BotaoCsv href={urlExportarFicha(f, "propostas")} rotulo="Baixar as propostas (CSV)" />}
+          {ficha.porAno.length > 0 && <BotaoCsv href={urlExportarFicha(f, "propostas")} rotulo="Baixar as propostas (CSV)" />}
         </div>
         <p className="pa-sub">
           Enviadas desde {anoMinimoPropostas}, e as mais antigas ainda sem desfecho que se mexeram no último ano. O filtro
@@ -391,7 +377,7 @@ function Bloco({
   titulo: string;
   linhas: number;
   total?: number;
-  /** Sem href (visão do cliente), sem o link para o painel. */
+  /** Sem href, sem o link para o painel. */
   href?: string;
   children: ReactNode;
 }) {

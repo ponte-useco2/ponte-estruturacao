@@ -33,6 +33,7 @@ import { diasEntre, type Nivel } from "./laudo.ts";
 import { GRUPOS_SITUACAO } from "./busca.ts";
 import { ROTULO_DESFECHO, type ColunaCsv } from "./painel.ts";
 import type { PlanoFundo } from "./pix.ts";
+import { compararFila, grupos, type ClasseFila, type QuemResolve } from "./fila.ts";
 import { ordenarCiclo, pontoDoCiclo, type PlanoCicloPix, type PontoCiclo } from "./pix-ciclo.ts";
 import { impedidosPorAno, type ImpedidosDoAno, type PlanoLaudoPix } from "./pix-laudo.ts";
 import { riscoPc33, type ColunasPc33 } from "./portaria33.ts";
@@ -181,6 +182,12 @@ export interface Achado {
   peso: number;
   /** Convênios ou planos citados, para os links. */
   numeros?: string[];
+  /** A fila (F1b, `fila.ts`): trava dinheiro novo, pode virar cobrança, tem prazo ou pede atenção. */
+  classe?: ClasseFila;
+  /** Quem resolve: o município, o órgão federal, o Tribunal ou outros. */
+  quem?: QuemResolve;
+  /** AAAA-MM-DD, quando o ponto tem data (ordena dentro da classe). */
+  prazo?: string | null;
 }
 
 const ORDEM_NIVEL: Record<NivelAchado, number> = { critico: 0, alto: 1, moderado: 2, informativo: 3, em_dia: 4 };
@@ -319,6 +326,8 @@ function achadosFiscais(s: SecaoFiscal): Achado[] {
     a.push({
       nivel: "critico",
       dimensao: "fiscal",
+      classe: "bloqueio",
+      quem: "municipio",
       titulo: credito ? "Transferência voluntária e crédito travados" : "Transferência voluntária travada",
       fato:
         `No painel fiscal, a decisão de receber transferência voluntária está «não atendida»${b.bloqueantes.length ? ` por ${lista(b.bloqueantes)}` : ""}.` +
@@ -333,6 +342,8 @@ function achadosFiscais(s: SecaoFiscal): Achado[] {
     a.push({
       nivel: "moderado",
       dimensao: "fiscal",
+      classe: "atencao",
+      quem: "municipio",
       titulo: "Transferência voluntária com alertas",
       fato: `O painel fiscal registra alertas na decisão de receber transferência voluntária.${cauc}`,
       acao: null,
@@ -345,6 +356,8 @@ function achadosFiscais(s: SecaoFiscal): Achado[] {
     a.push({
       nivel: "alto",
       dimensao: "fiscal",
+      classe: "bloqueio",
+      quem: "municipio",
       titulo: "Operação de crédito travada",
       fato: `A decisão de contratar operação de crédito está «não atendida»${c.bloqueantes.length ? ` por ${lista(c.bloqueantes)}` : ""}.`,
       acao: null,
@@ -365,6 +378,8 @@ function achadosFiscais(s: SecaoFiscal): Achado[] {
       a.push({
         nivel: "alto",
         dimensao: "fiscal",
+        classe: "bloqueio",
+        quem: "municipio",
         titulo: `Despesa com pessoal acima do limite há ${plural(s.acimaSeguidos, unidade[0], unidade[1])}`,
         fato:
           `${pct(ultimo.dtp_pct)} da RCL ajustada no ${rotuloPeriodo(ultimo)}, para um limite de ${pct(maximo)}; acima dele desde o ` +
@@ -377,6 +392,8 @@ function achadosFiscais(s: SecaoFiscal): Achado[] {
       a.push({
         nivel: "moderado",
         dimensao: "fiscal",
+        classe: "atencao",
+        quem: "municipio",
         titulo: "Despesa com pessoal acima do prudencial",
         fato: `${pct(ultimo.dtp_pct)} da RCL ajustada no ${rotuloPeriodo(ultimo)}: acima do prudencial (${pct(prudencial)}), abaixo do máximo (${pct(maximo)}). Acima do prudencial, valem as vedações do art. 22, parágrafo único, da LRF.`,
         acao: null,
@@ -476,6 +493,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "critico",
       dimensao: "controle",
+      classe: "cobranca",
+      quem: "municipio",
       titulo: negativas.length === 1 ? negativas[0].nota : `${n(negativas.length)} prestações de contas rejeitadas ou inadimplentes`,
       fato: `O SICONV registra ${lista(negativas.map((l) => `o convênio ${l.nr_convenio} (${l.nota})`))}. Rejeição leva à devolução e, sem ela, à tomada de contas especial.`,
       acao: "Conferir a devolução ou o recurso de cada prestação rejeitada antes que vire tomada de contas especial.",
@@ -488,6 +507,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "alto",
       dimensao: "controle",
+      classe: "cobranca",
+      quem: "municipio",
       titulo: s.contasAtrasadas.length === 1 ? "Prestação de contas atrasada" : `${n(s.contasAtrasadas.length)} prestações de contas atrasadas`,
       fato: `${lista(s.contasAtrasadas.map((l) => `${l.nr_convenio} (${l.orgao ?? "órgão não informado"})`))}: o prazo de prestar contas venceu e o SICONV mostra «Aguardando Prestação de Contas». A mais antiga venceu em ${data(por(mais.nr_convenio)?.dt_limite_contas)}.`,
       acao: "Enviar a prestação de contas atrasada: prazo vencido sem prestação é motivo de tomada de contas especial.",
@@ -500,6 +521,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "alto",
       dimensao: "convenios",
+      classe: "cobranca",
+      quem: "municipio",
       titulo: s.vigenciaVencida.length === 1 ? "Convênio com a vigência vencida em execução" : `${n(s.vigenciaVencida.length)} convênios com a vigência vencida em execução`,
       fato: `${lista(s.vigenciaVencida.map((l) => l.nr_convenio))}: a vigência terminou e o SICONV ainda mostra «Em execução»${parado > 0 ? `, com ${moedaCurta(parado)} em conta` : ""}. Sem aditivo, o saldo volta e a prestação de contas começa a contar.`,
       acao: "Pedir a prorrogação (se houver objeto a executar) ou preparar a prestação de contas e a devolução do saldo.",
@@ -512,6 +535,9 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "alto",
       dimensao: "convenios",
+      classe: "prazo",
+      quem: "municipio",
+      prazo: acabando.map((i) => i.dt_fim_vigencia as string).sort()[0] ?? null,
       titulo: acabando.length === 1 ? "Vigência acabando em 30 dias" : `${n(acabando.length)} vigências acabando em 30 dias`,
       fato: lista(acabando.map((i) => `${i.nr_convenio} (até ${data(i.dt_fim_vigencia)})`)) + ".",
       acao: "Pedir o aditivo de prazo antes do fim da vigência, se o objeto não vai terminar a tempo.",
@@ -523,6 +549,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "alto",
       dimensao: "convenios",
+      classe: "cobranca",
+      quem: "municipio",
       titulo: s.semMovimento.length === 1 ? "Convênio sem movimento financeiro há mais de um ano" : `${n(s.semMovimento.length)} convênios sem movimento financeiro há mais de um ano`,
       fato: `${lista(s.semMovimento.map((l) => `${l.nr_convenio} (${l.nota})`))}.`,
       acao: null,
@@ -534,6 +562,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "alto",
       dimensao: "convenios",
+      classe: "atencao",
+      quem: "justica",
       titulo: s.liminar.length === 1 ? "Convênio assinado sob liminar" : `${n(s.liminar.length)} convênios assinados sob liminar`,
       fato: `O Transferegov registra a contratação de ${lista(s.liminar.map((l) => l.nr_convenio))} como «${s.liminar[0].nota}». O andamento depende da decisão judicial.`,
       acao: null,
@@ -548,6 +578,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "moderado",
       dimensao: "convenios",
+      classe: "atencao",
+      quem: "municipio",
       titulo: frente.length === 1 ? "Dinheiro na frente da obra" : `${n(frente.length)} convênios com o dinheiro na frente da obra`,
       fato: `${lista(frente.map((i) => i.nr_convenio))}: 80% ou mais do repasse desembolsado e menos de 30% de execução física registrada.`,
       acao: null,
@@ -560,6 +592,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: pior === "critico" ? "alto" : pior,
       dimensao: "convenios",
+      classe: "atencao",
+      quem: "municipio",
       titulo: `${plural(s.pc33.length, "convênio", "convênios")} com pontos a conferir na norma de convênios`,
       fato: `${lista(s.pc33.map((x) => `${x.nr_convenio} (${x.nota})`))}. O detalhe de cada ponto está no laudo do convênio.`,
       acao: null,
@@ -572,6 +606,8 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
     a.push({
       nivel: "moderado",
       dimensao: "convenios",
+      classe: "atencao",
+      quem: "orgao",
       titulo: `${plural(nuncaVivos.length, "convênio aprovado espera", "convênios aprovados esperam")} assinatura`,
       fato: `${moedaCurta(soma(nuncaVivos, (i) => i.vl_global))} aprovados e ainda não assinados, com a vigência registrada em aberto: ${lista(nuncaVivos.slice(0, 6).map((i) => i.nr_convenio))}${nuncaVivos.length > 6 ? " e outros" : ""}.`,
       acao: "Cobrar do concedente a assinatura dos aprovados com vigência em aberto (e conferir as exigências pendentes de cada um).",
@@ -628,6 +664,8 @@ function achadosControle(s: SecaoControle, e: EntradaRelatorio): Achado[] {
     a.push({
       nivel: "critico",
       dimensao: "controle",
+      classe: "cobranca",
+      quem: "tribunal",
       titulo: risco?.titulo ?? "Tomada de Contas Especial no TCU",
       fato:
         `${risco?.fato ?? ""} Convênios: ${lista(orgaos)}.` +
@@ -660,6 +698,8 @@ function achadosControle(s: SecaoControle, e: EntradaRelatorio): Achado[] {
     a.push({
       nivel: g.nivel,
       dimensao: "controle",
+      classe: "cobranca",
+      quem: "municipio",
       titulo: g.nrs.length === 1 ? titulo : `${titulo} (${n(g.nrs.length)} convênios)`,
       fato: g.fatos.join(" "),
       acao: /diligência/i.test(titulo) ? "Responder à diligência da prestação de contas." : null,
@@ -716,6 +756,8 @@ function achadosPropostas(s: SecaoPropostas): Achado[] {
     a.push({
       nivel: "moderado",
       dimensao: "propostas",
+      classe: "atencao",
+      quem: "orgao",
       titulo: `${plural(s.paradasConcedente.length, "proposta parada", "propostas paradas")} com o concedente há mais de um ano`,
       fato:
         `Enviadas de ${Math.min(...anos)} a ${Math.max(...anos)}, sem evento há mais de um ano` +
@@ -729,6 +771,8 @@ function achadosPropostas(s: SecaoPropostas): Achado[] {
     a.push({
       nivel: "moderado",
       dimensao: "propostas",
+      classe: "prazo",
+      quem: "municipio",
       titulo: `${plural(s.comProponente.length, "proposta espera", "propostas esperam")} complementação do município`,
       fato: `O concedente pediu complemento e a vez é do município: ${moedaCurta(soma(s.comProponente, (p) => p.valor_repasse))} em repasse.`,
       acao: "Responder às complementações pedidas pelo concedente.",
@@ -799,6 +843,8 @@ function achadosPix(s: SecaoPix): Achado[] {
       nivel: p.nivel,
       dimensao: "pix",
       // o título do item é a regra ("Relatório de gestão no prazo"), e não o resultado: vai com "a conferir" na frente
+      classe: /relat[óo]rio/i.test(p.titulo) ? "cobranca" : "atencao",
+      quem: "municipio",
       titulo: `Pix, a conferir: ${p.titulo.charAt(0).toLowerCase()}${p.titulo.slice(1)} (${plural(p.planos, "plano", "planos")})`,
       fato: `${plural(p.planos, "plano", "planos")} do Pix com este ponto a conferir no roteiro da IN-TCU 93/2024, somando ${moedaCurta(p.valor)}. O detalhe está no laudo do Pix do ente.`,
       acao: /relat[óo]rio/i.test(p.titulo) ? "Entregar os relatórios de gestão do Pix no Transferegov." : null,
@@ -806,11 +852,11 @@ function achadosPix(s: SecaoPix): Achado[] {
     });
   }
   for (const m of s.marcas) {
-    a.push({ nivel: m.nivel, dimensao: "pix", titulo: `Pix no TCE-PB: ${m.titulo.toLowerCase()} (${m.ano})`, fato: m.fato, acao: null, peso: 5 });
+    a.push({ nivel: m.nivel, dimensao: "pix", classe: "cobranca", quem: "municipio", titulo: `Pix no TCE-PB: ${m.titulo.toLowerCase()} (${m.ano})`, fato: m.fato, acao: null, peso: 5 });
   }
   // Ciclo em curso: plano à espera do município pesa como o bloqueio fiscal (sem resposta no prazo, impedimento).
   for (const c of s.ciclo) {
-    a.push({ nivel: c.nivel, dimensao: "pix", titulo: c.titulo, fato: c.fato, acao: c.acao, peso: c.nivel === "alto" ? 2 : 6 });
+    a.push({ nivel: c.nivel, dimensao: "pix", classe: c.classe, quem: c.quem, prazo: c.prazo, titulo: c.titulo, fato: c.fato, acao: c.acao, peso: c.nivel === "alto" ? 2 : 6 });
   }
   // Impedido: o dinheiro do plano não veio, salvo o que voltou no mesmo ano (reapresentação no ciclo seguinte,
   // ou repetição do mesmo plano). O que pesa é a PERDA LÍQUIDA: pela vez do município (não deu ciência, não
@@ -821,6 +867,8 @@ function achadosPix(s: SecaoPix): Achado[] {
     a.push({
       nivel: doEnte && perdeu ? "moderado" : "informativo",
       dimensao: "pix",
+      classe: "atencao",
+      quem: doEnte ? "municipio" : "orgao",
       titulo:
         `Pix impedido em ${i.ano}: ${i.rotulo.charAt(0).toLowerCase()}${i.rotulo.slice(1)} (${plural(i.planos, "plano", "planos")}, ` +
         (perdeu ? `${moedaCurta(i.valorPerdido)} perdidos)` : "nada perdido)"),
@@ -849,6 +897,8 @@ function achadosPix(s: SecaoPix): Achado[] {
     a.push({
       nivel: "moderado",
       dimensao: "pix",
+      classe: "cobranca",
+      quem: "municipio",
       titulo: `Fundo a fundo: ${plural(s.fundo.encerradosComSaldo, "plano encerrado", "planos encerrados")} com saldo em conta`,
       fato: `${moedaCurta(s.fundo.saldoEncerrados)} em conta em planos com a vigência encerrada.`,
       acao: null,
@@ -886,6 +936,8 @@ function achadosFornecedores(s: SecaoFornecedores): Achado[] {
     a.push({
       nivel: "alto",
       dimensao: "fornecedores",
+      classe: "cobranca",
+      quem: "municipio",
       titulo: `${plural(s.inidoneos.length, "fornecedor", "fornecedores")} na lista de inidôneos do TCU`,
       fato: `${lista(s.inidoneos.map((f) => `${f.nome ?? f.cnpj} (${moedaCurta(f.pago)} pagos)`))}. O laudo de cada convênio diz se o contrato é anterior ou posterior à sanção.`,
       acao: null,
@@ -897,6 +949,8 @@ function achadosFornecedores(s: SecaoFornecedores): Achado[] {
     a.push({
       nivel: "informativo",
       dimensao: "fornecedores",
+      classe: "atencao",
+      quem: "municipio",
       titulo: "Um fornecedor com mais da metade do pago",
       fato: `${c.maior_nome ?? c.maior_cnpj ?? "Um fornecedor"} recebeu ${c.maior_fatia !== null ? `${Math.round(c.maior_fatia * 100)}%` : "mais da metade"} do pago a empresas nos convênios do município. É indicador para olhar, não irregularidade.`,
       acao: null,
@@ -955,6 +1009,8 @@ function achadosIndicadores(l: LeituraIndicadores): Achado[] {
     a.push({
       nivel: x.nivel === "alto" ? "alto" : "moderado",
       dimensao,
+      classe: "atencao",
+      quem: "municipio",
       titulo: `${x.nome}: ${x.porque}`,
       fato: fatoIndicador(x),
       acao: null,
@@ -1021,7 +1077,8 @@ function cartoes(r: Pick<Relatorio, "fiscal" | "convenios" | "controle">, e: Ent
   return c;
 }
 
-const ordenar = (a: Achado, b: Achado) => ORDEM_NIVEL[a.nivel] - ORDEM_NIVEL[b.nivel] || a.peso - b.peso;
+/** A fila única (F1b): a mesma regra da carteira e da aba "o que trava". */
+const ordenar = (a: Achado, b: Achado) => compararFila(a, b);
 
 /** Quantos achados entram no "Em uma página". */
 export const MAX_DESTAQUES = 6;
@@ -1104,6 +1161,31 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
       },
     ],
     faltas: e.faltas,
+  };
+}
+
+/** As dimensões da camada 2 (estratégia): ficam na aba "Indicadores", fora da fila de operação. */
+const CAMADA_2: readonly Dimensao[] = ["social", "economia", "territorio", "governanca"];
+
+export interface FilaMunicipio {
+  grupos: { classe: ClasseFila; itens: Achado[] }[];
+  /** O que fica fora da fila, com a aba onde mora: pontos só de informação e indicadores piores que a PB. */
+  informativos: number;
+  indicadores: number;
+}
+
+/**
+ * A aba "o que trava e o que destrava" (F1b): os pontos de operação do município em classes (trava dinheiro novo,
+ * pode virar cobrança, tem prazo, pede atenção), na mesma ordem do "Em uma página" e da carteira. Sai o que está
+ * em dia, o que é só informação e os indicadores da camada 2, que são estratégia e moram na aba deles.
+ */
+export function filaDoMunicipio(r: Relatorio): FilaMunicipio {
+  const vivos = r.achados.filter((a) => a.nivel !== "em_dia");
+  const camada2 = (a: Achado) => CAMADA_2.includes(a.dimensao);
+  return {
+    grupos: grupos(vivos.filter((a) => !camada2(a) && a.nivel !== "informativo")),
+    informativos: vivos.filter((a) => !camada2(a) && a.nivel === "informativo").length,
+    indicadores: vivos.filter((a) => camada2(a) && a.nivel !== "informativo").length,
   };
 }
 

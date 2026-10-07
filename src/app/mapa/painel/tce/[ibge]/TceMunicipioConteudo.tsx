@@ -6,6 +6,7 @@ import Link from "next/link";
 import { urlLaudo } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
 import { cnpjLegivel, nomeFornecedor, urlFornecedor } from "@/lib/oportunidades/fornecedores";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { urlFicha } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_SITUACAO, marcasPix, pct, resumirConciliacao, urlTce, type SituacaoPar, type TceFederalPar } from "@/lib/oportunidades/tce";
@@ -40,6 +41,9 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           <BotaoImprimir />
           <Link href={urlTce()} className="pa-btn pa-btn-pequeno">
             Todos os municípios
+          </Link>
+          <Link href={urlMunicipio(leitura.ibge, "controle")} className="pa-btn pa-btn-pequeno">
+            Página do município
           </Link>
           <Link href={urlFicha({ ibge: leitura.ibge })} className="pa-btn pa-btn-pequeno">
             Ficha do município no painel

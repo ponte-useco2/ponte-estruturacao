@@ -35,6 +35,16 @@ function casa(c: Casamento, caminho: string, de: string | null): boolean {
   return c.de === de && c.rota.test(caminho);
 }
 
+/**
+ * A página do próprio município (`/mapa/municipio/<ibge>` da organização ativa, e as rotas debaixo dela) acende
+ * "Meu município" e nenhuma outra aba (F1c, 07/10/2026). A página de outro município segue acendendo a Busca.
+ */
+export function noMeuMunicipio(caminho: string, meuIbge: string | null | undefined): boolean {
+  if (!meuIbge) return false;
+  const base = `/mapa/municipio/${meuIbge}`;
+  return caminho === base || caminho.startsWith(`${base}/`);
+}
+
 /** `de`: o parâmetro `de` da URL, quando houver. */
 export function abaAtiva(aba: RegraAba, caminho: string, de: string | null = null): boolean {
   if (aba.exata) return caminho === aba.href;

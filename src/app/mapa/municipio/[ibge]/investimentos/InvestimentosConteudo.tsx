@@ -8,6 +8,7 @@ import {
   ROTULO_GRUPO_INVESTIMENTO,
   ROTULO_TIPO_INVESTIMENTO,
   contagem,
+  ehMunicipioPb,
   fracoesDaMaior,
   linhasDe,
   parametrosBusca,
@@ -18,6 +19,7 @@ import {
 import type { LeituraInvestimentos } from "@/lib/oportunidades/busca.server";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
 import { UF_DETALHE } from "@/lib/oportunidades/instrumentos-escopo";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 
@@ -54,6 +56,11 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
           Proponente estadual fica de fora. Dado até {formatarPublicacao(leitura.execucao.dado_ate)}.
         </p>
         <p className="pa-nota">
+          {ehMunicipioPb(ibge) && (
+            <>
+              <Link href={urlMunicipio(ibge, "dinheiro")}>Página do município</Link> ·{" "}
+            </>
+          )}
           <Link href={busca}>Ver os convênios do município na busca</Link>
         </p>
       </div>

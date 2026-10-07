@@ -25,6 +25,7 @@ import {
   type VerificacaoFiscal,
 } from "@/lib/oportunidades/fiscal";
 import type { LeituraMunicipioFiscal } from "@/lib/oportunidades/fiscal.server";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { urlFicha } from "@/lib/oportunidades/painel";
 import { Tag } from "../../../_design/primitivos";
 import { EstadoDecisao } from "../FiscalConteudo";
@@ -74,11 +75,11 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           <Link href={urlSimularFiscal(m.ibge)} className="pa-chip">
             Simular um projeto →
           </Link>
+          <Link href={urlMunicipio(m.ibge)} className="pa-chip">
+            Página do município →
+          </Link>
           <Link href={urlFicha({ ibge: m.ibge })} className="pa-chip">
             Ficha no painel de execução →
-          </Link>
-          <Link href={`/mapa/municipio/${m.ibge}/investimentos`} className="pa-chip">
-            Investimentos federais →
           </Link>
         </p>
         <p className="mp-fiscal-aviso">{AVISO_FIXO}</p>

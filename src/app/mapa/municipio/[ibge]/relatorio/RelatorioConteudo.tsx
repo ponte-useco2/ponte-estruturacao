@@ -11,6 +11,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
+import { EXPLICA_CLASSE, ROTULO_CLASSE, ROTULO_QUEM } from "@/lib/oportunidades/fila";
 import { rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraIndicadores } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -20,6 +21,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
   ROTULO_DIMENSAO,
   ROTULO_NIVEL_ACHADO,
+  filaDoMunicipio,
   rotuloPeriodo,
   type Achado,
   type LinhaConvenio,
@@ -74,7 +76,43 @@ function Selo({ nivel }: { nivel: NivelAchado }) {
   return <span className={`pa-tag mp-laudo-nivel mp-laudo-${classe(nivel)}`}>{ROTULO_NIVEL_ACHADO[nivel]}</span>;
 }
 
-export function ListaAchados({ achados, destino }: { achados: Achado[]; destino: Destino }) {
+/**
+ * Quem resolve, o prazo e o que fazer (F1b). Com `comClasse` (fora dos grupos), diz a classe da fila e deixa a ação
+ * para o "O que fazer primeiro", que vem logo depois.
+ */
+function LinhaFila({ a, hoje, comClasse }: { a: Achado; hoje: string; comClasse: boolean }) {
+  const partes: ReactNode[] = [];
+  if (comClasse && a.classe) partes.push(<strong key="c">{ROTULO_CLASSE[a.classe]}</strong>);
+  if (a.quem) partes.push(<span key="q">Quem resolve: {ROTULO_QUEM[a.quem]}</span>);
+  if (a.prazo) partes.push(<span key="p">{a.prazo < hoje.slice(0, 10) ? `Prazo vencido em ${data(a.prazo)}` : `Prazo: ${data(a.prazo)}`}</span>);
+  const acao = comClasse ? null : a.acao;
+  if (!partes.length && !acao) return null;
+  return (
+    <>
+      {partes.length > 0 && (
+        <p className="mp-fila-quem">
+          {partes.map((x, k) => (
+            <span key={k}>
+              {k > 0 && " · "}
+              {x}
+            </span>
+          ))}
+        </p>
+      )}
+      {acao && (
+        <p className="mp-fila-acao">
+          <span className="pa-kicker">O que fazer</span> {acao}
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
+ * Os achados em cartões. `fila` (F1b) acrescenta a cada um quem resolve, o prazo e o que fazer; `"com_classe"`
+ * diz também a classe, para listas que não vêm agrupadas (o "Em uma página").
+ */
+export function ListaAchados({ achados, destino, fila, hoje = "" }: { achados: Achado[]; destino: Destino; fila?: "agrupada" | "com_classe"; hoje?: string }) {
   if (!achados.length) return null;
   return (
     <ul className="mp-laudo-lista">
@@ -84,6 +122,7 @@ export function ListaAchados({ achados, destino }: { achados: Achado[]; destino:
             <Selo nivel={a.nivel} /> <strong>{a.titulo}</strong> <span className="pa-mono mp-rel-dimensao">{ROTULO_DIMENSAO[a.dimensao]}</span>
           </p>
           <p>{a.fato}</p>
+          {fila && <LinhaFila a={a} hoje={hoje} comClasse={fila === "com_classe"} />}
           {a.numeros && a.numeros.length > 0 && a.numeros.length <= 12 && (
             <p className="pa-nota mp-nao-imprimir">
               Convênios:{" "}
@@ -301,6 +340,45 @@ export function BlocoPassos({ r }: { r: Relatorio }) {
         ))}
       </ol>
     </Secao>
+  );
+}
+
+/**
+ * A aba "o que trava e o que destrava" (F1b): a fila do município em classes, na mesma ordem do "Em uma página" e
+ * da carteira (`fila.ts`). O que é só informação e os indicadores ficam nas abas deles, com a contagem aqui.
+ */
+export function BlocoFila({ r, destino, linkIndicadores }: { r: Relatorio; destino: Destino; linkIndicadores?: string }) {
+  const f = filaDoMunicipio(r);
+  return (
+    <>
+      {!f.grupos.length && (
+        <Secao id="mun-fila" titulo="Nada travando nas fontes lidas">
+          <p>Nenhum ponto trava dinheiro novo, pode virar cobrança, tem prazo ou pede atenção. A aba «Resumo» diz o que foi conferido.</p>
+        </Secao>
+      )}
+      {f.grupos.map((g) => (
+        <Secao key={g.classe} id={`mun-fila-${g.classe}`} titulo={`${ROTULO_CLASSE[g.classe]} (${n(g.itens.length)})`} nota={EXPLICA_CLASSE[g.classe]}>
+          <ListaAchados achados={g.itens} destino={destino} fila="agrupada" hoje={r.hoje} />
+        </Secao>
+      ))}
+      {(f.informativos > 0 || f.indicadores > 0) && (
+        <p className="pa-nota">
+          Fora desta fila:{" "}
+          {f.informativos > 0 && `${n(f.informativos)} ${f.informativos === 1 ? "ponto só de informação" : "pontos só de informação"}, nas abas de cada assunto`}
+          {f.informativos > 0 && f.indicadores > 0 && "; "}
+          {f.indicadores > 0 &&
+            (linkIndicadores ? (
+              <Link href={linkIndicadores} prefetch={false}>
+                {n(f.indicadores)} {f.indicadores === 1 ? "indicador pior que a PB" : "indicadores piores que a PB"}
+                <Carregando />
+              </Link>
+            ) : (
+              `${n(f.indicadores)} ${f.indicadores === 1 ? "indicador pior que a PB" : "indicadores piores que a PB"}`
+            ))}
+          .
+        </p>
+      )}
+    </>
   );
 }
 
@@ -723,7 +801,7 @@ export function RelatorioConteudo({ r, seguindo, nivel = 3 }: { r: Relatorio; se
 
       <Secao id="rel-pagina" titulo="Em uma página">
         <Cartoes r={r} />
-        <ListaAchados achados={r.destaques} destino={destino} />
+        <ListaAchados achados={r.destaques} destino={destino} fila="com_classe" hoje={r.hoje} />
         <EmOrdem r={r} />
       </Secao>
       <BlocoPassos r={r} />

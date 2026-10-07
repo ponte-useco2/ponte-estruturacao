@@ -42,13 +42,16 @@ test("consequência: piora que trava recurso é alta, melhora é informação", 
 
 test("município: recomendações do que destrava mais, com o fato e a data", () => {
   const r = recomendacoesMunicipio(PATOS, "2026-10-01");
-  assert.deepEqual(r.map((x) => x.nivel), ["alto", "alto", "alto", "alto", "alto", "moderado"], "CAUC, TCE, contas atrasadas, rejeitadas, pessoal e saldo");
-  assert.match(r[4].fato, /54,54% da RCL ajustada/);
+  // F1b: a fila única — o que trava dinheiro novo (CAUC, pessoal), depois o que pode virar cobrança (TCE, contas, saldo)
+  assert.deepEqual(r.map((x) => [x.classe, x.nivel]), [
+    ["bloqueio", "alto"], ["bloqueio", "alto"], ["cobranca", "alto"], ["cobranca", "alto"], ["cobranca", "alto"], ["cobranca", "moderado"],
+  ], "CAUC, pessoal, TCE, contas atrasadas, rejeitadas e saldo");
+  assert.match(r[1].fato, /54,54% da RCL ajustada/);
   assert.equal(r[0].acao, "Regularizar os itens 1.5, 3.2.3, 4.2 do CAUC");
   assert.match(r[0].fato, /pendências em 1\.5, 3\.2\.3, 4\.2 \(dado de 01\/10\/2026\).*LRF, art\. 25/);
-  assert.equal(r[1].acao, "Acompanhar as 2 TCE no TCU e reunir a defesa ou o recolhimento");
-  assert.match(r[1].fato, /TCE não é julgamento/);
-  assert.equal(r[2].acao, "Enviar a prestação de contas atrasada");
+  assert.equal(r[2].acao, "Acompanhar as 2 TCE no TCU e reunir a defesa ou o recolhimento");
+  assert.match(r[2].fato, /TCE não é julgamento/);
+  assert.equal(r[3].acao, "Enviar a prestação de contas atrasada");
   // sem CAUC, a decisão B não atendida aponta o painel fiscal; sem nada, nada a fazer
   assert.equal(recomendacoesMunicipio({ fiscal_b: "nao_atendido", cauc: "" }, null)[0].acao, "Ver no painel fiscal o que bloqueia a transferência voluntária");
   assert.deepEqual(recomendacoesMunicipio({ em_execucao: 3, cauc: "", fiscal_b: "atendido", tce_tcu: 0 }, null), []);
@@ -111,14 +114,17 @@ test("data da referência do retrato", () => {
   assert.equal(dataDaReferencia("sem data"), null);
 });
 
-test("Pix em curso (oport_30): plano à espera do município é alto e vem logo depois do bloqueio fiscal", () => {
+test("Pix em curso (oport_30): plano à espera do município é alto, na classe dos prazos (depois de bloqueio e cobrança)", () => {
   assert.deepEqual(c({ evento: "pix_vez_ente", antes: "0", depois: "1" }), { nivel: "alto", melhora: false });
   assert.deepEqual(c({ evento: "pix_vez_ente", antes: "1", depois: "0" }), { nivel: "informativo", melhora: true });
   assert.deepEqual(c({ evento: "pix_vez_orgao", antes: "0", depois: "2" }), { nivel: "informativo", melhora: null });
   assert.deepEqual(c({ evento: "pix_prazo_ente", antes: null, depois: "2027-05-10" }), { nivel: "moderado", melhora: null });
   const r = recomendacoesMunicipio({ ...PATOS, pix_vez_ente: 2, pix_vez_orgao: 0, pix_prazo_ente: "2027-05-10" }, "2027-04-20");
-  assert.equal(r[1].acao, "Responder no Transferegov aos 2 planos do Pix que esperam o município até 10/05/2027");
-  assert.match(r[1].fato, /^2 planos de transferência especial do exercício com a vez do município/);
+  const pix = r.find((x) => x.acao.startsWith("Responder no Transferegov"));
+  assert.equal(pix?.acao, "Responder no Transferegov aos 2 planos do Pix que esperam o município até 10/05/2027");
+  assert.equal(pix?.classe, "prazo");
+  assert.equal(r.indexOf(pix as (typeof r)[number]), r.length - 1, "em Patos, depois de bloqueios e cobranças");
+  assert.match(pix?.fato ?? "", /^2 planos de transferência especial do exercício com a vez do município/);
   const semPrazo = recomendacoesMunicipio({ pix_vez_ente: 1, pix_prazo_ente: null }, null);
   assert.equal(semPrazo[0].acao, "Responder no Transferegov ao plano do Pix que espera o município");
   assert.match(semPrazo[0].fato, /O prazo do comunicado ainda não foi cadastrado/);

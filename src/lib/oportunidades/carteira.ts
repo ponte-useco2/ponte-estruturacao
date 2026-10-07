@@ -11,6 +11,7 @@
  * Função pura, sem banco e sem relógio.
  */
 import { formatarData } from "./central.ts";
+import { compararFila, type ClasseFila } from "./fila.ts";
 import { fraseDoAviso, urlDoItem, type AvisoItem, type FraseAviso, type TipoItem } from "./favoritos.ts";
 import { percentual } from "./painel.ts";
 
@@ -32,6 +33,9 @@ export interface Recomendacao {
   acao: string;
   /** O fato que sustenta a ação, com a data do dado. */
   fato: string;
+  /** A classe da fila (F1b, `fila.ts`), só nas recomendações do município. */
+  classe?: ClasseFila;
+  prazo?: string | null;
 }
 
 export interface MudancaCarteira extends FraseAviso {
@@ -188,12 +192,14 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   const cauc = txt(e.cauc);
   if (cauc) {
     r.push({
+      classe: "bloqueio",
       nivel: "alto",
       acao: `Regularizar ${cauc.includes(",") ? "os itens" : "o item"} ${cauc} do CAUC`,
       fato: `O CAUC registra pendência${cauc.includes(",") ? "s" : ""} em ${cauc}${em}. Sem regularizar, cada transferência voluntária depende de exceção; saúde, educação e assistência social ficam fora da suspensão (LRF, art. 25, § 3º).`,
     });
   } else if (e.fiscal_b === "nao_atendido") {
     r.push({
+      classe: "bloqueio",
       nivel: "alto",
       acao: "Ver no painel fiscal o que bloqueia a transferência voluntária",
       fato: `A decisão "receber transferência voluntária" está não atendida no painel fiscal${em}, sem pendência no CAUC.`,
@@ -204,6 +210,8 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   if (pixEnte > 0) {
     const prazo = txt(e.pix_prazo_ente);
     r.push({
+      classe: "prazo",
+      prazo,
       nivel: "alto",
       acao: `Responder no Transferegov ${pixEnte === 1 ? "ao plano do Pix que espera" : `aos ${pixEnte} planos do Pix que esperam`} o município` +
         (prazo ? ` até ${formatarData(prazo)}` : ""),
@@ -215,6 +223,7 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   const tce = num(e.tce_tcu) ?? 0;
   if (tce > 0) {
     r.push({
+      classe: "cobranca",
       nivel: "alto",
       acao: `Acompanhar ${tce === 1 ? "a TCE" : `as ${tce} TCE`} no TCU e reunir a defesa ou o recolhimento`,
       fato: `${plural(tce, "Tomada de Contas Especial", "Tomadas de Contas Especiais")} no e-TCE do TCU para convênios do município${em}. TCE não é julgamento: o Tribunal ainda decide.`,
@@ -223,6 +232,7 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   const atrasadas = num(e.contas_atrasadas) ?? 0;
   if (atrasadas > 0) {
     r.push({
+      classe: "cobranca",
       nivel: "alto",
       acao: `Enviar ${atrasadas === 1 ? "a prestação de contas atrasada" : `as ${atrasadas} prestações de contas atrasadas`}`,
       fato: `${plural(atrasadas, "convênio", "convênios")} com o prazo de prestar contas vencido no SICONV${em}. Prazo vencido sem prestação é motivo de TCE.`,
@@ -231,6 +241,7 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   const rejeitadas = num(e.contas_rejeitadas) ?? 0;
   if (rejeitadas > 0) {
     r.push({
+      classe: "cobranca",
       nivel: "alto",
       acao: "Tratar as contas rejeitadas ou a inadimplência",
       fato: `${plural(rejeitadas, "convênio", "convênios")} com contas rejeitadas ou inadimplência no SICONV${em}.`,
@@ -239,6 +250,7 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   const pessoal = num(e.pessoal_pct);
   if (pessoal !== null && pessoal > LIMITE_PESSOAL) {
     r.push({
+      classe: "bloqueio",
       nivel: "alto",
       acao: "Apresentar um plano de recondução da despesa com pessoal",
       fato: `Despesa com pessoal em ${pct(pessoal)} da RCL ajustada no último RGF, acima do limite de ${LIMITE_PESSOAL}% (LRF, arts. 20 e 23)${em}.`,
@@ -247,6 +259,7 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   const suspensiva = num(e.em_suspensiva) ?? 0;
   if (suspensiva > 0) {
     r.push({
+      classe: "prazo",
       nivel: "moderado",
       acao: `Cumprir as exigências ${suspensiva === 1 ? "da cláusula suspensiva" : `das ${suspensiva} cláusulas suspensivas`} antes do prazo`,
       fato: `${plural(suspensiva, "convênio", "convênios")} ainda em cláusula suspensiva${em}.`,
@@ -255,12 +268,14 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
   const saldo = num(e.saldo_parado) ?? 0;
   if (saldo > 0) {
     r.push({
+      classe: "cobranca",
       nivel: "moderado",
       acao: "Executar ou devolver o saldo parado em conta",
       fato: `${plural(saldo, "convênio", "convênios")} com saldo parado em conta${em}.`,
     });
   }
-  return r.sort((a, b) => ORDEM[a.nivel] - ORDEM[b.nivel]);
+  // A fila única (F1b, fila.ts): a mesma ordem da aba "o que trava" e do relatório.
+  return r.sort(compararFila);
 }
 
 /** Convênio: o que fazer pela situação e pelos prazos do retrato, contados até hoje. */

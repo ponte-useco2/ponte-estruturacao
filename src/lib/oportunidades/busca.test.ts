@@ -9,6 +9,7 @@ import {
   grupoDaSituacao,
   linhasDe,
   numeroValido,
+  urlDoMunicipio,
   parametrosBusca,
   porAno,
   resumoEventos,
@@ -109,4 +110,11 @@ test("investimentos: linhas por dimensão do maior para o menor e barras relativ
   assert.deepEqual(linhasDe(l, "tema").map((x) => x.chave), ["educacao", "saude"]);
   assert.deepEqual(fracoesDaMaior(linhasDe(l, "tema"), (x) => x.valor ?? 0).map((x) => x.fracao), [1, 0.25]);
   assert.deepEqual(fracoesDaMaior([], () => 0), []);
+});
+
+test("F1c: o município vai para a página em abas na PB e para os investimentos fora dela", () => {
+  assert.equal(urlDoMunicipio("2513802"), "/mapa/municipio/2513802");
+  assert.equal(urlDoMunicipio("2513802", "dinheiro"), "/mapa/municipio/2513802?aba=dinheiro");
+  assert.equal(urlDoMunicipio("2513802", "trava"), "/mapa/municipio/2513802");
+  assert.equal(urlDoMunicipio("3550308", "dinheiro"), "/mapa/municipio/3550308/investimentos");
 });
