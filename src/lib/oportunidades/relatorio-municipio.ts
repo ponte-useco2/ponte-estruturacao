@@ -33,7 +33,7 @@ import { diasEntre, type Nivel } from "./laudo.ts";
 import { GRUPOS_SITUACAO } from "./busca.ts";
 import { ROTULO_DESFECHO, type ColunaCsv } from "./painel.ts";
 import type { PlanoFundo } from "./pix.ts";
-import type { PlanoLaudoPix } from "./pix-laudo.ts";
+import { impedidosPorAno, type ImpedidosDoAno, type PlanoLaudoPix } from "./pix-laudo.ts";
 import { riscoPc33, type ColunasPc33 } from "./portaria33.ts";
 import { moedaCurta } from "./radar.ts";
 import { marcasPix, resumirConciliacao, type TceFederalMunicipio, type TcePixMunicipio } from "./tce.ts";
@@ -744,12 +744,14 @@ export interface SecaoPix {
   marcas: { ano: number; titulo: string; nivel: Nivel; fato: string }[];
   semMarcaNoTce: boolean;
   fundo: { planos: number; repasse: number; encerradosComSaldo: number; saldoEncerrados: number; parados: number } | null;
+  /** Planos impedidos nos dois últimos exercícios, por ano e motivo (oport_29, 07/10/2026). */
+  impedidos: ImpedidosDoAno[];
 }
 
 /** O mesmo piso do job do fundo a fundo (pix_fundo/fundo.py, SALDO_MINIMO): saldo menor não é dinheiro parado. */
 export const SALDO_MINIMO_FUNDO = 1000;
 
-function secaoPix(e: EntradaRelatorio): SecaoPix | null {
+function secaoPix(e: EntradaRelatorio, hoje: string): SecaoPix | null {
   if (!e.pix && !e.pixTce && !e.fundo) return null;
   const planos = e.pix ?? [];
   const pontos = new Map<string, { titulo: string; nivel: Nivel; planos: number; valor: number }>();
@@ -780,6 +782,7 @@ function secaoPix(e: EntradaRelatorio): SecaoPix | null {
     marcas,
     semMarcaNoTce: (e.pixTce ?? []).length > 0 && marcas.length === 0,
     fundo,
+    impedidos: impedidosPorAno(planos, Number(hoje.slice(0, 4)) - 1),
   };
 }
 
@@ -798,6 +801,23 @@ function achadosPix(s: SecaoPix): Achado[] {
   }
   for (const m of s.marcas) {
     a.push({ nivel: m.nivel, dimensao: "pix", titulo: `Pix no TCE-PB: ${m.titulo.toLowerCase()} (${m.ano})`, fato: m.fato, acao: null, peso: 5 });
+  }
+  // Impedido: o dinheiro do plano não veio. Pela vez do município (não deu ciência, não enviou, não
+  // complementou) é ponto para o próximo ciclo; pela do órgão ou por outro motivo, é informação.
+  for (const i of s.impedidos) {
+    const doEnte = i.lado === "beneficiario";
+    a.push({
+      nivel: doEnte ? "moderado" : "informativo",
+      dimensao: "pix",
+      titulo: `Pix impedido em ${i.ano}: ${i.rotulo.charAt(0).toLowerCase()}${i.rotulo.slice(1)} (${plural(i.planos, "plano", "planos")})`,
+      fato:
+        `${plural(i.planos, "plano", "planos")} do Pix ${i.planos === 1 ? "ficou impedido" : "ficaram impedidos"} em ${i.ano}, somando ${moedaCurta(i.valor)}.` +
+        (i.recuperados ? ` ${plural(i.recuperados, "foi reapresentado", "foram reapresentados")} no mesmo ano e ${i.recuperados === 1 ? "ficou ciente" : "ficaram cientes"}.` : "") +
+        (i.reindicados ? ` Em ${i.ano + 1}, ${i.reindicados === 1 ? "1 teve" : `${i.reindicados} tiveram`} o município indicado de novo pelo mesmo autor.` : "") +
+        " O porquê de cada um, com o parecer do órgão quando há, está no laudo do plano.",
+      acao: doEnte ? "Acompanhar os prazos do próximo ciclo do Pix e responder no Transferegov às complementações do plano de trabalho." : null,
+      peso: 5,
+    });
   }
   if (s.semMarcaNoTce) {
     a.push({
@@ -996,7 +1016,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
   const convenios = secaoConvenios(e, hoje);
   const controle = secaoControle(e);
   const propostas = secaoPropostas(e);
-  const pix = secaoPix(e);
+  const pix = secaoPix(e, hoje);
   const tcePb = secaoTcePb(e);
   const fornecedores = e.fornecedores
     ? {

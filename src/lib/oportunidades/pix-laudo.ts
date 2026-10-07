@@ -14,6 +14,8 @@
 import type { AcessoFicha } from "./cliente.ts";
 import { ROTULO_NIVEL, rotuloItem, type EstadoItem, type ItemLaudo, type NivelItem } from "./itens-laudo.ts";
 import type { ColunaCsv } from "./painel.ts";
+import { MOTIVOS_ESPECIAIS, type LadoMotivo } from "./pix.ts";
+import { moedaCurta } from "./radar.ts";
 
 export type { EstadoItem, NivelItem } from "./itens-laudo.ts";
 export { ROTULO_ESTADO, ROTULO_NIVEL, classeEstado, pontosAConferir, rotuloItem } from "./itens-laudo.ts";
@@ -48,6 +50,126 @@ export interface PlanoLaudoPix {
   n_pendente: number;
   itens: ItemLaudoPix[];
   versao: string | null;
+  /** Análise do plano de trabalho e, no impedido, o porquê (oport_29, regras 2026-10-07.1). Nulo antes delas. */
+  analise_pt?: AnalisePlanoPix | null;
+}
+
+/** Uma análise do plano de trabalho, como o órgão registrou no Transferegov (trecho do parecer, sem CPF). */
+export interface AnalisePtPix {
+  orgao: string | null;
+  situacao: string | null;
+  parecer: string | null;
+  data: string | null;
+  valor_reprovado: number | null;
+  trecho: string | null;
+  /** O parecer diz que o plano não é da área do órgão (leitura do texto: "a conferir"). */
+  fora_da_area: boolean;
+}
+
+export interface ImpedimentoPix {
+  motivo: string | null;
+  /** O mesmo agrupamento do painel do Pix (`MOTIVOS_ESPECIAIS`). */
+  grupo: string | null;
+  /** O plano idêntico do mesmo exercício que não ficou impedido: a reapresentação no ciclo seguinte. */
+  gemeo: { codigo: string | null; situacao: string | null; pago: number } | null;
+  /** O mesmo autor indicou o mesmo ente de novo no exercício seguinte (LC 210/2024, art. 12). */
+  reindicacao: { ano: number; planos: number; valor: number; nao_impedidos: number; pago: number } | null;
+  /** O exercício seguinte já tem planos na API: só então "não reindicou" é um fato. */
+  ano_seguinte_no_dado?: boolean;
+}
+
+export interface AnalisePlanoPix {
+  analises: AnalisePtPix[];
+  total_analises: number;
+  impedimento: ImpedimentoPix | null;
+}
+
+export const impedido = (p: Pick<PlanoLaudoPix, "situacao">) => (p.situacao ?? "").toUpperCase().startsWith("IMPEDIDO");
+
+export interface PorQueImpedido {
+  rotulo: string;
+  lado: LadoMotivo;
+  /** O motivo como o Transferegov escreve. */
+  motivo: string | null;
+  /** O que aconteceu depois, em frases prontas: a reapresentação no mesmo ano e a reindicação no seguinte. */
+  depois: string[];
+  /** Ficou com o dinheiro no mesmo exercício pelo gêmeo (ciente). */
+  recuperado: boolean;
+}
+
+/** Por que o plano ficou impedido e o que aconteceu depois. Nulo se o plano não está impedido. */
+export function porQueImpedido(p: PlanoLaudoPix): PorQueImpedido | null {
+  if (!impedido(p)) return null;
+  const im = p.analise_pt?.impedimento ?? null;
+  const def = MOTIVOS_ESPECIAIS.find((m) => m.motivo === im?.grupo);
+  const depois: string[] = [];
+  // "Não é da minha área" é a resposta normal de quem não é o órgão competente; o sinal é TODOS dizerem isso.
+  const analises = p.analise_pt?.analises ?? [];
+  if (analises.length > 0 && analises.every((a) => a.fora_da_area)) {
+    depois.push(
+      analises.length === 1
+        ? "O único órgão que se manifestou disse que o plano não é da área dele: nenhum órgão competente o analisou (a conferir)."
+        : "Todos os órgãos que se manifestaram disseram que o plano não é da área deles: nenhum órgão competente o analisou (a conferir).",
+    );
+  }
+  const g = im?.gemeo ?? null;
+  if (g) {
+    depois.push(
+      `Reapresentado no mesmo ano, num ciclo seguinte (plano ${g.codigo ?? "sem código"}), que ficou ${(g.situacao ?? "sem situação").toLowerCase()}` +
+        (g.pago > 0 ? ` e recebeu ${moedaCurta(g.pago)}.` : ", ainda sem pagamento."),
+    );
+  }
+  const r = im?.reindicacao ?? null;
+  if (r) {
+    depois.push(
+      `Em ${r.ano}, o mesmo autor indicou de novo este ente: ${r.planos === 1 ? "1 plano" : `${r.planos} planos`}, ${moedaCurta(r.valor)}` +
+        (r.nao_impedidos < r.planos ? ` (${r.nao_impedidos} sem impedimento)` : "") +
+        (r.pago > 0 ? `, ${moedaCurta(r.pago)} já pagos.` : "."),
+    );
+  } else if (im?.ano_seguinte_no_dado) {
+    depois.push(`Em ${p.ano + 1}, o mesmo autor não indicou de novo este ente pelo Pix.`);
+  }
+  return {
+    rotulo: def?.rotulo ?? "Impedido sem motivo agrupado",
+    lado: def?.lado ?? "outro",
+    motivo: im?.motivo ?? null,
+    depois,
+    recuperado: Boolean(g && !(g.situacao ?? "").toUpperCase().startsWith("IMPEDIDO")),
+  };
+}
+
+export interface ImpedidosDoAno {
+  ano: number;
+  grupo: string;
+  rotulo: string;
+  lado: LadoMotivo;
+  planos: number;
+  valor: number;
+  /** Quantos foram reapresentados no mesmo ano e ficaram cientes (o dinheiro não se perdeu ali). */
+  recuperados: number;
+  /** Quantos tiveram o ente reindicado pelo mesmo autor no ano seguinte. */
+  reindicados: number;
+}
+
+/**
+ * Os impedidos do ente por ano e motivo, a partir do ano dado (o relatório usa os dois últimos exercícios):
+ * do maior ano para o menor e, no ano, do maior valor para o menor.
+ */
+export function impedidosPorAno(planos: PlanoLaudoPix[], desdeAno: number): ImpedidosDoAno[] {
+  const m = new Map<string, ImpedidosDoAno>();
+  for (const p of planos) {
+    if (!impedido(p) || p.ano < desdeAno) continue;
+    const q = porQueImpedido(p);
+    const grupo = p.analise_pt?.impedimento?.grupo ?? "sem_motivo";
+    const k = `${p.ano}|${grupo}`;
+    const g = m.get(k) ?? { ano: p.ano, grupo, rotulo: q?.rotulo ?? grupo, lado: q?.lado ?? "outro", planos: 0, valor: 0, recuperados: 0, reindicados: 0 };
+    g.planos += 1;
+    g.valor += p.valor;
+    if (q?.recuperado) g.recuperados += 1;
+    if (p.analise_pt?.impedimento?.reindicacao) g.reindicados += 1;
+    m.set(k, g);
+  }
+  return [...m.values()].sort((a, b) => b.ano - a.ano || b.valor - a.valor);
 }
 
 export interface AutorLaudoPix {

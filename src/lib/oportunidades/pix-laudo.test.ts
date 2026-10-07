@@ -6,9 +6,11 @@ import {
   chaveEnteValida,
   classeEstado,
   colunasCsvEnte,
+  impedidosPorAno,
   itensDoGrupo,
   podeVerPlanoPix,
   pontosAConferir,
+  porQueImpedido,
   resumoPorItem,
   rotuloItem,
   type ItemLaudoPix,
@@ -97,4 +99,65 @@ test("CSV do ente: um plano por linha, um item por coluna, identificadores intac
 
 test("não verificável tem marca própria, separada da informação", () => {
   assert.equal(classeEstado(it("A1b", "nao_verificavel")), "mp-laudo-informativo mp-laudo-semdado");
+});
+
+// ------------------------------------------------------------------ impedidos (oport_29, 07/10/2026)
+
+const impedidoPor = (grupo: string, extra: Partial<PlanoLaudoPix> = {}, im: Record<string, unknown> = {}): PlanoLaudoPix =>
+  plano({
+    situacao: "IMPEDIDO", pago: 0, valor: 500000,
+    analise_pt: { analises: [], total_analises: 0, impedimento: { motivo: "Impedido por falta de análise conclusiva no prazo estabelecido.", grupo, gemeo: null, reindicacao: null, ...im } },
+    ...extra,
+  });
+
+test("por que impedido: rótulo e lado do painel, e o que veio depois", () => {
+  assert.equal(porQueImpedido(plano()), null, "plano ciente não tem porquê");
+  const q = porQueImpedido(impedidoPor("falta_analise", {}, {
+    gemeo: { codigo: "0903-000009", situacao: "CIENTE", pago: 500000 },
+    reindicacao: { ano: 2026, planos: 2, valor: 800000, nao_impedidos: 1, pago: 0 },
+  }));
+  assert.ok(q);
+  assert.equal(q.rotulo, "O órgão federal não analisou o plano no prazo");
+  assert.equal(q.lado, "orgao");
+  assert.equal(q.recuperado, true);
+  assert.match(q.depois[0], /^Reapresentado no mesmo ano, num ciclo seguinte \(plano 0903-000009\), que ficou ciente e recebeu R\$/);
+  assert.match(q.depois[1], /^Em 2026, o mesmo autor indicou de novo este ente: 2 planos, .* \(1 sem impedimento\)\.$/);
+  const sem = porQueImpedido(impedidoPor("falta_complementacao", {}, { ano_seguinte_no_dado: true }));
+  assert.ok(sem);
+  assert.equal(sem.lado, "beneficiario");
+  assert.equal(sem.recuperado, false);
+  assert.deepEqual(sem.depois, ["Em 2026, o mesmo autor não indicou de novo este ente pelo Pix."]);
+  const cedo = porQueImpedido(impedidoPor("falta_complementacao", { ano: 2026 }, { ano_seguinte_no_dado: false }));
+  assert.deepEqual(cedo?.depois, [], "2027 ainda não tem planos na API: nada a dizer sobre reindicação");
+  const area = porQueImpedido(impedidoPor("falta_analise", {
+    analise_pt: { analises: [{ orgao: "MCID", situacao: "Em elaboração", parecer: null, data: "2025-08-07", valor_reprovado: null, trecho: "Fora da área", fora_da_area: true }],
+      total_analises: 1, impedimento: { motivo: null, grupo: "falta_analise", gemeo: null, reindicacao: null } },
+  }));
+  assert.match(area?.depois[0] ?? "", /^O único órgão que se manifestou disse que o plano não é da área dele/);
+  const misto = porQueImpedido(impedidoPor("falta_analise", {
+    analise_pt: { analises: [
+      { orgao: "MCID", situacao: "Concluída", parecer: "Não se aplica", data: "2025-08-07", valor_reprovado: null, trecho: "Fora da área", fora_da_area: true },
+      { orgao: "MS", situacao: "Em elaboração", parecer: null, data: "2025-08-01", valor_reprovado: null, trecho: "Em análise", fora_da_area: false }],
+      total_analises: 2, impedimento: { motivo: null, grupo: "falta_analise", gemeo: null, reindicacao: null } },
+  }));
+  assert.deepEqual(misto?.depois, [], "um órgão competente se manifestou: o 'não é da minha área' do outro é só roteamento");
+  const antigo = porQueImpedido(plano({ situacao: "IMPEDIDO" }));
+  assert.ok(antigo, "linha gravada antes da oport_29 continua impedida");
+  assert.equal(antigo.rotulo, "Impedido sem motivo agrupado");
+  assert.deepEqual(antigo.depois, []);
+});
+
+test("impedidos por ano: do ano mais recente para o mais antigo, por valor, com recuperados e reindicados", () => {
+  const planos = [
+    impedidoPor("falta_analise", { ano: 2025, valor: 100000 }, { gemeo: { codigo: "x", situacao: "CIENTE", pago: 0 } }),
+    impedidoPor("falta_analise", { ano: 2025, valor: 300000 }, { reindicacao: { ano: 2026, planos: 1, valor: 1, nao_impedidos: 1, pago: 0 } }),
+    impedidoPor("falta_complementacao", { ano: 2026, valor: 50000 }),
+    impedidoPor("falta_analise", { ano: 2023, valor: 900000 }),
+    plano({ ano: 2026 }),
+  ];
+  const r = impedidosPorAno(planos, 2025);
+  assert.deepEqual(r.map((x) => [x.ano, x.grupo, x.planos, x.valor, x.recuperados, x.reindicados]), [
+    [2026, "falta_complementacao", 1, 50000, 0, 0],
+    [2025, "falta_analise", 2, 400000, 1, 1],
+  ]);
 });

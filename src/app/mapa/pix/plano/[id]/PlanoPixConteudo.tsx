@@ -4,6 +4,10 @@
  *
  * `cliente`: a prefeitura vendo o plano dela — sem atalhos para páginas de administrador. O conteúdo é o
  * mesmo: o laudo do Pix não tem nome de servidor nem de fornecedor.
+ *
+ * Plano impedido (07/10/2026): no lugar dos itens do roteiro, que não se aplicam, o porquê do impedimento e o
+ * que veio depois (reapresentação no mesmo ano, reindicação no seguinte). Plano com análise do plano de
+ * trabalho registrada: o órgão, a situação e o trecho do parecer, como o órgão escreveu.
  */
 import Link from "next/link";
 import { BotaoImprimir } from "@/app/mapa/fiscal/[ibge]/simular/BotaoImprimir";
@@ -13,10 +17,13 @@ import {
   classeEstado,
   itensDoGrupo,
   pontosAConferir,
+  porQueImpedido,
   rotuloItem,
   urlEntePix,
+  type AnalisePtPix,
   type ItemLaudoPix,
 } from "@/lib/oportunidades/pix-laudo";
+import { ROTULO_LADO_MOTIVO } from "@/lib/oportunidades/pix";
 import type { LeituraLaudoPlanoPix } from "@/lib/oportunidades/pix-laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { PixNoTce } from "../../PixNoTce";
@@ -34,6 +41,9 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
   const { plano: p, autor, tce, execucao } = leitura;
   const conferir = pontosAConferir(p.itens);
   const chaveEnte = p.cnpj ?? p.cod_ibge;
+  const porque = porQueImpedido(p);
+  const analises = p.analise_pt?.analises ?? [];
+  const antigas = (p.analise_pt?.total_analises ?? 0) - analises.length;
 
   return (
     <div className="pa-pagina mp-radar mp-laudo">
@@ -90,6 +100,43 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
         </article>
       </div>
 
+      {porque && (
+        <section aria-labelledby="pix-impedido" className="mp-radar-secao">
+          <h2 id="pix-impedido" className="mp-radar-h2">
+            Por que ficou impedido
+          </h2>
+          <div className="pa-cartao mp-laudo-frase mp-laudo-alto">
+            <p>
+              <strong>{porque.rotulo}.</strong> De quem era a vez: {ROTULO_LADO_MOTIVO[porque.lado]}.
+            </p>
+            {porque.motivo && <p className="mp-laudo-miudo">Motivo registrado no Transferegov: «{porque.motivo}»</p>}
+            {porque.depois.map((f) => (
+              <p key={f}>{f}</p>
+            ))}
+            <p className="mp-laudo-miudo">Plano impedido não recebe repasse: os itens do roteiro da IN-TCU 93/2024 não se aplicam a ele.</p>
+          </div>
+        </section>
+      )}
+
+      {analises.length > 0 && (
+        <section aria-labelledby="pix-analise" className="mp-radar-secao">
+          <h2 id="pix-analise" className="mp-radar-h2">
+            Análise do plano de trabalho
+          </h2>
+          <ul className="mp-laudo-lista">
+            {analises.map((a, k) => (
+              <Analise key={`${a.data}-${a.orgao}-${k}`} a={a} />
+            ))}
+          </ul>
+          {antigas > 0 && (
+            <p className="pa-nota">
+              {antigas === 1 ? "Mais 1 análise mais antiga" : `Mais ${antigas} análises mais antigas`} no Transferegov.
+            </p>
+          )}
+        </section>
+      )}
+
+      {!porque && (
       <section aria-labelledby="pix-conferir" className="mp-radar-secao">
         <h2 id="pix-conferir" className="mp-radar-h2">
           O que conferir
@@ -106,8 +153,9 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
           </ul>
         )}
       </section>
+      )}
 
-      {GRUPOS.map((g) => {
+      {!porque && GRUPOS.map((g) => {
         const itens = itensDoGrupo(p.itens, g.letra);
         if (!itens.length) return null;
         return (
@@ -160,11 +208,45 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
           </li>
           <li>Pagamento a pessoa física aparece só somado, sem nome nem documento.</li>
           <li>
+            Análise do plano de trabalho: como o órgão registrou no Transferegov, as mais recentes primeiro, com o parecer cortado e sem CPF.
+            &quot;Diz que não é da área dele&quot; é leitura do texto do parecer: é a resposta normal do órgão não competente (o plano vai a vários
+            ministérios) e só pesa quando todos os que se manifestaram dizem isso. Impedido: o motivo agrupado é o mesmo do painel do Pix; a
+            reapresentação é o plano idêntico (emenda, ente e valores) do mesmo ano que não ficou impedido; a reindicação é o mesmo autor
+            indicando o mesmo ente no ano seguinte (LC 210/2024, art. 12).
+          </li>
+          <li>
             Regras na versão {p.versao ?? "—"}. Laudo elaborado por PONTE Estruturação de Projetos de Impacto.
           </li>
         </ul>
       </section>
     </div>
+  );
+}
+
+function Analise({ a }: { a: AnalisePtPix }) {
+  const parecer = (a.parecer ?? "").toLowerCase();
+  const classe = /reprovar/.test(parecer) ? "mp-laudo-alto" : /complementa/.test(parecer) ? "mp-laudo-moderado" : /aprovar/.test(parecer) ? "mp-laudo-atendido" : "";
+  return (
+    <li className={`pa-cartao mp-laudo-risco ${classe}`}>
+      <p>
+        <strong>{a.orgao ?? "Órgão não informado"}</strong>
+        {` · ${data(a.data)} · análise ${(a.situacao ?? "sem situação").toLowerCase()}`}
+        {a.parecer && a.parecer !== "Não se aplica" ? ` · parecer: ${a.parecer.toLowerCase()}` : ""}
+        {a.fora_da_area && (
+          <>
+            {" "}
+            <span className="pa-tag mp-laudo-nivel">diz que não é da área dele</span>
+          </>
+        )}
+      </p>
+      {a.valor_reprovado ? <p>Valor reprovado: {moedaCurta(a.valor_reprovado)}.</p> : null}
+      {a.trecho && (
+        <blockquote className="mp-laudo-texto">
+          <p>{a.trecho}</p>
+          <footer className="mp-laudo-miudo">Parecer registrado no Transferegov</footer>
+        </blockquote>
+      )}
+    </li>
   );
 }
 

@@ -277,3 +277,27 @@ test("sem nomes (D1): fornecedor sai do relatório de quem não é administrador
   assert.deepEqual(s.achados.filter((a) => a.dimensao !== "fornecedores"), r.achados.filter((a) => a.dimensao !== "fornecedores"), "só a dimensão de fornecedores muda");
   assert.ok(JSON.stringify(r).includes("CONSTRUTORA EXEMPLO"), "o original, do administrador, não é alterado");
 });
+
+test("Pix impedido (oport_29): os dois últimos anos viram pontos; pela vez do município é moderado, pela do órgão é informação", () => {
+  const impedido = (id: number, ano: number, grupo: string, valor: number, im: Record<string, unknown> = {}): PlanoLaudoPix => ({
+    ...planoPix(id), ano, situacao: "IMPEDIDO", valor, pago: 0, itens: [],
+    analise_pt: { analises: [], total_analises: 0, impedimento: { motivo: null, grupo, gemeo: null, reindicacao: null, ...im } },
+  });
+  const r = montarRelatorio(patos({
+    pix: [
+      planoPix(1),
+      impedido(2, 2026, "falta_complementacao", 300000),
+      impedido(3, 2025, "falta_analise", 500000, { gemeo: { codigo: "x", situacao: "CIENTE", pago: 500000 } }),
+      impedido(4, 2025, "falta_analise", 200000, { reindicacao: { ano: 2026, planos: 1, valor: 200000, nao_impedidos: 1, pago: 0 } }),
+      impedido(5, 2023, "falta_analise", 900000),
+    ],
+  }), HOJE);
+  const pix = r.achados.filter((a) => a.titulo.startsWith("Pix impedido"));
+  assert.deepEqual(pix.map((a) => [a.titulo, a.nivel]), [
+    ["Pix impedido em 2026: o ente não complementou o plano de trabalho no prazo (1 plano)", "moderado"],
+    ["Pix impedido em 2025: o órgão federal não analisou o plano no prazo (2 planos)", "informativo"],
+  ]);
+  assert.match(pix[1].fato, /1 foi reapresentado no mesmo ano e ficou ciente\. Em 2026, 1 teve o município indicado de novo pelo mesmo autor\./);
+  assert.ok(pix[0].acao?.startsWith("Acompanhar os prazos do próximo ciclo"));
+  assert.equal(pix[1].acao, null);
+});
