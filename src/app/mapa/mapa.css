@@ -890,6 +890,10 @@
 /* A fila do município (F1b): quem resolve e prazo numa linha discreta; a ação com o rótulo na mesma linha. */
 .pa-root .mp-fila-quem { font-size: 0.85rem; color: var(--pa-muted); }
 .pa-root .mp-fila-acao .pa-kicker { display: inline; margin-right: 0.35rem; }
+/* Título que é link (o proponente no topo do laudo leva à entidade): sublinhado discreto, para parecer clicável. */
+.pa-root .pa-titulo a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; text-decoration-color: var(--pa-brand-2); }
+.pa-root .pa-titulo a:hover { text-decoration-thickness: 2px; }
+@media print { .pa-root .pa-titulo a { text-decoration: none; } }
 /* Página da entidade (E1): a ficha "Quem é" em duas colunas e os grupos que abrem e fecham (carteira, lentes). */
 .pa-root .mp-ent-sobre { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0 0 0.75rem; }
 .pa-root .mp-ent-sobre dt { color: var(--pa-muted); font-size: 0.85rem; }
