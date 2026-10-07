@@ -156,8 +156,13 @@ test("impedidos por ano: do ano mais recente para o mais antigo, por valor, com 
     plano({ ano: 2026 }),
   ];
   const r = impedidosPorAno(planos, 2025);
-  assert.deepEqual(r.map((x) => [x.ano, x.grupo, x.planos, x.valor, x.recuperados, x.reindicados]), [
-    [2026, "falta_complementacao", 1, 50000, 0, 0],
-    [2025, "falta_analise", 2, 400000, 1, 1],
+  assert.deepEqual(r.map((x) => [x.ano, x.grupo, x.planos, x.valor, x.recuperados, x.valorRecuperado, x.valorPerdido, x.reindicados]), [
+    [2026, "falta_complementacao", 1, 50000, 0, 0, 50000, 0],
+    [2025, "falta_analise", 2, 400000, 1, 100000, 300000, 1],
   ]);
+  const repetido = impedidoPor("falta_analise", { ano: 2025, valor: 70000 }, { repetido_de: { codigo: "0903-2-1", situacao: "CIENTE", pago: 70000 } });
+  const q = porQueImpedido(repetido);
+  assert.ok(q?.recuperado, "repetição não é perda");
+  assert.match(q?.depois[0] ?? "", /^Repetição do mesmo dinheiro num ciclo seguinte do mesmo ano: o valor está no plano 0903-2-1/);
+  assert.equal(impedidosPorAno([repetido], 2025)[0].valorPerdido, 0);
 });

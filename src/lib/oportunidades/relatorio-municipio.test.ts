@@ -293,11 +293,27 @@ test("Pix impedido (oport_29): os dois últimos anos viram pontos; pela vez do m
     ],
   }), HOJE);
   const pix = r.achados.filter((a) => a.titulo.startsWith("Pix impedido"));
-  assert.deepEqual(pix.map((a) => [a.titulo, a.nivel]), [
-    ["Pix impedido em 2026: o ente não complementou o plano de trabalho no prazo (1 plano)", "moderado"],
-    ["Pix impedido em 2025: o órgão federal não analisou o plano no prazo (2 planos)", "informativo"],
+  const sp = (t: string) => t.replace(/\u00a0/g, " "); // moedaCurta usa espaço não separável
+  assert.deepEqual(pix.map((a) => [sp(a.titulo), a.nivel]), [
+    ["Pix impedido em 2026: o ente não complementou o plano de trabalho no prazo (1 plano, R$ 300 mil perdidos)", "moderado"],
+    ["Pix impedido em 2025: o órgão federal não analisou o plano no prazo (2 planos, R$ 200 mil perdidos)", "informativo"],
   ]);
-  assert.match(pix[1].fato, /1 foi reapresentado no mesmo ano e ficou ciente\. Em 2026, 1 teve o município indicado de novo pelo mesmo autor\./);
+  assert.match(sp(pix[1].fato), /1 voltou no mesmo ano, reapresentado num ciclo seguinte \(R\$ 500 mil\); a perda líquida foi de R\$ 200 mil\. Em 2026, 1 teve o município indicado de novo pelo mesmo autor\./);
   assert.ok(pix[0].acao?.startsWith("Acompanhar os prazos do próximo ciclo"));
   assert.equal(pix[1].acao, null);
+});
+
+test("Pix em curso (oport_30): plano à espera do município é alto e entra entre os destaques", () => {
+  const r = montarRelatorio(patos({
+    pixCiclo: [{
+      id_plano_acao: 9, codigo_plano_acao: "09032026-000009", ano: 2026, ciclo: 1, beneficiario: "Patos", cnpj: "09084815000170", cod_ibge: "2510808",
+      autor: "Fulano", valor: 400000, situacao_plano: "CIENTE", situacao_pt: "Em Complementação", desde: "2026-09-20", vez: "ente",
+      etapa: "complementar o plano de trabalho", prazo: "2026-10-15", prazo_fonte: "Comunicado nº 20/2026", ultima_analise: null,
+    }],
+  }), HOJE);
+  const a = r.achados.find((x) => x.titulo.startsWith("Pix em curso"));
+  assert.ok(a);
+  assert.equal(a.nivel, "alto");
+  assert.match(a.fato, /faltam 14 dias/);
+  assert.ok(r.destaques.some((x) => x.titulo.startsWith("Pix em curso")), "vai para o que mais pesa");
 });

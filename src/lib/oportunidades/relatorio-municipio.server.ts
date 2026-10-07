@@ -28,6 +28,7 @@ import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, 
 import { lerPainelFornecedores } from "./fornecedores.server";
 import { todas } from "./padroes.server";
 import type { PlanoFundo } from "./pix";
+import type { PlanoCicloPix } from "./pix-ciclo";
 import { lerLaudoEntePix } from "./pix-laudo.server";
 import {
   montarRelatorio,
@@ -106,6 +107,16 @@ async function lerTcu(db: Banco, ibge: string, faltas: string[]): Promise<Entrad
     : [];
   if (!tces) return null;
   return { consultas, tces, referencia: ex.referencia };
+}
+
+/** Pix do exercício com o plano de trabalho pendente (oport_30). Antes da primeira coleta do ciclo, nada. */
+async function lerCiclo(db: Banco, ibge: string, faltas: string[]): Promise<PlanoCicloPix[] | null> {
+  const nome = "Pix em curso";
+  const ex = await execucao(db, "pixc_ultima_execucao", faltas, nome);
+  if (!ex) return null;
+  return paginas<PlanoCicloPix>(faltas, nome, (a, b) =>
+    db.from("pix_ciclo_plano").select("*").eq("execucao_id", ex.id).eq("cod_ibge", ibge).order("id_plano_acao").range(a, b),
+  );
 }
 
 async function lerFundo(db: Banco, ibge: string, faltas: string[]): Promise<PlanoFundo[] | null> {
@@ -203,7 +214,7 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
   const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
-  const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo, indicadores] = await Promise.all([
+  const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo, indicadores, pixCiclo] = await Promise.all([
     lerFiscalMunicipio(ibge),
     paginas<InstrumentoRelatorio & { municipio: string | null }>(faltas, "convênios", (a, b) =>
       db.from("painel_instrumento").select(COLUNAS_INSTRUMENTO).eq("execucao_id", ex.id).eq("cod_ibge", ibge).eq("tipo_agente", "municipio").order("nr_convenio").range(a, b),
@@ -217,6 +228,7 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
     lerPainelFornecedores({ q: null, municipio: ibge, ordem: "valor", marca: "inidoneos" }),
     lerFundo(db, ibge, faltas),
     lerIndicadores(db, ibge, faltas),
+    lerCiclo(db, ibge, faltas),
   ]);
 
   const nome = (fiscal.estado === "ok" ? fiscal.municipio.nome : null) ?? instrumentos?.[0]?.municipio ?? null;
@@ -253,6 +265,7 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
     tcu,
     contasObras: contasObras === undefined ? null : contasObras,
     pix: pix.estado === "ok" ? pix.planos : pix.estado === "nao_encontrado" ? [] : null,
+    pixCiclo,
     pixTce: tce.estado === "ok" ? tce.pix : pix.estado === "ok" ? pix.tce : null,
     fundo,
     conciliacao: tce.estado === "ok" ? tce.municipios : null,

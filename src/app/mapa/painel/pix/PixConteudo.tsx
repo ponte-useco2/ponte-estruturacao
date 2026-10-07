@@ -29,16 +29,30 @@ import {
 } from "@/lib/oportunidades/pix";
 import { resumoPorItem, urlEntePix, urlLaudoPix } from "@/lib/oportunidades/pix-laudo";
 import type { ResumoPainelLaudoPix } from "@/lib/oportunidades/pix-laudo.server";
+import type { LeituraCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import type { LeituraPix } from "@/lib/oportunidades/pix.server";
 import { LIMITE_LISTA } from "@/lib/oportunidades/pix.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Cartao, Lista, n } from "../Pecas";
+import { CicloPix } from "./CicloPix";
 
 type LeituraOk = Extract<LeituraPix, { estado: "ok" }>;
 
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—");
 
-export function PixConteudo({ p, leitura, laudo = null }: { p: ParametrosPix; leitura: LeituraOk; laudo?: ResumoPainelLaudoPix | null }) {
+export function PixConteudo({
+  p,
+  leitura,
+  laudo = null,
+  ciclo = null,
+  hoje = "",
+}: {
+  p: ParametrosPix;
+  leitura: LeituraOk;
+  laudo?: ResumoPainelLaudoPix | null;
+  ciclo?: LeituraCicloPix | null;
+  hoje?: string;
+}) {
   const c = leitura.execucao.contagens;
   const onde = p.uf ?? "Brasil";
 
@@ -101,7 +115,7 @@ export function PixConteudo({ p, leitura, laudo = null }: { p: ParametrosPix; le
       </div>
 
       <section className="mp-radar-secao">
-        {p.aba === "especiais" ? <Especiais p={p} leitura={leitura} laudo={laudo} /> : <Fundo p={p} leitura={leitura} />}
+        {p.aba === "especiais" ? <Especiais p={p} leitura={leitura} laudo={laudo} ciclo={ciclo} hoje={hoje} /> : <Fundo p={p} leitura={leitura} />}
       </section>
     </div>
   );
@@ -109,7 +123,19 @@ export function PixConteudo({ p, leitura, laudo = null }: { p: ParametrosPix; le
 
 // ============================================================================ especiais
 
-function Especiais({ p, leitura, laudo }: { p: ParametrosPix; leitura: LeituraOk; laudo: ResumoPainelLaudoPix | null }) {
+function Especiais({
+  p,
+  leitura,
+  laudo,
+  ciclo,
+  hoje,
+}: {
+  p: ParametrosPix;
+  leitura: LeituraOk;
+  laudo: ResumoPainelLaudoPix | null;
+  ciclo: LeituraCicloPix | null;
+  hoje: string;
+}) {
   const recorte = p.uf ?? "BR";
   const { anos } = leitura;
   const s = (campo: Numericas<LinhaEspecialAno>) => soma(anos, recorte, campo);
@@ -172,6 +198,7 @@ function Especiais({ p, leitura, laudo }: { p: ParametrosPix; leitura: LeituraOk
 
       {leitura.especiais ? (
         <>
+          <CicloPix leitura={ciclo} hoje={hoje} />
           <Lista
             titulo={`Pagos há mais de 12 meses sem relatório entregue · os ${LIMITE_LISTA} maiores`}
             vazio="Nenhum plano nessa situação."

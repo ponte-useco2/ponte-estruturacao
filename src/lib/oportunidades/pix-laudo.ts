@@ -72,6 +72,8 @@ export interface ImpedimentoPix {
   grupo: string | null;
   /** O plano idêntico do mesmo exercício que não ficou impedido: a reapresentação no ciclo seguinte. */
   gemeo: { codigo: string | null; situacao: string | null; pago: number } | null;
+  /** O impedido que já é de um ciclo seguinte e tem o mesmo dinheiro ciente noutro plano (regras 2026-10-07.2). */
+  repetido_de?: { codigo: string | null; situacao: string | null; pago: number } | null;
   /** O mesmo autor indicou o mesmo ente de novo no exercício seguinte (LC 210/2024, art. 12). */
   reindicacao: { ano: number; planos: number; valor: number; nao_impedidos: number; pago: number } | null;
   /** O exercício seguinte já tem planos na API: só então "não reindicou" é um fato. */
@@ -119,6 +121,13 @@ export function porQueImpedido(p: PlanoLaudoPix): PorQueImpedido | null {
         (g.pago > 0 ? ` e recebeu ${moedaCurta(g.pago)}.` : ", ainda sem pagamento."),
     );
   }
+  const rep = im?.repetido_de ?? null;
+  if (rep) {
+    depois.push(
+      `Repetição do mesmo dinheiro num ciclo seguinte do mesmo ano: o valor está no plano ${rep.codigo ?? "sem código"}, que ficou ` +
+        `${(rep.situacao ?? "sem situação").toLowerCase()}. Este impedimento não tirou dinheiro do ente.`,
+    );
+  }
   const r = im?.reindicacao ?? null;
   if (r) {
     depois.push(
@@ -134,7 +143,7 @@ export function porQueImpedido(p: PlanoLaudoPix): PorQueImpedido | null {
     lado: def?.lado ?? "outro",
     motivo: im?.motivo ?? null,
     depois,
-    recuperado: Boolean(g && !(g.situacao ?? "").toUpperCase().startsWith("IMPEDIDO")),
+    recuperado: Boolean((g && !(g.situacao ?? "").toUpperCase().startsWith("IMPEDIDO")) || rep),
   };
 }
 
@@ -145,8 +154,11 @@ export interface ImpedidosDoAno {
   lado: LadoMotivo;
   planos: number;
   valor: number;
-  /** Quantos foram reapresentados no mesmo ano e ficaram cientes (o dinheiro não se perdeu ali). */
+  /** Quantos foram reapresentados no mesmo ano e ficaram cientes, ou eram repetição (o dinheiro não se perdeu ali). */
   recuperados: number;
+  valorRecuperado: number;
+  /** O prejuízo líquido: o valor impedido menos o que voltou no mesmo ano. */
+  valorPerdido: number;
   /** Quantos tiveram o ente reindicado pelo mesmo autor no ano seguinte. */
   reindicados: number;
 }
@@ -162,10 +174,18 @@ export function impedidosPorAno(planos: PlanoLaudoPix[], desdeAno: number): Impe
     const q = porQueImpedido(p);
     const grupo = p.analise_pt?.impedimento?.grupo ?? "sem_motivo";
     const k = `${p.ano}|${grupo}`;
-    const g = m.get(k) ?? { ano: p.ano, grupo, rotulo: q?.rotulo ?? grupo, lado: q?.lado ?? "outro", planos: 0, valor: 0, recuperados: 0, reindicados: 0 };
+    const g = m.get(k) ?? {
+      ano: p.ano, grupo, rotulo: q?.rotulo ?? grupo, lado: q?.lado ?? "outro",
+      planos: 0, valor: 0, recuperados: 0, valorRecuperado: 0, valorPerdido: 0, reindicados: 0,
+    };
     g.planos += 1;
     g.valor += p.valor;
-    if (q?.recuperado) g.recuperados += 1;
+    if (q?.recuperado) {
+      g.recuperados += 1;
+      g.valorRecuperado += p.valor;
+    } else {
+      g.valorPerdido += p.valor;
+    }
     if (p.analise_pt?.impedimento?.reindicacao) g.reindicados += 1;
     m.set(k, g);
   }

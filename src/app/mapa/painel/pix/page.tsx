@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { parametrosPix } from "@/lib/oportunidades/pix";
+import { diaBrasilia } from "@/lib/oportunidades/laudo";
+import { lerCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import { lerResumoLaudoPix } from "@/lib/oportunidades/pix-laudo.server";
 import { lerPix } from "@/lib/oportunidades/pix.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
@@ -30,6 +32,8 @@ export default async function PixPage({
   const leitura = await lerPix(p);
   if (leitura.estado !== "ok") return <PixIndisponivel estado={leitura.estado} />;
   // O resumo do laudo (onda 13A) só entra no recorte plano a plano (PB, especiais).
-  const laudo = leitura.especiais && p.aba === "especiais" ? await lerResumoLaudoPix(leitura.execucao.id) : null;
-  return <PixConteudo p={p} leitura={leitura} laudo={laudo} />;
+  const plano = Boolean(leitura.especiais && p.aba === "especiais");
+  // O ciclo em curso (oport_30) é diário e da mesma UF da lista plano a plano.
+  const [laudo, ciclo] = plano ? await Promise.all([lerResumoLaudoPix(leitura.execucao.id), lerCicloPix(leitura.ufLista)]) : [null, null];
+  return <PixConteudo p={p} leitura={leitura} laudo={laudo} ciclo={ciclo} hoje={diaBrasilia(new Date().toISOString())} />;
 }

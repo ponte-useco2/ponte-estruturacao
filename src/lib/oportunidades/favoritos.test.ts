@@ -48,6 +48,8 @@ test("frases do município: contagens, decisão fiscal, CAUC e pessoal em portug
   assert.deepEqual(f("fiscal_a", "atendido", null), { rotulo: "Painel fiscal: declarações fiscais em dia", detalhe: "atendido → sem dado" });
   assert.deepEqual(f("cauc", "", "1.5, 3.2.3"), { rotulo: "Pendências no CAUC", detalhe: "nenhuma → 1.5, 3.2.3" });
   assert.deepEqual(f("pessoal_pct", "53.9", "54.54"), { rotulo: "Despesa com pessoal (% da RCL ajustada)", detalhe: "53,90% → 54,54%" });
+  assert.deepEqual(f("pix_vez_ente", "0", "1"), { rotulo: "Pix: planos à espera do município no ciclo", detalhe: "0 → 1" });
+  assert.deepEqual(f("pix_prazo_ente", null, "2027-05-10"), { rotulo: "Pix: prazo da etapa do município", detalhe: "sem prazo → 10/05/2027" });
 });
 
 test("janelas abertas para a geração: só as abertas no dia, com prazo sem hora", () => {

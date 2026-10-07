@@ -197,6 +197,12 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
       return { rotulo: "Pendências no CAUC", detalhe: `${antes || "nenhuma"} → ${depois || "nenhuma"}` };
     case "pessoal_pct":
       return { rotulo: "Despesa com pessoal (% da RCL ajustada)", detalhe: `${pct(numero(antes))} → ${pct(numero(depois))}` };
+    case "pix_vez_ente":
+      return { rotulo: "Pix: planos à espera do município no ciclo", detalhe: contagem(antes, depois) };
+    case "pix_vez_orgao":
+      return { rotulo: "Pix: planos em análise no órgão federal", detalhe: contagem(antes, depois) };
+    case "pix_prazo_ente":
+      return { rotulo: "Pix: prazo da etapa do município", detalhe: `${antes ? data(antes) : "sem prazo"} → ${depois ? data(depois) : "sem prazo"}` };
     case "fora_do_recorte":
       return {
         rotulo: "Saiu da busca",

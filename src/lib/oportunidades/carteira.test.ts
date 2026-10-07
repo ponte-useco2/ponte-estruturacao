@@ -110,3 +110,17 @@ test("data da referência do retrato", () => {
   assert.equal(dataDaReferencia(null), null);
   assert.equal(dataDaReferencia("sem data"), null);
 });
+
+test("Pix em curso (oport_30): plano à espera do município é alto e vem logo depois do bloqueio fiscal", () => {
+  assert.deepEqual(c({ evento: "pix_vez_ente", antes: "0", depois: "1" }), { nivel: "alto", melhora: false });
+  assert.deepEqual(c({ evento: "pix_vez_ente", antes: "1", depois: "0" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(c({ evento: "pix_vez_orgao", antes: "0", depois: "2" }), { nivel: "informativo", melhora: null });
+  assert.deepEqual(c({ evento: "pix_prazo_ente", antes: null, depois: "2027-05-10" }), { nivel: "moderado", melhora: null });
+  const r = recomendacoesMunicipio({ ...PATOS, pix_vez_ente: 2, pix_vez_orgao: 0, pix_prazo_ente: "2027-05-10" }, "2027-04-20");
+  assert.equal(r[1].acao, "Responder no Transferegov aos 2 planos do Pix que esperam o município até 10/05/2027");
+  assert.match(r[1].fato, /^2 planos de transferência especial do exercício com a vez do município/);
+  const semPrazo = recomendacoesMunicipio({ pix_vez_ente: 1, pix_prazo_ente: null }, null);
+  assert.equal(semPrazo[0].acao, "Responder no Transferegov ao plano do Pix que espera o município");
+  assert.match(semPrazo[0].fato, /O prazo do comunicado ainda não foi cadastrado/);
+  assert.equal(recomendacoesMunicipio({ pix_vez_ente: 0, pix_vez_orgao: 3 }, null).length, 0, "vez do órgão não pede ação do município");
+});

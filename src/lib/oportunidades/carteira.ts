@@ -140,6 +140,13 @@ export function consequenciaDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "ante
       if (novos.length) return { nivel: "alto", melhora: false };
       return { nivel: "informativo", melhora: true };
     }
+    case "pix_vez_ente":
+      // Plano do Pix à espera do município: sem resposta no prazo, o plano fica impedido e o dinheiro não vem.
+      return subiu ? { nivel: "alto", melhora: false } : { nivel: "informativo", melhora: subiu === false ? true : null };
+    case "pix_vez_orgao":
+      return { nivel: "informativo", melhora: null };
+    case "pix_prazo_ente":
+      return a.depois ? { nivel: "moderado", melhora: null } : { nivel: "informativo", melhora: null };
     case "pessoal_pct":
       if (para !== null && para >= LIMITE_PESSOAL && (de === null || de < LIMITE_PESSOAL)) return { nivel: "alto", melhora: false };
       if (subiu) return { nivel: "moderado", melhora: false };
@@ -190,6 +197,19 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
       nivel: "alto",
       acao: "Ver no painel fiscal o que bloqueia a transferência voluntária",
       fato: `A decisão "receber transferência voluntária" está não atendida no painel fiscal${em}, sem pendência no CAUC.`,
+    });
+  }
+  // Pix à espera do município: o prazo do comunicado decide; logo depois do bloqueio fiscal, antes das TCE.
+  const pixEnte = num(e.pix_vez_ente) ?? 0;
+  if (pixEnte > 0) {
+    const prazo = txt(e.pix_prazo_ente);
+    r.push({
+      nivel: "alto",
+      acao: `Responder no Transferegov ${pixEnte === 1 ? "ao plano do Pix que espera" : `aos ${pixEnte} planos do Pix que esperam`} o município` +
+        (prazo ? ` até ${formatarData(prazo)}` : ""),
+      fato: `${plural(pixEnte, "plano de transferência especial", "planos de transferência especial")} do exercício com a vez do município ` +
+        `(ciência, envio ou complementação do plano de trabalho)${em}. Sem resposta no prazo do comunicado, o plano fica impedido e o dinheiro não vem.` +
+        (prazo ? "" : " O prazo do comunicado ainda não foi cadastrado: conferir no Transferegov."),
     });
   }
   const tce = num(e.tce_tcu) ?? 0;
@@ -298,6 +318,8 @@ function numerosDoMunicipio(e: Record<string, unknown>): ItemCarteira["numeros"]
   n.push({ rotulo: "Em execução", valor: String(num(e.em_execucao) ?? 0), nivel: null });
   const tce = num(e.tce_tcu) ?? 0;
   n.push({ rotulo: "TCE no TCU", valor: String(tce), nivel: tce > 0 ? "alto" : null });
+  const pixEnte = num(e.pix_vez_ente) ?? 0;
+  if (pixEnte > 0) n.push({ rotulo: "Pix à espera do município", valor: String(pixEnte), nivel: "alto" });
   return n;
 }
 

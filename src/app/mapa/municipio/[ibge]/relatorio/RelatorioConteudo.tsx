@@ -15,6 +15,7 @@ import { rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraInd
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
+import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
   ROTULO_DIMENSAO,
@@ -548,8 +549,23 @@ export function BlocoPix({ r, destino }: { r: Relatorio; destino: Destino }) {
         {n(px.planos)} planos do Pix, com {moedaCurta(px.pago)} pagos.{" "}
         {px.fundo ? `${n(px.fundo.planos)} planos do fundo a fundo, com ${moedaCurta(px.fundo.repasse)} de repasse.` : ""}
       </p>
+      {px.impedidos.length > 0 && <ResumoImpedidos imp={px.impedidos} />}
       <ListaAchados achados={dimensao(r, "pix")} destino={destino} />
     </Secao>
+  );
+}
+
+/** Impedidos dos dois últimos exercícios numa linha: o valor bruto, o que voltou no mesmo ano e a perda líquida. */
+function ResumoImpedidos({ imp }: { imp: ImpedidosDoAno[] }) {
+  const anos = [...new Set(imp.map((i) => i.ano))].sort();
+  const planos = imp.reduce((t, i) => t + i.planos, 0);
+  const valor = imp.reduce((t, i) => t + i.valor, 0);
+  const recuperado = imp.reduce((t, i) => t + i.valorRecuperado, 0);
+  return (
+    <p>
+      Impedidos em {anos.join(" e ")}: {n(planos)} {planos === 1 ? "plano" : "planos"}, {moedaCurta(valor)}.{" "}
+      {recuperado > 0 ? `${moedaCurta(recuperado)} voltaram no mesmo ano por reapresentação; ` : ""}perda líquida de {moedaCurta(valor - recuperado)}.
+    </p>
   );
 }
 

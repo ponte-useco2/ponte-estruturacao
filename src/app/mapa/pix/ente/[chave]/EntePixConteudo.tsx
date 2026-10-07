@@ -5,7 +5,8 @@
 import Link from "next/link";
 import { BotaoImprimir } from "@/app/mapa/fiscal/[ibge]/simular/BotaoImprimir";
 import { formatarData } from "@/lib/oportunidades/central";
-import { ROTULO_NIVEL, classeEstado, rotuloItem, urlCsvEntePix, urlLaudoPix, type PlanoLaudoPix } from "@/lib/oportunidades/pix-laudo";
+import { ROTULO_LADO_MOTIVO } from "@/lib/oportunidades/pix";
+import { ROTULO_NIVEL, classeEstado, impedidosPorAno, rotuloItem, urlCsvEntePix, urlLaudoPix, type PlanoLaudoPix } from "@/lib/oportunidades/pix-laudo";
 import type { LeituraLaudoEntePix } from "@/lib/oportunidades/pix-laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { PixNoTce } from "../../PixNoTce";
@@ -29,6 +30,7 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
   const p0 = planos[0];
   const soma = (f: (p: PlanoLaudoPix) => number) => planos.reduce((t, p) => t + f(p), 0);
   const conferir = planos.filter((p) => p.pior);
+  const impedidos = impedidosPorAno(planos, 0);
 
   return (
     <div className="pa-pagina mp-radar mp-laudo">
@@ -52,6 +54,46 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
         </p>
         <p className="mp-fiscal-aviso">{AVISO_PIX}</p>
       </div>
+
+      {impedidos.length > 0 && (
+        <section aria-labelledby="ente-impedidos" className="mp-radar-secao">
+          <h2 id="ente-impedidos" className="mp-radar-h2">
+            Impedidos
+          </h2>
+          <p className="pa-nota">
+            Plano impedido não recebe repasse. &quot;Voltou no mesmo ano&quot; é o plano reapresentado num ciclo seguinte que ficou ciente (ou a
+            repetição do mesmo plano); a perda líquida é o resto. O porquê de cada um está no laudo do plano.
+          </p>
+          <div className="mp-tabela-rolagem">
+            <table className="mp-tabela">
+              <thead>
+                <tr>
+                  <th scope="col">Ano</th>
+                  <th scope="col">Motivo</th>
+                  <th scope="col">De quem era a vez</th>
+                  <th scope="col" className="mp-num">Planos</th>
+                  <th scope="col" className="mp-num">Valor</th>
+                  <th scope="col" className="mp-num">Voltou no mesmo ano</th>
+                  <th scope="col" className="mp-num">Perda líquida</th>
+                </tr>
+              </thead>
+              <tbody>
+                {impedidos.map((i) => (
+                  <tr key={`${i.ano}-${i.grupo}`}>
+                    <td>{i.ano}</td>
+                    <td>{i.rotulo}</td>
+                    <td>{ROTULO_LADO_MOTIVO[i.lado]}</td>
+                    <td className="mp-num">{n(i.planos)}</td>
+                    <td className="mp-num">{moedaCurta(i.valor)}</td>
+                    <td className="mp-num">{i.valorRecuperado > 0 ? moedaCurta(i.valorRecuperado) : "—"}</td>
+                    <td className="mp-num">{moedaCurta(i.valorPerdido)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="ente-planos" className="mp-radar-secao">
         <h2 id="ente-planos" className="mp-radar-h2">
