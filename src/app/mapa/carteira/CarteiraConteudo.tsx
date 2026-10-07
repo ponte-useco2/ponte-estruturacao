@@ -114,12 +114,15 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
       {c.vazia && (
         <Secao id="cart-vazia" titulo="Comece a sua carteira">
           <p>
-            Siga com a estrela <strong>☆ Seguir</strong> os municípios, convênios, propostas e janelas que você acompanha. A carteira junta tudo
+            Siga com a estrela <strong>☆ Seguir</strong> os municípios, entidades, convênios, propostas e janelas que você acompanha. A carteira junta tudo
             aqui, avisa o que mudou a cada rodada do painel e diz a próxima ação de cada um, com o fato que a sustenta.
           </p>
           <ul className="mp-cart-lista mp-cart-passos">
             <li>
               Município: na página do município (procure pelo nome na <Link prefetch={false} href="/mapa/busca">Busca</Link>).
+            </li>
+            <li>
+              Entidade (prefeitura, fundo, organização da sociedade civil, órgão estadual): na página dela, aberta pelo nome do proponente.
             </li>
             <li>
               Convênio e proposta: na <Link prefetch={false} href="/mapa/busca">Busca</Link>, pelo número ou pelo programa.
@@ -170,6 +173,32 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                 {i.restantes > 0 && (
                   <p className="mp-cart-mudo">
                     {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <Link prefetch={false} href={i.url}>página do município</Link>.
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        </Secao>
+      )}
+
+      {c.porTipo.entidade.length > 0 && (
+        <Secao id="cart-entidades" titulo="Entidades" nota="Do retrato por CNPJ que o painel comparou na última rodada: convênios, sinais e TCE no TCU. O fiscal é do município.">
+          <div className="mp-cart-grade">
+            {c.porTipo.entidade.map((i) => (
+              <article key={i.chave} className="pa-cartao mp-cart-cartao">
+                <Cabeca i={i} />
+                <div className="mp-cart-numeros">
+                  {i.numeros.map((n) => (
+                    <span key={n.rotulo} className={`mp-cart-numero${n.nivel ? ` mp-cart-${n.nivel}` : ""}`}>
+                      <span className="pa-mono">{n.rotulo}</span>
+                      <b>{n.valor}</b>
+                    </span>
+                  ))}
+                </div>
+                <Recomendacoes r={i.recomendacoes} />
+                {i.restantes > 0 && (
+                  <p className="mp-cart-mudo">
+                    {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <Link prefetch={false} href={i.url}>página da entidade</Link>.
                   </p>
                 )}
               </article>

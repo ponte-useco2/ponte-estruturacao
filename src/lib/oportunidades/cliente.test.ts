@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EXPLICACAO_SEM_FICHA, podeVerInstrumento, podeVerMunicipio, type MotivoSemFicha } from "./cliente.ts";
+import { EXPLICACAO_SEM_CNPJ, EXPLICACAO_SEM_FICHA, podeVerEntidadePropria, podeVerInstrumento, podeVerInstrumentoPorCnpj, podeVerMunicipio, type MotivoSemCnpj, type MotivoSemFicha } from "./cliente.ts";
 
 const PREFEITURA = { tipo: "municipio", municipioIbge: "2507507" };
 const CONFIRMADO = { municipio_ibge: "2507507", confirmado_em: "2026-09-15T12:00:00Z" };
@@ -53,4 +53,27 @@ test("laudo do cliente: sem acesso à ficha, sem laudo, com o mesmo motivo", () 
   assert.deepEqual(podeVerInstrumento(outraOrg, { cod_ibge: "2507507", tipo_agente: "municipio" }), { ok: false, motivo: "nao_municipio" });
   const pendente = podeVerMunicipio("pendente", PREFEITURA, CONFIRMADO);
   assert.deepEqual(podeVerInstrumento(pendente, { cod_ibge: "2507507", tipo_agente: "municipio" }), { ok: false, motivo: "nao_aprovado" });
+});
+
+test("cliente por CNPJ (oport_31): só com o CNPJ do cadastro confirmado, e cada recusa tem explicação", () => {
+  const osc = { cnpj: "09112236000194" };
+  const v = { cnpj: "09112236000194", confirmado_em: "2026-10-07T20:00:00Z" };
+  assert.deepEqual(podeVerEntidadePropria("aprovado", osc, v), { ok: true, cnpj: "09112236000194" });
+  const motivos: [Parameters<typeof podeVerEntidadePropria>, MotivoSemCnpj][] = [
+    [["pendente", osc, v], "nao_aprovado"],
+    [["aprovado", null, v], "sem_organizacao"],
+    [["aprovado", { cnpj: null }, v], "sem_cnpj"],
+    [["aprovado", { cnpj: "09.112.236/0001-94" }, v], "sem_cnpj"],
+    [["aprovado", osc, null], "aguardando_confirmacao"],
+    [["aprovado", { cnpj: "12671814000137" }, v], "cnpj_mudou"],
+  ];
+  for (const [args, motivo] of motivos) {
+    assert.deepEqual(podeVerEntidadePropria(...args), { ok: false, motivo });
+    assert.ok(EXPLICACAO_SEM_CNPJ[motivo].texto.length > 20);
+  }
+  const acesso = podeVerEntidadePropria("aprovado", osc, v);
+  assert.equal(podeVerInstrumentoPorCnpj(acesso, { cnpj: "09112236000194" }), true);
+  assert.equal(podeVerInstrumentoPorCnpj(acesso, { cnpj: "09084815000170" }), false, "instrumento de outro proponente");
+  assert.equal(podeVerInstrumentoPorCnpj(acesso, { cnpj: null }), false);
+  assert.equal(podeVerInstrumentoPorCnpj({ ok: false, motivo: "aguardando_confirmacao" }, { cnpj: "09112236000194" }), false);
 });

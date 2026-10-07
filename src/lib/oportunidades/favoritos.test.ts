@@ -111,3 +111,13 @@ test("aviso de prazo de janela que já fechou não repete a contagem velha", () 
   assert.deepEqual(fraseDoAviso(a, "2026-10-02"), { rotulo: "A janela fechou", detalhe: "O prazo era 18/09/2026; o aviso foi do dia em que faltava 1 dia." });
   assert.equal(fraseDoAviso(a, "2026-09-17").rotulo, "Falta 1 dia");
 });
+
+test("oport_31: entidade se segue pelo CNPJ (alfanumérico aceito) e abre a página dela", () => {
+  assert.equal(chaveValida("entidade", "09112236000194"), true);
+  assert.equal(chaveValida("entidade", "12ABC34501DE35"), true);
+  assert.equal(chaveValida("entidade", "09.112.236/0001-94"), false);
+  assert.equal(chaveValida("entidade", "0911223600019"), false);
+  assert.equal(urlDoItem("entidade", "09112236000194"), "/mapa/entidade/09112236000194");
+  const a = { id: "1", tipo: "entidade", chave: "09112236000194", evento: "instrumentos", titulo: "X", antes: "88", depois: "89", referencia: "r", criado_em: "2026-10-08T12:00:00Z", lida_em: null, arquivada_em: null } as const;
+  assert.equal(fraseDoAviso(a as never).rotulo, "Instrumentos no painel");
+});

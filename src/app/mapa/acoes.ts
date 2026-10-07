@@ -132,7 +132,13 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
       return { ok: false, erro: `Você já segue ${LIMITE_SEGUIDOS} itens. Deixe de seguir algum para seguir este.` };
     }
     if (error.code === "23503") {
-      return { ok: false, erro: tipo === "municipio" ? "Este município não está nas fontes do painel." : "Este item não está mais na busca." };
+      const erro =
+        tipo === "municipio"
+          ? "Este município não está nas fontes do painel."
+          : tipo === "entidade"
+            ? "Esta entidade não tem instrumento nem proposta no painel."
+            : "Este item não está mais na busca.";
+      return { ok: false, erro };
     }
     console.error("seguir:", error.message);
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };

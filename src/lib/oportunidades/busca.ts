@@ -193,6 +193,8 @@ export interface InstrumentoBusca {
   vl_desembolsado: number | null;
   dt_assinatura: string | null;
   dt_fim_vigencia: string | null;
+  /** O CNPJ do proponente (oport_31); ausente antes da migração. */
+  cnpj?: string | null;
   total: number;
 }
 
@@ -213,6 +215,8 @@ export interface PropostaBusca {
   desfecho: string | null;
   situacao: string | null;
   nr_convenio: string | null;
+  /** O CNPJ do proponente (oport_31); ausente antes da migração. */
+  cnpj?: string | null;
   total: number;
 }
 

@@ -11,9 +11,9 @@ import { ehAberta, type PayloadV2 } from "./contrato-v2.ts";
 import { ROTULO_DESFECHO, percentual } from "./painel.ts";
 import { moedaCurta } from "./radar.ts";
 
-export type TipoItem = "janela" | "instrumento" | "proposta" | "municipio";
+export type TipoItem = "janela" | "instrumento" | "proposta" | "municipio" | "entidade";
 
-export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta", "municipio"];
+export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta", "municipio", "entidade"];
 
 /** O mesmo teto da oport_15 (`oport_favorito_limite`). */
 export const LIMITE_SEGUIDOS = 300;
@@ -25,6 +25,8 @@ export function chaveValida(tipo: unknown, chave: unknown): tipo is TipoItem {
   if (tipo === "instrumento") return /^[0-9A-Za-z]{1,20}$/.test(chave);
   if (tipo === "proposta") return /^[0-9]{1,12}$/.test(chave);
   if (tipo === "municipio") return /^[0-9]{7}$/.test(chave);
+  // o CNPJ como a base guarda (oport_31): 14 posições, alfanumérico aceito
+  if (tipo === "entidade") return /^[0-9A-Z]{12}[0-9]{2}$/.test(chave);
   return false;
 }
 
@@ -35,6 +37,7 @@ export const ROTULO_TIPO_ITEM: Record<TipoItem, string> = {
   instrumento: "Convênio",
   proposta: "Proposta",
   municipio: "Município",
+  entidade: "Entidade",
 };
 
 /** Para onde o item leva. A janela não tem página própria: o cartão no catálogo tem âncora. */
@@ -46,6 +49,7 @@ export function urlDoItem(tipo: TipoItem, chave: string): string {
   if (tipo === "instrumento") return `/mapa/instrumento/${encodeURIComponent(chave)}`;
   if (tipo === "proposta") return `/mapa/proposta/${encodeURIComponent(chave)}`;
   if (tipo === "municipio") return `/mapa/municipio/${encodeURIComponent(chave)}`;
+  if (tipo === "entidade") return `/mapa/entidade/${encodeURIComponent(chave)}`;
   return `/mapa#janela-${chave}`;
 }
 
@@ -174,6 +178,10 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
         : { rotulo: "O convênio saiu do registro da proposta", detalhe: `era o nº ${antes ?? "—"}` };
     case "em_execucao":
       return { rotulo: "Convênios em execução", detalhe: contagem(antes, depois) };
+    case "instrumentos":
+      return { rotulo: "Instrumentos no painel", detalhe: contagem(antes, depois) };
+    case "propostas":
+      return { rotulo: "Propostas no painel", detalhe: contagem(antes, depois) };
     case "em_suspensiva":
       return { rotulo: "Convênios em cláusula suspensiva", detalhe: contagem(antes, depois) };
     case "contas_atrasadas":

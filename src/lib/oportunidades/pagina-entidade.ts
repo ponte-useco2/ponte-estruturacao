@@ -147,15 +147,16 @@ export function urlEntidade(cnpj: string, aba?: AbaEntidade): string {
 
 /**
  * O nível de quem abre a página da entidade. Cliente (2) é a organização de município com o IBGE confirmado,
- * diante de uma entidade municipal do mesmo IBGE (a regra do `podeVerInstrumento`). OSC, estado e consórcio só
- * serão clientes quando a organização tiver o CNPJ confirmado (E2); até lá, veem como cadastrados.
+ * diante de uma entidade municipal do mesmo IBGE (a regra do `podeVerInstrumento`), ou a organização com o CNPJ
+ * confirmado (oport_31), diante da própria entidade.
  */
 export function nivelNaEntidade(
-  v: { aprovado: boolean; administrador: boolean; ibgeConfirmado: string | null },
-  e: { especie: EspecieEntidade; cod_ibge: string | null },
+  v: { aprovado: boolean; administrador: boolean; ibgeConfirmado: string | null; cnpjConfirmado?: string | null },
+  e: { cnpj?: string; especie: EspecieEntidade; cod_ibge: string | null },
 ): NivelAcesso {
   if (!v.aprovado) return 0;
   if (v.administrador) return 3;
+  if (v.cnpjConfirmado && e.cnpj === v.cnpjConfirmado) return 2;
   return v.ibgeConfirmado && ehMunicipal(e.especie) && e.cod_ibge === v.ibgeConfirmado ? 2 : 1;
 }
 

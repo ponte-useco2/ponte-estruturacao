@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { LAUDO_PELAS_SUSPENSIVAS, ORIGEM_SUSPENSIVAS, abaAtiva, noMeuMunicipio, type RegraAba } from "./abas.ts";
+import { LAUDO_PELAS_SUSPENSIVAS, ORIGEM_SUSPENSIVAS, abaAtiva, naMinhaEntidade, noMeuMunicipio, type RegraAba } from "./abas.ts";
 
 const JANELAS: RegraAba = { href: "/mapa", exata: true };
 const BUSCA: RegraAba = { href: "/mapa/busca", exata: false, tambem: ["/mapa/instrumento/", "/mapa/proposta/"], exceto: [LAUDO_PELAS_SUSPENSIVAS] };
@@ -46,4 +46,12 @@ test("F1c: a página do próprio município (e o que fica debaixo dela) é do «
   assert.equal(noMeuMunicipio("/mapa/municipio/25138021", "2513802"), false);
   assert.equal(noMeuMunicipio("/mapa/municipio/2513802", null), false);
   assert.equal(noMeuMunicipio("/mapa/busca", "2513802"), false);
+});
+
+test("oport_31: a página da própria entidade (e as rotas debaixo dela) é da «Minha organização»", () => {
+  assert.equal(naMinhaEntidade("/mapa/entidade/09112236000194", "09112236000194"), true);
+  assert.equal(naMinhaEntidade("/mapa/entidade/09112236000194/csv", "09112236000194"), true);
+  assert.equal(naMinhaEntidade("/mapa/entidade/12671814000137", "09112236000194"), false);
+  assert.equal(naMinhaEntidade("/mapa/entidade/0911223600019400", "09112236000194"), false);
+  assert.equal(naMinhaEntidade("/mapa/entidade/09112236000194", null), false);
 });

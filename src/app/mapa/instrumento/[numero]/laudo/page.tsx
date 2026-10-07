@@ -4,8 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { numeroValido } from "@/lib/oportunidades/busca";
-import { EXPLICACAO_SEM_FICHA, podeVerInstrumento } from "@/lib/oportunidades/cliente";
-import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
+import { EXPLICACAO_SEM_CNPJ, EXPLICACAO_SEM_FICHA, podeVerInstrumento, podeVerInstrumentoPorCnpj } from "@/lib/oportunidades/cliente";
+import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
 import { lerDiagnostico } from "@/lib/oportunidades/diagnostico";
 import { lerEntradaDiagnostico, type OpcoesLeitura } from "@/lib/oportunidades/diagnostico.server";
 import { diaBrasilia, dossieSemNomes, lerAcessoLivre, lerLaudo } from "@/lib/oportunidades/laudo";
@@ -44,16 +44,17 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
   const admin = ehAdministrador(visitante.email);
   let opcoes: OpcoesLeitura = {};
   if (!admin) {
-    const { acesso, organizacao } = await lerAcessoFicha(visitante);
-    if (!acesso.ok) {
-      const e = EXPLICACAO_SEM_FICHA[acesso.motivo];
+    // Dois portões (oport_31): a prefeitura pelo município confirmado; as outras organizações pelo CNPJ confirmado.
+    const { municipio: acesso, cnpj, organizacao } = await lerAcessoCliente(visitante);
+    if (!acesso.ok && !cnpj.ok) {
+      const e = organizacao && organizacao.tipo !== "municipio" ? EXPLICACAO_SEM_CNPJ[cnpj.ok ? "sem_cnpj" : cnpj.motivo] : EXPLICACAO_SEM_FICHA[acesso.motivo];
       return (
         <SemLaudo numero={numero} kicker={organizacao?.nome ?? null} titulo={e.titulo}>
           {e.texto}
         </SemLaudo>
       );
     }
-    opcoes = { semFornecedores: true, semFiscal: true, podeVer: (i) => podeVerInstrumento(acesso, i).ok };
+    opcoes = { semFornecedores: true, semFiscal: true, podeVer: (i) => podeVerInstrumento(acesso, i).ok || podeVerInstrumentoPorCnpj(cnpj, i) };
   }
   const cliente = !admin;
   after(() => registrarUso(visitante, "mapa_laudo_instrumento", { numero, cliente }));

@@ -12,7 +12,7 @@
  */
 import { formatarData } from "./central.ts";
 import { compararFila, type ClasseFila } from "./fila.ts";
-import { fraseDoAviso, urlDoItem, type AvisoItem, type FraseAviso, type TipoItem } from "./favoritos.ts";
+import { ROTULO_TIPO_ITEM, fraseDoAviso, urlDoItem, type AvisoItem, type FraseAviso, type TipoItem } from "./favoritos.ts";
 import { percentual } from "./painel.ts";
 
 export type Consequencia = "alto" | "moderado" | "informativo";
@@ -129,6 +129,8 @@ export function consequenciaDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "ante
     case "sem_desembolso":
       return subiu ? { nivel: "moderado", melhora: false } : { nivel: "informativo", melhora: subiu === false ? true : null };
     case "em_execucao":
+    case "instrumentos":
+    case "propostas":
       return { nivel: "informativo", melhora: null };
     case "fiscal_a":
     case "fiscal_b":
@@ -186,7 +188,7 @@ export function consequenciaDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "ante
 // ================================================================ recomendações a partir do retrato
 
 /** Município: o que fazer, pelo retrato do painel, do fiscal e do TCU, do que destrava mais. A carteira mostra as três primeiras. */
-export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: string | null): Recomendacao[] {
+export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: string | null, escopo: "municipio" | "entidade" = "municipio"): Recomendacao[] {
   const em = dadoDe ? ` (dado de ${formatarData(dadoDe)})` : "";
   const r: Recomendacao[] = [];
   const cauc = txt(e.cauc);
@@ -226,7 +228,7 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
       classe: "cobranca",
       nivel: "alto",
       acao: `Acompanhar ${tce === 1 ? "a TCE" : `as ${tce} TCE`} no TCU e reunir a defesa ou o recolhimento`,
-      fato: `${plural(tce, "Tomada de Contas Especial", "Tomadas de Contas Especiais")} no e-TCE do TCU para convênios do município${em}. TCE não é julgamento: o Tribunal ainda decide.`,
+      fato: `${plural(tce, "Tomada de Contas Especial", "Tomadas de Contas Especiais")} no e-TCE do TCU para convênios ${escopo === "entidade" ? "da entidade" : "do município"}${em}. TCE não é julgamento: o Tribunal ainda decide.`,
     });
   }
   const atrasadas = num(e.contas_atrasadas) ?? 0;
@@ -339,6 +341,11 @@ function numerosDoMunicipio(e: Record<string, unknown>): ItemCarteira["numeros"]
   return n;
 }
 
+/** A entidade (oport_31): quantos instrumentos o CNPJ tem no painel, e os números do município sem os fiscais. */
+function numerosDaEntidade(e: Record<string, unknown>): ItemCarteira["numeros"] {
+  return [{ rotulo: "Instrumentos", valor: String(num(e.instrumentos) ?? 0), nivel: null }, ...numerosDoMunicipio(e)];
+}
+
 function numerosDoInstrumento(e: Record<string, unknown>, hoje: string): ItemCarteira["numeros"] {
   const n: ItemCarteira["numeros"] = [{ rotulo: "Situação", valor: txt(e.situacao) ?? "—", nivel: null }];
   const fim = txt(e.dt_fim_vigencia);
@@ -373,13 +380,20 @@ export function montarCarteira(
       .sort((a, b) => Number(a.lida) - Number(b.lida) || ORDEM[a.consequencia] - ORDEM[b.consequencia] || b.criado_em.localeCompare(a.criado_em));
     const naoLidas = mudancas.filter((m) => !m.lida);
     const pior = naoLidas.length ? naoLidas.reduce<Consequencia>((p, m) => (ORDEM[m.consequencia] < ORDEM[p] ? m.consequencia : p), "informativo") : null;
-    const todas =
-      s.tipo === "municipio" ? recomendacoesMunicipio(e, dadoDe) : s.tipo === "instrumento" ? recomendacoesInstrumento(e, hoje, dadoDe) : s.tipo === "janela" ? recomendacoesJanela(e, hoje) : [];
-    const numeros = s.tipo === "municipio" ? numerosDoMunicipio(e) : s.tipo === "instrumento" ? numerosDoInstrumento(e, hoje) : [];
+    // A entidade (oport_31) tem o retrato com as chaves do município, sem o fiscal: mesmos números e recomendações.
+    const comoMunicipio = s.tipo === "municipio" || s.tipo === "entidade";
+    const todas = comoMunicipio
+      ? recomendacoesMunicipio(e, dadoDe, s.tipo === "entidade" ? "entidade" : "municipio")
+      : s.tipo === "instrumento"
+        ? recomendacoesInstrumento(e, hoje, dadoDe)
+        : s.tipo === "janela"
+          ? recomendacoesJanela(e, hoje)
+          : [];
+    const numeros = s.tipo === "entidade" ? numerosDaEntidade(e) : s.tipo === "municipio" ? numerosDoMunicipio(e) : s.tipo === "instrumento" ? numerosDoInstrumento(e, hoje) : [];
     return {
       tipo: s.tipo,
       chave: s.chave,
-      titulo: s.titulo ?? `${s.tipo === "municipio" ? "Município" : s.tipo === "instrumento" ? "Convênio" : s.tipo === "proposta" ? "Proposta" : "Janela"} ${s.chave}`,
+      titulo: s.titulo ?? `${ROTULO_TIPO_ITEM[s.tipo]} ${s.chave}`,
       url: urlDoItem(s.tipo, s.chave),
       ausente: e.ausente === true,
       dadoDe,
@@ -394,7 +408,7 @@ export function montarCarteira(
   const comMudanca = itens
     .filter((i) => i.pior !== null)
     .sort((a, b) => ORDEM[a.pior as Consequencia] - ORDEM[b.pior as Consequencia] || a.titulo.localeCompare(b.titulo, "pt-BR"));
-  const porTipo: Record<TipoItem, ItemCarteira[]> = { municipio: [], instrumento: [], proposta: [], janela: [] };
+  const porTipo: Record<TipoItem, ItemCarteira[]> = { municipio: [], entidade: [], instrumento: [], proposta: [], janela: [] };
   for (const i of itens) porTipo[i.tipo].push(i);
   for (const t of Object.keys(porTipo) as TipoItem[]) {
     porTipo[t].sort((a, b) => ORDEM[a.recomendacoes[0]?.nivel ?? "informativo"] - ORDEM[b.recomendacoes[0]?.nivel ?? "informativo"] || a.titulo.localeCompare(b.titulo, "pt-BR"));

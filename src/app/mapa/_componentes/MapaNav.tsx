@@ -10,12 +10,14 @@
 import Link from "next/link";
 import { Carregando } from "./Carregando";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LAUDO_PELAS_SUSPENSIVAS, abaAtiva, noMeuMunicipio, type RegraAba } from "@/lib/oportunidades/abas";
+import { LAUDO_PELAS_SUSPENSIVAS, abaAtiva, naMinhaEntidade, noMeuMunicipio, type RegraAba } from "@/lib/oportunidades/abas";
 
 interface Aba extends RegraAba {
   nome: string;
   admin: boolean;
   municipio: boolean;
+  /** Só para organização que não é prefeitura e tem CNPJ (oport_31). */
+  organizacao?: boolean;
 }
 
 const ABAS: readonly Aba[] = [
@@ -43,6 +45,8 @@ const ABAS: readonly Aba[] = [
   // Com o vínculo confirmado, a página redireciona para a do município em abas, que também acende esta aba.
   // O laudo do Pix (/mapa/pix/…) serve às duas: o cliente chega pelo Meu município, o administrador pelo Painel.
   { href: "/mapa/meu-municipio", nome: "Meu município", exata: false, admin: false, municipio: true, tambem: ["/mapa/pix/"] },
+  // A organização que não é prefeitura (OSC, órgão estadual, consórcio), com o CNPJ confirmado (oport_31).
+  { href: "/mapa/minha-organizacao", nome: "Minha organização", exata: false, admin: false, municipio: false, organizacao: true },
   // Uso interno da PONTE. Esconder a aba é conveniência; quem protege é a página,
   // que confere o administrador no servidor antes de ler qualquer dado.
   { href: "/mapa/radar", nome: "Radar", exata: false, admin: true, municipio: false },
@@ -58,6 +62,8 @@ export function MapaNav({
   admin,
   municipio = false,
   meuIbge = null,
+  organizacao = false,
+  minhaEntidade = null,
 }: {
   naoLidas: number | null;
   admin: boolean;
@@ -65,16 +71,21 @@ export function MapaNav({
   municipio?: boolean;
   /** O IBGE dessa organização: na página dele, a aba acesa é "Meu município", não a Busca. */
   meuIbge?: string | null;
+  /** A organização ativa não é prefeitura e tem CNPJ: mostra "Minha organização". */
+  organizacao?: boolean;
+  /** O CNPJ dela: na página dessa entidade, a aba acesa é "Minha organização". */
+  minhaEntidade?: string | null;
 }) {
   const pathname = usePathname() ?? "/mapa";
   // De onde se chegou (`?de=suspensivas`): decide a aba acesa no laudo.
   const de = useSearchParams()?.get("de") ?? null;
   const noMeu = municipio && noMeuMunicipio(pathname, meuIbge);
+  const naMinha = organizacao && naMinhaEntidade(pathname, minhaEntidade);
 
   return (
     <nav className="pa-abas" aria-label="Mapa de Oportunidades">
-      {ABAS.filter((aba) => (admin || !aba.admin) && (municipio || !aba.municipio)).map((aba) => {
-        const atual = noMeu ? aba.municipio : abaAtiva(aba, pathname, de);
+      {ABAS.filter((aba) => (admin || !aba.admin) && (municipio || !aba.municipio) && (organizacao || !aba.organizacao)).map((aba) => {
+        const atual = noMeu ? aba.municipio : naMinha ? aba.organizacao === true : abaAtiva(aba, pathname, de);
         const contagem = aba.href === "/mapa/avisos" && naoLidas !== null && naoLidas > 0 ? naoLidas : null;
         return (
           <Link

@@ -441,7 +441,7 @@ test("entidade (teste de 07/10): fundo de saúde não fica travado pelo fiscal d
   assert.equal(tce?.quem, "tribunal");
 
   const fundo = montarRelatorio(patos({ escopo: "entidade", indicadores: null, janelas: null, areaExcetuada: "saude" }), HOJE);
-  const f = fundo.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados");
+  const f = fundo.achados.find((a) => a.titulo === "No município: transferência voluntária e crédito travados");
   assert.deepEqual([f?.classe, f?.nivel, f?.quem], ["atencao", "moderado", "municipio"]);
   assert.match(f?.fato ?? "", /de saúde, o bloqueio pesa menos: a LRF não suspende transferências voluntárias para ações de saúde \(art\. 25, § 3º\)/);
   assert.ok(!fundo.achados.some((a) => a.dimensao === "fiscal" && a.classe === "bloqueio"));

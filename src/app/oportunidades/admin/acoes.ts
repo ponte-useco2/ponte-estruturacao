@@ -96,6 +96,44 @@ export async function apagarNorma(id: string): Promise<Resultado> {
 }
 
 /**
+ * Confirma (ou desfaz) que a organização representa o CNPJ do cadastro (oport_31). O CNPJ confirmado é o do
+ * cadastro NESTE momento, lido aqui pela chave de serviço; se o cadastro mudar, a confirmação deixa de valer.
+ */
+export async function decidirVinculoCnpj(organizacaoId: string, confirmar: boolean): Promise<Resultado> {
+  const admin = await exigirAdmin();
+  if (!admin) return { ok: false, erro: "Sem permissão." };
+  if (!/^[0-9a-f-]{36}$/i.test(organizacaoId)) return { ok: false, erro: "Identificador inválido." };
+
+  const db = clienteServidor();
+  if (!confirmar) {
+    const { error } = await db.from("oport_vinculo_cnpj").delete().eq("organizacao_id", organizacaoId);
+    if (error) {
+      console.error("decidirVinculoCnpj (desfazer):", error.message);
+      return { ok: false, erro: "Não foi possível desfazer a confirmação." };
+    }
+    revalidatePath("/oportunidades/admin");
+    return { ok: true };
+  }
+
+  const org = await db.from("oport_organizacao").select("tipo, cnpj").eq("id", organizacaoId).maybeSingle();
+  if (org.error || !org.data) return { ok: false, erro: "Organização não encontrada." };
+  const { tipo, cnpj } = org.data as { tipo: string; cnpj: string | null };
+  if (tipo === "municipio") return { ok: false, erro: "Prefeitura se confirma pelo município." };
+  if (!cnpj || !/^[0-9A-Z]{12}[0-9]{2}$/.test(cnpj)) return { ok: false, erro: "O cadastro está sem um CNPJ válido." };
+
+  const { error } = await db.from("oport_vinculo_cnpj").upsert(
+    { organizacao_id: organizacaoId, cnpj, confirmado_em: new Date().toISOString(), confirmado_por: admin.email },
+    { onConflict: "organizacao_id" },
+  );
+  if (error) {
+    console.error("decidirVinculoCnpj:", error.message);
+    return { ok: false, erro: "Não foi possível confirmar." };
+  }
+  revalidatePath("/oportunidades/admin");
+  return { ok: true };
+}
+
+/**
  * Confirma (ou desfaz) que a organização representa o município declarado.
  *
  * O IBGE confirmado é o do cadastro NESTE momento, lido aqui pela chave de serviço —

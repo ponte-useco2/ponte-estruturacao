@@ -72,6 +72,63 @@ export const EXPLICACAO_SEM_FICHA: Record<MotivoSemFicha, { titulo: string; text
   },
 };
 
+// ============================================================================ cliente por CNPJ (oport_31, E2)
+
+/**
+ * O cliente que não é prefeitura (organização da sociedade civil, órgão estadual, consórcio) vê como cliente a
+ * página da própria entidade e o laudo dos próprios instrumentos, depois que um administrador confirma que a
+ * organização representa aquele CNPJ. O CNPJ vem SEMPRE da organização ativa e da confirmação, nunca da URL.
+ */
+export type MotivoSemCnpj = "nao_aprovado" | "sem_organizacao" | "sem_cnpj" | "aguardando_confirmacao" | "cnpj_mudou";
+
+export type AcessoCnpj = { ok: true; cnpj: string } | { ok: false; motivo: MotivoSemCnpj };
+
+export interface VinculoCnpj {
+  cnpj: string;
+  confirmado_em: string;
+}
+
+const CNPJ = /^[0-9A-Z]{12}[0-9]{2}$/;
+
+export function podeVerEntidadePropria(
+  status: string | null | undefined,
+  organizacao: { cnpj: string | null } | null,
+  vinculo: VinculoCnpj | null,
+): AcessoCnpj {
+  if (status !== "aprovado") return { ok: false, motivo: "nao_aprovado" };
+  if (!organizacao) return { ok: false, motivo: "sem_organizacao" };
+  if (!organizacao.cnpj || !CNPJ.test(organizacao.cnpj)) return { ok: false, motivo: "sem_cnpj" };
+  if (!vinculo) return { ok: false, motivo: "aguardando_confirmacao" };
+  // Confirmado para outro CNPJ: o cadastro mudou depois da confirmação.
+  if (vinculo.cnpj !== organizacao.cnpj) return { ok: false, motivo: "cnpj_mudou" };
+  return { ok: true, cnpj: vinculo.cnpj };
+}
+
+export const EXPLICACAO_SEM_CNPJ: Record<MotivoSemCnpj, { titulo: string; texto: string }> = {
+  nao_aprovado: { titulo: "Acesso em análise", texto: "O acesso ainda não foi liberado pela PONTE." },
+  sem_organizacao: {
+    titulo: "Nenhuma organização ativa",
+    texto: "Cadastre ou escolha a sua organização em Conta → Organização para ver a página dela como cliente.",
+  },
+  sem_cnpj: {
+    titulo: "Falta o CNPJ da organização",
+    texto: "O cadastro da organização está sem CNPJ. Complete em Conta → Organização para a PONTE conferir o vínculo.",
+  },
+  aguardando_confirmacao: {
+    titulo: "Vínculo em conferência",
+    texto: "A PONTE confere se a organização é mesmo a dona desse CNPJ antes de abrir a página como cliente. Assim que confirmar, ela aparece aqui.",
+  },
+  cnpj_mudou: {
+    titulo: "O CNPJ do cadastro mudou",
+    texto: "A confirmação era para outro CNPJ. A PONTE precisa conferir o vínculo de novo.",
+  },
+};
+
+/** O instrumento é da própria entidade do cliente por CNPJ. */
+export function podeVerInstrumentoPorCnpj(acesso: AcessoCnpj, i: { cnpj?: string | null }): boolean {
+  return acesso.ok && !!i.cnpj && i.cnpj === acesso.cnpj;
+}
+
 // ============================================================================ laudo do cliente (onda 12, parte 3)
 
 export type MotivoSemLaudo = MotivoSemFicha | "outro_proponente" | "outro_municipio";

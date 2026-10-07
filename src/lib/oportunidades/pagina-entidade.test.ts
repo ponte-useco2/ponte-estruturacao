@@ -114,3 +114,11 @@ test("área excetuada (LRF, art. 25, § 3º): fundo ou órgão municipal de saú
   assert.equal(areaExcetuadaDe("MUNICIPIO DE PATOS", "prefeitura"), null);
   assert.equal(areaExcetuadaDe("FUNDO ESTADUAL DE SAUDE", "fundo_estadual"), null, "estadual não herda o fiscal do município");
 });
+
+test("nível (oport_31): a organização com o CNPJ confirmado é cliente da própria entidade, e só dela", () => {
+  const laureano = { cnpj: "09112236000194", especie: "osc" as const, cod_ibge: "2507507" };
+  const v = { aprovado: true, administrador: false, ibgeConfirmado: null, cnpjConfirmado: "09112236000194" };
+  assert.equal(nivelNaEntidade(v, laureano), 2);
+  assert.equal(nivelNaEntidade(v, { ...laureano, cnpj: "12671814000137" }), 1);
+  assert.equal(nivelNaEntidade({ ...v, cnpjConfirmado: null }, laureano), 1);
+});

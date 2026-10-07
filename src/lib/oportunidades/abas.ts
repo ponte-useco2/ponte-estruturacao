@@ -45,6 +45,13 @@ export function noMeuMunicipio(caminho: string, meuIbge: string | null | undefin
   return caminho === base || caminho.startsWith(`${base}/`);
 }
 
+/** A página da própria entidade (oport_31: organização com o CNPJ confirmado) acende "Minha organização". */
+export function naMinhaEntidade(caminho: string, cnpj: string | null | undefined): boolean {
+  if (!cnpj) return false;
+  const base = `/mapa/entidade/${cnpj}`;
+  return caminho === base || caminho.startsWith(`${base}/`);
+}
+
 /** `de`: o parâmetro `de` da URL, quando houver. */
 export function abaAtiva(aba: RegraAba, caminho: string, de: string | null = null): boolean {
   if (aba.exata) return caminho === aba.href;

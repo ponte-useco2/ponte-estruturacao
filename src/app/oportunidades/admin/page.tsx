@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { clienteServidor, visitanteAtual, ehAdministrador } from "@/lib/supabase-auth";
-import { listarOrganizacoesMunicipio, type OrganizacaoMunicipio } from "@/lib/oportunidades/cliente.server";
+import { listarOrganizacoesComCnpj, listarOrganizacoesMunicipio, type OrganizacaoCnpj, type OrganizacaoMunicipio } from "@/lib/oportunidades/cliente.server";
 import { estilosEntrada } from "../estilos-entrada";
 import { FormNorma, LinhaNorma } from "./FormNorma";
 import { LinhaAcesso } from "./LinhaAcesso";
@@ -16,6 +16,14 @@ function situacaoVinculo(o: OrganizacaoMunicipio): { texto: string; confirmado: 
     // Tratado como não confirmado: a pessoa não vê a ficha, e o botão reconfirma o IBGE atual.
     return { texto: `Confirmado para ${o.vinculo.municipio_ibge}; o cadastro mudou`, confirmado: false, podeConfirmar: true };
   }
+  return { texto: `Confirmado em ${dbr(o.vinculo.confirmado_em)} por ${o.vinculo.confirmado_por}`, confirmado: true, podeConfirmar: false };
+}
+
+/** A frase de situação do vínculo por CNPJ (oport_31), a mesma regra de `podeVerEntidadePropria`. */
+function situacaoVinculoCnpj(o: OrganizacaoCnpj): { texto: string; confirmado: boolean; podeConfirmar: boolean } {
+  if (!o.cnpj || !/^[0-9A-Z]{12}[0-9]{2}$/.test(o.cnpj)) return { texto: "Cadastro sem CNPJ válido", confirmado: false, podeConfirmar: false };
+  if (!o.vinculo) return { texto: "Aguardando confirmação", confirmado: false, podeConfirmar: true };
+  if (o.vinculo.cnpj !== o.cnpj) return { texto: `Confirmado para ${o.vinculo.cnpj}; o cadastro mudou`, confirmado: false, podeConfirmar: true };
   return { texto: `Confirmado em ${dbr(o.vinculo.confirmado_em)} por ${o.vinculo.confirmado_por}`, confirmado: true, podeConfirmar: false };
 }
 
@@ -85,7 +93,7 @@ export default async function AdminPage() {
     porPessoa.set(e.email, atual);
   }
 
-  const municipios = await listarOrganizacoesMunicipio();
+  const [municipios, comCnpj] = await Promise.all([listarOrganizacoesMunicipio(), listarOrganizacoesComCnpj()]);
 
   // Normas do mural (oport_15). Sem a tabela, a seção explica em vez de sumir calada.
   const normas = await db
@@ -168,6 +176,43 @@ export default async function AdminPage() {
                       situacao={s.texto}
                       confirmado={s.confirmado}
                       podeConfirmar={s.podeConfirmar}
+                    />
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        {comCnpj !== null && comCnpj.length > 0 && (
+          <section>
+            <h2 className="op-adm-h2">Organizações e o CNPJ que representam</h2>
+            <p className="op-entrar-nota" style={{ marginTop: 0, marginBottom: 14 }}>
+              Confirmar libera para os membros a página da própria entidade como cliente (laudo dos instrumentos dela) em Mapa → Minha
+              organização. Confira antes que a organização é mesmo a dona do CNPJ (e-mail institucional, contato conhecido).
+            </p>
+            <table className="op-adm-tab">
+              <thead>
+                <tr>
+                  <th>Organização e membros</th>
+                  <th>CNPJ</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {comCnpj.map((o) => {
+                  const s = situacaoVinculoCnpj(o);
+                  return (
+                    <LinhaVinculo
+                      key={o.id}
+                      id={o.id}
+                      organizacao={`${o.nome} · ${o.tipo}`}
+                      municipio={`${o.cnpj ?? "—"}${o.nomeNoPainel ? ` · no painel: ${o.nomeNoPainel}` : " · sem instrumento no painel"}`}
+                      membros={o.membros.map((m) => `${m.email} (${m.papel})`).join(", ") || "sem membros"}
+                      situacao={s.texto}
+                      confirmado={s.confirmado}
+                      podeConfirmar={s.podeConfirmar}
+                      porCnpj
                     />
                   );
                 })}

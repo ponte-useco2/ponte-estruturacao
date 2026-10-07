@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
-import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
+import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
+import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { ABAS_ENTIDADE, abaDaEntidade, cnpjDaUrl, nivelNaEntidade, urlEntidade, type AbaEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { PODE } from "@/lib/oportunidades/pagina-municipio";
@@ -45,11 +47,31 @@ export default async function EntidadePage({
   if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Entidade" titulo="A página da entidade está indisponível agora" />;
 
   const administrador = ehAdministrador(visitante.email);
-  const acesso = administrador ? null : (await lerAcessoFicha(visitante)).acesso;
-  const nivel = nivelNaEntidade({ aprovado: true, administrador, ibgeConfirmado: acesso?.ok ? acesso.ibge : null }, leitura.entidade);
+  // O cliente entra pelo município (prefeitura confirmada, oport_12) ou pelo CNPJ (as outras organizações, oport_31).
+  const acesso = administrador ? null : await lerAcessoCliente(visitante);
+  const nivel = nivelNaEntidade(
+    {
+      aprovado: true,
+      administrador,
+      ibgeConfirmado: acesso?.municipio.ok ? acesso.municipio.ibge : null,
+      cnpjConfirmado: acesso?.cnpj.ok ? acesso.cnpj.cnpj : null,
+    },
+    leitura.entidade,
+  );
   const aba = abaDaEntidade(sp.aba, nivel);
   after(() => registrarUso(visitante, "mapa_entidade", { cnpj, aba, nivel }));
 
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
-  return <EntidadeConteudo e={leitura.entidade} r={r} instrumentos={leitura.instrumentos} propostas={leitura.propostas} aba={aba} nivel={nivel} />;
+  const seguidas = await lerSeguidas();
+  return (
+    <EntidadeConteudo
+      e={leitura.entidade}
+      r={r}
+      instrumentos={leitura.instrumentos}
+      propostas={leitura.propostas}
+      aba={aba}
+      nivel={nivel}
+      seguindo={seguidas?.has(chaveSeguida("entidade", cnpj)) ?? false}
+    />
+  );
 }

@@ -140,3 +140,19 @@ test("F1b: convênio e janela também saem com a classe da fila (vencido cobra; 
   assert.deepEqual([pc[0].classe, pc[0].prazo], ["prazo", "2026-10-20"]);
   assert.deepEqual(recomendacoesJanela({ aberta: true, prazo: "2026-11-30" }, HOJE).map((x) => [x.classe, x.prazo]), [["prazo", "2026-11-30"]]);
 });
+
+test("oport_31: a entidade na carteira usa os números e as recomendações do município, sem o fiscal", () => {
+  const e = { instrumentos: 89, em_execucao: 10, em_suspensiva: 0, contas_atrasadas: 2, contas_rejeitadas: 0, saldo_parado: 0, sem_desembolso: 0, tce_tcu: 1, propostas: 0 };
+  const k = montarCarteira(
+    { seguidos: [{ tipo: "entidade", chave: "09112236000194", titulo: null, estado: e, referencia: "painel:2026-10-07T01:50:00Z", criado_em: "2026-10-08T10:00:00Z" }], avisos: [] },
+    HOJE,
+  );
+  const x = k.porTipo.entidade[0];
+  assert.equal(x.titulo, "Entidade 09112236000194");
+  assert.equal(x.url, "/mapa/entidade/09112236000194");
+  assert.deepEqual(x.numeros.slice(0, 2).map((n) => [n.rotulo, n.valor]), [["Instrumentos", "89"], ["Em execução", "10"]]);
+  assert.ok(!x.numeros.some((n) => n.rotulo === "CAUC" || n.rotulo === "Transferência voluntária"), "sem fiscal");
+  const tce = x.recomendacoes.find((r) => /TCE/.test(r.acao));
+  assert.match(tce?.fato ?? "", /para convênios da entidade/);
+  assert.ok(x.recomendacoes.some((r) => /prestações de contas atrasadas/.test(r.acao)));
+});

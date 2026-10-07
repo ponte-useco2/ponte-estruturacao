@@ -67,7 +67,8 @@ export function DiagnosticoConteudo({
   cliente?: boolean;
 }) {
   const municipio = i.municipio ? `${i.municipio}${i.uf ? `/${i.uf}` : ""}` : null;
-  const titulo = i.tipo_agente === "municipio" || !i.proponente ? (municipio ?? "Proponente não informado") : nomeProponente(i);
+  // O título é o proponente, link para a página da entidade (E1); a cidade vem logo abaixo.
+  const titulo = i.proponente ? nomeProponente(i) : (municipio ?? "Proponente não informado");
   const t = d.tempo;
 
   return (

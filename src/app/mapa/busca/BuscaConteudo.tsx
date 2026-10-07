@@ -3,6 +3,7 @@
  * tela com dados reais sem o portão de login.
  */
 import Link from "next/link";
+import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import type { ReactNode } from "react";
 import {
   GRUPOS_DESFECHO,
@@ -235,7 +236,14 @@ function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; 
                   )}
                 </span>
                 <span className="mp-tabela-secundario">
-                  {l.proponente ?? "—"} · {l.municipio ?? "—"}/{l.uf ?? "—"}
+                  {l.cnpj ? (
+                    <Link prefetch={false} href={urlEntidade(l.cnpj)}>
+                      {l.proponente ?? "—"}
+                    </Link>
+                  ) : (
+                    (l.proponente ?? "—")
+                  )}{" "}
+                  · {l.municipio ?? "—"}/{l.uf ?? "—"}
                 </span>
               </th>
               <td>
@@ -292,7 +300,14 @@ function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguid
                   )}
                 </span>
                 <span className="mp-tabela-secundario">
-                  {l.proponente ?? "—"} · {l.municipio ?? "—"}/{l.uf ?? "—"}
+                  {l.cnpj ? (
+                    <Link prefetch={false} href={urlEntidade(l.cnpj)}>
+                      {l.proponente ?? "—"}
+                    </Link>
+                  ) : (
+                    (l.proponente ?? "—")
+                  )}{" "}
+                  · {l.municipio ?? "—"}/{l.uf ?? "—"}
                 </span>
               </th>
               <td>

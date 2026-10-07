@@ -1185,6 +1185,8 @@ function paraEntidade(a: Achado, area: AreaExcetuada | null): Achado {
     ...a,
     classe: "atencao",
     nivel: a.nivel === "critico" || a.nivel === "alto" ? "moderado" : a.nivel,
+    // "travados" num grupo que diz "não trava nada agora" confundia (teste de 07/10): o título diz de quem é
+    titulo: `No município: ${a.titulo.charAt(0).toLowerCase()}${a.titulo.slice(1)}`,
     fato:
       `${a.fato} Para esta entidade, de ${ROTULO_AREA[area].replace(/^a /, "")}, o bloqueio pesa menos: a LRF não suspende transferências ` +
       `voluntárias para ações de ${ROTULO_AREA[area].replace(/^a /, "")} (art. 25, § 3º). Vale conferir no programa se a regularidade do município é exigida.`,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { decidirVinculo } from "./acoes";
+import { decidirVinculo, decidirVinculoCnpj } from "./acoes";
 
 export function LinhaVinculo({
   id,
@@ -11,6 +11,7 @@ export function LinhaVinculo({
   situacao,
   confirmado,
   podeConfirmar,
+  porCnpj = false,
 }: {
   id: string;
   organizacao: string;
@@ -19,6 +20,8 @@ export function LinhaVinculo({
   situacao: string;
   confirmado: boolean;
   podeConfirmar: boolean;
+  /** Vínculo por CNPJ (oport_31), em vez do município. */
+  porCnpj?: boolean;
 }) {
   const [pendente, iniciar] = useTransition();
   const [erro, setErro] = useState("");
@@ -26,7 +29,7 @@ export function LinhaVinculo({
   function decidir(confirmar: boolean) {
     setErro("");
     iniciar(async () => {
-      const r = await decidirVinculo(id, confirmar);
+      const r = porCnpj ? await decidirVinculoCnpj(id, confirmar) : await decidirVinculo(id, confirmar);
       if (!r.ok) setErro(r.erro || "Não consegui salvar.");
     });
   }

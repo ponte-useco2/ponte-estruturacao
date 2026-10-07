@@ -23,6 +23,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { InstrumentoRelatorio, PropostaRelatorio, Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import type { IdentidadeEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
 import { Carregando } from "../../_componentes/Carregando";
+import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
   BlocoControle,
@@ -47,7 +48,7 @@ const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0
 const n = (x: number) => x.toLocaleString("pt-BR");
 const ehPb = (ibge: string | null) => !!ibge && /^25\d{5}$/.test(ibge);
 
-function Cabeca({ e, r, nivel }: { e: IdentidadeEntidade; r: Relatorio; nivel: NivelAcesso }) {
+function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio; nivel: NivelAcesso; seguindo: boolean }) {
   const municipal = ehMunicipal(e.especie);
   return (
     <div className="pa-pilha mp-radar-cabeca">
@@ -70,6 +71,7 @@ function Cabeca({ e, r, nivel }: { e: IdentidadeEntidade; r: Relatorio; nivel: N
         <span>posição de {data(r.hoje)}</span>
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
+        <EstrelaSeguir tipo="entidade" chave={e.cnpj} nome={`a entidade ${e.nome}`} seguindo={seguindo} />
         <BotaoImprimir />
         {ehPb(e.cod_ibge) && (
           <Link href={urlMunicipio(e.cod_ibge as string)} className="pa-btn pa-btn-pequeno" prefetch={false}>
@@ -290,6 +292,7 @@ export function EntidadeConteudo({
   propostas,
   aba,
   nivel,
+  seguindo = false,
 }: {
   e: IdentidadeEntidade;
   r: Relatorio;
@@ -297,6 +300,7 @@ export function EntidadeConteudo({
   propostas: PropostaRelatorio[];
   aba: AbaEntidade;
   nivel: NivelAcesso;
+  seguindo?: boolean;
 }) {
   // o SICONV grava o município em caixa alta ("JOÃO PESSOA"); na tela, "João Pessoa"
   const e = { ...entidade, municipio: entidade.municipio ? tituloOrgao(entidade.municipio) : null };
@@ -305,7 +309,7 @@ export function EntidadeConteudo({
   const csv = `/mapa/entidade/${e.cnpj}/csv`;
   return (
     <div className="pa-pagina mp-radar mp-laudo mp-rel mp-mun">
-      <Cabeca e={e} r={r} nivel={nivel} />
+      <Cabeca e={e} r={r} nivel={nivel} seguindo={seguindo} />
       <Abas cnpj={e.cnpj} aba={aba} nivel={nivel} />
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
 
