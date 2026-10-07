@@ -54,7 +54,7 @@ function Cabeca({ e, r, nivel }: { e: IdentidadeEntidade; r: Relatorio; nivel: N
       <nav aria-label="Onde você está" className="mp-mun-trilha">
         <span>Brasil</span>
         <span>{e.uf === "PB" ? "Paraíba" : (e.uf ?? "UF não informada")}</span>
-        {municipal && e.municipio && (ehPb(e.cod_ibge) ? <Link href={urlMunicipio(e.cod_ibge as string)} prefetch={false}>{e.municipio}</Link> : <span>{e.municipio}</span>)}
+        {e.municipio && (ehPb(e.cod_ibge) ? <Link href={urlMunicipio(e.cod_ibge as string)} prefetch={false}>{e.municipio}</Link> : <span>{e.municipio}</span>)}
         <span aria-current="page">{e.nome}</span>
       </nav>
       <h1 className="pa-titulo">{e.nome}</h1>
@@ -171,7 +171,7 @@ function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatori
       {grupos.map((g) => (
         <details key={g.id} className="mp-ent-grupo" open={g.id === "execucao" || g.id === "contas"}>
           <summary>
-            <strong>{g.rotulo}</strong> · {n(g.itens.length)} · {moedaCurta(g.valor)}
+            <strong>{g.rotulo}</strong> · {n(g.itens.length)} · {moedaCurta(g.valor)} de valor global
           </summary>
           <div className="mp-tabela-rolagem">
             <table className="mp-tabela">

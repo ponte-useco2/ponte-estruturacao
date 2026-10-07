@@ -137,7 +137,7 @@ export function CatalogoClient({
           {entidade && !seguindoTemas && (
             <p className="pa-nota">
               A ordem hoje considera prazo, tipo e território.{" "}
-              <Link href="/mapa/avisos">Escolha assuntos para acompanhar</Link> e as que combinam sobem na lista.
+              <Link prefetch={false} href="/mapa/avisos">Escolha assuntos para acompanhar</Link> e as que combinam sobem na lista.
             </p>
           )}
         </div>
@@ -167,7 +167,7 @@ export function CatalogoClient({
             mostra só as que ela pode pleitear.
           </p>
           <span className="pa-espaco" />
-          <Link href="/mapa/conta/organizacao" className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href="/mapa/conta/organizacao" className="pa-btn pa-btn-pequeno">
             Declarar a entidade
           </Link>
         </aside>

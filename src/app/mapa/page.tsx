@@ -88,7 +88,7 @@ function CatalogoIndisponivel({ estado }: { estado: "ausente" | "invalido" }) {
             : "O arquivo do catálogo não pôde ser lido. A equipe é avisada pelo registro do servidor. Os avisos do Transferegov continuam funcionando."}
         </p>
         <div className="pa-linha">
-          <Link href="/mapa/avisos" className="pa-btn">
+          <Link prefetch={false} href="/mapa/avisos" className="pa-btn">
             Ver os avisos
           </Link>
         </div>

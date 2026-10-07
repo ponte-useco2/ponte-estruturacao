@@ -157,7 +157,7 @@ export function PreferenciasPainel({
 
         <p className="pa-nota">
           Guardamos o que você marcar aqui, ligado à sua conta, só para destacar janelas. Desmarcar apaga.{" "}
-          <Link href="/privacidade">Política de privacidade</Link>
+          <Link prefetch={false} href="/privacidade">Política de privacidade</Link>
         </p>
       </div>
 

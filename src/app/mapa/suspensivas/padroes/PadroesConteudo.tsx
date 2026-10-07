@@ -47,10 +47,10 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
           documentos vêm da coleta no Acesso Livre, que só tem quem ainda está preso — por isso ela não mede tempo até a saída.
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
-          <Link href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
             Lista das suspensivas
           </Link>
-          <Link href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
             Checklist preventivo
           </Link>
         </p>
@@ -282,7 +282,7 @@ function LinhaOrgao({ o, temChecklist }: { o: LinhaHistorico; temChecklist: bool
       <th scope="row">
         <span className="mp-tabela-principal">{tituloOrgao(o.orgao)}</span>
         {temChecklist && (
-          <Link href={urlChecklist(o.orgao)} className="mp-tabela-secundario mp-nao-imprimir">
+          <Link prefetch={false} href={urlChecklist(o.orgao)} className="mp-tabela-secundario mp-nao-imprimir">
             checklist preventivo
           </Link>
         )}

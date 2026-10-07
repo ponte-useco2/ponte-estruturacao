@@ -81,7 +81,7 @@ export function SimuladorConteudo({ leitura, sp }: { leitura: LeituraOk; sp: Rec
     <div className="pa-pagina mp-radar mp-painel mp-fiscal mp-simulador">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <Link href="/mapa/fiscal">Capacidade fiscal · Paraíba</Link> · <Link href={urlMunicipioFiscal(m.ibge)}>{m.nome}</Link>
+          <Link prefetch={false} href="/mapa/fiscal">Capacidade fiscal · Paraíba</Link> · <Link prefetch={false} href={urlMunicipioFiscal(m.ibge)}>{m.nome}</Link>
         </p>
         <h1 className="pa-titulo">Simular um projeto · {m.nome}/PB</h1>
         <p className="pa-sub">
@@ -271,7 +271,7 @@ function Formulario({ ibge, p }: { ibge: string; p: ParametrosSimulador }) {
         <button type="submit" className="pa-btn pa-btn-primario">
           Simular
         </button>
-        <Link href={urlSimularFiscal(ibge)} className="pa-btn">
+        <Link prefetch={false} href={urlSimularFiscal(ibge)} className="pa-btn">
           Limpar
         </Link>
       </div>

@@ -68,12 +68,12 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
     return cliente ? (
       <SemLaudo numero={numero} kicker={null} titulo="Este laudo não está disponível para a sua organização">
         O laudo mostra os instrumentos da prefeitura do seu município (e dos fundos e autarquias municipais). Os convênios estão na página do{" "}
-        <Link href="/mapa/meu-municipio">Meu município</Link>.
+        <Link prefetch={false} href="/mapa/meu-municipio">Meu município</Link>.
       </SemLaudo>
     ) : (
       <SemLaudo numero={numero} kicker={null} titulo="Este instrumento não está na busca">
         O laudo cobre os instrumentos da busca: todos os de proponente da Paraíba e, no resto do país, os que estão em execução ou em prestação
-        de contas. Confira o número ou <Link href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>procure por “{numero}”</Link>.
+        de contas. Confira o número ou <Link prefetch={false} href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>procure por “{numero}”</Link>.
       </SemLaudo>
     );
   }

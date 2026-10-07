@@ -47,7 +47,7 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
             Baixar CSV (um item por coluna)
           </a>
           {!cliente && (
-            <Link href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
               Painel do Pix
             </Link>
           )}
@@ -117,7 +117,7 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
               {planos.map((p) => (
                 <tr key={p.id_plano_acao}>
                   <th scope="row">
-                    <Link href={urlLaudoPix(p.id_plano_acao)} className="mp-tabela-principal">
+                    <Link prefetch={false} href={urlLaudoPix(p.id_plano_acao)} className="mp-tabela-principal">
                       {p.codigo_plano_acao ?? p.id_plano_acao}
                     </Link>
                     <span className="mp-tabela-secundario">

@@ -21,7 +21,7 @@ export function QuemRecebe({ grupos, municipio }: { grupos: { lente: LenteEntida
       nota={`Os proponentes com instrumento e sede em ${municipio}, cada um com a sua página: carteira, fila e dinheiro.`}
     >
       {grupos.map((g) => (
-        <details key={g.lente} className="mp-ent-grupo" open={g.lente === "municipal"}>
+        <details key={g.lente} className="mp-ent-grupo" open>
           <summary>
             <strong>{ROTULO_LENTE[g.lente]}</strong> · {n(g.entidades.length)} {g.entidades.length === 1 ? "entidade" : "entidades"}
           </summary>
@@ -34,7 +34,7 @@ export function QuemRecebe({ grupos, municipio }: { grupos: { lente: LenteEntida
                   <th scope="col">Espécie</th>
                   <th scope="col">Instrumentos</th>
                   <th scope="col">Em execução</th>
-                  <th scope="col">Valor</th>
+                  <th scope="col">Valor global</th>
                   <th scope="col">Mais recente</th>
                 </tr>
               </thead>

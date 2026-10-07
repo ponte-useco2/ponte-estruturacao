@@ -55,7 +55,7 @@ function Aviso({ titulo, texto }: { titulo: string; texto: string }) {
         <h1 className="pa-titulo">{titulo}</h1>
         <p className="pa-sub">{texto}</p>
         <p className="pa-sub">
-          <Link href="/mapa/meu-municipio">Voltar ao Meu município</Link>
+          <Link prefetch={false} href="/mapa/meu-municipio">Voltar ao Meu município</Link>
         </p>
       </div>
     </div>

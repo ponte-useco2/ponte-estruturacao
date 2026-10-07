@@ -29,7 +29,7 @@ export function MuralAbas({
         {PARTES.map((p) => {
           const n = naoLidas[p.id];
           return (
-            <Link
+            <Link prefetch={false}
               key={p.id}
               href={p.href}
               className={`pa-chip${atual === p.id ? " pa-ativo" : ""}`}

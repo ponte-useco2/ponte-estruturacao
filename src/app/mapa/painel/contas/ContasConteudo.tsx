@@ -137,7 +137,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
                 {ordenadas.map((t, k) => (
                   <tr key={`${t.nr_convenio}-${t.codigo ?? k}`}>
                     <td>
-                      <Link href={`${urlInstrumento(t.nr_convenio)}/laudo`}>{t.nr_convenio}</Link>
+                      <Link prefetch={false} href={`${urlInstrumento(t.nr_convenio)}/laudo`}>{t.nr_convenio}</Link>
                       <br />
                       <span className="mp-laudo-miudo">{t.situacao_convenio ?? ""}</span>
                     </td>
@@ -220,7 +220,7 @@ function SecaoImpugnacoes({ linhas, referencia }: { linhas: PainelContasObras["i
               {linhas.map((l) => (
                 <tr key={l.nr_convenio}>
                   <td>
-                    <Link href={`${urlInstrumento(l.nr_convenio)}/laudo`}>{l.nr_convenio}</Link>
+                    <Link prefetch={false} href={`${urlInstrumento(l.nr_convenio)}/laudo`}>{l.nr_convenio}</Link>
                     <br />
                     <span className="mp-laudo-miudo">{l.situacao_convenio ?? ""}</span>
                   </td>
@@ -279,7 +279,7 @@ function SecaoObras({ linhas, referencia }: { linhas: PainelContasObras["obras"]
               {paradas.map((o) => (
                 <tr key={o.nr_convenio}>
                   <td>
-                    <Link href={`${urlInstrumento(o.nr_convenio)}/laudo`}>{o.nr_convenio}</Link>
+                    <Link prefetch={false} href={`${urlInstrumento(o.nr_convenio)}/laudo`}>{o.nr_convenio}</Link>
                     {o.paralisado ? (
                       <>
                         <br />

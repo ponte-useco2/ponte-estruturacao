@@ -39,13 +39,13 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
         <p className="pa-sub">O Pix nas contas do município e os convênios do SICONV conferidos com as despesas prestadas ao TCE-PB.</p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link href={urlTce()} className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href={urlTce()} className="pa-btn pa-btn-pequeno">
             Todos os municípios
           </Link>
-          <Link href={urlMunicipio(leitura.ibge, "controle")} className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href={urlMunicipio(leitura.ibge, "controle")} className="pa-btn pa-btn-pequeno">
             Página do município
           </Link>
-          <Link href={urlFicha({ ibge: leitura.ibge })} className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href={urlFicha({ ibge: leitura.ibge })} className="pa-btn pa-btn-pequeno">
             Ficha do município no painel
           </Link>
         </p>
@@ -225,7 +225,7 @@ function LinhaPar({ p }: { p: TceFederalPar }) {
     <tr>
       <th scope="row">
         {p.siconv > 0 ? (
-          <Link href={urlFornecedor(p.cnpj)} className="mp-tabela-principal">
+          <Link prefetch={false} href={urlFornecedor(p.cnpj)} className="mp-tabela-principal">
             {nomeFornecedor(p)}
           </Link>
         ) : (
@@ -237,7 +237,7 @@ function LinhaPar({ p }: { p: TceFederalPar }) {
             {p.convenios.slice(0, 4).map((nr, k) => (
               <span key={nr}>
                 {k > 0 ? ", " : ""}
-                <Link href={urlLaudo(nr)}>nº {nr}</Link>
+                <Link prefetch={false} href={urlLaudo(nr)}>nº {nr}</Link>
               </span>
             ))}
             {p.convenios.length > 4 ? ` e mais ${n(p.convenios.length - 4)}` : ""}

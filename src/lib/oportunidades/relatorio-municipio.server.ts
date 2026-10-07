@@ -28,7 +28,7 @@ import { portaServe } from "./diagnostico";
 import { ehEsquemaAusente } from "./esquema";
 import { lerFiscalMunicipio } from "./fiscal.server";
 import { criarMemoria } from "./memoria";
-import { ehMunicipal, especieDe, type EspecieEntidade, type LinhaEntidadeMunicipio } from "./pagina-entidade";
+import { areaExcetuadaDe, ehMunicipal, especieDe, type EspecieEntidade, type LinhaEntidadeMunicipio } from "./pagina-entidade";
 import catalogoIndicadores from "./indicadores-municipio.json";
 import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio";
 import { lerPainelFornecedores } from "./fornecedores.server";
@@ -452,6 +452,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEn
     janelas: null,
     indicadores: null,
     escopo: "entidade",
+    areaExcetuada: areaExcetuadaDe(ent.nome, ent.especie),
     faltas,
   };
   return { estado: "ok", entidade: ent, relatorio: montarRelatorio(entrada, hoje), instrumentos: instrumentos ?? [], propostas: propostas ?? [] };

@@ -142,6 +142,11 @@ export interface EntradaRelatorio {
   indicadores?: EntradaIndicadores | null;
   /** O relatório de um município (prefeitura e fundos) ou de uma entidade, um CNPJ só (página da entidade, E1). */
   escopo?: "municipio" | "entidade";
+  /**
+   * Entidade municipal de saúde, educação ou assistência social: a suspensão de transferências voluntárias pela LRF
+   * não alcança essas ações (art. 25, § 3º), e o bloqueio fiscal do município deixa de ser trava para ela.
+   */
+  areaExcetuada?: AreaExcetuada | null;
   faltas: string[];
 }
 
@@ -684,7 +689,9 @@ function achadosControle(s: SecaoControle, e: EntradaRelatorio): Achado[] {
       nivel: "em_dia",
       dimensao: "controle",
       titulo: "Nenhuma TCE no TCU",
-      fato: `${plural(s.consultados, "convênio consultado", "convênios consultados")} no e-TCE em ${data(s.referenciaTcu)}, sem tomada de contas especial.`,
+      fato:
+        `${plural(s.consultados, "convênio consultado", "convênios consultados")} no e-TCE em ${data(s.referenciaTcu)}, sem tomada de contas especial. ` +
+        "A consulta cobre os convênios assinados; os anulados, cancelados e os nunca assinados ficam fora.",
       acao: null,
       peso: 9,
     });
@@ -1161,6 +1168,29 @@ function cartoes(r: Pick<Relatorio, "fiscal" | "convenios" | "controle">, e: Ent
   return c;
 }
 
+export type AreaExcetuada = "saude" | "educacao" | "assistencia";
+
+const ROTULO_AREA: Record<AreaExcetuada, string> = { saude: "a saúde", educacao: "a educação", assistencia: "a assistência social" };
+
+/**
+ * O ponto visto da entidade (E1): quem resolve o que é da entidade é ela, não "o município"; os pontos fiscais
+ * continuam do município (o CAUC e a LRF são do ente federativo). Para um fundo de saúde, educação ou assistência
+ * social, o bloqueio fiscal do município vira atenção: a LRF não suspende transferências para essas ações (art. 25,
+ * § 3º). Teste do titular de 07/10/2026 (Fundo Municipal de Saúde de Patos recebia o crítico do município).
+ */
+function paraEntidade(a: Achado, area: AreaExcetuada | null): Achado {
+  if (a.dimensao !== "fiscal") return a.quem === "municipio" ? { ...a, quem: "entidade" } : a;
+  if (!area || a.classe !== "bloqueio") return a;
+  return {
+    ...a,
+    classe: "atencao",
+    nivel: a.nivel === "critico" || a.nivel === "alto" ? "moderado" : a.nivel,
+    fato:
+      `${a.fato} Para esta entidade, de ${ROTULO_AREA[area].replace(/^a /, "")}, o bloqueio pesa menos: a LRF não suspende transferências ` +
+      `voluntárias para ações de ${ROTULO_AREA[area].replace(/^a /, "")} (art. 25, § 3º). Vale conferir no programa se a regularidade do município é exigida.`,
+  };
+}
+
 /** A fila única (F1b): a mesma regra da carteira e da aba "o que trava". */
 const ordenar = (a: Achado, b: Achado) => compararFila(a, b);
 
@@ -1193,7 +1223,9 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     ...(pix ? achadosPix(pix) : []),
     ...(fornecedores ? achadosFornecedores(fornecedores) : []),
     ...(indicadores ? achadosIndicadores(indicadores) : []),
-  ].sort(ordenar);
+  ]
+    .map((a) => (e.escopo === "entidade" ? paraEntidade(a, e.areaExcetuada ?? null) : a))
+    .sort(ordenar);
 
   const emendas = e.emendas
     ? [...e.emendas.reduce((m, x) => {

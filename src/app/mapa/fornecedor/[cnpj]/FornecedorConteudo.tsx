@@ -53,7 +53,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link href="/mapa/fornecedores" className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href="/mapa/fornecedores" className="pa-btn pa-btn-pequeno">
             Todos os fornecedores
           </Link>
         </p>
@@ -147,7 +147,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
                 {lidera.map((m) => (
                   <tr key={m.cod_ibge}>
                     <th scope="row">
-                      <Link href={`/mapa/fornecedores?municipio=${m.cod_ibge}`}>{m.municipio ?? `IBGE ${m.cod_ibge}`}</Link>
+                      <Link prefetch={false} href={`/mapa/fornecedores?municipio=${m.cod_ibge}`}>{m.municipio ?? `IBGE ${m.cod_ibge}`}</Link>
                       <span className="mp-tabela-secundario">{n(m.n_fornecedores)} fornecedores</span>
                     </th>
                     <td className="mp-num">{pct(m.maior_fatia)}</td>
@@ -220,7 +220,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
                 return (
                   <tr key={c.nr_convenio}>
                     <th scope="row">
-                      <Link href={urlLaudo(c.nr_convenio)} className="mp-tabela-principal">
+                      <Link prefetch={false} href={urlLaudo(c.nr_convenio)} className="mp-tabela-principal">
                         {c.municipio ?? "Município não informado"} · nº {c.nr_convenio}
                       </Link>
                       <span className="mp-tabela-secundario">
@@ -281,7 +281,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
                 {contratos.map((k, ordem) => (
                   <tr key={`${k.id_licitacao}-${k.id_contrato}-${ordem}`}>
                     <th scope="row">
-                      <Link href={urlInstrumento(k.nr_convenio)}>convênio nº {k.nr_convenio}</Link>
+                      <Link prefetch={false} href={urlInstrumento(k.nr_convenio)}>convênio nº {k.nr_convenio}</Link>
                       <span className="mp-tabela-secundario">
                         contrato nº {k.nr_contrato ?? k.id_contrato}
                         {k.dt_assinatura ? ` · assinado em ${data(k.dt_assinatura)}` : ""}
@@ -372,7 +372,7 @@ function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string,
               {linhas.map((l) => (
                 <tr key={l.chave}>
                   <th scope="row">
-                    <Link href={urlTce(l.ibge)}>{municipio(l.ibge)}</Link>
+                    <Link prefetch={false} href={urlTce(l.ibge)}>{municipio(l.ibge)}</Link>
                   </th>
                   <td>{l.ano}</td>
                   <td className="mp-num">

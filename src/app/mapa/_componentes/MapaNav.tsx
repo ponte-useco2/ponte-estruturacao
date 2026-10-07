@@ -32,7 +32,9 @@ const ABAS: readonly Aba[] = [
     exata: false,
     admin: false,
     municipio: false,
-    tambem: ["/mapa/instrumento/", "/mapa/proposta/", "/mapa/municipio/", "/mapa/entidade/"],
+    // Município e entidade não acendem a Busca (teste de 07/10/2026): ficam sem aba até o menu da F2; o próprio
+    // município do cliente acende "Meu município".
+    tambem: ["/mapa/instrumento/", "/mapa/proposta/"],
     // O laudo de qualquer instrumento acende a Busca; o aberto pela lista das suspensivas, não.
     exceto: [LAUDO_PELAS_SUSPENSIVAS],
   },

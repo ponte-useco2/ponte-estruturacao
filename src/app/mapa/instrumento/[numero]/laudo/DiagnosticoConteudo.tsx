@@ -76,7 +76,15 @@ export function DiagnosticoConteudo({
         <p className="pa-kicker">
           Laudo do instrumento · {rotuloModalidade(i.modalidade) ?? "instrumento"} nº {i.nr_convenio}
         </p>
-        <h1 className="pa-titulo">{titulo}</h1>
+        <h1 className="pa-titulo">
+          {i.cnpj ? (
+            <Link prefetch={false} href={urlEntidade(i.cnpj)}>
+              {titulo}
+            </Link>
+          ) : (
+            titulo
+          )}
+        </h1>
         {titulo !== municipio && municipio && <p className="pa-sub">{municipio}</p>}
         <p className="pa-sub">{i.programa ?? "Programa não informado"}</p>
         {i.objeto && <p className="pa-sub">{i.objeto}</p>}
@@ -87,11 +95,11 @@ export function DiagnosticoConteudo({
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link href={urlInstrumento(i.nr_convenio)} className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href={urlInstrumento(i.nr_convenio)} className="pa-btn pa-btn-pequeno">
             Ver o instrumento
           </Link>
           {d.fiscal && !cliente && (
-            <Link href={urlMunicipioFiscal(d.fiscal.ibge)} className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href={urlMunicipioFiscal(d.fiscal.ibge)} className="pa-btn pa-btn-pequeno">
               Painel fiscal do município
             </Link>
           )}
@@ -237,7 +245,7 @@ export function DiagnosticoConteudo({
         </ul>
         {i.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <Link href={urlDoMunicipio(i.cod_ibge, "dinheiro")}>Outros investimentos em {i.municipio ?? "neste município"}</Link>
+            <Link prefetch={false} href={urlDoMunicipio(i.cod_ibge, "dinheiro")}>Outros investimentos em {i.municipio ?? "neste município"}</Link>
           </p>
         )}
       </section>
@@ -632,7 +640,7 @@ function Distribuicao({
           Na mesma etapa: {mostrados.map((nr, k) => (
             <span key={nr}>
               {k > 0 ? ", " : ""}
-              <Link href={urlInstrumento(nr)}>nº {nr}</Link>
+              <Link prefetch={false} href={urlInstrumento(nr)}>nº {nr}</Link>
             </span>
           ))}
           {v.mesmaEtapa.numeros.length > mostrados.length ? ` e mais ${n(v.mesmaEtapa.numeros.length - mostrados.length)}` : ""}.
@@ -944,7 +952,7 @@ function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
           {f.linhas.map((l) => (
             <tr key={l.cnpj}>
               <th scope="row">
-                <Link href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
+                <Link prefetch={false} href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
                   {l.nome}
                 </Link>
                 <span className="mp-tabela-secundario">

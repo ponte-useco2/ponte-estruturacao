@@ -10,7 +10,7 @@
 import { GRUPOS_SITUACAO, grupoDaSituacao } from "./busca.ts";
 import type { NivelAcesso } from "./pagina-municipio.ts";
 import type { ColunaCsv } from "./painel.ts";
-import type { InstrumentoRelatorio } from "./relatorio-municipio.ts";
+import type { AreaExcetuada, InstrumentoRelatorio } from "./relatorio-municipio.ts";
 
 /**
  * O CNPJ como a base guarda: 14 posições, sem máscara. Aceita o alfanumérico (12 posições de letras e dígitos e 2
@@ -101,6 +101,19 @@ export function lenteDe(e: EspecieEntidade): LenteEntidade {
   if (e === "governo_estadual" || e === "secretaria_estadual" || e === "universidade_estadual" || e === "fundo_estadual" || e === "estadual_outro") return "estado";
   if (e === "osc") return "sociedade";
   return "outros";
+}
+
+/**
+ * A área de um fundo ou órgão municipal de saúde, educação ou assistência social, pelo nome: a LRF não suspende
+ * transferências voluntárias para essas ações (art. 25, § 3º). A prefeitura não tem área: é o ente inteiro.
+ */
+export function areaExcetuadaDe(nome: string | null | undefined, especie: EspecieEntidade): AreaExcetuada | null {
+  if (especie !== "fundo_municipal" && especie !== "municipal_outro") return null;
+  const n = (nome ?? "").toUpperCase();
+  if (/SA[UÚ]DE|\bFMS\b/.test(n)) return "saude";
+  if (/ASSIST[EÊ]NCIA SOCIAL|\bFMAS\b/.test(n)) return "assistencia";
+  if (/EDUCA[CÇ][AÃ]O|FUNDEB/.test(n)) return "educacao";
+  return null;
 }
 
 /** Entidades municipais (prefeitura e fundos): o CAUC e a LRF do município valem para elas. */

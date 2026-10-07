@@ -67,10 +67,10 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
           Do prazo mais apertado ao mais folgado; no mesmo prazo, quem está parado há mais tempo vem antes. Cada linha abre o laudo do convênio.
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
-          <Link href="/mapa/suspensivas/padroes" className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href="/mapa/suspensivas/padroes" className="pa-btn pa-btn-pequeno">
             Padrões: destino, tempo e quem analisa
           </Link>
-          <Link href={f.orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(f.orgao)}` : "/mapa/suspensivas/checklist"} className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href={f.orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(f.orgao)}` : "/mapa/suspensivas/checklist"} className="pa-btn pa-btn-pequeno">
             Checklist preventivo
           </Link>
         </p>
@@ -101,7 +101,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         <nav aria-label="Prazo da suspensiva" className="pa-chips">
           <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Prazo</span>
           {FILTROS_PRAZO.map((x) => (
-            <Link
+            <Link prefetch={false}
               key={x.nome}
               href={url(f, { prazo: x.id })}
               className={`pa-chip${x.id === f.prazo ? " pa-ativo" : ""}`}
@@ -113,11 +113,11 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         </nav>
         <nav aria-label="Órgão" className="pa-chips">
           <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Órgão</span>
-          <Link href={url(f, { orgao: null })} className={`pa-chip${!f.orgao ? " pa-ativo" : ""}`} aria-current={!f.orgao ? "true" : undefined}>
+          <Link prefetch={false} href={url(f, { orgao: null })} className={`pa-chip${!f.orgao ? " pa-ativo" : ""}`} aria-current={!f.orgao ? "true" : undefined}>
             Todos
           </Link>
           {orgaos.map(([o]) => (
-            <Link
+            <Link prefetch={false}
               key={o}
               href={url(f, { orgao: o })}
               className={`pa-chip${o === f.orgao ? " pa-ativo" : ""}`}
@@ -135,7 +135,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         </h2>
         {linhas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">
-            Nenhum convênio neste filtro. <Link href="/mapa/suspensivas">Ver todos</Link>
+            Nenhum convênio neste filtro. <Link prefetch={false} href="/mapa/suspensivas">Ver todos</Link>
           </p>
         ) : (
           <div className="mp-tabela-rolagem">
@@ -179,7 +179,7 @@ function Linha({ l, hoje, referencia }: { l: LinhaSuspensiva; hoje: string; refe
   return (
     <tr>
       <th scope="row">
-        <Link href={urlLaudo(l.numero)} className="mp-tabela-principal">
+        <Link prefetch={false} href={urlLaudo(l.numero)} className="mp-tabela-principal">
           {c?.municipio ?? "Município não informado"} · nº {l.numero}
         </Link>
         <span className="mp-tabela-secundario">{c?.programa ?? "Programa não informado"}</span>

@@ -66,7 +66,7 @@ export function BuscaConteudo({
             ["propostas", "Propostas"],
           ] as const
         ).map(([aba, rotulo]) => (
-          <Link
+          <Link prefetch={false}
             key={aba}
             href={urlBusca(p, { aba })}
             className={`pa-chip${p.aba === aba ? " pa-ativo" : ""}`}
@@ -152,7 +152,7 @@ export function BuscaConteudo({
           {p.municipio ? (
             <>
               {" "}
-              · <Link href={urlDoMunicipio(p.municipio, "dinheiro")}>{ehMunicipioPb(p.municipio) ? "ver a página do município" : "ver os investimentos do município"}</Link>
+              · <Link prefetch={false} href={urlDoMunicipio(p.municipio, "dinheiro")}>{ehMunicipioPb(p.municipio) ? "ver a página do município" : "ver os investimentos do município"}</Link>
             </>
           ) : null}
         </h2>
@@ -168,7 +168,7 @@ export function BuscaConteudo({
         {paginas > 1 && (
           <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
             {p.pagina > 1 && (
-              <Link href={urlBusca(p, { pagina: p.pagina - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
+              <Link prefetch={false} href={urlBusca(p, { pagina: p.pagina - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
                 ← Anteriores
               </Link>
             )}
@@ -176,7 +176,7 @@ export function BuscaConteudo({
               Página {n(p.pagina)} de {n(paginas)} · {LIMITE_POR_PAGINA} por página
             </span>
             {p.pagina < paginas && (
-              <Link href={urlBusca(p, { pagina: p.pagina + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
+              <Link prefetch={false} href={urlBusca(p, { pagina: p.pagina + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
                 Próximos →
               </Link>
             )}
@@ -221,7 +221,7 @@ function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; 
             <tr key={l.nr_convenio}>
               <th scope="row">
                 <span className="mp-busca-numero">
-                  <Link href={urlInstrumento(l.nr_convenio)} className="mp-tabela-principal">
+                  <Link prefetch={false} href={urlInstrumento(l.nr_convenio)} className="mp-tabela-principal">
                     nº {l.nr_convenio}
                   </Link>
                   {seguidas && (
@@ -278,7 +278,7 @@ function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguid
             <tr key={l.id_proposta}>
               <th scope="row">
                 <span className="mp-busca-numero">
-                  <Link href={urlProposta(l.id_proposta)} className="mp-tabela-principal">
+                  <Link prefetch={false} href={urlProposta(l.id_proposta)} className="mp-tabela-principal">
                     nº {l.nr_proposta ?? l.id_proposta}
                   </Link>
                   {seguidas && (
@@ -322,7 +322,7 @@ export function DadoIndisponivel({ titulo, kicker }: { titulo: string; kicker: s
         <h1 className="pa-titulo">{titulo}</h1>
         <p>Os dados não puderam ser lidos agora. Tente de novo em alguns minutos.</p>
         <p className="pa-nota">
-          <Link href="/mapa">Voltar às janelas</Link>
+          <Link prefetch={false} href="/mapa">Voltar às janelas</Link>
         </p>
       </div>
     </div>

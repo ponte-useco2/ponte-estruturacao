@@ -48,7 +48,7 @@ export async function MapaFrame({
     <div className="pa-root mp-root">
       <header className="pa-top">
         <div className="pa-top-inner">
-          <Link href="/mapa" className="pa-marca">
+          <Link prefetch={false} href="/mapa" className="pa-marca">
             <span className="pa-marca-selo" aria-hidden="true">
               P
             </span>
@@ -76,8 +76,8 @@ export async function MapaFrame({
         <div className="mp-rodape-inner">
           <p className="pa-mono">Acesso restrito · fontes oficiais de fomento</p>
           <div className="pa-espaco" />
-          <Link href="/privacidade">Privacidade</Link>
-          <Link href="/termos">Termos</Link>
+          <Link prefetch={false} href="/privacidade">Privacidade</Link>
+          <Link prefetch={false} href="/termos">Termos</Link>
         </div>
       </footer>
     </div>

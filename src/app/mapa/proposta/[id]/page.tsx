@@ -33,7 +33,7 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
             que ainda se movem. Rascunhos que nunca foram enviados não entram.
           </p>
           <p className="pa-nota">
-            <Link href="/mapa/busca?aba=propostas">Buscar propostas</Link>
+            <Link prefetch={false} href="/mapa/busca?aba=propostas">Buscar propostas</Link>
           </p>
         </div>
       </div>

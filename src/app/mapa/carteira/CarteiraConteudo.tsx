@@ -74,7 +74,7 @@ function Mudancas({ m }: { m: MudancaCarteira[] }) {
 function Cabeca({ i }: { i: ItemCarteira }) {
   return (
     <p className="mp-cart-cabeca">
-      <span className="pa-tag">{ROTULO_TIPO_ITEM[i.tipo]}</span> <Link href={i.url}>{i.titulo}</Link>
+      <span className="pa-tag">{ROTULO_TIPO_ITEM[i.tipo]}</span> <Link prefetch={false} href={i.url}>{i.titulo}</Link>
       {i.ausente && <span className="mp-cart-mudo"> · saiu das fontes; mostra o último retrato</span>}
       {i.dadoDe && <span className="mp-cart-mudo"> · dado de {formatarData(i.dadoDe)}</span>}{" "}
       <span className="mp-nao-imprimir">
@@ -105,7 +105,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
         <p className="mp-nao-imprimir mp-laudo-acoes">
           {!c.vazia && <BotaoImprimir />}
           <MarcarLidas ids={naoLidas} rotulo="Marcar tudo como lido" />
-          <Link href="/mapa/avisos" className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href="/mapa/avisos" className="pa-btn pa-btn-pequeno">
             Todos os avisos
           </Link>
         </p>
@@ -119,13 +119,13 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
           </p>
           <ul className="mp-cart-lista mp-cart-passos">
             <li>
-              Município: na página do município (procure pelo nome na <Link href="/mapa/busca">Busca</Link>).
+              Município: na página do município (procure pelo nome na <Link prefetch={false} href="/mapa/busca">Busca</Link>).
             </li>
             <li>
-              Convênio e proposta: na <Link href="/mapa/busca">Busca</Link>, pelo número ou pelo programa.
+              Convênio e proposta: na <Link prefetch={false} href="/mapa/busca">Busca</Link>, pelo número ou pelo programa.
             </li>
             <li>
-              Janela: nas <Link href="/mapa">Janelas</Link> abertas.
+              Janela: nas <Link prefetch={false} href="/mapa">Janelas</Link> abertas.
             </li>
           </ul>
         </Secao>
@@ -169,7 +169,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                 <Recomendacoes r={i.recomendacoes} />
                 {i.restantes > 0 && (
                   <p className="mp-cart-mudo">
-                    {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <Link href={i.url}>página do município</Link>.
+                    {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <Link prefetch={false} href={i.url}>página do município</Link>.
                   </p>
                 )}
               </article>
@@ -194,7 +194,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                 {c.porTipo.instrumento.map((i) => (
                   <tr key={i.chave}>
                     <td>
-                      <Link href={i.url}>{i.chave}</Link>
+                      <Link prefetch={false} href={i.url}>{i.chave}</Link>
                       <span className="mp-tabela-secundario">{i.titulo}</span>
                     </td>
                     <td data-rotulo="Situação e vigência">
@@ -228,7 +228,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
           <ul className="mp-cart-lista">
             {c.porTipo.proposta.map((i) => (
               <li key={i.chave}>
-                <Link href={i.url}>{i.titulo}</Link> <span className="mp-cart-mudo">· proposta {i.chave}</span>
+                <Link prefetch={false} href={i.url}>{i.titulo}</Link> <span className="mp-cart-mudo">· proposta {i.chave}</span>
                 {i.mudancas.some((m) => !m.lida) && <span className="mp-cart-mudo"> · {quantasNaoLidas(i)}</span>}
               </li>
             ))}
@@ -241,7 +241,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
           <ul className="mp-cart-lista">
             {c.porTipo.janela.map((i) => (
               <li key={i.chave}>
-                <Link href={i.url}>{i.titulo}</Link>
+                <Link prefetch={false} href={i.url}>{i.titulo}</Link>
                 {i.recomendacoes[0] ? (
                   <span>
                     {" "}

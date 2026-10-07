@@ -164,10 +164,10 @@ export function MeusItensClient({
             situação, receber desembolso, ganhar aditivo ou tiver o prazo alterado, o aviso aparece aqui.
           </p>
           <div className="pa-linha">
-            <Link href="/mapa" className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href="/mapa" className="pa-btn pa-btn-pequeno">
               Ver as janelas
             </Link>
-            <Link href="/mapa/busca" className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href="/mapa/busca" className="pa-btn pa-btn-pequeno">
               Buscar convênios e propostas
             </Link>
           </div>
@@ -262,7 +262,7 @@ export function MeusItensClient({
                         <h2 className="pa-oportunidade-titulo">{a.rotulo}</h2>
                         <p className="pa-mapa-descricao">{a.detalhe}</p>
                         <p className="mp-aviso-item-titulo">
-                          <Link href={a.url}>{a.titulo}</Link>
+                          <Link prefetch={false} href={a.url}>{a.titulo}</Link>
                         </p>
                       </div>
                       <div className="pa-oportunidade-lado">
@@ -308,7 +308,7 @@ export function MeusItensClient({
               <li key={`${s.tipo}:${s.chave}`} className="pa-cartao-plano pa-linha mp-seguido">
                 <Tag>{s.tipoRotulo}</Tag>
                 <span className="mp-seguido-titulo">
-                  <Link href={s.url}>{s.titulo}</Link>
+                  <Link prefetch={false} href={s.url}>{s.titulo}</Link>
                   {s.ausente && <span className="pa-mono"> · saiu da busca</span>}
                 </span>
                 <span className="pa-espaco" />

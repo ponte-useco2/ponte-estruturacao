@@ -35,7 +35,7 @@ export default async function MeuMunicipioPage() {
         <h1 className="pa-titulo">{e.titulo}</h1>
         <p>{e.texto}</p>
         <p className="pa-nota">
-          <Link href="/mapa/conta/organizacao">Ver o cadastro da organização</Link>
+          <Link prefetch={false} href="/mapa/conta/organizacao">Ver o cadastro da organização</Link>
         </p>
       </div>
     </div>

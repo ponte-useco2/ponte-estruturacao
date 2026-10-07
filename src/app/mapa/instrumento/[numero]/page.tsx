@@ -36,7 +36,7 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
             prestação de contas. Confira o número ou procure pelo programa.
           </p>
           <p className="pa-nota">
-            <Link href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>Buscar por “{numero}”</Link>
+            <Link prefetch={false} href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>Buscar por “{numero}”</Link>
           </p>
         </div>
       </div>

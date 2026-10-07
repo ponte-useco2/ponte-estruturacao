@@ -431,3 +431,22 @@ test("escopo da entidade (E1): o mesmo motor, sem indicadores nem janelas; o rel
   // a fila é a mesma regra: com a mesma entrada, os mesmos pontos na mesma ordem
   assert.deepEqual(e.achados.map((a) => a.titulo), m.achados.map((a) => a.titulo));
 });
+
+test("entidade (teste de 07/10): fundo de saúde não fica travado pelo fiscal do município; o resto é da própria entidade", () => {
+  const prefeitura = montarRelatorio(patos({ escopo: "entidade", indicadores: null, janelas: null }), HOJE);
+  const travada = prefeitura.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados");
+  assert.deepEqual([travada?.classe, travada?.nivel, travada?.quem], ["bloqueio", "critico", "municipio"], "na prefeitura, segue trava do município");
+  assert.ok(prefeitura.achados.filter((a) => a.dimensao !== "fiscal" && a.quem).every((a) => a.quem !== "municipio"), "fora do fiscal, quem resolve é a entidade");
+  const tce = prefeitura.achados.find((a) => /Tomadas de Contas Especiais/.test(a.titulo));
+  assert.equal(tce?.quem, "tribunal");
+
+  const fundo = montarRelatorio(patos({ escopo: "entidade", indicadores: null, janelas: null, areaExcetuada: "saude" }), HOJE);
+  const f = fundo.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados");
+  assert.deepEqual([f?.classe, f?.nivel, f?.quem], ["atencao", "moderado", "municipio"]);
+  assert.match(f?.fato ?? "", /de saúde, o bloqueio pesa menos: a LRF não suspende transferências voluntárias para ações de saúde \(art\. 25, § 3º\)/);
+  assert.ok(!fundo.achados.some((a) => a.dimensao === "fiscal" && a.classe === "bloqueio"));
+  // o município (escopo padrão) não muda
+  const m = montarRelatorio(patos(), HOJE);
+  assert.equal(m.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados")?.quem, "municipio");
+  assert.ok(m.achados.filter((a) => a.dimensao !== "fiscal").some((a) => a.quem === "municipio"));
+});

@@ -136,7 +136,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
 
       <nav aria-label="Visões do painel" className="pa-chips mp-painel-visoes">
         {VISOES.map((v) => (
-          <Link
+          <Link prefetch={false}
             key={v.id}
             href={urlPainel(p, { visao: v.id })}
             className={`pa-chip${p.visao === v.id ? " pa-ativo" : ""}`}
@@ -147,16 +147,16 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
           </Link>
         ))}
         {/* Outra fonte e outro retrato (semanal): página própria, com a UF levada junto. */}
-        <Link href={p.uf ? `/mapa/painel/pix?uf=${p.uf}` : "/mapa/painel/pix"} className="pa-chip">
+        <Link prefetch={false} href={p.uf ? `/mapa/painel/pix?uf=${p.uf}` : "/mapa/painel/pix"} className="pa-chip">
           Pix e fundo a fundo →
         </Link>
-        <Link href="/mapa/fiscal" className="pa-chip">
+        <Link prefetch={false} href="/mapa/fiscal" className="pa-chip">
           Capacidade fiscal (PB) →
         </Link>
-        <Link href="/mapa/painel/tce" className="pa-chip">
+        <Link prefetch={false} href="/mapa/painel/tce" className="pa-chip">
           Dinheiro federal no TCE-PB →
         </Link>
-        <Link href="/mapa/painel/contas" className="pa-chip">
+        <Link prefetch={false} href="/mapa/painel/contas" className="pa-chip">
           Contas e obras (PB) →
         </Link>
       </nav>
@@ -175,7 +175,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         <p className="pa-sub">{def.pergunta}</p>
         {p.municipio && (
           <p className="mp-painel-ficha-link">
-            <Link
+            <Link prefetch={false}
               href={urlFicha({ ibge: p.municipio, assinadoDe: p.assinadoDe, assinadoAte: p.assinadoAte })}
               className="pa-btn pa-btn-pequeno"
             >
@@ -221,7 +221,7 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
     <>
       <nav aria-label="Período das mudanças" className="pa-chips mp-painel-lados">
         {DIAS_MUDANCA.map((d) => (
-          <Link
+          <Link prefetch={false}
             key={d}
             href={urlPainel(p, { dias: d })}
             className={`pa-chip${p.dias === d ? " pa-ativo" : ""}`}
@@ -276,7 +276,7 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
                   return (
                     <tr key={l.tipo}>
                       <th scope="row">
-                        <Link href={urlPainel(p, { tipo: ativo ? null : l.tipo })} aria-current={ativo ? "true" : undefined}>
+                        <Link prefetch={false} href={urlPainel(p, { tipo: ativo ? null : l.tipo })} aria-current={ativo ? "true" : undefined}>
                           {ativo ? <strong>{def.rotulo}</strong> : def.rotulo}
                         </Link>
                       </th>
@@ -291,7 +291,7 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           </div>
           {p.tipo && (
             <p className="pa-nota">
-              <Link href={urlPainel(p, { tipo: null })}>Ver todos os tipos</Link>
+              <Link prefetch={false} href={urlPainel(p, { tipo: null })}>Ver todos os tipos</Link>
             </p>
           )}
         </div>
@@ -564,7 +564,7 @@ function Contas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <nav aria-label="Qual lista de prestação de contas" className="pa-chips mp-painel-lados">
         {LADOS_CONTAS.map((l) => (
-          <Link
+          <Link prefetch={false}
             key={l}
             href={urlPainel(p, { lado: l })}
             className={`pa-chip${p.lado === l ? " pa-ativo" : ""}`}
@@ -727,7 +727,7 @@ function Municipios({ leitura }: { leitura: LeituraOk }) {
                 <tr key={m.cod_ibge}>
                   <th scope="row">
                     <span className="mp-tabela-principal">
-                      <Link href={urlFicha({ ibge: m.cod_ibge })}>
+                      <Link prefetch={false} href={urlFicha({ ibge: m.cod_ibge })}>
                         {m.municipio ?? "—"}/{m.uf ?? "—"}
                       </Link>
                     </span>
@@ -771,7 +771,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
     <>
       <nav aria-label="Período das etapas" className="pa-chips mp-painel-lados mp-painel-anos">
         {[null, ...anosEnvio(leitura.execucao.referencia)].map((a) => (
-          <Link
+          <Link prefetch={false}
             key={a ?? "janela"}
             href={urlPainel(p, { ano: a })}
             className={`pa-chip${p.ano === a ? " pa-ativo" : ""}`}
@@ -838,7 +838,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <nav aria-label="Comparar por" className="pa-chips mp-painel-lados">
         {(["orgao", "programa"] as const).map((d) => (
-          <Link
+          <Link prefetch={false}
             key={d}
             href={urlPainel(p, { dimensao: d })}
             className={`pa-chip${p.dimensao === d ? " pa-ativo" : ""}`}
@@ -890,7 +890,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
                         </span>
                       </>
                     ) : (
-                      <Link href={urlPainel(p, { dimensao: "programa", orgao: l.chave })}>{l.rotulo}</Link>
+                      <Link prefetch={false} href={urlPainel(p, { dimensao: "programa", orgao: l.chave })}>{l.rotulo}</Link>
                     )}
                   </th>
                   {colunas.map((e) => {
@@ -955,7 +955,7 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
     <>
       <nav aria-label="Ano do primeiro envio" className="pa-chips mp-painel-lados mp-painel-anos">
         {anosEnvio(leitura.execucao.referencia).map((a) => (
-          <Link
+          <Link prefetch={false}
             key={a}
             href={urlPainel(p, { ano: a })}
             className={`pa-chip${a === ano ? " pa-ativo" : ""}`}
@@ -1091,7 +1091,7 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
             <TabelaDesfechos
               linhas={orgaos.slice(0, ORGAOS_NA_TABELA)}
               cabeca="Órgão"
-              linha={(d) => <Link href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</Link>}
+              linha={(d) => <Link prefetch={false} href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</Link>}
             />
           </div>
         </div>
@@ -1365,7 +1365,7 @@ function PorOrgao({
             {linhas.slice(0, ORGAOS_NA_TABELA).map((o) => (
               <tr key={o.orgao}>
                 <th scope="row">
-                  <Link href={urlPainel(p, { orgao: o.orgao })}>{o.orgao}</Link>
+                  <Link prefetch={false} href={urlPainel(p, { orgao: o.orgao })}>{o.orgao}</Link>
                 </th>
                 <td className="mp-num">{n(o.n)}</td>
                 <td className="mp-num">{moedaCurta(o.valor)}</td>

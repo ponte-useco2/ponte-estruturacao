@@ -60,7 +60,7 @@ function Ordenavel({
       className={num ? "mp-num" : undefined}
       aria-sort={ativa ? (atual.sentido === "asc" ? "ascending" : "descending") : "none"}
     >
-      <Link href={urlRadar(p, { ordem: proximaOrdem(atual, tabela, coluna, texto) })} className="mp-ordenar">
+      <Link prefetch={false} href={urlRadar(p, { ordem: proximaOrdem(atual, tabela, coluna, texto) })} className="mp-ordenar">
         {children}
         <span aria-hidden="true" className={`mp-ordenar-seta${ativa ? " mp-ordenar-ativa" : ""}`}>
           {ativa ? (atual.sentido === "asc" ? "▲" : "▼") : "↕"}
@@ -189,7 +189,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
                 {ordenar(leitura.disputa, CHAVES_DISPUTA[ordemDaTabela(p, "disputa").coluna] ?? CHAVES_DISPUTA.desde_abertura, ordemDaTabela(p, "disputa").sentido).map((d) => (
                   <tr key={`${d.cod_programa}-${d.canal}`}>
                     <th scope="row">
-                      <Link href={urlPorPrograma(d.programa, p.uf)} className="mp-tabela-principal">
+                      <Link prefetch={false} href={urlPorPrograma(d.programa, p.uf)} className="mp-tabela-principal">
                         {d.programa}
                       </Link>
                       <span className="mp-tabela-secundario">{d.orgao}</span>
@@ -235,18 +235,18 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
                     <th scope="row">
                       <span className="mp-tabela-principal">{e.proponente ?? "—"}</span>
                       <span className="mp-tabela-secundario">
-                        {e.cod_ibge ? <Link href={urlFicha({ ibge: e.cod_ibge })}>{e.municipio}</Link> : e.municipio} ·{" "}
+                        {e.cod_ibge ? <Link prefetch={false} href={urlFicha({ ibge: e.cod_ibge })}>{e.municipio}</Link> : e.municipio} ·{" "}
                         {rotuloTipo(e.tipo_agente ?? "")}
                       </span>
                     </th>
                     <td>
                       {e.id_proposta ? (
-                        <Link href={urlProposta(e.id_proposta)}>{ROTULO_CATEGORIA[e.categoria]}</Link>
+                        <Link prefetch={false} href={urlProposta(e.id_proposta)}>{ROTULO_CATEGORIA[e.categoria]}</Link>
                       ) : (
                         ROTULO_CATEGORIA[e.categoria]
                       )}
                     </td>
-                    <td>{e.programa ? <Link href={urlPorPrograma(e.programa, "PB")}>{e.programa}</Link> : "—"}</td>
+                    <td>{e.programa ? <Link prefetch={false} href={urlPorPrograma(e.programa, "PB")}>{e.programa}</Link> : "—"}</td>
                     <td>{ROTULO_CANAL_RADAR[e.canal ?? ""] ?? "—"}</td>
                     <td className="mp-num">{moedaCurta(e.valor_repasse)}</td>
                   </tr>
@@ -290,7 +290,7 @@ function Filtros({ p }: { p: ParametrosRadar }) {
 
       <nav aria-label="Janela dos recortes" className="pa-chips">
         {JANELAS.map((d) => (
-          <Link
+          <Link prefetch={false}
             key={d}
             href={urlRadar(p, { dias: d })}
             className={`pa-chip${p.dias === d ? " pa-ativo" : ""}`}
@@ -303,7 +303,7 @@ function Filtros({ p }: { p: ParametrosRadar }) {
 
       <nav aria-label="Categoria dos recortes" className="pa-chips">
         {CATEGORIAS.map((c) => (
-          <Link
+          <Link prefetch={false}
             key={c}
             href={urlRadar(p, { categoria: c })}
             className={`pa-chip${p.categoria === c ? " pa-ativo" : ""}`}
@@ -317,11 +317,11 @@ function Filtros({ p }: { p: ParametrosRadar }) {
       {/* Filtro por coluna: vale para o placar, os recortes, a disputa (só canal) e a lista da Paraíba. */}
       <nav aria-label="Canal" className="pa-chips">
         <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Canal</span>
-        <Link href={urlRadar(p, { canal: null })} className={`pa-chip${p.canal === null ? " pa-ativo" : ""}`} aria-current={p.canal === null ? "true" : undefined}>
+        <Link prefetch={false} href={urlRadar(p, { canal: null })} className={`pa-chip${p.canal === null ? " pa-ativo" : ""}`} aria-current={p.canal === null ? "true" : undefined}>
           Todos
         </Link>
         {CANAIS_RADAR.map((c) => (
-          <Link key={c} href={urlRadar(p, { canal: c })} className={`pa-chip${p.canal === c ? " pa-ativo" : ""}`} aria-current={p.canal === c ? "true" : undefined}>
+          <Link prefetch={false} key={c} href={urlRadar(p, { canal: c })} className={`pa-chip${p.canal === c ? " pa-ativo" : ""}`} aria-current={p.canal === c ? "true" : undefined}>
             {ROTULO_CANAL_RADAR[c] ?? c}
           </Link>
         ))}
@@ -329,11 +329,11 @@ function Filtros({ p }: { p: ParametrosRadar }) {
 
       <nav aria-label="Tipo de proponente" className="pa-chips">
         <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Proponente</span>
-        <Link href={urlRadar(p, { tipo: null })} className={`pa-chip${p.tipo === null ? " pa-ativo" : ""}`} aria-current={p.tipo === null ? "true" : undefined}>
+        <Link prefetch={false} href={urlRadar(p, { tipo: null })} className={`pa-chip${p.tipo === null ? " pa-ativo" : ""}`} aria-current={p.tipo === null ? "true" : undefined}>
           Todos
         </Link>
         {TIPOS_RADAR.map((t) => (
-          <Link key={t} href={urlRadar(p, { tipo: t })} className={`pa-chip${p.tipo === t ? " pa-ativo" : ""}`} aria-current={p.tipo === t ? "true" : undefined}>
+          <Link prefetch={false} key={t} href={urlRadar(p, { tipo: t })} className={`pa-chip${p.tipo === t ? " pa-ativo" : ""}`} aria-current={p.tipo === t ? "true" : undefined}>
             {rotuloTipo(t)}
           </Link>
         ))}
@@ -392,7 +392,7 @@ function TabelaRecorte({
                 const destino = link?.(l) ?? null;
                 return (
                   <tr key={l.chave ?? "sem"}>
-                    <th scope="row">{destino ? <Link href={destino}>{rotulo(l)}</Link> : rotulo(l)}</th>
+                    <th scope="row">{destino ? <Link prefetch={false} href={destino}>{rotulo(l)}</Link> : rotulo(l)}</th>
                     <td className="mp-num">{l.atual}</td>
                     <td className="mp-num">{l.anterior}</td>
                     <td className={`mp-num mp-radar-${v.sentido}`}>{v.texto}</td>
@@ -468,7 +468,7 @@ function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: Leitur
               {ordenar(parados, CHAVES_PARADOS[ordemDaTabela(p, "parados").coluna] ?? CHAVES_PARADOS.municipio, ordemDaTabela(p, "parados").sentido).map((m) => (
                 <tr key={m.cod_ibge}>
                   <th scope="row">
-                    <Link href={urlFicha({ ibge: m.cod_ibge })}>{m.municipio}</Link>
+                    <Link prefetch={false} href={urlFicha({ ibge: m.cod_ibge })}>{m.municipio}</Link>
                   </th>
                   <td className="mp-num">{m.em_revisao_30d}</td>
                   <td className="mp-num">{m.revisadas_30d}</td>

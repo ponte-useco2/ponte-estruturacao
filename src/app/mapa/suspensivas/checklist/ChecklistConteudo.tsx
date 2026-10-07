@@ -41,7 +41,7 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
         <ul className="mp-checklist-orgaos">
           {orgaos.map(([o, q]) => (
             <li key={o}>
-              <Link href={url(o)} className="pa-cartao mp-checklist-orgao">
+              <Link prefetch={false} href={url(o)} className="pa-cartao mp-checklist-orgao">
                 <strong>{tituloOrgao(o)}</strong>
                 <span className="mp-laudo-miudo">
                   {n(q)} {q === 1 ? "convênio" : "convênios"} em suspensiva{q < MINIMO_PADRAO ? " · poucos casos" : ""}
@@ -75,10 +75,10 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
             Outro órgão
           </Link>
-          <Link href={`/mapa/suspensivas?orgao=${encodeURIComponent(escolhido)}`} className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href={`/mapa/suspensivas?orgao=${encodeURIComponent(escolhido)}`} className="pa-btn pa-btn-pequeno">
             Os convênios deste órgão
           </Link>
         </p>

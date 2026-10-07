@@ -69,7 +69,7 @@ export function InstrumentoConteudo({
           {i.cod_ibge ? (
             <>
               {" · "}
-              <Link href={urlDoMunicipio(i.cod_ibge)}>
+              <Link prefetch={false} href={urlDoMunicipio(i.cod_ibge)}>
                 {i.municipio ?? `IBGE ${i.cod_ibge}`}/{i.uf}
               </Link>
             </>
@@ -82,14 +82,14 @@ export function InstrumentoConteudo({
           {i.subsituacao && <span className="pa-tag">{i.subsituacao}</span>}
           {i.com_emenda && <span className="pa-tag">com emenda parlamentar</span>}
           {temas.map((t) => (
-            <Link key={t} href={urlBusca(parametrosBusca({}), { tema: t, uf: i.uf })} className="pa-tag">
+            <Link prefetch={false} key={t} href={urlBusca(parametrosBusca({}), { tema: t, uf: i.uf })} className="pa-tag">
               {ROTULO_TEMA[t]}
             </Link>
           ))}
         </p>
         {laudo && (
           <p className="mp-nao-imprimir mp-laudo-acoes">
-            <Link href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`} className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`} className="pa-btn pa-btn-pequeno">
               Laudo do instrumento
             </Link>
             <span className="pa-nota">onde está, quanto tempo contra o típico, riscos e o que fazer</span>
@@ -144,7 +144,7 @@ export function InstrumentoConteudo({
         </dl>
         {i.id_proposta && (
           <p className="pa-nota">
-            <Link href={urlProposta(i.id_proposta)}>Ver a proposta que originou o convênio</Link>
+            <Link prefetch={false} href={urlProposta(i.id_proposta)}>Ver a proposta que originou o convênio</Link>
           </p>
         )}
       </section>

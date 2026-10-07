@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { COLUNAS_CSV_INSTRUMENTOS, abaDaEntidade, carteiraPorSituacao, cnpjDaUrl, dinheiroPorOrgao, especieDe, lenteDe, nivelNaEntidade, quemRecebe, urlEntidade } from "./pagina-entidade.ts";
+import { COLUNAS_CSV_INSTRUMENTOS, abaDaEntidade, areaExcetuadaDe, carteiraPorSituacao, cnpjDaUrl, dinheiroPorOrgao, especieDe, lenteDe, nivelNaEntidade, quemRecebe, urlEntidade } from "./pagina-entidade.ts";
 import { paraCsv } from "./painel.ts";
 import type { InstrumentoRelatorio } from "./relatorio-municipio.ts";
 
@@ -103,4 +103,14 @@ test("carteira por situação (grupos da busca, mais recente primeiro) e dinheir
   const csv = paraCsv(COLUNAS_CSV_INSTRUMENTOS, [xs[1]]);
   assert.match(csv, /^﻿Número;Modalidade;Situação;Órgão/);
   assert.ok(csv.includes('"=""2""";CONVENIO;Em execução;MINISTERIO DA SAUDE;;;300;300;100;01/01/2025;;'), "número como texto no Excel, data em DD/MM/AAAA");
+});
+
+test("área excetuada (LRF, art. 25, § 3º): fundo ou órgão municipal de saúde, educação ou assistência; a prefeitura não", () => {
+  assert.equal(areaExcetuadaDe("FUNDO MUNICIPAL DE SAUDE", "fundo_municipal"), "saude");
+  assert.equal(areaExcetuadaDe("FMS DE GURINHEM", "fundo_municipal"), "saude");
+  assert.equal(areaExcetuadaDe("FUNDO MUNICIPAL DE ASSISTENCIA SOCIAL DE SOUSA", "fundo_municipal"), "assistencia");
+  assert.equal(areaExcetuadaDe("SECRETARIA MUNICIPAL DE EDUCACAO", "municipal_outro"), "educacao");
+  assert.equal(areaExcetuadaDe("FUNDACAO CULTURAL DE JOAO PESSOA", "municipal_outro"), null);
+  assert.equal(areaExcetuadaDe("MUNICIPIO DE PATOS", "prefeitura"), null);
+  assert.equal(areaExcetuadaDe("FUNDO ESTADUAL DE SAUDE", "fundo_estadual"), null, "estadual não herda o fiscal do município");
 });

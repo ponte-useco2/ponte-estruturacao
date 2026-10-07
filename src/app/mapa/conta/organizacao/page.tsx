@@ -33,7 +33,7 @@ export default async function OrganizacaoPage() {
   const rotuloVinculo = (id: string) => {
     const s = situacoes.get(id);
     if (!s) return null;
-    if (s.ok) return <Link href="/mapa/meu-municipio">município confirmado · ver a página do município</Link>;
+    if (s.ok) return <Link prefetch={false} href="/mapa/meu-municipio">município confirmado · ver a página do município</Link>;
     return s.motivo === "sem_ibge" ? "sem município no cadastro" : "município em conferência pela PONTE";
   };
 
@@ -73,7 +73,7 @@ export default async function OrganizacaoPage() {
       <OrganizacaoForm />
 
       <p className="pa-nota" style={{ marginTop: "1.4rem" }}>
-        <Link href="/mapa">Voltar ao Mapa</Link>
+        <Link prefetch={false} href="/mapa">Voltar ao Mapa</Link>
       </p>
     </div>
   );

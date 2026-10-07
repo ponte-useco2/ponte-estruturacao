@@ -128,7 +128,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
         </h2>
         {linhas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">
-            Nenhuma empresa neste filtro. <Link href="/mapa/fornecedores">Ver todas</Link>
+            Nenhuma empresa neste filtro. <Link prefetch={false} href="/mapa/fornecedores">Ver todas</Link>
           </p>
         ) : (
           <div className="mp-tabela-rolagem">
@@ -232,7 +232,7 @@ function Linha({ l }: { l: LinhaPainel }) {
   return (
     <tr>
       <th scope="row">
-        <Link href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
+        <Link prefetch={false} href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
           {nomeFornecedor(l)}
         </Link>
         <span className="mp-tabela-secundario">
@@ -292,7 +292,7 @@ function TabelaConcentracao({ linhas, filtro }: { linhas: (ConcentracaoMunicipio
           {linhas.map((m) => (
             <tr key={m.cod_ibge}>
               <th scope="row">
-                <Link href={url(filtro, { municipio: m.cod_ibge, q: null, marca: null })} className="mp-tabela-principal">
+                <Link prefetch={false} href={url(filtro, { municipio: m.cod_ibge, q: null, marca: null })} className="mp-tabela-principal">
                   {m.municipio ?? `IBGE ${m.cod_ibge}`}
                 </Link>
                 <span className="mp-tabela-secundario">
@@ -301,7 +301,7 @@ function TabelaConcentracao({ linhas, filtro }: { linhas: (ConcentracaoMunicipio
               </th>
               <td>
                 {m.maior_cnpj ? (
-                  <Link href={urlFornecedor(m.maior_cnpj)}>{nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj })}</Link>
+                  <Link prefetch={false} href={urlFornecedor(m.maior_cnpj)}>{nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj })}</Link>
                 ) : (
                   "—"
                 )}

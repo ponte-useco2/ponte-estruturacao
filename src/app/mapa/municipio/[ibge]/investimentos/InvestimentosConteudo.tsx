@@ -58,10 +58,10 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
         <p className="pa-nota">
           {ehMunicipioPb(ibge) && (
             <>
-              <Link href={urlMunicipio(ibge, "dinheiro")}>Página do município</Link> ·{" "}
+              <Link prefetch={false} href={urlMunicipio(ibge, "dinheiro")}>Página do município</Link> ·{" "}
             </>
           )}
-          <Link href={busca}>Ver os convênios do município na busca</Link>
+          <Link prefetch={false} href={busca}>Ver os convênios do município na busca</Link>
         </p>
       </div>
 
@@ -155,7 +155,7 @@ function Barras({
               return (
                 <tr key={l.chave}>
                   <th scope="row">
-                    {href ? <Link href={href}>{rotulo(l)}</Link> : rotulo(l)}
+                    {href ? <Link prefetch={false} href={href}>{rotulo(l)}</Link> : rotulo(l)}
                     {/* A barra é decoração: o número está na coluna ao lado. */}
                     <span className="mp-barra" aria-hidden="true">
                       <span className="mp-barra-cheia" style={{ width: `${Math.max(fracao * 100, 0.5)}%` }} />

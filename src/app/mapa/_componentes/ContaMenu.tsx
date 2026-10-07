@@ -114,7 +114,7 @@ export function ContaMenu({
           <p className="pa-mono pa-menu-grupo">Organização</p>
 
           {organizacoes.length === 0 ? (
-            <Link href="/mapa/conta/organizacao">Declarar a entidade</Link>
+            <Link prefetch={false} href="/mapa/conta/organizacao">Declarar a entidade</Link>
           ) : (
             <>
               {organizacoes.map((o) => (
@@ -135,13 +135,13 @@ export function ContaMenu({
                   </button>
                 </form>
               ))}
-              <Link href="/mapa/conta/organizacao">Acrescentar outra</Link>
+              <Link prefetch={false} href="/mapa/conta/organizacao">Acrescentar outra</Link>
             </>
           )}
 
           <div className="pa-menu-sep" />
-          <Link href="/privacidade">Aviso de privacidade</Link>
-          <Link href="/termos">Termos de uso</Link>
+          <Link prefetch={false} href="/privacidade">Aviso de privacidade</Link>
+          <Link prefetch={false} href="/termos">Termos de uso</Link>
 
           <div className="pa-menu-sep" />
           <button type="button" className="pa-menu-sair" onClick={sair} disabled={saindo}>

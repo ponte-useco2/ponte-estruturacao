@@ -37,7 +37,7 @@ export default async function FornecedorPage({ params }: { params: Promise<{ cnp
             pelo nome.
           </p>
           <p className="pa-nota">
-            <Link href={`/mapa/fornecedores?q=${encodeURIComponent(cnpj)}`}>Procurar na lista</Link>
+            <Link prefetch={false} href={`/mapa/fornecedores?q=${encodeURIComponent(cnpj)}`}>Procurar na lista</Link>
           </p>
         </div>
       </div>

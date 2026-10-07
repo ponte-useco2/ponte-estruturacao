@@ -58,7 +58,7 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           {p.cod_ibge ? (
             <>
               {" · "}
-              <Link href={urlDoMunicipio(p.cod_ibge)}>
+              <Link prefetch={false} href={urlDoMunicipio(p.cod_ibge)}>
                 {p.municipio ?? `IBGE ${p.cod_ibge}`}/{p.uf}
               </Link>
             </>
@@ -69,7 +69,7 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           <span className="pa-tag">{ROTULO_DESFECHO[p.desfecho] ?? p.desfecho}</span>
           {p.com_emenda && <span className="pa-tag">com emenda parlamentar</span>}
           {temas.map((t) => (
-            <Link key={t} href={urlBusca(parametrosBusca({ aba: "propostas" }), { tema: t, uf: p.uf })} className="pa-tag">
+            <Link prefetch={false} key={t} href={urlBusca(parametrosBusca({ aba: "propostas" }), { tema: t, uf: p.uf })} className="pa-tag">
               {ROTULO_TEMA[t]}
             </Link>
           ))}
@@ -152,7 +152,7 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           {leitura.convenioNaBusca ? (
             <>
               {" · "}
-              <Link href={urlInstrumento(p.nr_convenio)}>ver o convênio</Link>
+              <Link prefetch={false} href={urlInstrumento(p.nr_convenio)}>ver o convênio</Link>
             </>
           ) : (
             ", que não está na busca (fora da PB, só entram os convênios em execução ou em prestação de contas)"

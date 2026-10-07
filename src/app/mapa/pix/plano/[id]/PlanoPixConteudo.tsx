@@ -62,12 +62,12 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           {chaveEnte && (
-            <Link href={urlEntePix(chaveEnte)} className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href={urlEntePix(chaveEnte)} className="pa-btn pa-btn-pequeno">
               Todos os planos do ente
             </Link>
           )}
           {!cliente && (
-            <Link href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
               Painel do Pix
             </Link>
           )}

@@ -178,7 +178,7 @@ function NaoAtivada() {
         </p>
         <p>As janelas abertas continuam disponíveis no painel de oportunidades.</p>
         <div className="pa-linha">
-          <Link href="/oportunidades" className="pa-btn">
+          <Link prefetch={false} href="/oportunidades" className="pa-btn">
             Ver as janelas abertas
           </Link>
         </div>
@@ -682,7 +682,7 @@ function Central({
                 Ver arquivadas
               </button>
             )}
-            <Link href="/oportunidades" className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href="/oportunidades" className="pa-btn pa-btn-pequeno">
               Ver as janelas abertas
             </Link>
           </div>

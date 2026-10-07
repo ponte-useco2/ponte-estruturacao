@@ -64,7 +64,7 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
     <div className="pa-pagina mp-radar mp-painel mp-fiscal">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <Link href="/mapa/fiscal">Capacidade fiscal · Paraíba</Link> · município em análise
+          <Link prefetch={false} href="/mapa/fiscal">Capacidade fiscal · Paraíba</Link> · município em análise
         </p>
         <h1 className="pa-titulo">{m.nome}/PB</h1>
         <p className="pa-sub">
@@ -72,13 +72,13 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           {m.populacao ? ` · ${n(m.populacao)} habitantes` : ""} · lido em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>
         </p>
         <p className="pa-chips">
-          <Link href={urlSimularFiscal(m.ibge)} className="pa-chip">
+          <Link prefetch={false} href={urlSimularFiscal(m.ibge)} className="pa-chip">
             Simular um projeto →
           </Link>
-          <Link href={urlMunicipio(m.ibge)} className="pa-chip">
+          <Link prefetch={false} href={urlMunicipio(m.ibge)} className="pa-chip">
             Página do município →
           </Link>
-          <Link href={urlFicha({ ibge: m.ibge })} className="pa-chip">
+          <Link prefetch={false} href={urlFicha({ ibge: m.ibge })} className="pa-chip">
             Ficha no painel de execução →
           </Link>
         </p>

@@ -70,11 +70,11 @@ export function PixConteudo({
       </div>
 
       <nav aria-label="Seções" className="pa-chips mp-painel-visoes">
-        <Link href="/mapa/painel" className="pa-chip">
+        <Link prefetch={false} href="/mapa/painel" className="pa-chip">
           ← Painel de execução
         </Link>
         {/* Onda 12, parte 3B: o Pix como o município gastou, nas despesas que ele presta ao TCE-PB (só PB). */}
-        <Link href="/mapa/painel/tce" className="pa-chip">
+        <Link prefetch={false} href="/mapa/painel/tce" className="pa-chip">
           Pix nas contas dos municípios (TCE-PB) →
         </Link>
         {(
@@ -83,7 +83,7 @@ export function PixConteudo({
             ["fundo", "Fundo a fundo"],
           ] as const
         ).map(([aba, rotulo]) => (
-          <Link
+          <Link prefetch={false}
             key={aba}
             href={urlPix(p, { aba })}
             className={`pa-chip${p.aba === aba ? " pa-ativo" : ""}`}
@@ -217,7 +217,7 @@ function Especiais({
       ) : (
         <p className="pa-nota">
           A lista plano a plano sai só para {leitura.ufLista}.{" "}
-          <Link href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</Link>.
+          <Link prefetch={false} href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</Link>.
         </p>
       )}
 
@@ -453,14 +453,14 @@ function TabelaPlanosEspeciais({ linhas, coluna }: { linhas: PlanoEspecial[]; co
           <tr key={l.id_plano_acao}>
             <th scope="row">
               {l.cnpj ? (
-                <Link href={urlEntePix(l.cnpj)} className="mp-tabela-principal">
+                <Link prefetch={false} href={urlEntePix(l.cnpj)} className="mp-tabela-principal">
                   {l.beneficiario ?? "—"}
                 </Link>
               ) : (
                 <span className="mp-tabela-principal">{l.beneficiario ?? "—"}</span>
               )}
               <span className="mp-tabela-secundario">
-                <Link href={urlLaudoPix(l.id_plano_acao)}>laudo do plano {l.codigo_plano_acao ?? l.id_plano_acao}</Link> · {l.ano}
+                <Link prefetch={false} href={urlLaudoPix(l.id_plano_acao)}>laudo do plano {l.codigo_plano_acao ?? l.id_plano_acao}</Link> · {l.ano}
                 {l.numero_emenda ? ` · emenda ${l.numero_emenda}` : ""}
                 {l.duplicado ? " · contado duas vezes" : ""}
               </span>
@@ -648,7 +648,7 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
       ) : (
         <p className="pa-nota">
           O extrato das contas e a lista plano a plano saem só para {leitura.ufLista}.{" "}
-          <Link href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</Link>.
+          <Link prefetch={false} href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</Link>.
         </p>
       )}
 
@@ -749,7 +749,7 @@ export function PixIndisponivel({ estado }: { estado: "nao_ativado" | "sem_execu
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
         <p>
-          <Link href="/mapa/painel">Voltar ao painel de execução</Link>
+          <Link prefetch={false} href="/mapa/painel">Voltar ao painel de execução</Link>
         </p>
       </div>
     </div>

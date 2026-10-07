@@ -10,7 +10,7 @@
  * Cada ponto diz também quem resolve: o município, o órgão federal, o Tribunal, a Justiça, o autor da emenda ou terceiros. Função pura.
  */
 export type ClasseFila = "bloqueio" | "cobranca" | "prazo" | "atencao";
-export type QuemResolve = "municipio" | "orgao" | "tribunal" | "justica" | "autor" | "outro";
+export type QuemResolve = "municipio" | "entidade" | "orgao" | "tribunal" | "justica" | "autor" | "outro";
 
 export const ORDEM_CLASSE: Record<ClasseFila, number> = { bloqueio: 0, cobranca: 1, prazo: 2, atencao: 3 };
 
@@ -30,6 +30,7 @@ export const EXPLICA_CLASSE: Record<ClasseFila, string> = {
 
 export const ROTULO_QUEM: Record<QuemResolve, string> = {
   municipio: "o município",
+  entidade: "a própria entidade",
   orgao: "o órgão federal",
   tribunal: "o Tribunal",
   justica: "a Justiça",

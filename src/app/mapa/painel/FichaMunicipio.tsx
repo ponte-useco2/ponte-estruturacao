@@ -79,7 +79,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
     <div className="pa-pagina mp-radar mp-painel">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <Link href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · município em análise
+          <Link prefetch={false} href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · município em análise
         </p>
         <h1 className="pa-titulo">
           {nome}/{f.uf}
@@ -91,24 +91,24 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
         {/* A página do município em abas (F1) e o painel fiscal (onda 8) cobrem só a PB. */}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <Link href={urlMunicipio(f.ibge)}>Página do município: o que trava, dinheiro, contas, controle e indicadores →</Link>
+            <Link prefetch={false} href={urlMunicipio(f.ibge)}>Página do município: o que trava, dinheiro, contas, controle e indicadores →</Link>
           </p>
         )}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <Link href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</Link>
+            <Link prefetch={false} href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</Link>
           </p>
         )}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <Link href={urlEntePix(f.ibge)}>Emendas Pix do município: o laudo de cada plano de ação →</Link>
+            <Link prefetch={false} href={urlEntePix(f.ibge)}>Emendas Pix do município: o laudo de cada plano de ação →</Link>
           </p>
         )}
       </div>
 
       <nav aria-label="Quais proponentes" className="pa-chips mp-painel-lados mp-painel-quem">
         {(["prefeitura", "todos"] as const).map((q) => (
-          <Link
+          <Link prefetch={false}
             key={q}
             href={urlFicha(f, { quem: q })}
             className={`pa-chip${f.quem === q ? " pa-ativo" : ""}`}
@@ -182,7 +182,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
         ) : (
           <>
             <p className="pa-nota">
-              <Link href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
+              <Link prefetch={false} href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
                 Ver no painel, com a contagem por tipo
               </Link>
             </p>
@@ -396,7 +396,7 @@ function Bloco({
       </h3>
       {href && (
         <p className="pa-nota">
-          <Link href={href}>Ver no painel, com os números por órgão</Link>
+          <Link prefetch={false} href={href}>Ver no painel, com os números por órgão</Link>
         </p>
       )}
       <div className="mp-tabela-rolagem">{children}</div>

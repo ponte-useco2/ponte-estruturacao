@@ -98,11 +98,11 @@ export function CelulaConvenio({ c, naFicha }: { c: ConvenioPainel; naFicha?: bo
     <th scope="row">
       <span className="mp-tabela-principal">{c.proponente ?? "—"}</span>
       <span className="mp-tabela-secundario">
-        {!naFicha && c.cod_ibge ? <Link href={urlFicha({ ibge: c.cod_ibge })}>{lugar}</Link> : lugar} · nº {c.nr_convenio}{" "}
+        {!naFicha && c.cod_ibge ? <Link prefetch={false} href={urlFicha({ ibge: c.cod_ibge })}>{lugar}</Link> : lugar} · nº {c.nr_convenio}{" "}
         <CopiarNumero numero={c.nr_convenio} />
         {/* Na ficha da prefeitura, todo convênio é do próprio município: o cliente também abre o laudo. */}
         {" · "}
-        <Link href={urlLaudo(c.nr_convenio)}>laudo</Link>
+        <Link prefetch={false} href={urlLaudo(c.nr_convenio)}>laudo</Link>
       </span>
       {c.dias_sem_movimentacao !== null && c.dias_sem_movimentacao !== undefined && (
         <span className={`mp-tabela-secundario${c.dias_sem_movimentacao > 365 ? " mp-painel-urgente" : ""}`}>
@@ -374,7 +374,7 @@ export function TabelaMudancas({ linhas, naFicha, comData }: { linhas: MudancaPa
               <th scope="row">
                 <span className="mp-tabela-principal">{m.proponente ?? "—"}</span>
                 <span className="mp-tabela-secundario">
-                  {!naFicha && m.cod_ibge ? <Link href={urlFicha({ ibge: m.cod_ibge })}>{lugar}</Link> : lugar} ·{" "}
+                  {!naFicha && m.cod_ibge ? <Link prefetch={false} href={urlFicha({ ibge: m.cod_ibge })}>{lugar}</Link> : lugar} ·{" "}
                   {m.alvo === "proposta" ? "proposta" : "convênio"} nº {m.numero ?? m.chave}{" "}
                   {m.numero && <CopiarNumero numero={m.numero} />}
                 </span>

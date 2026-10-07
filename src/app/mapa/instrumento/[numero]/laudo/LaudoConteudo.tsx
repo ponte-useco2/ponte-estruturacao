@@ -81,16 +81,16 @@ export function LaudoConteudo({
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link href={urlInstrumento(numero)} className="pa-btn pa-btn-pequeno">
+          <Link prefetch={false} href={urlInstrumento(numero)} className="pa-btn pa-btn-pequeno">
             Ver o convênio
           </Link>
           {!cliente && (
-            <Link href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
               Todas as suspensivas
             </Link>
           )}
           {!cliente && contexto.orgao_sup && (
-            <Link href={`/mapa/suspensivas/checklist?orgao=${encodeURIComponent(contexto.orgao_sup)}`} className="pa-btn pa-btn-pequeno">
+            <Link prefetch={false} href={`/mapa/suspensivas/checklist?orgao=${encodeURIComponent(contexto.orgao_sup)}`} className="pa-btn pa-btn-pequeno">
               Checklist deste órgão
             </Link>
           )}
@@ -311,7 +311,7 @@ export function LaudoConteudo({
         </ul>
         {contexto.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <Link href={urlDoMunicipio(contexto.cod_ibge, "dinheiro")}>Outros investimentos em {contexto.municipio ?? "neste município"}</Link>
+            <Link prefetch={false} href={urlDoMunicipio(contexto.cod_ibge, "dinheiro")}>Outros investimentos em {contexto.municipio ?? "neste município"}</Link>
           </p>
         )}
       </section>

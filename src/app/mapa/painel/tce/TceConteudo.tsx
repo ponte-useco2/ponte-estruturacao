@@ -59,7 +59,7 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
       <nav aria-label="Ano" className="pa-chips mp-nao-imprimir">
         <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Ano</span>
         {anos.map((a) => (
-          <Link key={a} href={`${urlTce()}?ano=${a}`} className={`pa-chip${a === ano ? " pa-ativo" : ""}`} aria-current={a === ano ? "true" : undefined}>
+          <Link prefetch={false} key={a} href={`${urlTce()}?ano=${a}`} className={`pa-chip${a === ano ? " pa-ativo" : ""}`} aria-current={a === ano ? "true" : undefined}>
             {a}
             {a >= hoje ? " (em curso)" : ""}
           </Link>
@@ -184,7 +184,7 @@ function LinhaPix({ p }: { p: TcePixMunicipio }) {
   return (
     <tr>
       <th scope="row">
-        <Link href={urlTce(p.ibge)} className="mp-tabela-principal">
+        <Link prefetch={false} href={urlTce(p.ibge)} className="mp-tabela-principal">
           {p.municipio ?? `IBGE ${p.ibge}`}
         </Link>
         <span className="mp-tabela-secundario">
@@ -211,7 +211,7 @@ function LinhaConciliacao({ m }: { m: TceFederalMunicipio }) {
   return (
     <tr>
       <th scope="row">
-        <Link href={urlTce(m.ibge)} className="mp-tabela-principal">
+        <Link prefetch={false} href={urlTce(m.ibge)} className="mp-tabela-principal">
           {m.municipio ?? `IBGE ${m.ibge}`}
         </Link>
         {!m.coberto && <span className="mp-tabela-secundario">arquivo do TCE-PB ainda não lido</span>}
