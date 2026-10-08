@@ -118,3 +118,13 @@ test("F1c: o município vai para a página em abas na PB e para os investimentos
   assert.equal(urlDoMunicipio("2513802", "trava"), "/mapa/municipio/2513802");
   assert.equal(urlDoMunicipio("3550308", "dinheiro"), "/mapa/municipio/3550308/investimentos");
 });
+
+test("E3: a aba das organizações é só da PB, sem tema nem grupo", () => {
+  const p = parametrosBusca({ aba: "organizacoes", uf: "SP", tema: "saude", grupo: "execucao", municipio: "2510808", q: "laureano" });
+  assert.deepEqual(p, { aba: "organizacoes", q: "laureano", uf: "PB", municipio: "2510808", tema: null, grupo: null, pagina: 1 });
+  assert.equal(parametrosBusca({ aba: "organizacoes", municipio: "3550308" }).municipio, null, "município de fora da PB não vale");
+  assert.equal(urlBusca(p, { pagina: 2 }), "/mapa/busca?aba=organizacoes&q=laureano&municipio=2510808&pagina=2");
+  const conv = parametrosBusca({ q: "creche", uf: "SP", tema: "saude" });
+  assert.equal(urlBusca(conv, { aba: "organizacoes" }), "/mapa/busca?aba=organizacoes&q=creche");
+  assert.equal(urlBusca(parametrosBusca({ aba: "organizacoes", q: "x" }), { aba: "instrumentos" }), "/mapa/busca?q=x", "de volta, sem a PB fixa");
+});

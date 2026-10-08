@@ -19,6 +19,11 @@ test("espécie: pelo tipo do painel e pelo nome, que corrige o fundo municipal m
   assert.equal(especieDe("PREFEITURA MUNICIPAL DE SOUSA", "municipio"), "prefeitura");
   assert.equal(especieDe("FUNDO MUNICIPAL DE SAUDE DE CAMPINA GRANDE", "municipio"), "fundo_municipal");
   assert.equal(especieDe("FUNDO MUNICIPAL DE SAUDE DE PITIMBU", "osc"), "fundo_municipal");
+  // E3: o Sistema S pelo nome, venha como `osc` (painel antigo) ou como `outros` (depois da correção do job)
+  assert.equal(especieDe("SERV DE APOIO AS MICRO E PEQ EMP DA PARAIBA SEBRAE PB", "osc"), "sistema_s");
+  assert.equal(especieDe("SERVICO NACIONAL DE APRENDIZAGEM INDUSTRIAL - SENAI", "outros"), "sistema_s");
+  assert.equal(especieDe("ASSOCIACAO DOS MORADORES DO SESCAO", "osc"), "osc");
+  assert.equal(lenteDe("sistema_s"), "outros");
   assert.equal(especieDe("FUNDACAO CULTURAL DE JOAO PESSOA", "municipio"), "municipal_outro");
   assert.equal(especieDe("ESTADO DA PARAIBA", "estado"), "governo_estadual");
   assert.equal(especieDe("SECRETARIA DE ESTADO DA SAUDE", "estado"), "secretaria_estadual");

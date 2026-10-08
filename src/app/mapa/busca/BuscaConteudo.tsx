@@ -4,6 +4,9 @@
  */
 import Link from "next/link";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
+import { nomeOsc, rotuloArea, rotuloNatureza, situacaoNaReceita, versaoLegivel } from "@/lib/oportunidades/osc";
+import type { OscBusca } from "@/lib/oportunidades/osc.server";
+import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import type { ReactNode } from "react";
 import {
   GRUPOS_DESFECHO,
@@ -46,18 +49,27 @@ export function BuscaConteudo({
 }) {
   const grupos = p.aba === "instrumentos" ? GRUPOS_SITUACAO : GRUPOS_DESFECHO;
   const paginas = totalDePaginas(leitura.total);
-  const vazio = leitura.instrumentos.length === 0 && leitura.propostas.length === 0;
+  const vazio = leitura.instrumentos.length === 0 && leitura.propostas.length === 0 && leitura.organizacoes.length === 0;
+  const org = p.aba === "organizacoes";
 
   return (
     <div className="pa-pagina mp-radar">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">Busca</p>
-        <h1 className="pa-titulo">Convênios e propostas</h1>
-        <p className="pa-sub">
-          Pelo número, pelo nome do programa, pelo objeto, pelo proponente ou pelo CNPJ. Dado do Transferegov até{" "}
-          <strong>{formatarPublicacao(leitura.execucao.dado_ate)}</strong>. Na Paraíba, todos os convênios desde 2008 e as
-          propostas desde 2019; no resto do país, os convênios em execução ou em prestação de contas e as propostas recentes.
-        </p>
+        <h1 className="pa-titulo">{org ? "Organizações da sociedade civil" : "Convênios e propostas"}</h1>
+        {org ? (
+          <p className="pa-sub">
+            Pelo nome ou pelo CNPJ, todas as organizações da Paraíba no Mapa das OSC (Ipea
+            {leitura.fonteOsc ? `, versão de ${versaoLegivel(leitura.fonteOsc.versao)}` : ""}), com ou sem instrumento federal. As ativas vêm
+            primeiro.
+          </p>
+        ) : (
+          <p className="pa-sub">
+            Pelo número, pelo nome do programa, pelo objeto, pelo proponente ou pelo CNPJ. Dado do Transferegov até{" "}
+            <strong>{formatarPublicacao(leitura.execucao.dado_ate)}</strong>. Na Paraíba, todos os convênios desde 2008 e as
+            propostas desde 2019; no resto do país, os convênios em execução ou em prestação de contas e as propostas recentes.
+          </p>
+        )}
       </div>
 
       <nav aria-label="O que buscar" className="pa-chips mp-radar-filtros">
@@ -65,6 +77,7 @@ export function BuscaConteudo({
           [
             ["instrumentos", "Convênios"],
             ["propostas", "Propostas"],
+            ["organizacoes", "Organizações"],
           ] as const
         ).map(([aba, rotulo]) => (
           <Link prefetch={false}
@@ -90,25 +103,27 @@ export function BuscaConteudo({
             type="search"
             defaultValue={p.q}
             className="pa-input"
-            placeholder="nº do convênio, programa, objeto, município ou CNPJ"
+            placeholder={org ? "nome da organização ou CNPJ" : "nº do convênio, programa, objeto, município ou CNPJ"}
             autoComplete="off"
           />
         </div>
         <div className="pa-linha mp-painel-filtros">
-          <Campo id="busca-uf" rotulo="UF">
-            <select id="busca-uf" name="uf" defaultValue={p.uf ?? ""} className="pa-select">
-              <option value="">Todas</option>
-              {UFS.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-          </Campo>
+          {!org && (
+            <Campo id="busca-uf" rotulo="UF">
+              <select id="busca-uf" name="uf" defaultValue={p.uf ?? ""} className="pa-select">
+                <option value="">Todas</option>
+                {UFS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+          )}
           {p.uf && leitura.municipios.length > 0 && (
             <Campo id="busca-municipio" rotulo="Município">
               <select id="busca-municipio" name="municipio" defaultValue={p.municipio ?? ""} className="pa-select mp-painel-municipio">
-                <option value="">Todos da UF</option>
+                <option value="">{org ? "Todos da Paraíba" : "Todos da UF"}</option>
                 {leitura.municipios.map((m) => (
                   <option key={m.cod_ibge} value={m.cod_ibge}>
                     {m.municipio ?? `IBGE ${m.cod_ibge}`}
@@ -117,6 +132,7 @@ export function BuscaConteudo({
               </select>
             </Campo>
           )}
+          {!org && (
           <Campo id="busca-tema" rotulo="Tema">
             <select id="busca-tema" name="tema" defaultValue={p.tema ?? ""} className="pa-select">
               <option value="">Todos</option>
@@ -127,16 +143,19 @@ export function BuscaConteudo({
               ))}
             </select>
           </Campo>
-          <Campo id="busca-grupo" rotulo={p.aba === "instrumentos" ? "Situação" : "Desfecho"}>
-            <select id="busca-grupo" name="grupo" defaultValue={p.grupo ?? ""} className="pa-select">
-              <option value="">Todas</option>
-              {grupos.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.rotulo}
-                </option>
-              ))}
-            </select>
-          </Campo>
+          )}
+          {!org && (
+            <Campo id="busca-grupo" rotulo={p.aba === "instrumentos" ? "Situação" : "Desfecho"}>
+              <select id="busca-grupo" name="grupo" defaultValue={p.grupo ?? ""} className="pa-select">
+                <option value="">Todas</option>
+                {grupos.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.rotulo}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+          )}
           <button type="submit" className="pa-btn pa-btn-pequeno">
             Buscar
           </button>
@@ -149,7 +168,9 @@ export function BuscaConteudo({
             ? "Nada encontrado"
             : p.aba === "instrumentos"
               ? contagem(leitura.total, "convênio", "convênios")
-              : contagem(leitura.total, "proposta", "propostas")}
+              : org
+                ? contagem(leitura.total, "organização", "organizações")
+                : contagem(leitura.total, "proposta", "propostas")}
           {p.municipio ? (
             <>
               {" "}
@@ -163,6 +184,8 @@ export function BuscaConteudo({
           </p>
         ) : p.aba === "instrumentos" ? (
           <TabelaInstrumentos linhas={leitura.instrumentos} seguidas={seguidas} />
+        ) : org ? (
+          <TabelaOrganizacoes linhas={leitura.organizacoes} />
         ) : (
           <TabelaPropostas linhas={leitura.propostas} seguidas={seguidas} />
         )}
@@ -322,6 +345,44 @@ function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguid
               <td className="mp-num">{moedaCurta(l.valor_repasse)}</td>
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TabelaOrganizacoes({ linhas }: { linhas: OscBusca[] }) {
+  return (
+    <div className="mp-tabela-rolagem">
+      <table className="mp-tabela mp-busca-tabela">
+        <thead>
+          <tr>
+            <th scope="col">Organização</th>
+            <th scope="col">Natureza e área</th>
+            <th scope="col">Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.map((l) => {
+            const s = situacaoNaReceita(l);
+            return (
+              <tr key={l.cnpj}>
+                <th scope="row">
+                  <Link prefetch={false} href={urlEntidade(l.cnpj)} className="mp-tabela-principal">
+                    {nomeOsc(l)}
+                  </Link>
+                  <span className="mp-tabela-secundario">
+                    {cnpjLegivel(l.cnpj)} · {l.municipio ?? "—"}/PB{l.matriz === false ? " · filial" : ""}
+                  </span>
+                </th>
+                <td>
+                  <span className="mp-tabela-principal">{rotuloNatureza(l.natureza_juridica)}</span>
+                  <span className="mp-tabela-secundario">{l.areas.length ? l.areas.map(rotuloArea).join(" · ") : "área não informada"}</span>
+                </td>
+                <td>{s.atencao ? <strong>{s.texto}</strong> : s.texto}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

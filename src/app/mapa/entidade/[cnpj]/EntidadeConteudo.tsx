@@ -17,6 +17,16 @@ import {
   type AbaEntidade,
 } from "@/lib/oportunidades/pagina-entidade";
 import { PODE, destinoConvenio, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import {
+  ROTULO_CEBAS,
+  idade,
+  rotuloArea,
+  rotuloNatureza,
+  rotuloSubarea,
+  situacaoNaReceita,
+  versaoLegivel,
+} from "@/lib/oportunidades/osc";
+import type { LeituraCadastroOsc } from "@/lib/oportunidades/osc.server";
 import { ROTULO_DESFECHO } from "@/lib/oportunidades/painel";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -88,7 +98,9 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
   );
 }
 
-function Abas({ cnpj, aba, nivel }: { cnpj: string; aba: AbaEntidade; nivel: NivelAcesso }) {
+function Abas({ cnpj, aba, nivel, soCadastro }: { cnpj: string; aba: AbaEntidade; nivel: NivelAcesso; soCadastro: boolean }) {
+  // A OSC que só está no cadastro do Mapa (E3) não tem fila, carteira nem dinheiro: só o resumo.
+  if (soCadastro) return null;
   return (
     <nav aria-label="Partes da entidade" className="mp-mun-abas mp-nao-imprimir">
       {ABAS_ENTIDADE.filter((a) => nivel >= a.minimo).map((a) => (
@@ -152,14 +164,127 @@ function Sobre({ e, instrumentos, propostas }: { e: IdentidadeEntidade; instrume
         <dd>{e.municipio ? `${e.municipio}/${e.uf ?? "—"}` : "não informada"}</dd>
         <dt>Na base</dt>
         <dd>
-          {n(instrumentos.length)} {instrumentos.length === 1 ? "instrumento" : "instrumentos"} e {n(propostas.length)}{" "}
-          {propostas.length === 1 ? "proposta" : "propostas"}
-          {e.desde ? `, desde ${e.desde}` : ""}
+          {!instrumentos.length && !propostas.length ? (
+            "nenhum instrumento nem proposta"
+          ) : (
+            <>
+              {n(instrumentos.length)} {instrumentos.length === 1 ? "instrumento" : "instrumentos"} e {n(propostas.length)}{" "}
+              {propostas.length === 1 ? "proposta" : "propostas"}
+              {e.desde ? `, desde ${e.desde}` : ""}
+            </>
+          )}
         </dd>
       </dl>
       <p className="pa-nota">
         Instrumentos do Transferegov: todos os de proponente da Paraíba desde 2008; fora da Paraíba, só os em execução ou em prestação de contas.
         Propostas: só as de proponente da Paraíba desde 2019.
+      </p>
+    </Secao>
+  );
+}
+
+const dataCurta = (iso: string | null) => (iso ? formatarData(iso.slice(0, 10)) : null);
+const cnae = (c: string | null) => (c && /^\d{5}$/.test(c) ? `${c.slice(0, 4)}-${c.slice(4)}` : c);
+
+/**
+ * O cadastro no Mapa das OSC (E3, oport_32): natureza, situação na Receita, fundação, áreas do Ipea e CEBAS. Nada
+ * de endereço, dirigentes ou contato (o job não grava). Para a OSC que não está no Mapa, o porquê provável.
+ */
+function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: string; especie: string }) {
+  if (osc.estado === "indisponivel") return null;
+  if (osc.estado === "nao_encontrado") {
+    if (especie !== "osc") return null;
+    return (
+      <Secao id="ent-cadastro" titulo="Cadastro no Mapa das OSC">
+        <p className="pa-nota">
+          Este CNPJ não está no Mapa das OSC (Ipea, versão de {versaoLegivel(osc.fonte.versao)}). O Mapa inclui só associações, fundações
+          privadas, organizações religiosas e organizações sociais: cooperativas, entidades sindicais e o Sistema S ficam fora, mesmo quando
+          o Transferegov os registra como organização da sociedade civil.
+        </p>
+      </Secao>
+    );
+  }
+  const c = osc.cadastro;
+  const situacao = situacaoNaReceita(c);
+  const anos = idade(c.dt_fundacao, hoje);
+  return (
+    <Secao
+      id="ent-cadastro"
+      titulo="Cadastro no Mapa das OSC"
+      nota={`Mapa das Organizações da Sociedade Civil (Ipea), versão de ${versaoLegivel(osc.fonte.versao)}, com o cadastro da Receita Federal.`}
+    >
+      <dl className="mp-ent-sobre">
+        {c.razao_social && (
+          <>
+            <dt>Razão social</dt>
+            <dd>{c.razao_social}</dd>
+          </>
+        )}
+        {c.nome_fantasia && (
+          <>
+            <dt>Nome fantasia</dt>
+            <dd>{c.nome_fantasia}</dd>
+          </>
+        )}
+        <dt>Natureza jurídica</dt>
+        <dd>{rotuloNatureza(c.natureza_juridica)}</dd>
+        <dt>Situação</dt>
+        <dd className={situacao.atencao ? "mp-ent-atencao" : undefined}>{situacao.texto}</dd>
+        <dt>Matriz ou filial</dt>
+        <dd>
+          {c.matriz === true ? "Matriz" : c.matriz === false ? "Filial" : "Não informado"}
+          {c.matriz === false && osc.matriz && (
+            <>
+              {" "}
+              de{" "}
+              <Link href={urlEntidade(osc.matriz.cnpj)} prefetch={false}>
+                {osc.matriz.nome ?? cnpjLegivel(osc.matriz.cnpj)}
+                <Carregando />
+              </Link>
+            </>
+          )}
+        </dd>
+        <dt>Fundação</dt>
+        <dd>{c.dt_fundacao ? `${dataCurta(c.dt_fundacao)}${anos !== null ? ` (${anos} ${anos === 1 ? "ano" : "anos"})` : ""}` : "não informada"}</dd>
+        {c.dt_fechamento && (
+          <>
+            <dt>Fechamento</dt>
+            <dd>{dataCurta(c.dt_fechamento)}</dd>
+          </>
+        )}
+        <dt>Área de atuação</dt>
+        <dd>
+          {c.areas.length ? c.areas.map(rotuloArea).join("; ") : "não informada"}
+          {c.subareas.length > 0 && <span className="pa-nota"> ({c.subareas.map(rotuloSubarea).join("; ")})</span>}
+        </dd>
+        {c.cnae_principal && (
+          <>
+            <dt>Atividade (CNAE)</dt>
+            <dd className="pa-mono">{cnae(c.cnae_principal)}</dd>
+          </>
+        )}
+        <dt>CEBAS</dt>
+        <dd>
+          {!osc.fonte.cebasLido ? (
+            "as planilhas de certificação não foram lidas nesta carga"
+          ) : c.cebas.length ? (
+            <ul className="mp-ent-cebas">
+              {c.cebas.map((x, i) => (
+                <li key={`${x.tipo}-${i}`}>
+                  {ROTULO_CEBAS[x.tipo] ?? x.tipo}: {x.situacao ?? "situação não informada"}
+                  {x.fim ? `, validade até ${dataCurta(x.fim)}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            "nenhuma certificação nas planilhas do Mapa"
+          )}
+        </dd>
+      </dl>
+      <p className="pa-nota">
+        A área de atuação é a classificação do Ipea, pelo nome e pela atividade declarada. As planilhas de CEBAS do Mapa são de{" "}
+        {osc.fonte.cebasModificado ? dataCurta(new Date(osc.fonte.cebasModificado).toISOString()) : "data não informada"}: a certificação é
+        renovada por processo, e a situação atual se confere no ministério certificador. Endereço, dirigentes e contatos não entram nesta página.
       </p>
     </Secao>
   );
@@ -290,6 +415,7 @@ export function EntidadeConteudo({
   r,
   instrumentos,
   propostas,
+  osc = { estado: "indisponivel" },
   aba,
   nivel,
   seguindo = false,
@@ -298,10 +424,13 @@ export function EntidadeConteudo({
   r: Relatorio;
   instrumentos: InstrumentoRelatorio[];
   propostas: PropostaRelatorio[];
+  /** O cadastro no Mapa das OSC (E3). */
+  osc?: LeituraCadastroOsc;
   aba: AbaEntidade;
   nivel: NivelAcesso;
   seguindo?: boolean;
 }) {
+  const soCadastro = !instrumentos.length && !propostas.length;
   // o SICONV grava o município em caixa alta ("JOÃO PESSOA"); na tela, "João Pessoa"
   const e = { ...entidade, municipio: entidade.municipio ? tituloOrgao(entidade.municipio) : null };
   const destino = destinoConvenio(nivel);
@@ -310,7 +439,7 @@ export function EntidadeConteudo({
   return (
     <div className="pa-pagina mp-radar mp-laudo mp-rel mp-mun">
       <Cabeca e={e} r={r} nivel={nivel} seguindo={seguindo} />
-      <Abas cnpj={e.cnpj} aba={aba} nivel={nivel} />
+      <Abas cnpj={e.cnpj} aba={aba} nivel={nivel} soCadastro={soCadastro} />
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
 
       {aba === "trava" && (
@@ -322,11 +451,19 @@ export function EntidadeConteudo({
 
       {aba === "resumo" && (
         <>
-          <Secao id="ent-resumo" titulo="Em números">
-            <Cartoes r={r} />
-            <EmOrdem r={r} />
-          </Secao>
+          {soCadastro ? (
+            <p className="pa-cartao pa-cartao-plano">
+              Esta organização não tem proposta (desde 2019) nem instrumento federal na base do Transferegov. A página mostra o cadastro do Mapa
+              das OSC; quem segue a entidade recebe aviso quando aparecer a primeira proposta ou o primeiro instrumento.
+            </p>
+          ) : (
+            <Secao id="ent-resumo" titulo="Em números">
+              <Cartoes r={r} />
+              <EmOrdem r={r} />
+            </Secao>
+          )}
           <Sobre e={e} instrumentos={instrumentos} propostas={propostas} />
+          <CadastroMapa osc={osc} hoje={r.hoje} especie={e.especie} />
         </>
       )}
 

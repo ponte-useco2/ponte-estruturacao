@@ -9,6 +9,7 @@ import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { ABAS_MUNICIPIO, PODE, destinoConvenio, urlMunicipio, type AbaMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import type { FonteOsc, ResumoOscMunicipio } from "@/lib/oportunidades/osc";
 import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import { Carregando } from "../../_componentes/Carregando";
@@ -96,6 +97,7 @@ export function MunicipioConteudo({
   nivel,
   seguindo,
   entidades,
+  osc,
 }: {
   r: Relatorio;
   aba: AbaMunicipio;
@@ -103,6 +105,8 @@ export function MunicipioConteudo({
   seguindo: boolean;
   /** "Quem recebe no município" (E1): lido só na aba do dinheiro; null quando a leitura falhou. */
   entidades?: { lente: LenteEntidade; entidades: EntidadeNoMunicipio[] }[] | null;
+  /** O resumo do Mapa das OSC (E3), também só na aba do dinheiro. */
+  osc?: { resumo: ResumoOscMunicipio; fonte: FonteOsc } | null;
 }) {
   const destino = destinoConvenio(nivel);
   const nomeAba = ABAS_MUNICIPIO.find((a) => a.id === aba)?.nome ?? "";
@@ -131,7 +135,7 @@ export function MunicipioConteudo({
 
       {aba === "dinheiro" && (
         <>
-          {entidades !== undefined && <QuemRecebe grupos={entidades} municipio={r.nome} />}
+          {entidades !== undefined && <QuemRecebe grupos={entidades} municipio={r.nome} ibge={r.ibge} osc={osc} />}
           <BlocoConvenios r={r} destino={destino} />
           <Mais>
             <Link href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno" prefetch={false}>

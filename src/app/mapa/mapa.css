@@ -902,6 +902,19 @@
 .pa-root .mp-ent-grupo + .mp-ent-grupo { margin-top: 0.5rem; }
 .pa-root .mp-ent-grupo > summary { cursor: pointer; }
 .pa-root .mp-ent-grupo[open] > summary { margin-bottom: 0.5rem; }
+/* E3: o cadastro do Mapa das OSC na entidade e o resumo das OSC no município */
+.pa-root .mp-ent-atencao { font-weight: 600; color: var(--mp-moderado); }
+.pa-root .mp-ent-cebas { margin: 0; padding-left: 1.1rem; }
+.pa-root .mp-ent-cebas li + li { margin-top: 0.2rem; }
+.pa-root .mp-ent-osc { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px dashed var(--mp-tracejado); }
+.pa-root .mp-ent-areas { max-width: 640px; }
+.pa-root .mp-ent-areas caption { text-align: left; caption-side: top; padding-bottom: 0.3rem; }
+.pa-root .mp-ent-areas th { font-weight: 400; text-align: left; }
+.pa-root .mp-ent-barra-celula { width: 40%; min-width: 4rem; }
+.pa-root .mp-ent-barra { display: block; height: 0.6rem; min-width: 2px; border-radius: 2px; background: var(--pa-brand-2); }
+@media print {
+  .pa-root .mp-ent-barra { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
 /* impressa, a carteira sai inteira: o grupo fechado abre (mesma regra do `mp-fiscal-detalhe`); o resumo fica, é o título */
 @media print {
   .pa-root .mp-ent-grupo { border: 0; padding: 0; }

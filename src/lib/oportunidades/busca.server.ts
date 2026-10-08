@@ -19,6 +19,8 @@ import {
   type PropostaBusca,
 } from "./busca";
 import { ehEsquemaAusente } from "./esquema";
+import type { FonteOsc } from "./osc";
+import { buscarOsc, type OscBusca } from "./osc.server";
 import type { LinhaEtapa, PropostaPainel } from "./painel";
 
 export interface ExecucaoBusca {
@@ -69,6 +71,9 @@ export type LeituraBusca =
       execucao: ExecucaoBusca;
       instrumentos: InstrumentoBusca[];
       propostas: PropostaBusca[];
+      /** O cadastro do Mapa das OSC (E3); `fonteOsc` null quando não há cadastro. */
+      organizacoes: OscBusca[];
+      fonteOsc: FonteOsc | null;
       total: number;
       municipios: OpcaoMunicipioBusca[];
     };
@@ -80,6 +85,23 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
   if (ehFalha(ex)) return ex;
 
   const termos = termosDaBusca(p.q);
+  if (p.aba === "organizacoes") {
+    const [osc, municipios] = await Promise.all([
+      buscarOsc(termos, p.municipio, LIMITE_POR_PAGINA, (p.pagina - 1) * LIMITE_POR_PAGINA),
+      db.rpc("painel_municipios", { p_uf: "PB" }),
+    ]);
+    if (municipios.error) console.error("lerBusca (municípios):", municipios.error.message);
+    return {
+      estado: "ok",
+      execucao: ex,
+      instrumentos: [],
+      propostas: [],
+      organizacoes: osc?.linhas ?? [],
+      fonteOsc: osc?.fonte ?? null,
+      total: osc?.total ?? 0,
+      municipios: ((municipios.data ?? []) as OpcaoMunicipioBusca[]).map((m) => ({ cod_ibge: m.cod_ibge, municipio: m.municipio })),
+    };
+  }
   const comuns = {
     p_termos: termos.length ? termos : null,
     p_uf: p.uf,
@@ -104,6 +126,8 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
     execucao: ex,
     instrumentos: p.aba === "instrumentos" ? (linhas as InstrumentoBusca[]) : [],
     propostas: p.aba === "propostas" ? (linhas as PropostaBusca[]) : [],
+    organizacoes: [],
+    fonteOsc: null,
     total: Number(linhas[0]?.total ?? 0),
     municipios: ((municipios.data ?? []) as OpcaoMunicipioBusca[]).map((m) => ({ cod_ibge: m.cod_ibge, municipio: m.municipio })),
   };

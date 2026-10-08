@@ -29,6 +29,8 @@ import { ehEsquemaAusente } from "./esquema";
 import { lerFiscalMunicipio } from "./fiscal.server";
 import { criarMemoria } from "./memoria";
 import { areaExcetuadaDe, ehMunicipal, especieDe, type EspecieEntidade, type LinhaEntidadeMunicipio } from "./pagina-entidade";
+import { cnpjDaMatriz, nomeOsc, type CadastroOsc } from "./osc";
+import { lerCadastroOsc, type LeituraCadastroOsc } from "./osc.server";
 import catalogoIndicadores from "./indicadores-municipio.json";
 import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio";
 import { lerPainelFornecedores } from "./fornecedores.server";
@@ -321,7 +323,15 @@ export type LeituraEntidade =
   | { estado: "sem_execucao" }
   | { estado: "erro" }
   | { estado: "nao_encontrado" }
-  | { estado: "ok"; entidade: IdentidadeEntidade; relatorio: Relatorio; instrumentos: InstrumentoRelatorio[]; propostas: PropostaRelatorio[] };
+  | {
+      estado: "ok";
+      entidade: IdentidadeEntidade;
+      relatorio: Relatorio;
+      instrumentos: InstrumentoRelatorio[];
+      propostas: PropostaRelatorio[];
+      /** O cadastro no Mapa das OSC (E3, oport_32): só faz sentido para OSC; `indisponivel` sem a migração ou sem carga. */
+      osc: LeituraCadastroOsc;
+    };
 
 /** Nome, tipo e sede pelo instrumento mais recente (a razão social muda com o tempo); sem instrumento, pela proposta. */
 function identidade(
@@ -345,6 +355,20 @@ function identidade(
     municipio: ref?.municipio ?? null,
     uf: ref?.uf ?? null,
     desde: anos.length ? Math.min(...anos) : null,
+  };
+}
+
+/** A OSC que só está no cadastro do Mapa das OSC (E3): sem proposta nem instrumento na base. */
+function identidadeDoCadastro(c: CadastroOsc): IdentidadeEntidade {
+  return {
+    cnpj: c.cnpj,
+    nome: nomeOsc(c),
+    especie: "osc",
+    tipoAgente: "osc",
+    cod_ibge: c.cod_ibge,
+    municipio: c.municipio,
+    uf: "PB",
+    desde: null,
   };
 }
 
@@ -394,18 +418,24 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEn
   const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
-  const [instrumentos, propostas] = await Promise.all([
+  const [instrumentos, propostas, osc] = await Promise.all([
     paginas<InstrumentoRelatorio & ComIdentidade>(faltas, "convênios", (a, b) =>
       db.from("painel_instrumento").select(`${COLUNAS_INSTRUMENTO},${IDENTIDADE_INSTRUMENTO}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("nr_convenio").range(a, b),
     ),
     paginas<PropostaRelatorio & ComIdentidade>(faltas, "propostas", (a, b) =>
       db.from("painel_proposta").select(`${COLUNAS_PROPOSTA},${IDENTIDADE_PROPOSTA}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("id_proposta").range(a, b),
     ),
+    lerCadastroOsc(cnpj, cnpjDaMatriz(cnpj)),
   ]);
   if (!instrumentos && !propostas) return { estado: "erro" };
-  if (!(instrumentos ?? []).length && !(propostas ?? []).length) return { estado: "nao_encontrado" };
+  // Sem nada na base, a página existe só para a OSC do cadastro do Mapa das OSC (E3).
+  const naBase = (instrumentos ?? []).length > 0 || (propostas ?? []).length > 0;
+  if (!naBase && osc.estado !== "ok") return { estado: "nao_encontrado" };
 
-  const ent = identidade(cnpj, instrumentos ?? [], propostas ?? []);
+  const ent = naBase ? identidade(cnpj, instrumentos ?? [], propostas ?? []) : identidadeDoCadastro((osc as { cadastro: CadastroOsc }).cadastro);
+  // Quem está no cadastro do Mapa é OSC (as naturezas do grupo 3 da Receita), seja qual for o tipo no painel.
+  if (osc.estado === "ok") ent.especie = "osc";
+  if (!ent.municipio && osc.estado === "ok") ent.municipio = osc.cadastro.municipio;
   const ibge = ent.cod_ibge;
   const municipal = ehMunicipal(ent.especie) && !!ibge;
   const prefeitura = ent.especie === "prefeitura" && !!ibge;
@@ -455,7 +485,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEn
     areaExcetuada: areaExcetuadaDe(ent.nome, ent.especie),
     faltas,
   };
-  return { estado: "ok", entidade: ent, relatorio: montarRelatorio(entrada, hoje), instrumentos: instrumentos ?? [], propostas: propostas ?? [] };
+  return { estado: "ok", entidade: ent, relatorio: montarRelatorio(entrada, hoje), instrumentos: instrumentos ?? [], propostas: propostas ?? [], osc };
 }
 
 const memoriaEntidades = criarMemoria<LinhaEntidadeMunicipio[] | null>({ validadeMs: 10 * 60 * 1000, maximo: 30, guardar: (l) => l !== null });

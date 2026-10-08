@@ -58,7 +58,9 @@ export default async function EntidadePage({
     },
     leitura.entidade,
   );
-  const aba = abaDaEntidade(sp.aba, nivel);
+  // A OSC que só está no cadastro do Mapa das OSC (E3) tem só o resumo.
+  const soCadastro = !leitura.instrumentos.length && !leitura.propostas.length;
+  const aba = soCadastro ? "resumo" : abaDaEntidade(sp.aba, nivel);
   after(() => registrarUso(visitante, "mapa_entidade", { cnpj, aba, nivel }));
 
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
@@ -69,6 +71,7 @@ export default async function EntidadePage({
       r={r}
       instrumentos={leitura.instrumentos}
       propostas={leitura.propostas}
+      osc={leitura.osc}
       aba={aba}
       nivel={nivel}
       seguindo={seguidas?.has(chaveSeguida("entidade", cnpj)) ?? false}

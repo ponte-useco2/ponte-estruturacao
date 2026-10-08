@@ -32,6 +32,7 @@ export type EspecieEntidade =
   | "estadual_outro"
   | "consorcio"
   | "osc"
+  | "sistema_s"
   | "empresa"
   | "outro";
 
@@ -46,17 +47,27 @@ export const ROTULO_ESPECIE: Record<EspecieEntidade, string> = {
   estadual_outro: "Órgão ou entidade estadual",
   consorcio: "Consórcio público",
   osc: "Organização da sociedade civil",
+  sistema_s: "Serviço social autônomo (Sistema S)",
   empresa: "Empresa",
   outro: "Outro proponente",
 };
 
 /**
- * A espécie pelo tipo do painel (`tipo_agente`) e pelo nome. O nome corrige o que o tipo do painel erra: o "Fundo
- * Municipal de Saúde de Pitimbu" vem como `osc` (a correção no job é da E3) e aqui sai como fundo municipal.
+ * O Sistema S pelo nome: as mesmas agulhas do job (`radar_propostas/definicoes.py`, SISTEMA_S). A Lei 13.019/2014
+ * o exclui das OSC (art. 3º, X); desde a E3 o painel o grava como `outros`.
+ */
+const SISTEMA_S =
+  /\b(SEBRAE|SENAI|SENAC|SESC|SESI|SENAR|SEST|SENAT|SESCOOP)\b|SERVI[CÇ]O (NACIONAL DE APRENDIZAGEM|SOCIAL D[AEO] |DE APOIO [ÀA]S MICRO)|\bSERV\.? DE APOIO AS MICRO/;
+
+/**
+ * A espécie pelo tipo do painel (`tipo_agente`) e pelo nome. O nome corrige o que o tipo do painel errava antes da
+ * E3 (o "Fundo Municipal de Saúde de Pitimbu" vinha como `osc`; o SEBRAE-PB também) e segue valendo para as
+ * execuções do painel gravadas antes da correção.
  */
 export function especieDe(nome: string | null | undefined, tipoAgente: string | null | undefined): EspecieEntidade {
   const n = (nome ?? "").toUpperCase();
   if (/^(FUNDO MUNICIPAL|FMS\b|FMAS\b)/.test(n)) return "fundo_municipal";
+  if ((tipoAgente === "osc" || tipoAgente === "outros") && SISTEMA_S.test(n)) return "sistema_s";
   switch (tipoAgente) {
     case "municipio":
       if (/^(MUNIC[IÍ]PIO|PREFEITURA)/.test(n)) return "prefeitura";
@@ -92,8 +103,8 @@ export const ROTULO_LENTE: Record<LenteEntidade, string> = {
 export const EXPLICA_LENTE: Record<LenteEntidade, string> = {
   municipal: "A prefeitura, os fundos e as autarquias e consórcios municipais. São eles que formam a fila do município.",
   estado: "Órgãos estaduais com sede aqui. Não entram na fila do município.",
-  sociedade: "Organizações da sociedade civil com convênio ou termo de fomento. Não entram na fila do município.",
-  outros: "Empresas e outros proponentes com sede aqui.",
+  sociedade: "Organizações da sociedade civil com instrumento federal na base (convênio ou termo de fomento). Não entram na fila do município.",
+  outros: "Empresas, o Sistema S e outros proponentes com sede aqui.",
 };
 
 export function lenteDe(e: EspecieEntidade): LenteEntidade {

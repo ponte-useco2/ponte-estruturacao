@@ -11,7 +11,8 @@ import { ufDoIbge } from "./painel.ts";
 import { ehTemaConhecido } from "./temas.ts";
 import { urlMunicipio, type AbaMunicipio } from "./pagina-municipio.ts";
 
-export type AbaBusca = "instrumentos" | "propostas";
+/** "organizacoes" (E3): o cadastro do Mapa das OSC (Ipea), só da PB. */
+export type AbaBusca = "instrumentos" | "propostas" | "organizacoes";
 
 /** Grupos de situação do convênio, em linguagem de gente. As situações são as do arquivo do SICONV. */
 export const GRUPOS_SITUACAO: { id: string; rotulo: string; situacoes: string[] }[] = [
@@ -75,8 +76,10 @@ export interface ParametrosBusca {
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export function parametrosBusca(sp: Record<string, string | string[] | undefined>): ParametrosBusca {
-  const aba: AbaBusca = um(sp.aba) === "propostas" ? "propostas" : "instrumentos";
-  const ufUrl = um(sp.uf)?.toUpperCase() ?? null;
+  const abaUrl = um(sp.aba);
+  const aba: AbaBusca = abaUrl === "propostas" || abaUrl === "organizacoes" ? abaUrl : "instrumentos";
+  // O cadastro das OSC é só da PB: a UF fica fixa, e tema e grupo não se aplicam.
+  const ufUrl = aba === "organizacoes" ? "PB" : (um(sp.uf)?.toUpperCase() ?? null);
   const uf = ufUrl && (UFS as readonly string[]).includes(ufUrl) ? ufUrl : null;
   const ibge = um(sp.municipio)?.trim() ?? null;
   const ufMunicipio = ufDoIbge(ibge);
@@ -84,14 +87,14 @@ export function parametrosBusca(sp: Record<string, string | string[] | undefined
   const municipio = ufMunicipio && (uf === null || uf === ufMunicipio) ? ibge : null;
   const tema = um(sp.tema) ?? "";
   const grupo = um(sp.grupo) ?? "";
-  const grupos = aba === "instrumentos" ? GRUPOS_SITUACAO : GRUPOS_DESFECHO;
+  const grupos = aba === "instrumentos" ? GRUPOS_SITUACAO : aba === "propostas" ? GRUPOS_DESFECHO : [];
   const pagina = Number(um(sp.pagina));
   return {
     aba,
     q: (um(sp.q) ?? "").trim().slice(0, 200),
     uf: municipio ? ufMunicipio : uf,
     municipio,
-    tema: ehTemaConhecido(tema) ? tema : null,
+    tema: aba !== "organizacoes" && ehTemaConhecido(tema) ? tema : null,
     grupo: grupos.some((g) => g.id === grupo) ? grupo : null,
     pagina: Number.isInteger(pagina) && pagina >= 1 ? Math.min(pagina, PAGINA_MAXIMA) : 1,
   };
@@ -100,12 +103,14 @@ export function parametrosBusca(sp: Record<string, string | string[] | undefined
 export function urlBusca(atual: ParametrosBusca, muda: Partial<ParametrosBusca>): string {
   const trocouAba = muda.aba !== undefined && muda.aba !== atual.aba;
   // Mudar qualquer filtro volta à primeira página; trocar de aba solta o grupo, que é de outra lista.
-  const p = { ...atual, pagina: 1, ...(trocouAba ? { grupo: null } : {}), ...muda };
+  // Para as organizações a UF é sempre a PB; de volta delas, a PB só fica se houver município escolhido.
+  const ufTroca = muda.aba === "organizacoes" ? { tema: null, uf: "PB" } : atual.aba === "organizacoes" && !atual.municipio ? { uf: null } : {};
+  const p = { ...atual, pagina: 1, ...(trocouAba ? { grupo: null, ...ufTroca } : {}), ...muda };
   if (p.municipio && ufDoIbge(p.municipio) !== p.uf) p.municipio = null;
   const q = new URLSearchParams();
   if (p.aba !== "instrumentos") q.set("aba", p.aba);
   if (p.q) q.set("q", p.q);
-  if (p.uf) q.set("uf", p.uf);
+  if (p.uf && p.aba !== "organizacoes") q.set("uf", p.uf);
   if (p.municipio) q.set("municipio", p.municipio);
   if (p.tema) q.set("tema", p.tema);
   if (p.grupo) q.set("grupo", p.grupo);
