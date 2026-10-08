@@ -72,6 +72,17 @@ export function urlUf(sigla: string, aba?: AbaUf): string {
   return `/mapa/uf/${sigla.toLowerCase()}${aba && aba !== "resumo" ? `?aba=${aba}` : ""}`;
 }
 
+/** A âncora de uma região imediata na aba Municípios ("Sousa - Cajazeiras" → "regiao-sousa-cajazeiras"). */
+export function ancoraRegiao(regiao: string): string {
+  const s = regiao.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `regiao-${s}`;
+}
+
+/** A trilha do município volta à lista dos municípios da UF, na região dele. */
+export function urlRegiao(sigla: string, regiao: string): string {
+  return `${urlUf(sigla, "municipios")}#${ancoraRegiao(regiao)}`;
+}
+
 // ================================================================ as somas do job (painel_territorio, oport_34)
 
 export interface LinhaTerritorio {

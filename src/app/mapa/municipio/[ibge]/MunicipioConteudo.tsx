@@ -9,7 +9,7 @@ import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { ABAS_MUNICIPIO, PODE, destinoConvenio, urlMunicipio, type AbaMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
-import { urlUf } from "@/lib/oportunidades/pagina-uf";
+import { urlRegiao, urlUf } from "@/lib/oportunidades/pagina-uf";
 import type { FonteOsc, ResumoOscMunicipio } from "@/lib/oportunidades/osc";
 import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
@@ -49,7 +49,11 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
         <Link href={urlUf("PB")} prefetch={false}>
           Paraíba
         </Link>
-        {g?.regiao_imediata && <span>Região imediata de {g.regiao_imediata}</span>}
+        {g?.regiao_imediata && (
+          <Link href={urlRegiao("PB", g.regiao_imediata)} prefetch={false}>
+            Região imediata de {g.regiao_imediata}
+          </Link>
+        )}
         <span aria-current="page">{r.nome}</span>
       </nav>
       <h1 className="pa-titulo">{r.nome}</h1>

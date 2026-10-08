@@ -14,6 +14,7 @@ import { urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-munic
 import {
   ABAS_UF,
   NOME_UF,
+  ancoraRegiao,
   ROTULO_LENTE_UF,
   etapasComparadas,
   funil,
@@ -249,7 +250,7 @@ function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa
         <thead>
           <tr>
             <th scope="col">Município</th>
-            {completa && <th scope="col">Porte</th>}
+            {completa && <th scope="col">Porte na PB (tercil)</th>}
             {completa && <th scope="col">População</th>}
             <th scope="col">Instrumentos</th>
             <th scope="col">Em execução</th>
@@ -286,14 +287,15 @@ function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa
 
 function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: NivelAcesso; ordenarPorSinais: boolean }) {
   if (!l.municipios) return <p className="pa-nota">A lista dos municípios não pôde ser lida agora.</p>;
-  const admin = nivel >= 3;
+  // o fiscal e os sinais do painel só existem para a Paraíba
+  const admin = nivel >= 3 && l.completa;
   const ordem = ordenarPorSinais
     ? "ordenados pelos sinais do painel (só o administrador vê esta ordem)"
     : l.completa
       ? "em ordem alfabética dentro de cada região imediata do IBGE"
       : "em ordem alfabética";
   const nota = l.completa
-    ? `Os ${n(l.municipios.length)} municípios, ${ordem}. Instrumentos: todos os da base desde 2008; OSC: as ativas no Mapa das OSC.`
+    ? `Os ${n(l.municipios.length)} municípios, ${ordem}. Instrumentos: todos os da base desde 2008; porte: o tercil da população entre os 223; OSC: as ativas no Mapa das OSC.`
     : `Os ${n(l.municipios.length)} municípios com instrumento vivo na base, ${ordem}.`;
   return (
     <Secao id="uf-municipios" titulo="Os municípios" nota={nota}>
@@ -312,7 +314,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
         <TabelaMunicipios ms={porSinais(l.municipios)} completa={l.completa} admin={admin} />
       ) : (
         municipiosPorRegiao(l.municipios).map((g) => (
-          <details key={g.regiao} className="mp-ent-grupo" open>
+          <details key={g.regiao} id={ancoraRegiao(g.regiao)} className="mp-ent-grupo" open>
             <summary>
               <strong>{l.completa ? `Região imediata de ${g.regiao}` : g.regiao}</strong> · {n(g.municipios.length)}{" "}
               {g.municipios.length === 1 ? "município" : "municípios"}

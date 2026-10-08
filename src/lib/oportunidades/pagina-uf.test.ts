@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   abaDaUf,
+  ancoraRegiao,
   etapasComparadas,
   funil,
   indicadoresDaUf,
@@ -13,6 +14,7 @@ import {
   porSinais,
   porSituacao,
   siglaDaUrl,
+  urlRegiao,
   totalTerritorio,
   urlUf,
   type LinhaTerritorio,
@@ -37,6 +39,9 @@ test("U1: sigla da URL, abas por nível e endereço", () => {
   assert.equal(naUf("PB"), "na Paraíba");
   assert.equal(naUf("AL"), "em Alagoas");
   assert.equal(naUf("AC"), "no Acre");
+  assert.equal(ancoraRegiao("Sousa - Cajazeiras"), "regiao-sousa-cajazeiras");
+  assert.equal(ancoraRegiao("João Pessoa"), "regiao-joao-pessoa");
+  assert.equal(urlRegiao("PB", "Patos"), "/mapa/uf/pb?aba=municipios#regiao-patos");
 });
 
 test("U1: as somas do job agrupadas como na busca, com os vivos à parte", () => {
