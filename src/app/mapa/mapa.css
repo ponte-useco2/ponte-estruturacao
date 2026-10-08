@@ -38,6 +38,12 @@
   --mp-sobre-marca: #9cc8d8;
   --mp-borda-soft: #b0d0dc;
   --mp-tracejado: #b4c7ce;
+  /* Mapas 2D (U2): cinco tons para as regiões, nunca para problema. */
+  --mp-mapa-0: #14607a;
+  --mp-mapa-1: #6b9fb3;
+  --mp-mapa-2: #8db59b;
+  --mp-mapa-3: #c8a46e;
+  --mp-mapa-4: #9f86a8;
 }
 /* Os literais verdes do design system que aparecem dentro do Mapa. */
 .mp-root .pa-top { background: rgba(245, 248, 249, 0.94); }
@@ -902,6 +908,26 @@
 .pa-root .mp-ent-grupo + .mp-ent-grupo { margin-top: 0.5rem; }
 .pa-root .mp-ent-grupo > summary { cursor: pointer; }
 .pa-root .mp-ent-grupo[open] > summary { margin-bottom: 0.5rem; }
+/* U2: mapas 2D (malha do IBGE) */
+.pa-root .mp-mapa { margin: 0 0 1rem; max-width: 720px; }
+.pa-root .mp-mapa svg { display: block; width: 100%; height: auto; }
+.pa-root .mp-mapa path { stroke: var(--pa-surface); stroke-width: 0.6; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.pa-root .mp-mapa a path { cursor: pointer; transition: opacity 0.15s ease; }
+.pa-root .mp-mapa a:hover path, .pa-root .mp-mapa a:focus-visible path { opacity: 0.72; stroke: var(--pa-text); stroke-width: 1.4; }
+.pa-root .mp-mapa a:focus-visible { outline: none; }
+.pa-root .mp-mapa-rotulo { font-size: 15px; font-weight: 600; fill: var(--pa-surface); pointer-events: none; paint-order: stroke; stroke: rgba(8, 21, 27, 0.35); stroke-width: 2px; }
+.pa-root .mp-mapa-g0 { fill: var(--mp-mapa-0); background: var(--mp-mapa-0); }
+.pa-root .mp-mapa-g1 { fill: var(--mp-mapa-1); background: var(--mp-mapa-1); }
+.pa-root .mp-mapa-g2 { fill: var(--mp-mapa-2); background: var(--mp-mapa-2); }
+.pa-root .mp-mapa-g3 { fill: var(--mp-mapa-3); background: var(--mp-mapa-3); }
+.pa-root .mp-mapa-g4 { fill: var(--mp-mapa-4); background: var(--mp-mapa-4); }
+.pa-root .mp-mapa figcaption { display: grid; gap: 0.35rem; margin-top: 0.5rem; }
+.pa-root .mp-mapa-legenda { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
+.pa-root .mp-mapa-legenda li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.pa-root .mp-mapa-amostra { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; }
+@media print {
+  .pa-root .mp-mapa path, .pa-root .mp-mapa-amostra { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
 /* E3: o cadastro do Mapa das OSC na entidade e o resumo das OSC no município */
 .pa-root .mp-ent-atencao { font-weight: 600; color: var(--mp-moderado); }
 .pa-root .mp-ent-cebas { margin: 0; padding-left: 1.1rem; }

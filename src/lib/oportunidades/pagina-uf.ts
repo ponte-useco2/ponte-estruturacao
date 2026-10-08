@@ -175,6 +175,8 @@ export interface MunicipioUf {
   populacao: number | null;
   porte: string | null;
   regiao: string | null;
+  /** A região geográfica intermediária do IBGE (a cor do mapa da PB). */
+  intermediaria?: string | null;
   instrumentos: number;
   em_execucao: number;
   valor_execucao: number;

@@ -9,6 +9,7 @@ import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { ABAS_MUNICIPIO, PODE, destinoConvenio, urlMunicipio, type AbaMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { urlRegiao, urlUf } from "@/lib/oportunidades/pagina-uf";
 import type { FonteOsc, ResumoOscMunicipio } from "@/lib/oportunidades/osc";
 import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
@@ -45,7 +46,9 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <span>Brasil</span>
+        <Link href={urlBrasil()} prefetch={false}>
+          Brasil
+        </Link>
         <Link href={urlUf("PB")} prefetch={false}>
           Paraíba
         </Link>

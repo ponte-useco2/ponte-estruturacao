@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+import { after } from "next/server";
+import { abaDoBrasil } from "@/lib/oportunidades/pagina-brasil";
+import { lerBrasil } from "@/lib/oportunidades/pagina-brasil.server";
+import { registrarUso } from "@/lib/oportunidades/uso.server";
+import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
+import { DadoIndisponivel } from "../busca/BuscaConteudo";
+import { BrasilConteudo } from "./BrasilConteudo";
+
+export const metadata: Metadata = {
+  title: "Brasil · Mapa de Oportunidades · PONTE",
+  robots: { index: false, follow: false },
+};
+
+/**
+ * A página do Brasil (U2, desenho aprovado em 08/10/2026): o topo da descida, com as 27 UFs lado a lado em ordem
+ * alfabética e o mapa por UF. Atrás do portão de aprovados do `/mapa` até a F1d; a aba vem de `?aba=`.
+ */
+export default async function BrasilPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const visitante = await visitanteAtual();
+  if (!visitante || visitante.status !== "aprovado") return null;
+  const sp = await searchParams;
+  const nivel = ehAdministrador(visitante.email) ? 3 : 1;
+  const aba = abaDoBrasil(sp.aba, nivel);
+  const leitura = await lerBrasil();
+  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Brasil" titulo="A página do Brasil está indisponível agora" />;
+  after(() => registrarUso(visitante, "mapa_brasil", { aba, nivel }));
+  return <BrasilConteudo l={leitura} aba={aba} nivel={nivel} />;
+}

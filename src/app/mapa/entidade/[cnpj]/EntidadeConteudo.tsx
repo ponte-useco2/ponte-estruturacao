@@ -17,6 +17,7 @@ import {
   type AbaEntidade,
 } from "@/lib/oportunidades/pagina-entidade";
 import { PODE, destinoConvenio, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { NOME_UF, siglaDaUrl, urlUf } from "@/lib/oportunidades/pagina-uf";
 import {
   ROTULO_CEBAS,
@@ -64,7 +65,9 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <span>Brasil</span>
+        <Link href={urlBrasil()} prefetch={false}>
+          Brasil
+        </Link>
         {e.uf && siglaDaUrl(e.uf) ? (
           <Link href={urlUf(e.uf)} prefetch={false}>
             {NOME_UF[e.uf]}

@@ -8,6 +8,8 @@ import { formatarData } from "@/lib/oportunidades/central";
 import { ROTULO_DECISAO } from "@/lib/oportunidades/fiscal";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import { formatarValor } from "@/lib/oportunidades/indicadores-municipio";
+import malhaPb from "@/lib/oportunidades/malhas/pb-municipios.json";
+import { gruposDeCor, urlBrasil, type AreaMapa, type Malha } from "@/lib/oportunidades/pagina-brasil";
 import { versaoLegivel } from "@/lib/oportunidades/osc";
 import { ROTULO_ESPECIE, especieDe, lenteDe, urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -36,6 +38,7 @@ import { CHAVE_TODOS, ROTULO_ETAPA } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { Carregando } from "../../_componentes/Carregando";
+import { MapaTerritorio } from "../../_componentes/MapaTerritorio";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { Secao } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
 
@@ -52,7 +55,9 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <span>Brasil</span>
+        <Link href={urlBrasil()} prefetch={false}>
+          Brasil
+        </Link>
         <span aria-current="page">{nome}</span>
       </nav>
       <h1 className="pa-titulo">{nome}</h1>
@@ -285,6 +290,23 @@ function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa
   );
 }
 
+/** O mapa dos municípios da PB (a única UF com a malha municipal), cor pela região intermediária do IBGE. */
+function MapaDaUf({ municipios }: { municipios: MunicipioUf[] }) {
+  const intermediarias = [...new Set(municipios.map((m) => m.intermediaria).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const cor = gruposDeCor(intermediarias);
+  const areas = new Map<string, AreaMapa>(
+    municipios.map((m) => [m.ibge, { nome: m.regiao ? `${m.nome} (região imediata de ${m.regiao})` : m.nome, href: urlMunicipio(m.ibge), grupo: cor.get(m.intermediaria ?? "") ?? 0 }]),
+  );
+  return (
+    <MapaTerritorio
+      malha={malhaPb as Malha}
+      areas={areas}
+      legenda={intermediarias.map((r) => ({ grupo: cor.get(r) ?? 0, rotulo: `Região intermediária de ${r}` }))}
+      titulo="Mapa dos 223 municípios da Paraíba, cor pela região intermediária do IBGE"
+    />
+  );
+}
+
 function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: NivelAcesso; ordenarPorSinais: boolean }) {
   if (!l.municipios) return <p className="pa-nota">A lista dos municípios não pôde ser lida agora.</p>;
   // o fiscal e os sinais do painel só existem para a Paraíba
@@ -299,6 +321,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
     : `Os ${n(l.municipios.length)} municípios com instrumento vivo na base, ${ordem}.`;
   return (
     <Secao id="uf-municipios" titulo="Os municípios" nota={nota}>
+      {l.completa && !ordenarPorSinais && <MapaDaUf municipios={l.municipios} />}
       {admin && (
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <span className="pa-nota">Administrador: </span>
@@ -389,10 +412,11 @@ function Estado({ l }: { l: LeituraUfOk }) {
   );
 }
 
-function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
+/** Também é a aba do Brasil (`sigla` "BR", `completa` falso): lá a soma por situação fica só com os vivos. */
+export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   const t = l.territorio;
   if (!t) return <SemSomas />;
-  const situacoes = porSituacao(t, l.sigla);
+  const situacoes = porSituacao(t, l.sigla, !l.completa);
   const orgaos = porChave(t, l.sigla, "orgao");
   const temas = porChave(t, l.sigla, "tema");
   const maiorTema = Math.max(1, ...temas.map((x) => x.valor));
@@ -407,7 +431,11 @@ function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   }
   return (
     <>
-      <Secao id="uf-situacao" titulo="Os instrumentos por situação" nota={l.completa ? "Todos os instrumentos da base, desde 2008." : "Só os vivos (a base não guarda os outros fora da Paraíba)."}>
+      <Secao
+        id="uf-situacao"
+        titulo="Os instrumentos por situação"
+        nota={l.completa ? "Todos os instrumentos da base, desde 2008." : "Só os vivos: fora da Paraíba a base não guarda os encerrados."}
+      >
         <div className="mp-tabela-rolagem">
           <table className="mp-tabela">
             <thead>
@@ -478,7 +506,7 @@ function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         </Secao>
       )}
       {nivel >= 1 && pix.length > 0 && (
-        <Secao id="uf-pix" titulo="Pix (transferências especiais)" nota="Os planos de ação com beneficiário no estado, por ano da emenda.">
+        <Secao id="uf-pix" titulo="Pix (transferências especiais)" nota={`Os planos de ação com beneficiário ${l.sigla === "BR" ? "no país" : "no estado"}, por ano da emenda.`}>
           <div className="mp-tabela-rolagem">
             <table className="mp-tabela">
               <thead>
@@ -506,7 +534,7 @@ function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         </Secao>
       )}
       {nivel >= 1 && fundoPorAno.size > 0 && (
-        <Secao id="uf-fundo" titulo="Fundo a fundo" nota="Os planos de ação do fundo a fundo com entes do estado, por ano.">
+        <Secao id="uf-fundo" titulo="Fundo a fundo" nota={`Os planos de ação do fundo a fundo com entes ${l.sigla === "BR" ? "de todo o país" : "do estado"}, por ano.`}>
           <div className="mp-tabela-rolagem">
             <table className="mp-tabela">
               <thead>

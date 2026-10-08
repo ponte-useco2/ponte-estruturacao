@@ -17,6 +17,7 @@ import {
 import type { OscDoMunicipio } from "@/lib/oportunidades/osc.server";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { urlUf } from "@/lib/oportunidades/pagina-uf";
 import { Carregando } from "../../../_componentes/Carregando";
 
@@ -56,7 +57,9 @@ export function OrganizacoesConteudo({
     <div className="pa-pagina mp-radar mp-mun">
       <div className="pa-pilha mp-radar-cabeca">
         <nav aria-label="Onde você está" className="mp-mun-trilha">
-          <span>Brasil</span>
+          <Link href={urlBrasil()} prefetch={false}>
+            Brasil
+          </Link>
           <Link href={urlUf("PB")} prefetch={false}>
             Paraíba
           </Link>
