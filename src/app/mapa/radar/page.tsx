@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { parametrosRadar } from "@/lib/oportunidades/radar";
+import { parametrosRadar, urlRadar } from "@/lib/oportunidades/radar";
 import { lerRadar } from "@/lib/oportunidades/radar.server";
 import { RadarConteudo, RadarIndisponivel } from "./RadarConteudo";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
@@ -33,7 +33,8 @@ export default async function RadarPage({
   const leitura = await lerRadar(p);
 
   if (leitura.estado !== "ok") {
-    return <RadarIndisponivel estado={leitura.estado} />;
+    // B14b (08/10/2026): o mesmo recorte vira "Tentar de novo".
+    return <RadarIndisponivel estado={leitura.estado} endereco={urlRadar(p, {})} />;
   }
 
   return <RadarConteudo p={p} leitura={leitura} />;

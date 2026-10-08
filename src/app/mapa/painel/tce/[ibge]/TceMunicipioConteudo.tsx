@@ -12,8 +12,10 @@ import { ROTULO_SITUACAO, marcasPix, pct, resumirConciliacao, urlTce, type Situa
 import type { LeituraTceMunicipio } from "@/lib/oportunidades/tce.server";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AVISO_TCE } from "../TceConteudo";
+import { Saidas } from "../../Pecas";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
+import { Termo } from "../../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraTceMunicipio, { estado: "ok" }>;
 
@@ -31,23 +33,30 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
     (a, b) => PRIORIDADE[a.situacao] - PRIORIDADE[b.situacao] || b.ano - a.ano || b.siconv + b.tce_convenio - (a.siconv + a.tce_convenio),
   );
   const resumo = resumirConciliacao(leitura.municipios);
+  // B14b (08/10/2026): os vazios dizem quais anos foram lidos e levam à lista dos municípios.
+  const lidos = leitura.cobertura.filter((c) => c.lido).map((c) => c.ano).sort((a, b) => a - b);
+  const anosLidos = lidos.length === 0 ? "nenhum ano lido" : lidos.length === 1 ? `${lidos[0]}` : `${lidos[0]} a ${lidos.at(-1)}`;
+  const verTodos = [{ rotulo: "Ver todos os municípios no TCE-PB", href: urlTce() }];
 
   return (
     <div className="pa-pagina mp-radar mp-laudo">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">Painel · TCE-PB · IBGE {leitura.ibge}</p>
         <h1 className="pa-titulo">{nome}</h1>
-        <p className="pa-sub">O Pix nas contas do município e os convênios do SICONV conferidos com as despesas prestadas ao TCE-PB.</p>
+        <p className="pa-sub">
+          O <Termo slug="pix">Pix</Termo> nas contas do município e os convênios do SICONV conferidos com as despesas prestadas ao
+          Tribunal de Contas do Estado (<Termo slug="tce-pb">TCE-PB</Termo>).
+        </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           <LinkMapa href={urlTce()} className="pa-btn pa-btn-pequeno">
-            Todos os municípios
+            Ver todos os municípios
           </LinkMapa>
           <LinkMapa href={urlMunicipio(leitura.ibge, "controle")} className="pa-btn pa-btn-pequeno">
-            Página do município
+            Abrir a página do município
           </LinkMapa>
           <LinkMapa href={urlFicha({ ibge: leitura.ibge })} className="pa-btn pa-btn-pequeno">
-            Ficha do município no painel
+            Abrir a ficha no painel
           </LinkMapa>
         </p>
         <p className="mp-fiscal-aviso">{AVISO_TCE}</p>
@@ -58,7 +67,10 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           O Pix, ano a ano
         </h2>
         {leitura.pix.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhuma despesa paga na fonte do Pix nos arquivos lidos.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhuma despesa de {nome} paga na fonte do Pix (706) nos arquivos do TCE-PB lidos ({anosLidos}).
+            <Saidas saidas={verTodos} />
+          </p>
         ) : (
           <>
             <TabelaRolagem rotuloId="tce-m-pix">
@@ -167,7 +179,10 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           {moedaCurta(resumo.tceSo)} sem par no SICONV.
         </p>
         {pares.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhum pagamento a conciliar.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhum pagamento a empresa para conciliar entre o SICONV e o TCE-PB em {nome} ({anosLidos}).
+            <Saidas saidas={verTodos} />
+          </p>
         ) : (
           <TabelaRolagem rotuloId="tce-m-conc">
             <table className="mp-tabela">
@@ -210,9 +225,9 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           })}
           <li>
             Pix: fonte 706 (transferência especial da União). Convênio federal: fontes 700, 631 e 570. A Câmara e os consórcios ficam fora. O
-            casamento com o SICONV é pelo CNPJ do credor e pelo ano (o mesmo ou o seguinte), em qualquer fonte do TCE.
+            casamento com o SICONV é pelo CNPJ do credor e pelo ano (o mesmo ou o seguinte), em qualquer fonte do TCE-PB.
           </li>
-          <li>Pessoa física não aparece: o TCE publica o CPF do credor, e o painel guarda só o valor somado.</li>
+          <li>Pessoa física não aparece: o TCE-PB publica o CPF do credor, e o painel guarda só o valor somado.</li>
         </ul>
       </section>
     </div>

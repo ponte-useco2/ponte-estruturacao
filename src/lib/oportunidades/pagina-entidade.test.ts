@@ -1,8 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ABAS_ENTIDADE, COLUNAS_CSV_INSTRUMENTOS, abaDaEntidade, areaExcetuadaDe, carteiraPorSituacao, cnpjDaUrl, dinheiroPorOrgao, especieDe, lenteDe, nivelNaEntidade, quemRecebe, urlEntidade } from "./pagina-entidade.ts";
+import {
+  ABAS_ENTIDADE,
+  COLUNAS_CSV_INSTRUMENTOS,
+  RECORTE_BASE_ENTIDADE,
+  abaDaEntidade,
+  areaExcetuadaDe,
+  carteiraPorSituacao,
+  cnpjDaUrl,
+  dinheiroPorOrgao,
+  especieDe,
+  fontesDaEntidade,
+  lenteDe,
+  nivelNaEntidade,
+  podeAbaEntidade,
+  quemRecebe,
+  saidasEntidadeVazia,
+  urlEntidade,
+  urlRelatorioEntidade,
+} from "./pagina-entidade.ts";
 import { paraCsv } from "./painel.ts";
-import type { InstrumentoRelatorio } from "./relatorio-municipio.ts";
+import { montarRelatorio, type InstrumentoRelatorio } from "./relatorio-municipio.ts";
+import { TRANSFEREGOV_CONSULTA } from "./transferegov.ts";
 
 test("CNPJ da URL: com ou sem máscara, alfanumérico aceito; fora do formato, null", () => {
   assert.equal(cnpjDaUrl("09.084.815/0001-70"), "09084815000170");
@@ -130,4 +149,83 @@ test("nível (oport_31): a organização com o CNPJ confirmado é cliente da pr�
   assert.equal(nivelNaEntidade(v, laureano), 2);
   assert.equal(nivelNaEntidade(v, { ...laureano, cnpj: "12671814000137" }), 1);
   assert.equal(nivelNaEntidade({ ...v, cnpjConfirmado: null }, laureano), 1);
+});
+
+test("C1c: o relatório para imprimir segue a aba «Relatório e dados» — mesmo nível mínimo, rota própria", () => {
+  const minimo = ABAS_ENTIDADE.find((a) => a.id === "relatorio")?.minimo;
+  assert.equal(minimo, 1);
+  assert.equal(podeAbaEntidade("relatorio", 0), false, "o público não vê");
+  assert.equal(podeAbaEntidade("relatorio", 1), true, "o cadastrado vê");
+  assert.equal(podeAbaEntidade("relatorio", 3), true);
+  assert.equal(podeAbaEntidade("resumo", 0), true);
+  assert.equal(podeAbaEntidade("relatorio" as never, 0), false);
+  assert.equal(urlRelatorioEntidade("09084815000170"), "/mapa/entidade/09084815000170/relatorio");
+});
+
+test("C1c: entidade sem instrumento nem proposta — o recorte da base e as saídas (nome e Transferegov)", () => {
+  assert.match(RECORTE_BASE_ENTIDADE, /todos os de proponente da Paraíba desde 2008/);
+  assert.match(RECORTE_BASE_ENTIDADE, /fora da Paraíba, só os em execução, em prestação de contas ou em tomada de contas especial/);
+  assert.match(RECORTE_BASE_ENTIDADE, /Propostas: todas as de proponente da Paraíba desde 2019; fora da Paraíba, as dos últimos três anos/);
+  const s = saidasEntidadeVazia({ cnpj: "09282237000187", nome: "ACAO SOCIAL DIOCESANA DE PATOS" });
+  assert.deepEqual(
+    s.map((x) => x.rotulo),
+    ["Procurar «ACAO SOCIAL DIOCESANA DE PATOS» nos convênios", "Procurar «ACAO SOCIAL DIOCESANA DE PATOS» nas propostas", "Abrir a consulta pública do Transferegov"],
+  );
+  assert.equal(s[0].href, "/mapa/busca?q=ACAO+SOCIAL+DIOCESANA+DE+PATOS");
+  assert.equal(s[1].href, "/mapa/busca?aba=propostas&q=ACAO+SOCIAL+DIOCESANA+DE+PATOS");
+  assert.deepEqual(s[2], { rotulo: "Abrir a consulta pública do Transferegov", href: TRANSFEREGOV_CONSULTA, externo: true });
+  assert.ok(s.slice(0, 2).every((x) => !x.externo), "a busca é do Mapa");
+  // sem nome (a base guardou só o CNPJ, com ou sem máscara): só o Transferegov
+  assert.deepEqual(saidasEntidadeVazia({ cnpj: "09282237000187", nome: "09282237000187" }).map((x) => x.href), [TRANSFEREGOV_CONSULTA]);
+  assert.deepEqual(saidasEntidadeVazia({ cnpj: "09282237000187", nome: "09.282.237/0001-87" }).map((x) => x.href), [TRANSFEREGOV_CONSULTA]);
+  assert.deepEqual(saidasEntidadeVazia({ cnpj: "09282237000187", nome: "  " }).map((x) => x.href), [TRANSFEREGOV_CONSULTA]);
+});
+
+test("C1c: fontes da entidade — só as que ela lê; a OSC do Mapa ganha a linha do Ipea", () => {
+  const r = montarRelatorio(
+    {
+      ibge: "2510808",
+      nome: "MUNICIPIO DE PATOS",
+      fiscal: null,
+      serie: null,
+      instrumentos: [],
+      referenciaPainel: "2026-10-07",
+      emendas: [],
+      propostas: [],
+      tcu: null,
+      contasObras: null,
+      pix: [],
+      pixTce: null,
+      fundo: null,
+      conciliacao: null,
+      fornecedores: null,
+      janelas: null,
+      indicadores: null,
+      escopo: "entidade",
+      faltas: [],
+    },
+    "2026-10-08",
+  );
+  const nomes = (xs: { fonte: string }[]) => xs.map((f) => f.fonte.split(" (")[0]);
+  const todas = nomes(r.fontes);
+  assert.ok(todas.includes("Indicadores do município"), "o motor lista as fontes do município (a regra depende dos nomes)");
+  const prefeitura = nomes(fontesDaEntidade(r.fontes, { especie: "prefeitura" }));
+  assert.ok(prefeitura.includes("Painel fiscal") && prefeitura.includes("TCE-PB") && !prefeitura.includes("Indicadores do município"));
+  const fundo = nomes(fontesDaEntidade(r.fontes, { especie: "fundo_municipal" }));
+  assert.ok(fundo.includes("Painel fiscal") && !fundo.includes("TCE-PB"), "o fundo herda o fiscal do município, mas não o TCE-PB");
+  const osc = fontesDaEntidade(r.fontes, { especie: "osc", mapaOsc: { versao: "março de 2026" } });
+  assert.deepEqual(nomes(osc), [
+    "SICONV / Transferegov",
+    "e-TCE do TCU",
+    "Acesso Livre do Transferegov",
+    "API das transferências especiais e do fundo a fundo",
+    "Mapa das Organizações da Sociedade Civil",
+  ]);
+  assert.equal(osc[0].data, "2026-10-07", "a data da base fica");
+  assert.match(osc.at(-1)?.nota ?? "", /versão de março de 2026\. Endereço, dirigentes e contatos não entram\./);
+  assert.equal(fontesDaEntidade(r.fontes, { especie: "osc" }).length, 4, "sem o cadastro, sem a linha do Ipea");
+  // a OSC só do cadastro: o Transferegov (onde não foi achada) e o Mapa das OSC; sem versão, a nota não inventa data
+  const so = fontesDaEntidade(r.fontes, { especie: "osc", mapaOsc: { versao: null }, soCadastro: true });
+  assert.deepEqual(nomes(so), ["SICONV / Transferegov", "Mapa das Organizações da Sociedade Civil"]);
+  assert.equal(so[1].nota, "Cadastro da Receita Federal, área de atuação e CEBAS. Endereço, dirigentes e contatos não entram.");
 });

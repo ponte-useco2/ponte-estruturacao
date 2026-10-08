@@ -49,7 +49,8 @@ test("tabela na ordem dos tipos, sem os zerados, com a coluna da UF", () => {
   const i = r.texto.indexOf("Suspensiva retirada: 12 no Brasil, 1 na PB");
   const j = r.texto.indexOf("Proposta enviada: 820 no Brasil, 0 na PB");
   assert.ok(i > 0 && j > i, r.texto);
-  assert.ok(!r.texto.includes("TCE instaurada"));
+  // O rótulo do tipo zerado (B14b, 08/10/2026: a tomada de contas especial por extenso) não entra na tabela.
+  assert.ok(!r.texto.includes("Tomada de contas especial instaurada"));
   assert.ok(r.texto.includes("comparado com o de 13/09/2026"));
   assert.ok(r.html.includes("https://ponteprojetos.com.br/mapa/painel?visao=mudancas&amp;uf=PB"));
 });

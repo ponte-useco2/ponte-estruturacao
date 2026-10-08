@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { parametrosPainel } from "@/lib/oportunidades/painel";
+import { parametrosPainel, urlPainel } from "@/lib/oportunidades/painel";
 import { lerPainel } from "@/lib/oportunidades/painel.server";
 import { PainelConteudo, PainelIndisponivel } from "./PainelConteudo";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
@@ -33,7 +33,8 @@ export default async function PainelPage({
   const leitura = await lerPainel(p);
 
   if (leitura.estado !== "ok") {
-    return <PainelIndisponivel estado={leitura.estado} />;
+    // B14b (08/10/2026): o mesmo recorte vira "Tentar de novo".
+    return <PainelIndisponivel estado={leitura.estado} endereco={urlPainel(p, {})} />;
   }
 
   return <PainelConteudo p={p} leitura={leitura} />;

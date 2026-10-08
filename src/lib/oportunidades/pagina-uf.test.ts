@@ -4,25 +4,33 @@ import {
   abaDaUf,
   ancoraRegiao,
   etapasComparadas,
+  fontesDaUf,
   funil,
   indicadoresDaUf,
   intermediariasDaUf,
   lentesDaUf,
+  metodoDaUf,
   municipiosPorRegiao,
+  municipiosSomadosPorRegiao,
   naUf,
   orgaosComparados,
+  podeRelatorioUf,
   porChave,
   porSinais,
   porSituacao,
   siglaDaUrl,
+  textoSemMedicoes,
+  textoSemOrgaoEstadual,
   urlRegiao,
+  urlRelatorioUf,
   totalTerritorio,
   urlUf,
+  type LeituraParaFontesUf,
   type LinhaTerritorio,
   type MunicipioUf,
 } from "./pagina-uf.ts";
 import type { ItemCatalogo } from "./indicadores-municipio.ts";
-import type { LinhaDesfecho, LinhaEtapa } from "./painel.ts";
+import { MINIMO_MEDICOES, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
 
 const t = (recorte: string, dimensao: LinhaTerritorio["dimensao"], chave: string, n: number, valor: number, vivo: boolean | null = null, extra: Partial<LinhaTerritorio> = {}): LinhaTerritorio => ({
   recorte, dimensao, chave, vivo, n, em_execucao: 0, valor, desembolsado: 0, municipios: null, proponentes: null, ...extra,
@@ -149,4 +157,80 @@ test("U1: indicadores do estado no ano mais recente, com o Brasil do mesmo ano",
     { indicador: "pib", ano: "2022", recorte: "BR", valor: 10000 },
   ];
   assert.deepEqual(indicadoresDaUf(refs, cat, "PB").map((x) => [x.item.id, x.ano, x.uf, x.br]), [["idhm", "2010", 0.658, 0.727], ["pib", "2023", 96, null]]);
+});
+
+test("C1a: o relatório da UF tem rota própria e o mesmo nível mínimo da aba Relatório e dados", () => {
+  assert.equal(urlRelatorioUf("PB"), "/mapa/uf/pb/relatorio");
+  assert.equal(urlRelatorioUf("sp"), "/mapa/uf/sp/relatorio");
+  assert.equal(podeRelatorioUf(0), false, "o público não abre o relatório (a aba também não aparece para ele)");
+  assert.equal(podeRelatorioUf(1), true);
+  assert.equal(podeRelatorioUf(3), true);
+  assert.equal(abaDaUf("relatorio", 0), "resumo", "a regra é a mesma da aba");
+});
+
+test("C1a: no papel, os municípios somados por região imediata, na ordem da lista e com o total da UF", () => {
+  const m = (nome: string, regiao: string | null, intermediaria: string | null, extra: Partial<MunicipioUf> = {}): MunicipioUf => ({
+    ibge: nome, nome, populacao: 1000, porte: null, regiao, intermediaria, instrumentos: 10, em_execucao: 2, valor_execucao: 500, osc_ativas: 3, ...extra,
+  });
+  const { regioes, total } = municipiosSomadosPorRegiao([
+    m("Sousa", "Sousa", "Sousa - Cajazeiras", { valor_execucao: 9e9 }),
+    m("Patos", "Patos", "Patos", { populacao: 108000 }),
+    m("Água Branca", "Patos", "Patos", { em_execucao: 0, valor_execucao: 0 }),
+    m("Campina Grande", "Campina Grande", "Campina Grande"),
+  ]);
+  assert.deepEqual(
+    regioes.map((r) => [r.regiao, r.intermediaria, r.municipios]),
+    [["Campina Grande", "Campina Grande", 1], ["Patos", "Patos", 2], ["Sousa", "Sousa - Cajazeiras", 1]],
+    "a ordem da legenda do mapa, nunca a do valor (Sousa, com o maior valor, continua por último)",
+  );
+  const patos = regioes.find((r) => r.regiao === "Patos");
+  assert.deepEqual(patos && [patos.populacao, patos.instrumentos, patos.emExecucao, patos.valorExecucao, patos.oscAtivas], [109000, 20, 2, 500, 6]);
+  assert.deepEqual([total.municipios, total.instrumentos, total.emExecucao, total.valorExecucao], [4, 40, 6, 9e9 + 1000]);
+  assert.equal(total.bloqueados, 0, "sem o fiscal na leitura (quem não é administrador), nada a contar");
+  assert.equal(total.sinais, null);
+});
+
+test("C1a: fora da PB não há população nem OSC a somar; o fiscal e os sinais só contam quando a leitura os traz", () => {
+  const m = (nome: string, extra: Partial<MunicipioUf> = {}): MunicipioUf => ({
+    ibge: nome, nome, populacao: null, porte: null, regiao: null, instrumentos: 3, em_execucao: 1, valor_execucao: 100, osc_ativas: null, ...extra,
+  });
+  const fora = municipiosSomadosPorRegiao([m("Natal"), m("Mossoró")]);
+  assert.deepEqual(fora.regioes.map((r) => r.regiao), ["Região não informada"]);
+  assert.deepEqual([fora.total.populacao, fora.total.oscAtivas, fora.total.municipios], [null, null, 2]);
+  const adm = municipiosSomadosPorRegiao([
+    m("A", { decisao_b: "nao_atendido", sinais: 4 }),
+    m("B", { decisao_b: "atendido", sinais: 0 }),
+    m("C", { decisao_b: "nao_atendido", sinais: null }),
+  ]);
+  assert.deepEqual([adm.total.bloqueados, adm.total.sinais], [2, 4]);
+});
+
+test("C1a: estados vazios dizem o recorte da base e o mínimo de medições", () => {
+  assert.match(textoSemOrgaoEstadual("PB"), /desde 2008/);
+  assert.match(textoSemOrgaoEstadual("RN"), /Fora da Paraíba só entram os vivos/);
+  assert.match(textoSemMedicoes("PB"), new RegExp(`${MINIMO_MEDICOES} vezes ou mais na Paraíba`));
+  assert.match(textoSemMedicoes("AL"), /em Alagoas/);
+});
+
+test("C1a: fontes só do que a página leu, com a data do dado, e o método com o mínimo de medições", () => {
+  const base: LeituraParaFontesUf = {
+    sigla: "PB", completa: true, execucao: { dado_ate: "2026-10-07" }, municipios: [{}], pix: [], fundo: null, janelas: 12, indicadores: [{}],
+    osc: { versao: "20260901" },
+  };
+  const pb = fontesDaUf(base);
+  assert.equal(pb[0].data, "2026-10-07", "o Transferegov leva a data do arquivo");
+  assert.deepEqual(pb.map((f) => f.fonte.split(" ")[0]), ["SICONV", "API", "Catálogo", "IBGE:", "Indicadores", "Mapa"]);
+  assert.match(pb.at(-1)?.nota ?? "", /setembro de 2026\. Sem endereço nem dirigentes/);
+  assert.ok(!pb.some((f) => /uso interno/.test(f.nota)), "quem não é administrador não lê a origem das colunas internas");
+  assert.ok(fontesDaUf(base, true).some((f) => /uso interno/.test(f.nota)));
+  const rn = fontesDaUf({ ...base, sigla: "RN", completa: false, municipios: [{}], indicadores: null, osc: null, janelas: null, pix: null });
+  assert.deepEqual(rn.map((f) => f.fonte.split(" ")[0]), ["SICONV"], "fora da PB: sem regiões, indicadores, OSC; Pix e janelas que falharam não entram");
+  assert.match(rn[0].nota, /vivos no Rio Grande do Norte/);
+  assert.match(fontesDaUf({ ...base, osc: { versao: null } }).at(-1)?.nota ?? "", /versão do arquivo não informada/);
+  const metodo = metodoDaUf(true).join(" ");
+  assert.match(metodo, new RegExp(`menos de ${MINIMO_MEDICOES} medições`));
+  assert.match(metodo, /1,5 vez/);
+  assert.match(metodo, /regiões do IBGE/);
+  assert.match(metodoDaUf(false).join(" "), /só os instrumentos vivos/);
+  assert.match(metodoDaUf(true, true).join(" "), /Uso interno/);
 });

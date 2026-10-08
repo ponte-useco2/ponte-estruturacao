@@ -83,8 +83,15 @@ function quantasNaoLidas(i: ItemCarteira): string {
   return n === 1 ? "1 mudança não lida" : `${n} mudanças não lidas`;
 }
 
-function Recomendacoes({ r }: { r: Recomendacao[] }) {
-  if (!r.length) return <p className="mp-cart-mudo">Nada a apontar na última atualização.</p>;
+function Recomendacoes({ r, dadoDe }: { r: Recomendacao[]; dadoDe: string | null }) {
+  // B12b (onda 3 de UX, 08/10/2026): o vazio diz de quando é o dado e que o próximo vem na atualização diária.
+  if (!r.length) {
+    return (
+      <p className="mp-cart-mudo">
+        Nada a apontar na atualização{dadoDe ? ` de ${formatarData(dadoDe)}` : ""}; o item é relido a cada atualização diária.
+      </p>
+    );
+  }
   return (
     <ul className="mp-cart-recs">
       {r.map((x) => (
@@ -217,7 +224,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                     </span>
                   ))}
                 </div>
-                <Recomendacoes r={i.recomendacoes} />
+                <Recomendacoes r={i.recomendacoes} dadoDe={i.dadoDe} />
                 {i.restantes > 0 && (
                   <p className="mp-cart-mudo">
                     {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <LinkMapa href={i.url}>página do município</LinkMapa>.
@@ -252,7 +259,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                     </span>
                   ))}
                 </div>
-                <Recomendacoes r={i.recomendacoes} />
+                <Recomendacoes r={i.recomendacoes} dadoDe={i.dadoDe} />
                 {i.restantes > 0 && (
                   <p className="mp-cart-mudo">
                     {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <LinkMapa href={i.url}>página da entidade</LinkMapa>.

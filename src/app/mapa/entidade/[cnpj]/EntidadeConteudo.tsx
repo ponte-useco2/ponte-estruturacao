@@ -3,17 +3,25 @@
  * carteira e o seu dinheiro. Os blocos são os do relatório do município (RelatorioConteudo), alimentados pelo
  * relatório lido por CNPJ; aqui só se escolhe o que entra em cada aba e o que o nível de acesso alcança.
  * Fiscal e indicadores são do território: ficam na página do município, com link.
+ *
+ * Desde a C1c (08/10/2026) a aba "Relatório e dados" é curta, como a do município: o relatório inteiro mora em
+ * `/mapa/entidade/[cnpj]/relatorio`, a peça única para imprimir, que usa os blocos exportados daqui. Os links internos
+ * passaram a `LinkMapa` (o mesmo `Link` sem pré-carga e com o `Carregando`).
  */
-import Link from "next/link";
+import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import {
   ABAS_ENTIDADE,
+  RECORTE_BASE_ENTIDADE,
   ROTULO_ESPECIE,
   carteiraPorSituacao,
   dinheiroPorOrgao,
   ehMunicipal,
+  fontesDaEntidade,
+  saidasEntidadeVazia,
   urlEntidade,
+  urlRelatorioEntidade,
   type AbaEntidade,
 } from "@/lib/oportunidades/pagina-entidade";
 import { PODE, destinoConvenio, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -32,8 +40,7 @@ import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { InstrumentoRelatorio, PropostaRelatorio, Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import type { IdentidadeEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
-import { trilha } from "@/lib/oportunidades/trilha";
-import { Carregando } from "../../_componentes/Carregando";
+import { lugarDaEntidade, trilha } from "@/lib/oportunidades/trilha";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
@@ -45,13 +52,11 @@ import {
   BlocoFila,
   BlocoFontes,
   BlocoFornecedores,
-  BlocoPassos,
   BlocoPix,
   BlocoPropostas,
   BlocoTcePb,
   Cartoes,
   EmOrdem,
-  ListaAchados,
   Secao,
 } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
@@ -61,24 +66,32 @@ type Destino = (nr: string) => string;
 
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
 const n = (x: number) => x.toLocaleString("pt-BR");
-const ehPb = (ibge: string | null) => !!ibge && /^25\d{5}$/.test(ibge);
+export const ehPb = (ibge: string | null) => !!ibge && /^25\d{5}$/.test(ibge);
 
-function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio; nivel: NivelAcesso; seguindo: boolean }) {
+/** O município como a tela mostra: o SICONV grava em caixa alta ("JOÃO PESSOA"); na tela, "João Pessoa". */
+export function entidadeLegivel(e: IdentidadeEntidade): IdentidadeEntidade {
+  return { ...e, municipio: e.municipio ? tituloOrgao(e.municipio) : null };
+}
+
+/**
+ * As fontes que a entidade lê, com a do Mapa das OSC quando ela está lá (C1c): para a aba e para o relatório. A OSC só
+ * do cadastro (`soCadastro`) fica com o Transferegov e o Mapa das OSC.
+ */
+export function comFontesDaEntidade(r: Relatorio, e: IdentidadeEntidade, osc: LeituraCadastroOsc, soCadastro = false): Relatorio {
+  const mapaOsc = osc.estado === "ok" ? { versao: osc.fonte.versao ? versaoLegivel(osc.fonte.versao) : null } : null;
+  return { ...r, fontes: fontesDaEntidade(r.fontes, { especie: e.especie, mapaOsc, soCadastro }) };
+}
+
+function Cabeca({ e, r, nivel, seguindo, soCadastro }: { e: IdentidadeEntidade; r: Relatorio; nivel: NivelAcesso; seguindo: boolean; soCadastro: boolean }) {
   const municipal = ehMunicipal(e.especie);
   return (
     <div className="pa-pilha mp-radar-cabeca">
       {/*
-        B11: a trilha da entidade passa pela região imediata, como a do município, quando a leitura traz a região. Hoje
-        o `lerRelatorioEntidade` não lê o `mun_grupo`, então o elo não aparece (nunca se inventa elo sem dado). O
-        município leva à página dele na PB e aos investimentos fora da PB; sem UF no dado, o elo da UF some.
+        B11 e C1c: a trilha da entidade passa pela região imediata, como a do município. A leitura não traz a região:
+        `lugarDaEntidade` a tira da lista fixa dos 223 (`municipios-pb.ts`), pelo IBGE da sede, só na PB (nunca se
+        inventa elo). O município leva à página dele na PB e aos investimentos fora da PB; sem UF no dado, o elo some.
       */}
-      <Trilha
-        elos={trilha({
-          uf: e.uf,
-          municipio: e.municipio || e.cod_ibge ? { ibge: e.cod_ibge, nome: e.municipio } : null,
-          entidade: { cnpj: e.cnpj, nome: e.nome },
-        })}
-      />
+      <Trilha elos={trilha(lugarDaEntidade(e))} />
       <h1 className="pa-titulo">{e.nome}</h1>
       <p className="pa-sub mp-mun-chips">
         <span>CNPJ {cnpjLegivel(e.cnpj)}</span>
@@ -93,7 +106,14 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <EstrelaSeguir tipo="entidade" chave={e.cnpj} nome={`a entidade ${e.nome}`} seguindo={seguindo} />
-        <BotaoImprimir />
+        {/* C1c: a OSC só do cadastro não tem abas, nem a do relatório; a porta da peça para imprimir fica aqui. */}
+        {soCadastro ? (
+          <LinkMapa href={urlRelatorioEntidade(e.cnpj)} className="pa-btn">
+            Abrir o relatório para imprimir
+          </LinkMapa>
+        ) : (
+          <BotaoImprimir />
+        )}
         {ehPb(e.cod_ibge) && (
           <LinkMapa href={urlMunicipio(e.cod_ibge as string)} className="pa-btn pa-btn-pequeno">
             Abrir a página do município
@@ -115,17 +135,21 @@ function Abas({ cnpj, aba, nivel, soCadastro }: { cnpj: string; aba: AbaEntidade
   return (
     <nav aria-label="Partes da entidade" className="mp-mun-abas mp-nao-imprimir">
       {ABAS_ENTIDADE.filter((a) => nivel >= a.minimo).map((a) => (
-        <Link key={a.id} href={urlEntidade(cnpj, a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false} prefetch={false}>
+        <LinkMapa key={a.id} href={urlEntidade(cnpj, a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false}>
           {a.nome}
-          <Carregando />
-        </Link>
+        </LinkMapa>
       ))}
     </nav>
   );
 }
 
+/** Se o `AvisoFiscal` tem o que dizer para esta entidade (o relatório para imprimir só abre a seção quando tem). */
+export function temAvisoFiscal(e: IdentidadeEntidade): boolean {
+  return ehMunicipal(e.especie) || e.especie === "osc" || e.tipoAgente === "estado" || e.especie === "empresa";
+}
+
 /** O que a fila desta entidade não traz, e onde está: fiscal do município, certidões da OSC, CAUC dos estados. */
-function AvisoFiscal({ e }: { e: IdentidadeEntidade }) {
+export function AvisoFiscal({ e }: { e: IdentidadeEntidade }) {
   if (ehMunicipal(e.especie)) {
     return (
       <p className="pa-nota">
@@ -135,10 +159,7 @@ function AvisoFiscal({ e }: { e: IdentidadeEntidade }) {
           <>
             {" "}
             O detalhe está em{" "}
-            <Link href={urlMunicipio(e.cod_ibge as string, "contas")} prefetch={false}>
-              Contas públicas do município
-              <Carregando />
-            </Link>
+            <LinkMapa href={urlMunicipio(e.cod_ibge as string, "contas")}>Contas públicas do município</LinkMapa>
             .
           </>
         )}
@@ -164,7 +185,7 @@ function AvisoFiscal({ e }: { e: IdentidadeEntidade }) {
   return null;
 }
 
-function Sobre({ e, instrumentos, propostas }: { e: IdentidadeEntidade; instrumentos: InstrumentoRelatorio[]; propostas: PropostaRelatorio[] }) {
+export function Sobre({ e, instrumentos, propostas }: { e: IdentidadeEntidade; instrumentos: InstrumentoRelatorio[]; propostas: PropostaRelatorio[] }) {
   return (
     <Secao id="ent-sobre" titulo="Quem é">
       <dl className="mp-ent-sobre">
@@ -187,10 +208,8 @@ function Sobre({ e, instrumentos, propostas }: { e: IdentidadeEntidade; instrume
           )}
         </dd>
       </dl>
-      <p className="pa-nota">
-        Instrumentos do Transferegov: todos os de proponente da Paraíba desde 2008; fora da Paraíba, só os em execução ou em prestação de contas.
-        Propostas: só as de proponente da Paraíba desde 2019.
-      </p>
+      {/* Sem nada na base, o `EntidadeVazia` logo acima já diz o recorte (C1c). */}
+      {(instrumentos.length > 0 || propostas.length > 0) && <p className="pa-nota">{RECORTE_BASE_ENTIDADE}</p>}
     </Secao>
   );
 }
@@ -202,7 +221,7 @@ const cnae = (c: string | null) => (c && /^\d{5}$/.test(c) ? `${c.slice(0, 4)}-$
  * O cadastro no Mapa das OSC (E3, oport_32): natureza, situação na Receita, fundação, áreas do Ipea e CEBAS. Nada
  * de endereço, dirigentes ou contato (o job não grava). Para a OSC que não está no Mapa, o porquê provável.
  */
-function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: string; especie: string }) {
+export function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: string; especie: string }) {
   if (osc.estado === "indisponivel") return null;
   if (osc.estado === "nao_encontrado") {
     if (especie !== "osc") return null;
@@ -250,10 +269,7 @@ function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: s
             <>
               {" "}
               de{" "}
-              <Link href={urlEntidade(osc.matriz.cnpj)} prefetch={false}>
-                {osc.matriz.nome ?? cnpjLegivel(osc.matriz.cnpj)}
-                <Carregando />
-              </Link>
+              <LinkMapa href={urlEntidade(osc.matriz.cnpj)}>{osc.matriz.nome ?? cnpjLegivel(osc.matriz.cnpj)}</LinkMapa>
             </>
           )}
         </dd>
@@ -305,7 +321,7 @@ function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: s
   );
 }
 
-function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatorio[]; destino: Destino }) {
+export function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatorio[]; destino: Destino }) {
   const grupos = carteiraPorSituacao(instrumentos);
   if (!grupos.length) return null;
   return (
@@ -332,10 +348,7 @@ function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatori
                 {g.itens.map((i) => (
                   <tr key={i.nr_convenio}>
                     <td>
-                      <Link href={destino(i.nr_convenio)} prefetch={false}>
-                        {i.nr_convenio}
-                        <Carregando />
-                      </Link>
+                      <LinkMapa href={destino(i.nr_convenio)}>{i.nr_convenio}</LinkMapa>
                     </td>
                     <td data-rotulo="Órgão">{i.orgao_sup ? tituloOrgao(i.orgao_sup) : "—"}</td>
                     <td data-rotulo="Objeto">{i.objeto ?? "—"}</td>
@@ -354,43 +367,97 @@ function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatori
   );
 }
 
-function ListaPropostas({ propostas }: { propostas: PropostaRelatorio[] }) {
+/**
+ * A lista das propostas. Na página, recolhida; no relatório para imprimir (`aberta`, C1c), a tabela vem direto: no
+ * papel o resumo «Ver a lista das propostas» sairia como título, e ele é um convite ao clique, não um nome.
+ */
+export function ListaPropostas({ propostas, aberta = false }: { propostas: PropostaRelatorio[]; aberta?: boolean }) {
   if (!propostas.length) return null;
   const xs = [...propostas].sort((a, b) => (b.ano_envio ?? 0) - (a.ano_envio ?? 0));
+  const tabela = (
+    <TabelaRolagem rotulo={`As propostas (${n(propostas.length)})`}>
+      <table className="mp-tabela mp-tabela-empilha">
+        <thead>
+          <tr>
+            <th scope="col">Ano</th>
+            <th scope="col">Programa</th>
+            <th scope="col">Órgão</th>
+            <th scope="col">Repasse</th>
+            <th scope="col">Desfecho</th>
+          </tr>
+        </thead>
+        <tbody>
+          {xs.map((p) => (
+            <tr key={p.id_proposta}>
+              <td>{p.ano_envio ?? "—"}</td>
+              <td data-rotulo="Programa">{p.programa ?? "—"}</td>
+              <td data-rotulo="Órgão">{p.orgao_sup ? tituloOrgao(p.orgao_sup) : "—"}</td>
+              <td data-rotulo="Repasse" className="mp-rel-num">{moedaCurta(p.valor_repasse ?? 0)}</td>
+              <td data-rotulo="Desfecho">{p.desfecho ? (ROTULO_DESFECHO[p.desfecho as keyof typeof ROTULO_DESFECHO] ?? p.desfecho) : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TabelaRolagem>
+  );
   return (
-    <Secao id="ent-propostas-lista" titulo={`As propostas (${n(propostas.length)})`} nota="Enviadas desde 2019 (só proponentes da Paraíba), da mais recente para a mais antiga.">
-      <details className="mp-ent-grupo">
-        <summary>Ver a lista das propostas</summary>
-        <TabelaRolagem rotulo={`As propostas (${n(propostas.length)})`}>
-          <table className="mp-tabela mp-tabela-empilha">
-            <thead>
-              <tr>
-                <th scope="col">Ano</th>
-                <th scope="col">Programa</th>
-                <th scope="col">Órgão</th>
-                <th scope="col">Repasse</th>
-                <th scope="col">Desfecho</th>
-              </tr>
-            </thead>
-            <tbody>
-              {xs.map((p) => (
-                <tr key={p.id_proposta}>
-                  <td>{p.ano_envio ?? "—"}</td>
-                  <td data-rotulo="Programa">{p.programa ?? "—"}</td>
-                  <td data-rotulo="Órgão">{p.orgao_sup ? tituloOrgao(p.orgao_sup) : "—"}</td>
-                  <td data-rotulo="Repasse" className="mp-rel-num">{moedaCurta(p.valor_repasse ?? 0)}</td>
-                  <td data-rotulo="Desfecho">{p.desfecho ? (ROTULO_DESFECHO[p.desfecho as keyof typeof ROTULO_DESFECHO] ?? p.desfecho) : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
-      </details>
+    <Secao id="ent-propostas-lista" titulo={`As propostas (${n(propostas.length)})`} nota="Enviadas desde 2019 (fora da Paraíba, só as recentes e as que ainda se movem), da mais recente para a mais antiga.">
+      {aberta ? (
+        tabela
+      ) : (
+        <details className="mp-ent-grupo">
+          <summary>Ver a lista das propostas</summary>
+          {tabela}
+        </details>
+      )}
     </Secao>
   );
 }
 
-function PorOrgao({ instrumentos }: { instrumentos: InstrumentoRelatorio[] }) {
+/**
+ * O CNPJ sem instrumento nem proposta na base (C1c; B12, seção 5). Dizia só "Nenhum instrumento nem proposta deste
+ * CNPJ na base."; agora diz o recorte da base e o que tentar: o nome na busca (o convênio pode estar noutro CNPJ da
+ * mesma organização) e o Transferegov, que é a fonte. `cadastro`: a OSC só do Mapa das OSC (E3), cuja página é o
+ * cadastro. As saídas não vão para o papel.
+ */
+export function EntidadeVazia({ e, cadastro = false }: { e: Pick<IdentidadeEntidade, "cnpj" | "nome">; cadastro?: boolean }) {
+  const saidas = saidasEntidadeVazia(e);
+  return (
+    <div className="pa-cartao pa-cartao-plano">
+      <p>
+        <strong>Nenhum instrumento nem proposta deste CNPJ na base do Mapa.</strong> {RECORTE_BASE_ENTIDADE}
+      </p>
+      {cadastro && (
+        <p>
+          A página mostra o cadastro do Mapa das OSC; quem segue a entidade recebe aviso quando aparecer a primeira proposta ou o primeiro
+          instrumento.
+        </p>
+      )}
+      <div className="mp-nao-imprimir">
+        <p>
+          O que tentar (o convênio pode estar noutro CNPJ da mesma organização, como a matriz, uma filial ou um CNPJ antigo; fora do recorte, a
+          fonte é o próprio Transferegov):
+        </p>
+        <ul>
+          {saidas.map((s) => (
+            <li key={s.href}>
+              {s.externo ? (
+                <a href={s.href} rel="noreferrer" target="_blank">
+                  {s.rotulo}
+                  <span className="pa-sr"> (abre em nova aba)</span>
+                </a>
+              ) : (
+                <LinkMapa href={s.href}>{s.rotulo}</LinkMapa>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export function PorOrgao({ instrumentos }: { instrumentos: InstrumentoRelatorio[] }) {
   const xs = dinheiroPorOrgao(instrumentos);
   if (!xs.length) return null;
   return (
@@ -421,7 +488,7 @@ function PorOrgao({ instrumentos }: { instrumentos: InstrumentoRelatorio[] }) {
   );
 }
 
-function Mais({ children }: { children: React.ReactNode }) {
+function Mais({ children }: { children: ReactNode }) {
   return <p className="mp-nao-imprimir mp-laudo-acoes">{children}</p>;
 }
 
@@ -446,14 +513,13 @@ export function EntidadeConteudo({
   seguindo?: boolean;
 }) {
   const soCadastro = !instrumentos.length && !propostas.length;
-  // o SICONV grava o município em caixa alta ("JOÃO PESSOA"); na tela, "João Pessoa"
-  const e = { ...entidade, municipio: entidade.municipio ? tituloOrgao(entidade.municipio) : null };
+  const e = entidadeLegivel(entidade);
   const destino = destinoConvenio(nivel);
   const nomeAba = ABAS_ENTIDADE.find((a) => a.id === aba)?.nome ?? "";
   const csv = `/mapa/entidade/${e.cnpj}/csv`;
   return (
     <div className="pa-pagina mp-radar mp-laudo mp-rel mp-mun">
-      <Cabeca e={e} r={r} nivel={nivel} seguindo={seguindo} />
+      <Cabeca e={e} r={r} nivel={nivel} seguindo={seguindo} soCadastro={soCadastro} />
       <Abas cnpj={e.cnpj} aba={aba} nivel={nivel} soCadastro={soCadastro} />
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
 
@@ -467,10 +533,7 @@ export function EntidadeConteudo({
       {aba === "resumo" && (
         <>
           {soCadastro ? (
-            <p className="pa-cartao pa-cartao-plano">
-              Esta organização não tem proposta (desde 2019) nem instrumento federal na base do Transferegov. A página mostra o cadastro do Mapa
-              das OSC; quem segue a entidade recebe aviso quando aparecer a primeira proposta ou o primeiro instrumento.
-            </p>
+            <EntidadeVazia e={e} cadastro />
           ) : (
             <Secao id="ent-resumo" titulo="Em números">
               <Cartoes r={r} />
@@ -488,7 +551,7 @@ export function EntidadeConteudo({
           <Carteira instrumentos={instrumentos} destino={destino} />
           {nivel >= 1 && <BlocoPropostas r={r} destino={destino} />}
           <ListaPropostas propostas={propostas} />
-          {!instrumentos.length && !propostas.length && <p>Nenhum instrumento nem proposta deste CNPJ na base.</p>}
+          {soCadastro && <EntidadeVazia e={e} />}
         </>
       )}
 
@@ -508,11 +571,18 @@ export function EntidadeConteudo({
 
       {aba === "controle" && <BlocoControle r={r} destino={destino} />}
 
+      {/*
+        C1c (08/10/2026; B11, 9.5): a aba fica curta, como a do município. Antes ela repetia a página inteira dentro da
+        aba; agora o relatório completo mora em `/relatorio` (a peça única para imprimir, com trilha, fontes e
+        assinatura), e aqui ficam a porta, os CSVs e as fontes que a entidade lê.
+      */}
       {aba === "relatorio" && (
         <>
-          <Secao id="ent-relatorio" titulo="Relatório e dados" nota="A página inteira numa peça só, com a fonte de cada número, para imprimir ou anexar.">
+          <Secao id="ent-relatorio" titulo="O relatório completo" nota="Todas as abas numa peça só, com a fonte de cada número, para imprimir ou anexar.">
             <Mais>
-              <BotaoImprimir />
+              <LinkMapa href={urlRelatorioEntidade(e.cnpj)} className="pa-btn">
+                Abrir o relatório para imprimir
+              </LinkMapa>
               <a href={csv} className="pa-btn pa-btn-pequeno">
                 Baixar os instrumentos (CSV)
               </a>
@@ -521,20 +591,7 @@ export function EntidadeConteudo({
               </a>
             </Mais>
           </Secao>
-          <Secao id="ent-pagina" titulo="Em uma página">
-            <Cartoes r={r} />
-            <ListaAchados achados={r.destaques} destino={destino} fila="com_classe" hoje={r.hoje} />
-            <EmOrdem r={r} />
-          </Secao>
-          <BlocoPassos r={r} />
-          <BlocoConvenios r={r} destino={destino} />
-          <BlocoControle r={r} destino={destino} />
-          <BlocoPropostas r={r} destino={destino} />
-          <BlocoEmendas r={r} />
-          <BlocoPix r={r} destino={destino} />
-          <BlocoTcePb r={r} />
-          <BlocoFornecedores r={r} destino={destino} />
-          <BlocoFontes r={r} />
+          <BlocoFontes r={comFontesDaEntidade(r, e, osc)} />
         </>
       )}
     </div>

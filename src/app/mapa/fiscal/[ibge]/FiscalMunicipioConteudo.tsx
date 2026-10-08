@@ -30,6 +30,7 @@ import { Tag } from "../../../_design/primitivos";
 import { EstadoDecisao } from "../FiscalConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { Termo } from "../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraMunicipioFiscal, { estado: "ok" }>;
 
@@ -65,7 +66,8 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
     <div className="pa-pagina mp-radar mp-painel mp-fiscal">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <LinkMapa href="/mapa/fiscal">Capacidade fiscal · Paraíba</LinkMapa> · município em análise
+          {/* B14b (08/10/2026): "município em análise" sugeria processo contra o município (como o RP-1 da B14). */}
+          <LinkMapa href="/mapa/fiscal">Capacidade fiscal · Paraíba</LinkMapa> · município
         </p>
         <h1 className="pa-titulo">{m.nome}/PB</h1>
         <p className="pa-sub">
@@ -77,10 +79,10 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
             Simular um projeto →
           </LinkMapa>
           <LinkMapa href={urlMunicipio(m.ibge)} className="pa-chip">
-            Página do município →
+            Abrir a página do município →
           </LinkMapa>
           <LinkMapa href={urlFicha({ ibge: m.ibge })} className="pa-chip">
-            Ficha no painel de execução →
+            Abrir a ficha no painel de execução →
           </LinkMapa>
         </p>
         <p className="mp-fiscal-aviso">{AVISO_FIXO}</p>
@@ -88,7 +90,7 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
 
       <section aria-labelledby="fiscal-decisoes" className="mp-radar-secao">
         <h2 id="fiscal-decisoes" className="mp-radar-h2">
-          Decisões
+          <Termo slug="decisoes-fiscais">Decisões</Termo>
         </h2>
         <div className="pa-grade pa-grade-3 mp-painel-cartoes">
           {DECISOES.map((d) => {
@@ -109,7 +111,7 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
                     <Lista rotulo="Depende de documento" codigos={c.documentais} />
                   </>
                 ) : (
-                  <p className="pa-nota">Sem conclusão gravada.</p>
+                  <p className="pa-nota">Sem conclusão gravada para esta decisão na última leitura.</p>
                 )}
               </article>
             );
@@ -121,13 +123,20 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
         <h2 id="fiscal-verificacoes" className="mp-radar-h2">
           Verificações
         </h2>
-        <ul className="pa-pilha mp-fiscal-verificacoes">
-          {automaticas.map((v) => (
-            <li key={v.codigo}>
-              <Verificacao v={v} historico={historicoPor.get(v.codigo) ?? []} fontesUf={leitura.fontesUf} />
-            </li>
-          ))}
-        </ul>
+        {/* B14b (08/10/2026): a lista vazia sumia sem dizer nada. */}
+        {automaticas.length === 0 ? (
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhuma verificação automática gravada para {m.nome} na leitura de {formatarPublicacao(leitura.execucao.concluida_em)}.
+          </p>
+        ) : (
+          <ul className="pa-pilha mp-fiscal-verificacoes">
+            {automaticas.map((v) => (
+              <li key={v.codigo}>
+                <Verificacao v={v} historico={historicoPor.get(v.codigo) ?? []} fontesUf={leitura.fontesUf} />
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {documentais.length > 0 && (
@@ -169,6 +178,7 @@ function Fonte({ f }: { f: FonteEvidencia }) {
             <li key={`${u}-${i}`}>
               <a href={u} target="_blank" rel="noopener noreferrer" className="mp-fiscal-url">
                 {u}
+                <span className="pa-sr"> (abre em nova aba)</span>
               </a>{" "}
               <span className="pa-mono" title={f.sha256?.[i]}>
                 sha256 {hashCurto(f.sha256?.[i])}
@@ -206,7 +216,7 @@ function Verificacao({
       </div>
       <p>{v.resumo}</p>
       <details className="mp-fiscal-detalhe">
-        <summary>Evidência, base legal e histórico</summary>
+        <summary>Ver a evidência, a base legal e o histórico</summary>
         {linhas.length > 0 && (
           <dl className="mp-fiscal-evidencia">
             {linhas.map((l) => (

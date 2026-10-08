@@ -27,13 +27,16 @@ import type { LeituraLaudoPlanoPix } from "@/lib/oportunidades/pix-laudo.server"
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { PixNoTce } from "../../PixNoTce";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { Termo } from "../../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraLaudoPlanoPix, { estado: "ok" }>;
 
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—");
 
+// B14b (08/10/2026): o TCE-PB por extenso na primeira vez da página (H06), como nas telas de cliente.
 export const AVISO_PIX =
-  "Leitura automática dos dados abertos do Transferegov (API das transferências especiais) e das despesas prestadas ao TCE-PB. " +
+  "Leitura automática dos dados abertos do Transferegov (API das transferências especiais) e das despesas prestadas ao Tribunal de " +
+  "Contas do Estado (TCE-PB). " +
   "\"A conferir\" é ponto para olhar, não irregularidade: o documento pode existir fora da API. Não substitui o plano de trabalho, o " +
   "relatório de gestão nem orientação jurídica.";
 
@@ -49,7 +52,7 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
     <div className="pa-pagina mp-radar mp-laudo">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          Laudo do Pix · plano de ação {p.codigo_plano_acao ?? p.id_plano_acao} · {p.ano}
+          Laudo do <Termo slug="pix">Pix</Termo> · plano de ação {p.codigo_plano_acao ?? p.id_plano_acao} · {p.ano}
         </p>
         <h1 className="pa-titulo">{p.beneficiario ?? "Beneficiário não informado"}</h1>
         {p.objeto && <p className="pa-sub">{p.objeto}</p>}
@@ -63,12 +66,12 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
           <BotaoImprimir />
           {chaveEnte && (
             <LinkMapa href={urlEntePix(chaveEnte)} className="pa-btn pa-btn-pequeno">
-              Todos os planos do ente
+              Ver todos os planos do ente
             </LinkMapa>
           )}
           {!cliente && (
             <LinkMapa href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
-              Painel do Pix
+              Abrir o painel do Pix
             </LinkMapa>
           )}
         </p>
@@ -187,7 +190,7 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
         </h2>
         <ul className="mp-laudo-causas mp-laudo-miudo">
           <li>
-            API pública das transferências especiais do Transferegov, retrato de {data(execucao.dado_ate)}; extrato, executores e documentos de
+            API pública das transferências especiais do Transferegov, leitura de {data(execucao.dado_ate)}; extrato, executores e documentos de
             liquidação lidos plano a plano para a PB.
           </li>
           <li>

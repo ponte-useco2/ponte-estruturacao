@@ -23,10 +23,17 @@ export default async function ContasPage() {
   const [leitura, coletas] = await Promise.all([lerPainelContas(), lerPainelDasColetas()]);
   const temColeta = !!coletas && (coletas.impugnacoes !== null || coletas.obras !== null);
   if (leitura.estado !== "ok" && !temColeta) {
+    // B14b (08/10/2026): a tomada de contas especial por extenso (H06), "Tentar de novo" e a volta ao painel (props da B12).
     return (
       <DadoIndisponivel
-        kicker="Painel · TCE no TCU"
-        titulo={leitura.estado === "sem_execucao" || leitura.estado === "nao_ativado" ? "O e-TCE do TCU ainda não foi consultado" : "A lista de TCE está indisponível agora"}
+        kicker="Painel · Tomadas de contas especiais (TCU)"
+        titulo={
+          leitura.estado === "sem_execucao" || leitura.estado === "nao_ativado"
+            ? "O sistema e-TCE do TCU ainda não foi consultado"
+            : "A lista de tomadas de contas especiais está indisponível agora"
+        }
+        endereco="/mapa/painel/contas"
+        voltarPara={{ rotulo: "Voltar ao painel de execução", href: "/mapa/painel" }}
       />
     );
   }

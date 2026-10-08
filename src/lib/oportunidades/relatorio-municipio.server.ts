@@ -205,10 +205,12 @@ async function lerJanelas(nome: string, hoje: string, faltas: string[]): Promise
 }
 
 /** Tudo o que o relatório de um município cruza. */
+// Só se guarda a leitura inteira: com uma fonte em `faltas`, o "Tentar de novo" da página tem de reler na hora, e não
+// devolver a mesma falta por 10 minutos (achado da B12b, 08/10/2026).
 const memoria = criarMemoria<LeituraRelatorio>({
   validadeMs: 10 * 60 * 1000,
   maximo: 30,
-  guardar: (l) => l.estado === "ok" || l.estado === "nao_encontrado",
+  guardar: (l) => (l.estado === "ok" && l.relatorio.faltas.length === 0) || l.estado === "nao_encontrado",
 });
 
 /** O relatório do município, da memória quando há (ver o cabeçalho). Não altere o objeto devolvido. */
@@ -393,10 +395,11 @@ async function lerInidoneosDosConvenios(db: Banco, execucaoId: number, numeros: 
   };
 }
 
+// Como a do município: leitura com fonte faltando não fica guardada (B12b, 08/10/2026).
 const memoriaEntidade = criarMemoria<LeituraEntidade>({
   validadeMs: 10 * 60 * 1000,
   maximo: 30,
-  guardar: (l) => l.estado === "ok" || l.estado === "nao_encontrado",
+  guardar: (l) => (l.estado === "ok" && l.relatorio.faltas.length === 0) || l.estado === "nao_encontrado",
 });
 
 /** O relatório de uma entidade (um CNPJ), da memória quando há. Não altere o objeto devolvido. */

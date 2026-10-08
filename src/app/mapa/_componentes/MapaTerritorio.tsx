@@ -126,9 +126,13 @@ export function MapaTerritorio({
           ))}
         </ul>
         <span className="pa-nota">
-          Malha: {malha.fonte}. Toque ou clique numa área para abrir a página dela.
-          {modo === "navegavel" && " Pelo teclado, as áreas vêm em ordem alfabética."}
-          {modo === "decorativo" && <> {alternativa ?? TEXTO_ALTERNATIVA}</>}
+          Malha: {malha.fonte}.
+          {/* No papel não há toque nem teclado: a fonte fica, o resto sai (relatórios da onda 3, 08/10/2026). */}
+          <span className="mp-nao-imprimir">
+            {" "}Toque ou clique numa área para abrir a página dela.
+            {modo === "navegavel" && " Pelo teclado, as áreas vêm em ordem alfabética."}
+            {modo === "decorativo" && <> {alternativa ?? TEXTO_ALTERNATIVA}</>}
+          </span>
         </span>
       </figcaption>
     </figure>

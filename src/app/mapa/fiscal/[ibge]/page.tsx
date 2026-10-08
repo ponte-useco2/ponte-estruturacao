@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { lerFiscalMunicipio } from "@/lib/oportunidades/fiscal.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { FiscalIndisponivel } from "../FiscalConteudo";
@@ -27,12 +28,21 @@ export default async function FiscalMunicipioPage({ params }: { params: Promise<
           <p className="pa-kicker">Capacidade fiscal · IBGE {ibge}</p>
           <h1 className="pa-titulo">Este código não está entre os 223 municípios da Paraíba</h1>
           <p>
-            <LinkMapa href="/mapa/fiscal">Voltar à lista</LinkMapa>
+            <LinkMapa href="/mapa/fiscal">Voltar à lista dos 223 municípios</LinkMapa>
           </p>
         </div>
       </div>
     );
   }
-  if (leitura.estado !== "ok") return <FiscalIndisponivel estado={leitura.estado} />;
+  // B14b (08/10/2026): "Tentar de novo" e a volta à lista fiscal.
+  if (leitura.estado !== "ok") {
+    return (
+      <FiscalIndisponivel
+        estado={leitura.estado}
+        endereco={urlMunicipioFiscal(ibge)}
+        voltarPara={{ rotulo: "Voltar à lista dos 223 municípios", href: "/mapa/fiscal" }}
+      />
+    );
+  }
   return <FiscalMunicipioConteudo leitura={leitura} />;
 }

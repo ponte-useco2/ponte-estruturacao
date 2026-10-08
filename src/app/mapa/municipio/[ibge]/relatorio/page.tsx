@@ -5,7 +5,7 @@ import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
-import { PODE } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, abaEscolhida, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -31,7 +31,18 @@ export default async function RelatorioMunicipioPage({ params }: { params: Promi
   if (!/^25\d{5}$/.test(ibge)) notFound();
   const [leitura, nivel] = await Promise.all([lerRelatorioMunicipio(ibge, diaBrasilia(new Date().toISOString())), nivelNoMunicipio(visitante, ibge)]);
   if (leitura.estado === "nao_encontrado") notFound();
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Relatório do município" titulo="O relatório está indisponível agora" />;
+  if (leitura.estado !== "ok") {
+    // B12b: "Tentar de novo" no próprio relatório; a volta é o município, na aba de onde o relatório se abre (ou na que o
+    // nível de acesso alcança).
+    return (
+      <DadoIndisponivel
+        kicker="Relatório do município"
+        titulo="O relatório está indisponível agora"
+        endereco={`/mapa/municipio/${ibge}/relatorio`}
+        voltarPara={{ rotulo: "Voltar ao município", href: urlMunicipio(ibge, abaEscolhida("relatorio", nivel)) }}
+      />
+    );
+  }
   const seguidas = await lerSeguidas();
   after(() => registrarUso(visitante, "mapa_relatorio_municipio", { ibge, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);

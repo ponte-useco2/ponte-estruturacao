@@ -1258,3 +1258,20 @@ html:has(.pa-root.mp-root) { scroll-padding-top: calc(60px + 2.75rem + 1px + 1re
   .pa-root.mp-root .pa-marca { min-width: 0; flex: 1 1 auto; }
   .pa-root.mp-root .pa-marca-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* Integração da onda 3 (08/10/2026): os relatórios para imprimir (município, UF, Brasil e entidade, todos `.mp-rel`).
+   No A4 sobram ~718 px: a tabela das 27 UFs pedia ~1.600 px, porque o cabeçalho não quebrava e a 1ª coluna guardava
+   os 16rem da tela; o mapa do Brasil (1000 × 1027) saía com ~195 mm de altura e pulava sozinho para a página
+   seguinte, deixando o título órfão (contas da C1b e da C1a). */
+@media print {
+  .pa-root .mp-rel .mp-tabela thead th { white-space: normal; letter-spacing: 0; font-size: 0.6rem; }
+  .pa-root .mp-rel .mp-tabela tbody th { min-width: 0; }
+  .pa-root .mp-rel .mp-tabela :is(th, td) { padding: 0.25rem 0.4rem; }
+  .pa-root .mp-rel .mp-tabela-rolagem { overflow: visible; border: 0; }
+  .pa-root .mp-rel .mp-mapa { max-width: none; break-inside: avoid; }
+  .pa-root .mp-rel .mp-mapa svg { max-height: 115mm; }
+  /* O título e a nota da seção vão junto com o que vem depois: na 1ª prova, o mapa pulou de página e deixou o título
+     "As 27 UFs" (e "Os municípios", na UF) sozinho no pé da anterior. */
+  .pa-root .mp-rel :is(h2, h3), .pa-root .mp-rel :is(h2, h3) + .pa-nota { break-after: avoid; }
+  .pa-root .mp-rel .pa-nota { break-inside: avoid; }
+}

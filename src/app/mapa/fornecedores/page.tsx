@@ -33,6 +33,19 @@ export default async function FornecedoresPage({ searchParams }: { searchParams:
   const filtro = { q, municipio, ordem, marca };
 
   const leitura = await lerPainelFornecedores(filtro);
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Fornecedores · Paraíba" titulo="Os fornecedores estão indisponíveis agora" />;
+  if (leitura.estado !== "ok") {
+    // B14b (08/10/2026): "Tentar de novo" com o mesmo filtro e a volta ao painel (props da B12).
+    const consulta = new URLSearchParams(
+      Object.entries({ q, municipio, ordem: ordem === "valor" ? ordem : null, marca }).filter((e): e is [string, string] => !!e[1]),
+    ).toString();
+    return (
+      <DadoIndisponivel
+        kicker="Fornecedores · Paraíba"
+        titulo="Os fornecedores estão indisponíveis agora"
+        endereco={`/mapa/fornecedores${consulta ? `?${consulta}` : ""}`}
+        voltarPara={{ rotulo: "Voltar ao painel de execução", href: "/mapa/painel" }}
+      />
+    );
+  }
   return <FornecedoresConteudo leitura={leitura} filtro={filtro} />;
 }

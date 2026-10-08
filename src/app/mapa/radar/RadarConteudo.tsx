@@ -27,10 +27,60 @@ import {
   type ParametrosRadar,
 } from "@/lib/oportunidades/radar";
 import type { LeituraRadar, LinhaRecorte } from "@/lib/oportunidades/radar.server";
+import { Saidas, type Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
+import { Termo } from "../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraRadar, { estado: "ok" }>;
+
+/**
+ * O vazio do radar diz o recorte e dá a saída para ampliá-lo (B14b, 08/10/2026). Antes era "Nenhuma janela aberta
+ * neste recorte" ou "Nada no período", sem dizer qual nem como mudar (B12, seção 5). `usa` diz que filtros valem
+ * para a tabela: a disputa não olha o período nem o proponente; a lista da Paraíba não olha a UF.
+ */
+function VazioRadar({
+  p,
+  oQue,
+  usa,
+  semSaidas = false,
+}: {
+  p: ParametrosRadar;
+  oQue: string;
+  usa: { uf?: boolean; dias?: boolean; tipo?: boolean };
+  semSaidas?: boolean;
+}) {
+  const partes: string[] = [];
+  const saidas: Saida[] = [];
+  if (usa.uf) {
+    partes.push(p.uf ?? "Brasil");
+    if (p.uf) saidas.push({ rotulo: "Ver o Brasil inteiro", href: urlRadar(p, { uf: null }) });
+  }
+  if (usa.dias) {
+    partes.push(p.dias === 1 ? "últimas 24 horas" : `últimos ${ROTULO_JANELA[p.dias]}`);
+    if (p.dias < 30) saidas.push({ rotulo: "Ver os últimos 30 dias", href: urlRadar(p, { dias: 30 }) });
+  }
+  if (p.canal) {
+    partes.push(`canal ${ROTULO_CANAL_RADAR[p.canal] ?? p.canal}`);
+    saidas.push({ rotulo: "Tirar o filtro de canal", href: urlRadar(p, { canal: null }) });
+  }
+  if (usa.tipo && p.tipo) {
+    partes.push(`proponente ${rotuloTipo(p.tipo)}`);
+    saidas.push({ rotulo: "Tirar o filtro de proponente", href: urlRadar(p, { tipo: null }) });
+  }
+  return (
+    <p className="pa-cartao pa-cartao-plano">
+      {oQue}
+      {partes.length > 0 && (
+        <>
+          {" "}
+          neste recorte: <strong>{partes.join(" · ")}</strong>
+        </>
+      )}
+      .{!semSaidas && <Saidas saidas={saidas} />}
+    </p>
+  );
+}
 
 const BUSCA_VAZIA: ParametrosBusca = { aba: "instrumentos", q: "", uf: null, municipio: null, tema: null, grupo: null, pagina: 1 };
 
@@ -146,10 +196,23 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
           titulo="Por canal"
           linhas={leitura.porCanal}
           rotulo={(l) => ROTULO_CANAL_RADAR[l.chave ?? ""] ?? l.chave ?? "—"}
-          nota="Emenda vem da tabela de emendas. Voluntária e beneficiário específico são inferidos pela janela do programa aberta no primeiro envio."
+          nota={
+            <>
+              <Termo slug="emenda-parlamentar">Emenda</Termo> vem da tabela de emendas. Voluntária e beneficiário específico são inferidos
+              pela janela do programa aberta no primeiro envio.
+            </>
+          }
           mostrarInferidos
         />
-        <TabelaRecorte p={p} tabela="tipo" titulo="Por tipo de proponente" linhas={leitura.porTipo} rotulo={(l) => rotuloTipo(l.chave ?? "")} />
+        {/* B14b: as três tabelas leem o mesmo recorte; vazias juntas, só a primeira repete as saídas. */}
+        <TabelaRecorte
+          p={p}
+          tabela="tipo"
+          titulo="Por tipo de proponente"
+          linhas={leitura.porTipo}
+          rotulo={(l) => rotuloTipo(l.chave ?? "")}
+          semSaidas={leitura.porCanal.length === 0}
+        />
         <TabelaRecorte
           p={p}
           tabela="programa"
@@ -158,6 +221,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
           rotulo={(l) => l.rotulo ?? l.chave ?? "—"}
           link={(l) => (l.rotulo ? urlPorPrograma(l.rotulo, p.uf) : null)}
           nota="Os 25 com mais propostas no período. O nome do programa abre a busca de propostas."
+          semSaidas={leitura.porCanal.length === 0}
         />
       </section>
 
@@ -167,11 +231,11 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
           Disputa por programa aberto · {onde}
         </h2>
         <p className="pa-nota">
-          Janelas abertas em {execucao.referencia.split("-").reverse().join("/")}, com as propostas novas do mesmo canal
-          {p.uf ? ` e da ${p.uf}` : ""} desde a abertura.{p.uf ? "" : " No Brasil, somadas entre as UFs."}
+          <Termo slug="janela">Janelas abertas</Termo> em {execucao.referencia.split("-").reverse().join("/")}, com as propostas
+          novas do mesmo canal{p.uf ? ` e da ${p.uf}` : ""} desde a abertura.{p.uf ? "" : " No Brasil, somadas entre as UFs."}
         </p>
         {leitura.disputa.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhuma janela aberta neste recorte.</p>
+          <VazioRadar p={p} oQue={`Nenhuma janela aberta em ${execucao.referencia.split("-").reverse().join("/")}`} usa={{ uf: true }} />
         ) : (
           <TabelaRolagem rotuloId="radar-disputa">
             <table className="mp-tabela">
@@ -215,7 +279,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
           Quem movimentou proposta na Paraíba · {ROTULO_JANELA[p.dias]}
         </h2>
         {leitura.enviaramPB.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhuma proposta da Paraíba no período.</p>
+          <VazioRadar p={p} oQue="Nenhuma proposta da Paraíba movimentada" usa={{ dias: true, tipo: true }} />
         ) : (
           <TabelaRolagem rotuloId="radar-pb">
             <table className="mp-tabela">
@@ -284,8 +348,12 @@ function Filtros({ p }: { p: ParametrosRadar }) {
         </select>
         {p.dias !== 30 && <input type="hidden" name="dias" value={p.dias} />}
         {p.categoria !== "nova" && <input type="hidden" name="categoria" value={p.categoria} />}
+        {/* Trocar a UF não pode apagar os outros filtros (achado da B14b, 08/10/2026): os mesmos de `urlRadar`. */}
+        {p.canal && <input type="hidden" name="canal" value={p.canal} />}
+        {p.tipo && <input type="hidden" name="tipo" value={p.tipo} />}
+        {p.ordem && <input type="hidden" name="ordem" value={`${p.ordem.tabela}.${p.ordem.coluna}.${p.ordem.sentido}`} />}
         <button type="submit" className="pa-btn pa-btn-pequeno">
-          Aplicar
+          Aplicar o filtro
         </button>
       </form>
 
@@ -352,6 +420,7 @@ function TabelaRecorte({
   link,
   nota,
   mostrarInferidos = false,
+  semSaidas = false,
 }: {
   p: ParametrosRadar;
   tabela: string;
@@ -359,8 +428,10 @@ function TabelaRecorte({
   linhas: LinhaRecorte[];
   rotulo: (l: LinhaRecorte) => string;
   link?: (l: LinhaRecorte) => string | null;
-  nota?: string;
+  nota?: ReactNode;
   mostrarInferidos?: boolean;
+  /** No vazio, sem os links (a tabela de cima já os deu). */
+  semSaidas?: boolean;
 }) {
   const o = ordemDaTabela(p, tabela);
   const chave = { rotulo: (l: LinhaRecorte) => rotulo(l), atual: (l: LinhaRecorte) => l.atual, anterior: (l: LinhaRecorte) => l.anterior,
@@ -371,7 +442,12 @@ function TabelaRecorte({
       <h3 className="mp-radar-h3">{titulo}</h3>
       {nota && <p className="pa-nota">{nota}</p>}
       {linhas.length === 0 ? (
-        <p className="pa-cartao pa-cartao-plano">Nada no período.</p>
+        <VazioRadar
+          p={p}
+          oQue={`Nenhuma proposta em “${ROTULO_CATEGORIA[p.categoria]}”`}
+          usa={{ uf: true, dias: true, tipo: true }}
+          semSaidas={semSaidas}
+        />
       ) : (
         <TabelaRolagem rotulo={titulo}>
           <table className="mp-tabela">
@@ -454,6 +530,14 @@ function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: Leitur
         {ativos > 0 && <> ({ativos} enviaram)</>}, com <strong>{janelas}</strong> janelas abertas aceitando município na
         Paraíba. Conta só proposta da própria prefeitura; OSC sediada no município não tira o município da lista.
       </p>
+      {/* B14b (08/10/2026): a tabela vazia sumia sem dizer nada. */}
+      {parados.length === 0 && (
+        <p className="pa-cartao pa-cartao-plano">
+          {leitura.municipiosPB.length > 0
+            ? "Todos os municípios da Paraíba enviaram proposta nova nos últimos 30 dias."
+            : "A lista dos municípios da Paraíba não veio na última atualização diária do radar."}
+        </p>
+      )}
       {parados.length > 0 && (
         <TabelaRolagem rotuloId="radar-parados">
           <table className="mp-tabela">
@@ -484,7 +568,11 @@ function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: Leitur
   );
 }
 
-export function RadarIndisponivel({ estado }: { estado: "nao_ativado" | "sem_execucao" | "erro" }) {
+/**
+ * Indisponível do radar, só para administrador: pode falar da migração e do workflow. B14b (08/10/2026): como o
+ * `DadoIndisponivel` da B12, `endereco` vira "Tentar de novo" quando a leitura falhou.
+ */
+export function RadarIndisponivel({ estado, endereco }: { estado: "nao_ativado" | "sem_execucao" | "erro"; endereco?: string }) {
   const texto = {
     nao_ativado: {
       titulo: "O radar ainda não foi ativado no banco",
@@ -506,6 +594,16 @@ export function RadarIndisponivel({ estado }: { estado: "nao_ativado" | "sem_exe
         <p className="pa-kicker">Radar da PONTE · uso interno</p>
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
+        <p className="pa-linha">
+          {estado === "erro" && endereco && (
+            <LinkMapa href={endereco} className="pa-btn pa-btn-pequeno">
+              Tentar de novo
+            </LinkMapa>
+          )}
+          <LinkMapa href="/mapa/painel" className="pa-btn pa-btn-pequeno">
+            Ir ao painel de execução
+          </LinkMapa>
+        </p>
       </div>
     </div>
   );

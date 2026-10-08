@@ -55,7 +55,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           <LinkMapa href="/mapa/fornecedores" className="pa-btn pa-btn-pequeno">
-            Todos os fornecedores
+            Ver todos os fornecedores
           </LinkMapa>
         </p>
         <p className="mp-fiscal-aviso">{AVISO}</p>
@@ -86,7 +86,8 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
             {f.tcu_link && (
               <p className="mp-nao-imprimir">
                 <a href={f.tcu_link} target="_blank" rel="noopener noreferrer">
-                  Processo no TCU
+                  Abrir o processo no TCU
+                  <span className="pa-sr"> (abre em nova aba)</span>
                 </a>
               </p>
             )}
@@ -308,8 +309,8 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
         </h2>
         <ul className="mp-laudo-causas mp-laudo-miudo">
           <li>
-            Pagamentos, contratos e convênios: dados abertos do Transferegov (SICONV), painel de {data(referencia)}. O contrato liga ao convênio pela
-            licitação; “recebeu” é a soma dos pagamentos à empresa.
+            Pagamentos, contratos e convênios: dados abertos do Transferegov (SICONV), atualização de {data(referencia)}. O contrato liga ao
+            convênio pela licitação; “recebeu” é a soma dos pagamentos à empresa.
           </li>
           <li>
             Nome: o mais recente nos pagamentos e contratos da PB, com qualquer CPF da razão social mascarado.
@@ -318,8 +319,8 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
           <li>
             Inidôneos:{" "}
             {f.inidoneo_tcu === null
-              ? "a lista do TCU não foi lida nesta execução; sem marca não quer dizer fora da lista."
-              : "lista de licitantes inidôneos do TCU, lida no dia do painel; o início da sanção é o trânsito em julgado do acórdão."}{" "}
+              ? "a lista do TCU não foi lida nesta atualização; sem marca não quer dizer fora da lista."
+              : "lista de licitantes inidôneos do TCU, lida no dia da atualização; o início da sanção é o trânsito em julgado do acórdão."}{" "}
             CEIS e CNEP, da CGU, ainda não entram.
           </li>
         </ul>
@@ -345,10 +346,12 @@ function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string,
   return (
     <section aria-labelledby="forn-tce" className="mp-radar-secao">
       <h2 id="forn-tce" className="mp-radar-h2">
-        Nas contas dos municípios (TCE-PB)
+        Nas contas dos municípios no Tribunal de Contas do Estado (TCE-PB)
       </h2>
       {tce === null ? (
-        <p className="pa-cartao pa-cartao-plano">As despesas do TCE-PB não puderam ser lidas agora.</p>
+        <p className="pa-cartao pa-cartao-plano">
+          As despesas do TCE-PB não puderam ser lidas agora. Costuma ser passageiro: recarregue a página em alguns minutos.
+        </p>
       ) : linhas.length === 0 ? (
         <p className="pa-cartao pa-cartao-plano">
           O TCE-PB não registra pagamento a esta empresa com dinheiro federal (convênio ou Pix) nos arquivos lidos, desde 2024.
@@ -388,8 +391,8 @@ function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string,
         </TabelaRolagem>
       )}
       <p className="pa-nota">
-        Despesas abertas do TCE-PB desde 2024: fontes 700, 631 e 570 (convênios da União) e 706 (Pix). O TCE não traz o número do convênio; o
-        casamento com o SICONV é pelo CNPJ e pelo ano, e o que não casa é para conferir.
+        Despesas abertas do TCE-PB desde 2024: fontes 700, 631 e 570 (convênios da União) e 706 (Pix). O TCE-PB não traz o número do
+        convênio; o casamento com o SICONV é pelo CNPJ e pelo ano, e o que não casa é para conferir.
       </p>
     </section>
   );

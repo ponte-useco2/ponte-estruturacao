@@ -13,8 +13,20 @@
 import { GRUPOS_SITUACAO } from "./busca.ts";
 import type { ItemCatalogo } from "./indicadores-municipio.ts";
 import { especieDe, lenteDe, type LenteEntidade } from "./pagina-entidade.ts";
+import { versaoLegivel } from "./osc.ts";
 import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
-import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, maisLento, medianaComparavel, type ColunaCsv, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
+import {
+  CHAVE_TODOS,
+  ETAPAS_CAMINHO,
+  FATOR_LENTO,
+  MINIMO_MEDICOES,
+  ROTULO_ETAPA,
+  maisLento,
+  medianaComparavel,
+  type ColunaCsv,
+  type LinhaDesfecho,
+  type LinhaEtapa,
+} from "./painel.ts";
 
 export const NOME_UF: Record<string, string> = {
   AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia", CE: "Ceará", DF: "Distrito Federal",
@@ -84,6 +96,20 @@ export function ancoraRegiao(regiao: string): string {
 /** A trilha do município (`trilha.ts`) volta à lista dos municípios da UF, na região dele. */
 export function urlRegiao(sigla: string, regiao: string): string {
   return `${urlUf(sigla, "municipios")}#${ancoraRegiao(regiao)}`;
+}
+
+/**
+ * O relatório da UF para imprimir (C1a, onda 3 de UX, 08/10/2026; proposta da B11, 9.5): uma rota própria, como a do
+ * município, e a aba "Relatório e dados" fica curta, com o link, o CSV e as fontes.
+ */
+export function urlRelatorioUf(sigla: string): string {
+  return `/mapa/uf/${sigla.toLowerCase()}/relatorio`;
+}
+
+/** Quem abre o relatório: o mesmo nível mínimo da aba "Relatório e dados" (C1a); a regra mora num lugar só, `ABAS_UF`. */
+export function podeRelatorioUf(nivel: NivelAcesso): boolean {
+  const aba = ABAS_UF.find((a) => a.id === "relatorio");
+  return aba !== undefined && nivel >= aba.minimo;
 }
 
 // ================================================================ as somas do job (painel_territorio, oport_34)
@@ -226,6 +252,58 @@ export function porSinais(ms: MunicipioUf[]): MunicipioUf[] {
   return [...ms].sort((a, b) => (b.sinais ?? -1) - (a.sinais ?? -1) || porNome(a, b));
 }
 
+/** Uma região imediata somada (ou o total da UF), para o relatório em papel. */
+export interface RegiaoSomada {
+  regiao: string;
+  intermediaria: string | null;
+  municipios: number;
+  /** Soma das populações; null quando nenhum município tem o dado (fora da PB). */
+  populacao: number | null;
+  instrumentos: number;
+  emExecucao: number;
+  valorExecucao: number;
+  /** null quando a leitura não traz as OSC (fora da PB, ou a fonte falhou). */
+  oscAtivas: number | null;
+  /**
+   * Só o administrador lê o fiscal e os sinais (`lerUf`): para os outros, os campos não vêm, e aqui saem 0 e null.
+   * `bloqueados`: municípios com a transferência voluntária bloqueada no painel fiscal (decisão B "não atendida").
+   */
+  bloqueados: number;
+  sinais: number | null;
+}
+
+function somarRegiao(regiao: string, intermediaria: string | null, ms: MunicipioUf[]): RegiaoSomada {
+  const soma = (f: (m: MunicipioUf) => number | null | undefined): number | null => {
+    const xs = ms.map(f).filter((x): x is number => typeof x === "number" && Number.isFinite(x));
+    return xs.length ? xs.reduce((a, b) => a + b, 0) : null;
+  };
+  return {
+    regiao,
+    intermediaria,
+    municipios: ms.length,
+    populacao: soma((m) => m.populacao),
+    instrumentos: soma((m) => m.instrumentos) ?? 0,
+    emExecucao: soma((m) => m.em_execucao) ?? 0,
+    valorExecucao: soma((m) => m.valor_execucao) ?? 0,
+    oscAtivas: soma((m) => m.osc_ativas),
+    bloqueados: ms.filter((m) => m.decisao_b === "nao_atendido").length,
+    sinais: soma((m) => m.sinais),
+  };
+}
+
+/**
+ * Os municípios somados por região imediata, para o papel (C1a, 08/10/2026). Na PB, a lista inteira dos 223 tomaria
+ * umas cinco páginas de A4 a mais e dobraria o relatório; somada, cabe em 15 linhas, na ordem da lista da página (a da
+ * legenda do mapa) e nunca pelo tamanho do número — continua neutra. Município a município, a lista fica no CSV, na
+ * aba "Municípios" e no relatório de cada um. `total` é a UF inteira.
+ */
+export function municipiosSomadosPorRegiao(ms: MunicipioUf[]): { regioes: RegiaoSomada[]; total: RegiaoSomada } {
+  return {
+    regioes: municipiosPorRegiao(ms).map((g) => somarRegiao(g.regiao, g.intermediaria, g.municipios)),
+    total: somarRegiao("Total", null, ms),
+  };
+}
+
 export const COLUNAS_CSV_MUNICIPIOS_UF: ColunaCsv<MunicipioUf>[] = [
   { titulo: "IBGE", valor: (m) => m.ibge, texto: true },
   { titulo: "Município", valor: (m) => m.nome },
@@ -312,6 +390,115 @@ export function funil(linhas: LinhaDesfecho[], recorte: string): FunilAno[] {
       };
     })
     .sort((a, b) => b.ano - a.ano);
+}
+
+// ================================================================ estados vazios (lista da B12, C1a, 08/10/2026)
+
+/** Nenhum órgão estadual na lista: diz o recorte da base, que fora da PB só guarda os instrumentos vivos. */
+export function textoSemOrgaoEstadual(sigla: string): string {
+  return ehUfCompleta(sigla)
+    ? "Nenhum órgão estadual com instrumento na base, que guarda todos os instrumentos da Paraíba desde 2008."
+    : "Nenhum órgão estadual com instrumento vivo na base. Fora da Paraíba só entram os vivos (em execução, em prestação de " +
+        "contas ou em tomada de contas especial): o órgão que só tem instrumentos encerrados não aparece aqui.";
+}
+
+/** Nenhuma etapa com medições bastantes: diz o mínimo de casos (`MINIMO_MEDICOES`) e a janela de 36 meses. */
+export function textoSemMedicoes(sigla: string): string {
+  return (
+    `Sem medições suficientes do tempo das etapas: nenhuma etapa terminou ${MINIMO_MEDICOES} vezes ou mais ${naUf(sigla)} ` +
+    "nos últimos 36 meses, o mínimo para a mediana valer a comparação com o Brasil."
+  );
+}
+
+// ================================================================ fontes e método do relatório (C1a, 08/10/2026)
+
+export interface FonteUf {
+  fonte: string;
+  data: string | null;
+  nota: string;
+}
+
+/** O que as fontes precisam da leitura da UF (a forma de `LeituraUfOk`, sem depender do arquivo do servidor). */
+export interface LeituraParaFontesUf {
+  sigla: string;
+  completa: boolean;
+  execucao: { dado_ate: string | null };
+  municipios: readonly unknown[] | null;
+  pix: readonly unknown[] | null;
+  fundo: readonly unknown[] | null;
+  janelas: number | null;
+  indicadores: readonly unknown[] | null;
+  osc: { versao: string | null } | null;
+}
+
+/**
+ * As fontes da página da UF, cada uma com a sua data quando a leitura a tem, como no relatório do município. Só entra
+ * a fonte que a página leu: fora da PB não há regiões, indicadores nem OSC. `administrador` acrescenta a origem das
+ * colunas que só ele vê (o fiscal e os sinais do painel).
+ */
+export function fontesDaUf(l: LeituraParaFontesUf, administrador = false): FonteUf[] {
+  const fontes: FonteUf[] = [
+    {
+      fonte: "SICONV / Transferegov (arquivos abertos)",
+      data: l.execucao.dado_ate,
+      nota: l.completa
+        ? "Todos os instrumentos da Paraíba desde 2008, as propostas desde 2019 e o tempo de cada etapa, somados pelo painel de execução da PONTE."
+        : `Os instrumentos vivos ${naUf(l.sigla)} (em execução, em prestação de contas e em tomada de contas especial), as propostas desde 2019 e o ` +
+          "tempo de cada etapa, somados pelo painel de execução da PONTE. Os encerrados fora da Paraíba não estão na base.",
+    },
+  ];
+  if (l.pix || l.fundo) {
+    fontes.push({
+      fonte: "API das transferências especiais (Pix) e do fundo a fundo",
+      data: null,
+      nota: "Os planos de ação por ano, com beneficiário no estado.",
+    });
+  }
+  if (l.janelas !== null) {
+    fontes.push({ fonte: "Catálogo de janelas do Mapa (Transferegov)", data: null, nota: "Os programas abertos hoje para proponentes do estado." });
+  }
+  if (l.completa && l.municipios) {
+    fontes.push({
+      fonte: "IBGE: regiões geográficas imediatas e intermediárias (2017)",
+      data: null,
+      nota:
+        "Os grupos da lista dos municípios e as cores do mapa. O nome e a população dos 223 vêm da base do painel fiscal da PONTE; o porte é o terço " +
+        "da população entre eles." +
+        (administrador ? " A transferência voluntária e os sinais são os do painel fiscal e do painel de execução da PONTE (uso interno)." : ""),
+    });
+  }
+  if (l.indicadores?.length) {
+    fontes.push({
+      fonte: "Indicadores do estado (IBGE e as demais fontes oficiais da página do município)",
+      data: null,
+      nota: "Cada indicador no ano mais recente, com o Brasil no mesmo ano.",
+    });
+  }
+  if (l.osc) {
+    const versao = l.osc.versao ? versaoLegivel(l.osc.versao) : null;
+    fontes.push({
+      fonte: "Mapa das OSC (Ipea)",
+      data: null,
+      nota: `As organizações ativas${versao && versao !== "versão não informada" ? `, na versão de ${versao}` : " (versão do arquivo não informada)"}. Sem endereço nem dirigentes.`,
+    });
+  }
+  return fontes;
+}
+
+/** Como ler o relatório: as definições que valem para todas as seções. O mínimo e o fator dos tempos vêm de `painel.ts`. */
+export function metodoDaUf(completa: boolean, administrador = false): string[] {
+  const fator = FATOR_LENTO.toLocaleString("pt-BR");
+  return [
+    "Instrumento vivo é o que está em execução, em prestação de contas ou em tomada de contas especial. O valor global é o total previsto; o desembolsado, o que já foi liberado.",
+    completa
+      ? "Na Paraíba, a soma por situação cobre todos os instrumentos desde 2008; a soma por órgão e por tema, só os vivos."
+      : "Fora da Paraíba, a base guarda só os instrumentos vivos: as somas e as comparações com o Brasil usam só eles.",
+    `Tempos: a mediana, em dias, das etapas que terminaram nos últimos 36 meses. Com menos de ${MINIMO_MEDICOES} medições não há comparação; a etapa é marcada a partir de ${fator} vez a mediana do Brasil.`,
+    "Funil: as propostas pelo ano de envio e o que aconteceu com elas até agora. Os anos recentes ainda têm muitas em andamento.",
+    administrador
+      ? "Uso interno: as colunas do fiscal e dos sinais do painel são só do administrador. A lista dos municípios que os outros veem não tem ordem de problema."
+      : `Nenhuma lista deste relatório ordena municípios por problema${completa ? ": os municípios vêm pelas regiões do IBGE, em ordem alfabética" : ""}.`,
+  ];
 }
 
 // ================================================================ indicadores do estado

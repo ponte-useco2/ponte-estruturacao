@@ -20,8 +20,10 @@ import {
 } from "@/lib/oportunidades/fiscal";
 import type { LeituraFiscal } from "@/lib/oportunidades/fiscal.server";
 import { Tag } from "../../_design/primitivos";
+import { Saidas, type Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
+import { Termo } from "../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraFiscal, { estado: "ok" }>;
 
@@ -42,6 +44,17 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
   const visiveis = filtrarMunicipios(leitura.municipios, p);
   const c = leitura.execucao.contagens;
   const cauc = typeof c.cauc_data_pesquisa === "string" ? c.cauc_data_pesquisa : null;
+  // B14b (08/10/2026): o vazio diz o filtro em palavras e dá um link para tirar cada um (antes: "Nenhum município com
+  // esse filtro.", sem a saída — B12, seção 5). A situação só filtra junto com a decisão (`filtrarMunicipios`).
+  const decisaoFiltrada = p.decisao && p.estado ? DECISOES.find((d) => d.id === p.decisao) : undefined;
+  const filtros = [
+    ...(p.q ? [`“${p.q}” no nome ou no código IBGE`] : []),
+    ...(decisaoFiltrada && p.estado ? [`${decisaoFiltrada.curto}: ${ROTULO_DECISAO[p.estado].toLowerCase()}`] : []),
+  ];
+  const saidas: Saida[] = [
+    ...(p.q ? [{ rotulo: "Tirar a busca por nome", href: urlFiscal(p, { q: "" }) }] : []),
+    ...(decisaoFiltrada ? [{ rotulo: "Tirar o filtro da decisão", href: urlFiscal(p, { decisao: null, estado: null }) }] : []),
+  ];
 
   return (
     <div className="pa-pagina mp-radar mp-painel mp-fiscal">
@@ -50,9 +63,9 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
         <h1 className="pa-titulo">Capacidade fiscal · Paraíba</h1>
         <p className="pa-sub">
           Os {n(leitura.municipios.length)} municípios, lidos em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>
-          {cauc ? <> · CAUC na posição de {formatarData(cauc)}</> : null}
-          {typeof c.versao_regras === "string" ? <> · regras {c.versao_regras}</> : null}. Para cada decisão, o que bloqueia e o que
-          não deu para verificar.
+          {cauc ? <> · CAUC consultado em {formatarData(cauc)}</> : null}
+          {typeof c.versao_regras === "string" ? <> · regras {c.versao_regras}</> : null}. Para cada uma das três{" "}
+          <Termo slug="decisoes-fiscais">decisões</Termo>, o que bloqueia e o que não deu para verificar.
         </p>
         <p className="mp-fiscal-aviso">{AVISO_FIXO}</p>
       </div>
@@ -111,11 +124,11 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
           </select>
         </span>
         <button type="submit" className="pa-btn pa-btn-pequeno">
-          Filtrar
+          Filtrar os municípios
         </button>
         {(p.q || p.decisao) && (
           <LinkMapa href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
-            Limpar
+            Limpar os filtros
           </LinkMapa>
         )}
         </div>
@@ -126,7 +139,17 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
           {visiveis.length === leitura.municipios.length ? `${n(visiveis.length)} municípios` : `${n(visiveis.length)} de ${n(leitura.municipios.length)} municípios`}
         </h2>
         {visiveis.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhum município com esse filtro.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhum dos {n(leitura.municipios.length)} municípios
+            {filtros.length > 0 && (
+              <>
+                {" "}
+                com <strong>{filtros.join(" · ")}</strong>
+              </>
+            )}
+            .
+            <Saidas saidas={saidas.length > 1 ? [...saidas, { rotulo: "Limpar os filtros", href: "/mapa/fiscal" }] : saidas} />
+          </p>
         ) : (
           <TabelaRolagem rotuloId="fiscal-lista">
             <table className="mp-tabela mp-fiscal-tabela">
@@ -141,7 +164,9 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
                   <th scope="col" className="mp-num">
                     Pessoal
                   </th>
-                  <th scope="col">CAUC</th>
+                  <th scope="col">
+                    <Termo slug="cauc">CAUC</Termo>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -186,7 +211,19 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
   );
 }
 
-export function FiscalIndisponivel({ estado }: { estado: "nao_ativado" | "sem_execucao" | "erro" }) {
+/**
+ * Indisponível do painel fiscal, só para administrador. B14b (08/10/2026): como o `DadoIndisponivel` da B12,
+ * `endereco` vira "Tentar de novo" (quando a leitura falhou) e `voltarPara` troca a volta ao painel de execução.
+ */
+export function FiscalIndisponivel({
+  estado,
+  endereco,
+  voltarPara = { rotulo: "Voltar ao painel de execução", href: "/mapa/painel" },
+}: {
+  estado: "nao_ativado" | "sem_execucao" | "erro";
+  endereco?: string;
+  voltarPara?: Saida;
+}) {
   const texto = {
     nao_ativado: { titulo: "O painel fiscal ainda não foi ativado no banco", corpo: "Falta aplicar a migração fiscal_1 no Supabase." },
     sem_execucao: {
@@ -201,8 +238,15 @@ export function FiscalIndisponivel({ estado }: { estado: "nao_ativado" | "sem_ex
         <p className="pa-kicker">Painel da PONTE · uso interno</p>
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
-        <p>
-          <LinkMapa href="/mapa/painel">Voltar ao painel de execução</LinkMapa>
+        <p className="pa-linha">
+          {estado === "erro" && endereco && (
+            <LinkMapa href={endereco} className="pa-btn pa-btn-pequeno">
+              Tentar de novo
+            </LinkMapa>
+          )}
+          <LinkMapa href={voltarPara.href} className="pa-btn pa-btn-pequeno">
+            {voltarPara.rotulo}
+          </LinkMapa>
         </p>
       </div>
     </div>

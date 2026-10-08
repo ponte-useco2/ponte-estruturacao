@@ -73,6 +73,20 @@ export function urlBrasil(aba?: AbaBrasil): string {
   return `/mapa/brasil${aba && aba !== "resumo" ? `?aba=${aba}` : ""}`;
 }
 
+/**
+ * O nível no Brasil: administrador 3, todo aprovado 1 (o portão de aprovados do `/mapa` vale até a F1d). Uma regra só
+ * para a página e para a rota do relatório (C1b, 08/10/2026), para as duas nunca divergirem.
+ */
+export function nivelNoBrasil(administrador: boolean): NivelAcesso {
+  return administrador ? 3 : 1;
+}
+
+/** Se o nível abre a aba. A rota do relatório usa o mínimo de "Relatório e dados" (C1b): quem vê a aba abre a peça. */
+export function podeAbaBrasil(aba: AbaBrasil, nivel: NivelAcesso): boolean {
+  const a = ABAS_BRASIL.find((x) => x.id === aba);
+  return a !== undefined && nivel >= a.minimo;
+}
+
 // ================================================================ as 27 UFs
 
 export interface LinhaUfBrasil {
@@ -147,3 +161,69 @@ export const COLUNAS_CSV_UFS: ColunaCsv<LinhaUfBrasil>[] = [
   { titulo: "Pix pago no ano (R$)", valor: (u) => u.pixPagoAno },
   { titulo: "Janelas abertas", valor: (u) => u.janelas },
 ];
+
+// ================================================================ o relatório para imprimir
+
+/**
+ * O relatório do Brasil numa peça só (C1b, 08/10/2026), no modelo do município: uma rota própria para imprimir, e a
+ * aba "Relatório e dados" fica curta (o link, o CSV e as fontes). Antes a aba repetia a página inteira (B0, 4.4).
+ */
+export const URL_RELATORIO_BRASIL = "/mapa/brasil/relatorio";
+export const URL_CSV_BRASIL = "/mapa/brasil/csv";
+
+/**
+ * As partes do relatório, na ordem das abas da página: as que o nível abre, menos a própria "Relatório e dados". Assim
+ * o relatório nunca mostra o que a página esconde do mesmo nível.
+ */
+export function partesDoRelatorioBrasil(nivel: NivelAcesso): AbaBrasil[] {
+  return ABAS_BRASIL.filter((a) => a.id !== "relatorio" && nivel >= a.minimo).map((a) => a.id);
+}
+
+/**
+ * O ano das contas "do ano" (propostas e Pix): o da referência do painel, senão o do dado, senão o de `hoje`. Antes a
+ * conta se repetia na página e no CSV, cada uma com uma saída diferente para a data que falta.
+ */
+export function anoDeReferencia(execucao: { referencia: string | null; dado_ate: string | null }, hoje = ""): number {
+  return Number((execucao.referencia ?? execucao.dado_ate ?? hoje).slice(0, 4));
+}
+
+/** Uma fonte do relatório, com a data do dado quando a leitura traz (o mesmo formato do relatório do município). */
+export interface FonteRelatorio {
+  fonte: string;
+  data: string | null;
+  nota: string;
+}
+
+/** As fontes do Brasil, cada uma com a sua data: o arquivo do Transferegov, o do Pix e o das janelas. */
+export function fontesDoBrasil(datas: { painel: string | null; pix: string | null; janelas: string | null }): FonteRelatorio[] {
+  return [
+    {
+      fonte: "Transferegov (arquivos abertos do SICONV)",
+      data: datas.painel,
+      nota: "Instrumentos vivos por UF, situação, órgão e tema; propostas por ano de envio e o que aconteceu com elas; tempo das etapas.",
+    },
+    {
+      fonte: "API das transferências especiais (Pix) e do fundo a fundo",
+      data: datas.pix,
+      nota: "Planos de ação do Pix por ano da emenda e do fundo a fundo por ano.",
+    },
+    {
+      fonte: "Programas do Transferegov (catálogo do Mapa)",
+      data: datas.janelas,
+      nota: "Janelas abertas por UF; o mesmo programa aberto em mais de uma UF conta em cada uma.",
+    },
+    { fonte: "IBGE (API de malhas v3)", data: null, nota: "O contorno das UFs no mapa; a cor é só a da macrorregião." },
+  ];
+}
+
+/** Como se conta (o "método" do relatório), em texto neutro: sem classificação de UF e sem siglas soltas. */
+export function metodoDoBrasil(ano: number): string[] {
+  return [
+    "Instrumento vivo é o que está em execução, em prestação de contas ou em tomada de contas especial. Fora da Paraíba a base guarda só os vivos; por isso as UFs são comparadas só por eles.",
+    "As 27 UFs vêm em ordem alfabética, sem classificação de melhor ou pior.",
+    `Propostas e Pix «do ano» são os de ${ano}, até a data do dado.`,
+    "Tempo das etapas: a mediana e o «9 em cada 10 até», em dias, das etapas de todos os órgãos que terminaram nos últimos 36 meses.",
+    "Funil: as propostas por ano de envio e o que aconteceu com elas até a data do dado.",
+    "Valores nominais, como estão nas fontes, sem correção pela inflação.",
+  ];
+}

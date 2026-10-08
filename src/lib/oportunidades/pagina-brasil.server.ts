@@ -30,6 +30,12 @@ export interface LeituraBrasilOk {
   janelas: Map<string, number> | null;
   /** Programas distintos com janela aberta em alguma UF. */
   programasAbertos: number | null;
+  /**
+   * A data do dado do Pix e a das janelas (C1b, 08/10/2026), para as fontes do relatório dizerem a de cada uma. Vêm na
+   * mesma chamada que já dava o id da última execução: nenhuma leitura a mais.
+   */
+  pixDadoAte: string | null;
+  janelasDadoAte: string | null;
   faltas: string[];
 }
 
@@ -70,9 +76,11 @@ async function lerDoBanco(): Promise<LeituraBrasil> {
 
   const ultima = async (rpc: string) => {
     const r = await db.rpc(rpc);
-    return r.error ? null : (((r.data as { id: number }[] | null) ?? [])[0]?.id ?? null);
+    return r.error ? null : (((r.data as { id: number; dado_ate: string | null }[] | null) ?? [])[0] ?? null);
   };
-  const [pixId, radarId] = await Promise.all([ultima("pix_ultima_execucao"), ultima("radar_ultima_execucao")]);
+  const [pixEx, radarEx] = await Promise.all([ultima("pix_ultima_execucao"), ultima("radar_ultima_execucao")]);
+  const pixId = pixEx?.id ?? null;
+  const radarId = radarEx?.id ?? null;
   const colunas = "recorte,dimensao,chave,vivo,n,em_execucao,valor,desembolsado,municipios,proponentes";
 
   const [ufs, nacional, desfechos, etapas, pix, fundo, janelas] = await Promise.all([
@@ -100,6 +108,8 @@ async function lerDoBanco(): Promise<LeituraBrasil> {
     fundo,
     janelas: janelas ? janelasPorUf(janelas) : null,
     programasAbertos: janelas ? new Set(janelas.map((j) => j.cod_programa).filter(Boolean)).size : null,
+    pixDadoAte: pixEx?.dado_ate ?? null,
+    janelasDadoAte: radarEx?.dado_ate ?? null,
     faltas,
   };
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { parametrosFiscal } from "@/lib/oportunidades/fiscal";
+import { parametrosFiscal, urlFiscal } from "@/lib/oportunidades/fiscal";
 import { lerFiscal } from "@/lib/oportunidades/fiscal.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { FiscalConteudo, FiscalIndisponivel } from "./FiscalConteudo";
@@ -27,6 +27,7 @@ export default async function FiscalPage({
 
   const p = parametrosFiscal(await searchParams);
   const leitura = await lerFiscal();
-  if (leitura.estado !== "ok") return <FiscalIndisponivel estado={leitura.estado} />;
+  // B14b (08/10/2026): o mesmo filtro vira "Tentar de novo".
+  if (leitura.estado !== "ok") return <FiscalIndisponivel estado={leitura.estado} endereco={urlFiscal(p)} />;
   return <FiscalConteudo p={p} leitura={leitura} />;
 }

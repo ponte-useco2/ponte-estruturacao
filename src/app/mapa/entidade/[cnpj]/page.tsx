@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
-import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
-import { ABAS_ENTIDADE, abaDaEntidade, cnpjDaUrl, nivelNaEntidade, urlEntidade, type AbaEntidade } from "@/lib/oportunidades/pagina-entidade";
+import { parametrosBusca, urlBusca } from "@/lib/oportunidades/busca";
+import { ABAS_ENTIDADE, abaDaEntidade, cnpjDaUrl, urlEntidade, type AbaEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { PODE } from "@/lib/oportunidades/pagina-municipio";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
-import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
+import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { EntidadeConteudo } from "./EntidadeConteudo";
+import { nivelDoVisitanteNaEntidade } from "./nivel.server";
 
 export const metadata: Metadata = {
   title: "Entidade · Mapa de Oportunidades · PONTE",
@@ -37,27 +38,25 @@ export default async function EntidadePage({
   const [{ cnpj: bruto }, sp] = await Promise.all([params, searchParams]);
   const cnpj = cnpjDaUrl(decodeURIComponent(bruto));
   if (!cnpj) notFound();
-  if (cnpj !== bruto) {
-    const pedida = ABAS_ENTIDADE.find((a) => a.id === (Array.isArray(sp.aba) ? sp.aba[0] : sp.aba))?.id as AbaEntidade | undefined;
-    redirect(urlEntidade(cnpj, pedida));
-  }
+  const pedida = ABAS_ENTIDADE.find((a) => a.id === (Array.isArray(sp.aba) ? sp.aba[0] : sp.aba))?.id as AbaEntidade | undefined;
+  if (cnpj !== bruto) redirect(urlEntidade(cnpj, pedida));
 
   const leitura = await lerRelatorioEntidade(cnpj, diaBrasilia(new Date().toISOString()));
   if (leitura.estado === "nao_encontrado") notFound();
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Entidade" titulo="A página da entidade está indisponível agora" />;
+  if (leitura.estado !== "ok") {
+    // C1c (B12): "Tentar de novo" relê a mesma aba; a volta é a busca pelo CNPJ, que lê outra consulta e lista os convênios dele.
+    return (
+      <DadoIndisponivel
+        kicker="Entidade"
+        titulo="A página da entidade está indisponível agora"
+        endereco={urlEntidade(cnpj, pedida)}
+        voltarPara={{ rotulo: "Procurar o CNPJ na busca", href: urlBusca(parametrosBusca({}), { q: cnpj }) }}
+      />
+    );
+  }
 
-  const administrador = ehAdministrador(visitante.email);
-  // O cliente entra pelo município (prefeitura confirmada, oport_12) ou pelo CNPJ (as outras organizações, oport_31).
-  const acesso = administrador ? null : await lerAcessoCliente(visitante);
-  const nivel = nivelNaEntidade(
-    {
-      aprovado: true,
-      administrador,
-      ibgeConfirmado: acesso?.municipio.ok ? acesso.municipio.ibge : null,
-      cnpjConfirmado: acesso?.cnpj.ok ? acesso.cnpj.cnpj : null,
-    },
-    leitura.entidade,
-  );
+  // O nível (D1) mora em `nivel.server.ts` desde a C1c: o relatório para imprimir usa a mesma regra.
+  const nivel = await nivelDoVisitanteNaEntidade(visitante, leitura.entidade);
   // A OSC que só está no cadastro do Mapa das OSC (E3) tem só o resumo.
   const soCadastro = !leitura.instrumentos.length && !leitura.propostas.length;
   const aba = soCadastro ? "resumo" : abaDaEntidade(sp.aba, nivel);

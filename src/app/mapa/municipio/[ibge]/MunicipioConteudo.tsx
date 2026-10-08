@@ -13,6 +13,7 @@ import type { FonteOsc, ResumoOscMunicipio } from "@/lib/oportunidades/osc";
 import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import { trilha } from "@/lib/oportunidades/trilha";
+import { proximoDiaDoMes } from "@/lib/oportunidades/vazios";
 import { Carregando } from "../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { Termo } from "../../_componentes/Termo";
@@ -94,6 +95,79 @@ function Mais({ children }: { children: React.ReactNode }) {
   return <p className="mp-nao-imprimir mp-laudo-acoes">{children}</p>;
 }
 
+/*
+ * B12b (onda 3 de UX, 08/10/2026): as duas abas sem dado diziam só "ainda não tem" / "ainda não foram lidos". Agora
+ * separam a leitura que falhou agora (o nome vai em `faltas`, ver `relatorio-municipio.server.ts`), que pede "Tentar de
+ * novo", do dado que ainda não existe, que diz quando a próxima rodada está marcada. A memória do relatório não guarda
+ * a leitura que veio com falta (integração da onda 3), então o "Tentar de novo" relê na hora. Os horários são os agendados em
+ * `.github/workflows/` e no cron da Vercel, e só eles: o GitHub atrasa as execuções em horas, e a frase não promete o
+ * minuto em que o dado chega.
+ */
+function TentarDeNovo({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <div className="pa-cartao pa-cartao-plano pa-pilha">
+      <p>{children}</p>
+      <p className="pa-linha mp-nao-imprimir">
+        <LinkMapa href={href} className="pa-btn pa-btn-pequeno">
+          Tentar de novo
+        </LinkMapa>
+      </p>
+    </div>
+  );
+}
+
+/** O painel fiscal (`fiscal.yml`): diário, disparado pelo cron da Vercel às 11h30 UTC, que sai até as 12h29 UTC. */
+function SemFiscal({ r }: { r: Relatorio }) {
+  if (r.faltas.includes("painel fiscal")) {
+    return (
+      <TentarDeNovo href={urlMunicipio(r.ibge, "contas")}>
+        O painel fiscal não pôde ser lido agora. Tente de novo em instantes.
+      </TentarDeNovo>
+    );
+  }
+  return (
+    <div className="pa-cartao pa-cartao-plano pa-pilha">
+      <p>
+        O painel fiscal ainda não tem {r.nome}. Ele é refeito todo dia para os 223 municípios da Paraíba, com o disparo de manhã, entre
+        8h30 e 9h30 (horário de Brasília): confira de novo depois da próxima rodada.
+      </p>
+      <p className="pa-linha mp-nao-imprimir">
+        <LinkMapa href={urlMunicipio(r.ibge, "dinheiro")} className="pa-btn pa-btn-pequeno">
+          Ver o dinheiro federal
+        </LinkMapa>
+      </p>
+    </div>
+  );
+}
+
+/** O dia do cron de `.github/workflows/municipios.yml` ("0 10 5 * *"). */
+const DIA_DOS_INDICADORES = 5;
+
+/** Os indicadores (`municipios.yml`): rodada mensal, com o cron no dia 5 de cada mês. */
+function SemIndicadores({ r }: { r: Relatorio }) {
+  if (r.faltas.includes("indicadores do município")) {
+    return (
+      <TentarDeNovo href={urlMunicipio(r.ibge, "indicadores")}>
+        Os indicadores não puderam ser lidos agora. Tente de novo em instantes.
+      </TentarDeNovo>
+    );
+  }
+  const proxima = proximoDiaDoMes(r.hoje, DIA_DOS_INDICADORES);
+  return (
+    <div className="pa-cartao pa-cartao-plano pa-pilha">
+      <p>
+        Os indicadores de {r.nome} ainda não foram lidos. A leitura é mensal, com IBGE, Ministério da Saúde, INEP e outras fontes oficiais,
+        marcada para o dia {DIA_DOS_INDICADORES} de cada mês{proxima ? `; a próxima, para ${data(proxima)}` : ""}.
+      </p>
+      <p className="pa-linha mp-nao-imprimir">
+        <LinkMapa href={urlMunicipio(r.ibge, "resumo")} className="pa-btn pa-btn-pequeno">
+          Ver o resumo em números
+        </LinkMapa>
+      </p>
+    </div>
+  );
+}
+
 export function MunicipioConteudo({
   r,
   aba,
@@ -171,7 +245,7 @@ export function MunicipioConteudo({
               </LinkMapa>
             </Mais>
           )}
-          {!r.fiscal && <p>O painel fiscal ainda não tem este município.</p>}
+          {!r.fiscal && <SemFiscal r={r} />}
         </>
       )}
 
@@ -189,8 +263,7 @@ export function MunicipioConteudo({
         </>
       )}
 
-      {aba === "indicadores" &&
-        (r.indicadores ? <BlocosIndicadoresMunicipio r={r} destino={destino} /> : <p>Os indicadores do município ainda não foram lidos.</p>)}
+      {aba === "indicadores" && (r.indicadores ? <BlocosIndicadoresMunicipio r={r} destino={destino} /> : <SemIndicadores r={r} />)}
 
       {aba === "relatorio" && (
         <>

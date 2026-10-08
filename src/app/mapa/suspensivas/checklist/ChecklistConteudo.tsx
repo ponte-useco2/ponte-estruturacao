@@ -8,6 +8,9 @@ import { COORTE_DESDE, MINIMO_PADRAO, lerHistorico, montarChecklist, tituloOrgao
 import type { LeituraPadroes } from "@/lib/oportunidades/padroes.server";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { Termo } from "../../_componentes/Termo";
+
+// B14b (08/10/2026): "presos" e "morreram" eram gíria da equipe (como o LAU-2 da B14); os vazios dizem o que falta.
 
 type LeituraOk = Extract<LeituraPadroes, { estado: "ok" }>;
 
@@ -33,10 +36,20 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
           <p className="pa-kicker">Checklist preventivo</p>
           <h1 className="pa-titulo">Antes de mandar uma proposta, veja o que o órgão costuma exigir</h1>
           <p className="pa-sub">
-            Aprendido com os convênios da PB que estão presos na cláusula suspensiva: as condições que o termo impôs, os documentos que o concedente
-            pediu e os pedidos nas palavras dele. Escolha o órgão.
+            Aprendido com os convênios da PB que ainda estão em <Termo slug="condicao-suspensiva">cláusula suspensiva</Termo>: as
+            condições que o termo impôs, os documentos que o concedente pediu e os pedidos nas palavras dele. Escolha o órgão.
           </p>
-          {orgao && <p className="pa-cartao pa-cartao-plano">Não há convênio em suspensiva de “{orgao}” na coleta.</p>}
+          {orgao && orgaos.length > 0 && (
+            <p className="pa-cartao pa-cartao-plano">
+              Não há convênio em suspensiva de “{orgao}” na coleta de {formatarPublicacao(leitura.coletadoEm)}. Escolha um dos órgãos abaixo.
+            </p>
+          )}
+          {orgaos.length === 0 && (
+            <p className="pa-cartao pa-cartao-plano">
+              Nenhum convênio em suspensiva com órgão informado na coleta de {formatarPublicacao(leitura.coletadoEm)}.{" "}
+              <LinkMapa href="/mapa/suspensivas/padroes">Ver os padrões das suspensivas</LinkMapa>
+            </p>
+          )}
         </div>
         <ul className="mp-checklist-orgaos">
           {orgaos.map(([o, q]) => (
@@ -70,16 +83,16 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
         <h1 className="pa-titulo">{tituloOrgao(escolhido)}</h1>
         <p className="pa-sub">
           O que ter pronto antes de mandar uma proposta a este órgão, aprendido com {n(c.base)} {c.base === 1 ? "convênio" : "convênios"} da PB que
-          seguem presos na cláusula suspensiva.
+          ainda {c.base === 1 ? "está" : "estão"} em <Termo slug="condicao-suspensiva">cláusula suspensiva</Termo>.
           {c.base < MINIMO_PADRAO ? " São poucos casos: leia como indício, não como regra." : ""}
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           <LinkMapa href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
-            Outro órgão
+            Escolher outro órgão
           </LinkMapa>
           <LinkMapa href={`/mapa/suspensivas?orgao=${encodeURIComponent(escolhido)}`} className="pa-btn pa-btn-pequeno">
-            Os convênios deste órgão
+            Ver os convênios deste órgão
           </LinkMapa>
         </p>
         <p className="mp-fiscal-aviso">
@@ -99,8 +112,8 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
               {h.p75 !== null ? `; um em cada quatro levou mais de ${dias(h.p75)}` : ""}.
             </p>
             <p>
-              {n(h.destinos.morreu.n + h.destinos.encerrou.n)} morreram na suspensiva, sem um real desembolsado:{" "}
-              {pct((h.destinos.morreu.n + h.destinos.encerrou.n) / terminados)} dos que terminaram.
+              {n(h.destinos.morreu.n + h.destinos.encerrou.n)} foram extintos na suspensiva (anulados, rescindidos ou encerrados sem a
+              retirada), sem um real desembolsado: {pct((h.destinos.morreu.n + h.destinos.encerrou.n) / terminados)} dos que terminaram.
             </p>
           </div>
         </section>
@@ -113,16 +126,20 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
         <p className="pa-nota">
           Cada uma é uma providência que pode — e deve — começar antes da assinatura: é o que segura a liberação depois.
         </p>
-        <ul className="mp-checklist-itens">
-          {c.condicoes.map((x) => (
-            <li key={x.texto}>
-              <span className="mp-checklist-caixa" aria-hidden="true" />
-              <span>
-                <strong>{x.texto}</strong> <span className="mp-laudo-miudo">— em {pct(x.fatia)} dos convênios ({n(x.convenios)})</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+        {c.condicoes.length ? (
+          <ul className="mp-checklist-itens">
+            {c.condicoes.map((x) => (
+              <li key={x.texto}>
+                <span className="mp-checklist-caixa" aria-hidden="true" />
+                <span>
+                  <strong>{x.texto}</strong> <span className="mp-laudo-miudo">— em {pct(x.fatia)} dos convênios ({n(x.convenios)})</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="pa-cartao pa-cartao-plano">O motivo da suspensiva destes convênios não traz condição que a leitura automática reconheça.</p>
+        )}
       </section>
 
       <section aria-labelledby="checklist-documentos" className="mp-radar-secao">
@@ -131,7 +148,8 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
         </h2>
         <p className="pa-nota">
           Os anexados em pelo menos {pct(FATIA_DOCUMENTO)} dos convênios deste órgão. Os marcados perdem a validade ou precisam ser recentes
-          (certidões, declarações, comprovantes, CAUC): tire perto do envio e confira de novo antes de cada nova análise.
+          (certidões, declarações, comprovantes, <Termo slug="cauc">CAUC</Termo>): tire perto do envio e confira de novo antes de cada
+          nova análise.
         </p>
         {documentos.length ? (
           <ul className="mp-checklist-itens">

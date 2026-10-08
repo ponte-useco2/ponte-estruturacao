@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { cnpjLegivel, cnpjValido } from "@/lib/oportunidades/fornecedores";
+import { cnpjLegivel, cnpjValido, urlFornecedor } from "@/lib/oportunidades/fornecedores";
 import { lerDossieFornecedor } from "@/lib/oportunidades/fornecedores.server";
 import { lerTceDoFornecedor } from "@/lib/oportunidades/tce.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
@@ -37,12 +37,22 @@ export default async function FornecedorPage({ params }: { params: Promise<{ cnp
             pelo nome.
           </p>
           <p className="pa-nota">
-            <LinkMapa href={`/mapa/fornecedores?q=${encodeURIComponent(cnpj)}`}>Procurar na lista</LinkMapa>
+            <LinkMapa href={`/mapa/fornecedores?q=${encodeURIComponent(cnpj)}`}>Procurar este CNPJ na lista de fornecedores</LinkMapa>
           </p>
         </div>
       </div>
     );
   }
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker={`Fornecedor · CNPJ ${cnpjLegivel(cnpj)}`} titulo="O dossiê está indisponível agora" />;
+  if (leitura.estado !== "ok") {
+    // B14b (08/10/2026): "Tentar de novo" e a volta à lista (props da B12).
+    return (
+      <DadoIndisponivel
+        kicker={`Fornecedor · CNPJ ${cnpjLegivel(cnpj)}`}
+        titulo="O dossiê está indisponível agora"
+        endereco={urlFornecedor(cnpj)}
+        voltarPara={{ rotulo: "Ver todos os fornecedores", href: "/mapa/fornecedores" }}
+      />
+    );
+  }
   return <FornecedorConteudo leitura={leitura} tce={tce} />;
 }

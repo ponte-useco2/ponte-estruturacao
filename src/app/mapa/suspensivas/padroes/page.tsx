@@ -18,6 +18,16 @@ export default async function PadroesPage() {
   if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
   const leitura = await lerPadroes();
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Padrões das suspensivas" titulo="Os padrões estão indisponíveis agora" />;
+  if (leitura.estado !== "ok") {
+    // B14b (08/10/2026): "Tentar de novo" e a volta à lista das suspensivas (props da B12).
+    return (
+      <DadoIndisponivel
+        kicker="Padrões das suspensivas"
+        titulo="Os padrões estão indisponíveis agora"
+        endereco="/mapa/suspensivas/padroes"
+        voltarPara={{ rotulo: "Ver a lista das suspensivas", href: "/mapa/suspensivas" }}
+      />
+    );
+  }
   return <PadroesConteudo leitura={leitura} hoje={diaBrasilia(new Date().toISOString())} />;
 }

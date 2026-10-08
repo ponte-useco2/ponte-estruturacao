@@ -2,8 +2,10 @@
  * A página do Brasil em abas (U2, desenho aprovado em 08/10/2026): o país e as 27 UFs lado a lado, em ordem
  * alfabética, sem destaque de melhor ou pior. Só o que a base guarda para o país inteiro: os instrumentos vivos, as
  * propostas desde 2019, o tempo das etapas, o Pix e o fundo a fundo e as janelas abertas. O mapa leva a cada UF.
+ *
+ * Desde a C1b (08/10/2026) cada aba é um bloco exportado, como no município: o relatório para imprimir
+ * (`/mapa/brasil/relatorio`) junta os mesmos blocos, e a aba "Relatório e dados" ficou curta (o link, o CSV e as fontes).
  */
-import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
 import malhaBrasil from "@/lib/oportunidades/malhas/brasil-uf.json";
 import {
@@ -11,6 +13,11 @@ import {
   MACRORREGIAO,
   ORDEM_MACRORREGIAO,
   ROTULO_MACRORREGIAO,
+  URL_CSV_BRASIL,
+  URL_RELATORIO_BRASIL,
+  anoDeReferencia,
+  fontesDoBrasil,
+  metodoDoBrasil,
   ufsLadoALado,
   urlBrasil,
   type AbaBrasil,
@@ -23,7 +30,7 @@ import { NOME_UF, funil, porSituacao, totalTerritorio, urlUf } from "@/lib/oport
 import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, medianaComparavel } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { trilha } from "@/lib/oportunidades/trilha";
-import { Carregando } from "../_componentes/Carregando";
+import { LinkMapa } from "../_componentes/LinkMapa";
 import { MapaTerritorio } from "../_componentes/MapaTerritorio";
 import { Termo } from "../_componentes/Termo";
 import { Trilha } from "../_componentes/Trilha";
@@ -50,10 +57,9 @@ function Cabeca({ l }: { l: LeituraBrasilOk }) {
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <BotaoImprimir />
-        <Link href={urlUf("PB")} className="pa-btn pa-btn-pequeno" prefetch={false}>
+        <LinkMapa href={urlUf("PB")} className="pa-btn pa-btn-pequeno">
           Ver a Paraíba
-          <Carregando />
-        </Link>
+        </LinkMapa>
       </p>
     </div>
   );
@@ -63,10 +69,9 @@ function Abas({ aba, nivel }: { aba: AbaBrasil; nivel: NivelAcesso }) {
   return (
     <nav aria-label="Partes do Brasil" className="mp-mun-abas mp-nao-imprimir">
       {ABAS_BRASIL.filter((a) => nivel >= a.minimo).map((a) => (
-        <Link key={a.id} href={urlBrasil(a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false} prefetch={false}>
+        <LinkMapa key={a.id} href={urlBrasil(a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false}>
           {a.nome}
-          <Carregando />
-        </Link>
+        </LinkMapa>
       ))}
     </nav>
   );
@@ -98,7 +103,11 @@ function MapaDoBrasil() {
   );
 }
 
-function Resumo({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
+/**
+ * A aba "Resumo": os números do país e o mapa. `noRelatorio` (C1b): sem o botão que leva à aba das UFs (no relatório a
+ * tabela vem logo depois) e sem a nota do que faltou, que lá sai nas fontes.
+ */
+export function Resumo({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; ano: number; noRelatorio?: boolean }) {
   const t = l.territorio;
   const vivos = t ? totalTerritorio(t, "BR", "vivos") : null;
   const grupos = t ? porSituacao(t, "BR", true) : [];
@@ -127,7 +136,8 @@ function Resumo({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
             {f && <Cartao rotulo={`Propostas em ${ano}`} valor={n(f.enviadas)} nota={`${n(f.assinadas)} assinadas até agora.`} />}
             {pix && <Cartao rotulo={`Pix ${pix.ano}${pix.ano === ano ? " (ano em curso)" : ""}`} valor={moedaCurta(pix.pago)} nota={`${n(pix.planos_pagos)} planos pagos de ${n(pix.planos)}.`} />}
             {l.programasAbertos !== null && (
-              <Cartao rotulo="Programas com janela aberta" valor={n(l.programasAbertos)} nota="No Transferegov, em alguma UF; a contagem por UF está na aba das 27 UFs." />
+              // "Na tabela", e não "na aba": a frase vale na página e no relatório (C1b).
+              <Cartao rotulo="Programas com janela aberta" valor={n(l.programasAbertos)} nota="No Transferegov, em alguma UF; a contagem por UF está na tabela das 27 UFs." />
             )}
           </div>
         ) : (
@@ -145,19 +155,21 @@ function Resumo({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
         }
       >
         <MapaDoBrasil />
-        <p className="mp-nao-imprimir mp-laudo-acoes">
-          <Link href={urlBrasil("estados")} className="pa-btn pa-btn-pequeno" prefetch={false}>
-            Ver as 27 UFs lado a lado
-            <Carregando />
-          </Link>
-        </p>
+        {!noRelatorio && (
+          <p className="mp-nao-imprimir mp-laudo-acoes">
+            <LinkMapa href={urlBrasil("estados")} className="pa-btn pa-btn-pequeno">
+              Ver as 27 UFs lado a lado
+            </LinkMapa>
+          </p>
+        )}
       </Secao>
-      {l.faltas.length > 0 && <p className="pa-nota">Não puderam ser lidos agora: {l.faltas.join(", ")}.</p>}
+      {!noRelatorio && l.faltas.length > 0 && <p className="pa-nota">Não puderam ser lidos agora: {l.faltas.join(", ")}.</p>}
     </>
   );
 }
 
-function Estados({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
+/** A aba "As 27 UFs". `noRelatorio` (C1b): sem o botão do CSV, que no relatório fica no cabeçalho. */
+export function Estados({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; ano: number; noRelatorio?: boolean }) {
   if (!l.territorio) return <p className="pa-cartao pa-cartao-plano">As somas por UF aparecem depois da próxima atualização diária dos dados.</p>;
   const ufs = ufsLadoALado(l.territorio, l.desfechos ?? [], l.pix ?? [], l.janelas, ano);
   return (
@@ -191,10 +203,7 @@ function Estados({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
             {ufs.map((u) => (
               <tr key={u.sigla}>
                 <th scope="row">
-                  <Link href={urlUf(u.sigla)} prefetch={false}>
-                    {u.nome}
-                    <Carregando />
-                  </Link>
+                  <LinkMapa href={urlUf(u.sigla)}>{u.nome}</LinkMapa>
                 </th>
                 <td>{ROTULO_MACRORREGIAO[u.regiao]}</td>
                 <td className="mp-rel-num">{n(u.vivos)}</td>
@@ -210,16 +219,45 @@ function Estados({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
           </tbody>
         </table>
       </TabelaRolagem>
-      <p className="mp-nao-imprimir mp-laudo-acoes">
-        <a href="/mapa/brasil/csv" className="pa-btn pa-btn-pequeno">
-          Baixar as 27 UFs (CSV)
-        </a>
-      </p>
+      {!noRelatorio && (
+        <p className="mp-nao-imprimir mp-laudo-acoes">
+          <a href={URL_CSV_BRASIL} className="pa-btn pa-btn-pequeno">
+            Baixar as 27 UFs (CSV)
+          </a>
+        </p>
+      )}
     </Secao>
   );
 }
 
-function Tempos({ l }: { l: LeituraBrasilOk }) {
+/** A aba "Dinheiro federal": o bloco da UF com o recorte "BR" (só os vivos, sem a lista de proponentes e municípios). */
+export function DinheiroDoBrasil({ l, nivel }: { l: LeituraBrasilOk; nivel: NivelAcesso }) {
+  return (
+    <Dinheiro
+      l={{
+        estado: "ok",
+        sigla: "BR",
+        completa: false,
+        execucao: l.execucao,
+        territorio: l.territorio,
+        proponentes: null,
+        municipios: null,
+        etapas: null,
+        desfechos: null,
+        pix: l.pix,
+        fundo: l.fundo,
+        janelas: null,
+        indicadores: null,
+        osc: null,
+        faltas: l.faltas,
+      }}
+      nivel={nivel}
+    />
+  );
+}
+
+/** A aba "Tempos e funil". */
+export function Tempos({ l }: { l: LeituraBrasilOk }) {
   const etapas = ETAPAS_CAMINHO.map((etapa) => {
     const linha = (l.etapas ?? []).find((e) => e.chave === CHAVE_TODOS && e.etapa === etapa);
     return { etapa, rotulo: ROTULO_ETAPA[etapa] ?? etapa, mediana: medianaComparavel(linha), p90: linha?.p90 ?? null, n: linha?.n ?? 0 };
@@ -308,51 +346,60 @@ function Tempos({ l }: { l: LeituraBrasilOk }) {
 }
 
 /**
- * "Relatório e dados" (B11, 08/10/2026): a última aba nos outros três níveis, e o Brasil não tinha — o CSV das 27 UFs
- * morava só na aba das UFs. Faz o que a da UF faz: a página numa peça só, para imprimir ou anexar, e o CSV.
+ * Fontes, datas e limites (C1b, 08/10/2026), no formato do relatório do município: cada fonte com a data do dado, o
+ * que faltou ler, como se conta e a assinatura. Fecha o relatório e fica na aba "Relatório e dados".
  */
-function Relatorio({ l }: { l: LeituraBrasilOk }) {
+export function FontesDoBrasil({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
+  const fontes = fontesDoBrasil({ painel: l.execucao.dado_ate, pix: l.pixDadoAte, janelas: l.janelasDadoAte });
   return (
-    <Secao id="br-relatorio" titulo="Relatório e dados" nota="Para imprimir ou anexar: o resumo, as 27 UFs e o dinheiro federal do país numa peça só.">
-      <p className="mp-nao-imprimir mp-laudo-acoes">
-        <BotaoImprimir />
-        <a href="/mapa/brasil/csv" className="pa-btn pa-btn-pequeno">
-          Baixar as 27 UFs (CSV)
-        </a>
-      </p>
-      <p className="pa-nota">
-        Fontes: Transferegov (instrumentos vivos, propostas, tempos, Pix e fundo a fundo), arquivo de {data(l.execucao.dado_ate)}; janelas abertas pelo
-        catálogo do Mapa, que lê os programas do Transferegov.
-      </p>
+    <Secao id="br-fontes" titulo="Fontes, datas e limites">
+      <ul>
+        {fontes.map((x) => (
+          <li key={x.fonte}>
+            <strong>{x.fonte}</strong>
+            {x.data ? ` (dado até ${data(x.data)})` : ""}: {x.nota}
+          </li>
+        ))}
+      </ul>
+      {l.faltas.length > 0 && <p className="pa-nota">Não lido nesta página (a leitura falhou ou a fonte ainda não está publicada): {l.faltas.join(", ")}.</p>}
+      <div className="mp-rel-sub">
+        <h3 className="mp-rel-h3">Como se conta</h3>
+        <ul>
+          {metodoDoBrasil(ano).map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+      </div>
+      <p className="pa-nota">Relatório preparado por PONTE Estruturação de Projetos de Impacto.</p>
     </Secao>
   );
 }
 
-export function BrasilConteudo({ l, aba, nivel }: { l: LeituraBrasilOk; aba: AbaBrasil; nivel: NivelAcesso }) {
-  const ano = Number((l.execucao.referencia ?? l.execucao.dado_ate ?? "").slice(0, 4));
-  const nomeAba = ABAS_BRASIL.find((a) => a.id === aba)?.nome ?? "";
-  const dinheiro = (
-    <Dinheiro
-      l={{
-        estado: "ok",
-        sigla: "BR",
-        completa: false,
-        execucao: l.execucao,
-        territorio: l.territorio,
-        proponentes: null,
-        municipios: null,
-        etapas: null,
-        desfechos: null,
-        pix: l.pix,
-        fundo: l.fundo,
-        janelas: null,
-        indicadores: null,
-        osc: null,
-        faltas: l.faltas,
-      }}
-      nivel={nivel}
-    />
+/**
+ * "Relatório e dados" (B11; curta desde a C1b, 08/10/2026): como a do município, leva ao relatório para imprimir, que
+ * tem rota própria, e ao CSV, e diz as fontes. Antes ela repetia a página inteira (B0, 4.4).
+ */
+function Relatorio({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
+  return (
+    <>
+      <Secao id="br-relatorio" titulo="O relatório completo" nota="Todas as abas numa peça só, com a fonte de cada número, para imprimir ou anexar.">
+        <p className="mp-nao-imprimir mp-laudo-acoes">
+          <LinkMapa href={URL_RELATORIO_BRASIL} className="pa-btn">
+            Abrir o relatório para imprimir
+          </LinkMapa>
+          <a href={URL_CSV_BRASIL} className="pa-btn pa-btn-pequeno">
+            Baixar as 27 UFs (CSV)
+          </a>
+        </p>
+      </Secao>
+      <FontesDoBrasil l={l} ano={ano} />
+    </>
   );
+}
+
+export function BrasilConteudo({ l, aba, nivel }: { l: LeituraBrasilOk; aba: AbaBrasil; nivel: NivelAcesso }) {
+  const ano = anoDeReferencia(l.execucao);
+  const nomeAba = ABAS_BRASIL.find((a) => a.id === aba)?.nome ?? "";
   return (
     <div className="pa-pagina mp-radar mp-laudo mp-rel mp-mun">
       <Cabeca l={l} />
@@ -360,16 +407,9 @@ export function BrasilConteudo({ l, aba, nivel }: { l: LeituraBrasilOk; aba: Aba
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
       {aba === "resumo" && <Resumo l={l} ano={ano} />}
       {aba === "estados" && <Estados l={l} ano={ano} />}
-      {aba === "dinheiro" && dinheiro}
+      {aba === "dinheiro" && <DinheiroDoBrasil l={l} nivel={nivel} />}
       {aba === "tempos" && <Tempos l={l} />}
-      {aba === "relatorio" && (
-        <>
-          <Relatorio l={l} />
-          <Resumo l={l} ano={ano} />
-          <Estados l={l} ano={ano} />
-          {dinheiro}
-        </>
-      )}
+      {aba === "relatorio" && <Relatorio l={l} ano={ano} />}
     </div>
   );
 }

@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ehMunicipioPb, urlInvestimentos } from "@/lib/oportunidades/busca";
 import { lerInvestimentos } from "@/lib/oportunidades/busca.server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { ufDoIbge } from "@/lib/oportunidades/painel";
+import { voltarParaUf } from "@/lib/oportunidades/vazios";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
 import { InvestimentosConteudo } from "./InvestimentosConteudo";
@@ -27,7 +30,18 @@ export default async function InvestimentosPage({ params }: { params: Promise<{ 
   const uf = ufDoIbge(ibge);
   if (!uf) notFound();
   const leitura = await lerInvestimentos(ibge);
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Investimentos federais" titulo="Os investimentos estão indisponíveis agora" />;
+  if (leitura.estado !== "ok") {
+    // B12b: "Tentar de novo" na própria página; a volta é o nível acima — o município na PB, a UF fora dela.
+    const voltar = ehMunicipioPb(ibge) ? { rotulo: "Voltar ao município", href: urlMunicipio(ibge, "dinheiro") } : voltarParaUf(uf);
+    return (
+      <DadoIndisponivel
+        kicker="Investimentos federais"
+        titulo="Os investimentos estão indisponíveis agora"
+        endereco={urlInvestimentos(ibge)}
+        voltarPara={voltar ?? undefined}
+      />
+    );
+  }
   const seguidas = await lerSeguidas();
   return <InvestimentosConteudo ibge={ibge} uf={uf} leitura={leitura} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} />;
 }

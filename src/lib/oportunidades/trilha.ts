@@ -5,8 +5,8 @@
  * `_componentes/Trilha.tsx` só desenha.
  *
  * Três regras:
- *   · nunca se inventa elo: sem a UF, sem o município ou sem a região no dado da página, o elo não aparece (a página
- *     da entidade não lê a região imediata hoje, então a trilha dela fica sem esse elo até o servidor trazer o dado);
+ *   · nunca se inventa elo: sem a UF, sem o município ou sem a região no dado da página, o elo não aparece (a
+ *     entidade não lê a região no banco: `lugarDaEntidade` a tira da lista fixa dos 223, pelo IBGE da sede — C1c);
  *   · o último elo é a página aberta e sai sem link (`aria-current="page"` na tela);
  *   · o município leva à página dele na PB e aos investimentos fora da PB, como em todo o Mapa (`urlDoMunicipio`).
  * Função pura, sem banco.
@@ -14,7 +14,8 @@
 import { rotuloModalidade, urlDoMunicipio, urlInstrumento, urlProposta } from "./busca.ts";
 import { cnpjLegivel } from "./fornecedores.ts";
 import { urlBrasil } from "./pagina-brasil.ts";
-import { urlEntidade } from "./pagina-entidade.ts";
+import { regiaoDoMunicipioPb } from "./municipios-pb.ts";
+import { urlEntidade, type AbaEntidade } from "./pagina-entidade.ts";
 import type { AbaMunicipio } from "./pagina-municipio.ts";
 import { NOME_UF, siglaDaUrl, urlRegiao, urlUf } from "./pagina-uf.ts";
 
@@ -35,8 +36,11 @@ export interface Lugar {
    * ela (as organizações e os investimentos saem do "Dinheiro federal"; o relatório, do "Relatório e dados").
    */
   municipio?: { ibge?: string | null; nome?: string | null; aba?: AbaMunicipio } | null;
-  /** O proponente (a entidade): o CNPJ (para o link) e o nome. */
-  entidade?: { cnpj?: string | null; nome?: string | null } | null;
+  /**
+   * O proponente (a entidade): o CNPJ (para o link) e o nome. `aba`: a aba de onde a subpágina se abre (o relatório
+   * para imprimir volta ao "Relatório e dados", C1c).
+   */
+  entidade?: { cnpj?: string | null; nome?: string | null; aba?: AbaEntidade } | null;
 }
 
 const limpo = (s: string | null | undefined) => (s ?? "").trim() || null;
@@ -72,7 +76,7 @@ export function trilha(lugar: Lugar, ...depois: (Elo | string | null | undefined
 
   const cnpj = limpo(lugar.entidade?.cnpj);
   const entidade = limpo(lugar.entidade?.nome) ?? (cnpj ? `CNPJ ${cnpjLegivel(cnpj)}` : null);
-  if (entidade) elos.push({ rotulo: entidade, href: cnpj ? urlEntidade(cnpj) : null });
+  if (entidade) elos.push({ rotulo: entidade, href: cnpj ? urlEntidade(cnpj, lugar.entidade?.aba) : null });
 
   for (const d of depois) {
     if (!d) continue;
@@ -83,4 +87,24 @@ export function trilha(lugar: Lugar, ...depois: (Elo | string | null | undefined
   const ultimo = elos.length - 1;
   elos[ultimo] = { ...elos[ultimo], href: null };
   return elos;
+}
+
+/**
+ * O lugar de uma entidade, para a trilha da página dela e das subpáginas (C1c, 08/10/2026; B11, 9.1). A região
+ * imediata vem da lista fixa dos 223 (`municipios-pb.ts`, copiada do `mun_grupo`), pelo IBGE da sede, e só quando a
+ * UF do dado é a PB: sede de outra UF, UF ausente ou código que não é da PB ficam sem o elo da região (nunca se
+ * inventa elo). O município entra com o nome, o código ou os dois, como a leitura trouxer.
+ */
+export function lugarDaEntidade(
+  e: { cnpj: string; nome?: string | null; uf?: string | null; cod_ibge?: string | null; municipio?: string | null },
+  aba?: AbaEntidade,
+): Lugar {
+  const ibge = limpo(e.cod_ibge);
+  const regiao = siglaDaUrl(e.uf) === "PB" ? regiaoDoMunicipioPb(ibge) : null;
+  return {
+    uf: e.uf,
+    regiaoImediata: regiao?.imediata ?? null,
+    municipio: limpo(e.municipio) || ibge ? { ibge, nome: e.municipio } : null,
+    entidade: { cnpj: e.cnpj, nome: e.nome, aba },
+  };
 }

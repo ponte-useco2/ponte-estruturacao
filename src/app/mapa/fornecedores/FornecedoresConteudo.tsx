@@ -16,10 +16,13 @@ import {
 } from "@/lib/oportunidades/fornecedores";
 import { POR_PAGINA, type FiltroFornecedores, type LeituraPainelFornecedores, type LinhaPainel } from "@/lib/oportunidades/fornecedores.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { Saidas, type Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPainelFornecedores, { estado: "ok" }>;
+
+const ROTULO_MARCA = { inidoneos: "só inidôneas (TCU)", mei: "só MEI" } as const;
 
 const AVISO =
   "Uso interno da PONTE. Nomes de empresas como registrados nos pagamentos e contratos do SICONV, inclusive de MEI e empresário individual " +
@@ -69,7 +72,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
           numero={totais.naoVerificados === totais.fornecedores && totais.fornecedores > 0 ? "—" : n(totais.inidoneos)}
           nota={
             totais.naoVerificados > 0
-              ? `${n(totais.naoVerificados)} sem verificação: a lista do TCU não foi lida nesta execução`
+              ? `${n(totais.naoVerificados)} sem verificação: a lista do TCU não foi lida nesta atualização`
               : "na lista de licitantes inidôneos hoje"
           }
         />
@@ -117,7 +120,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
             </select>
           </Campo>
           <button type="submit" className="pa-btn pa-btn-pequeno">
-            Filtrar
+            Filtrar as empresas
           </button>
         </div>
       </form>
@@ -128,9 +131,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
           {total > linhas.length ? ` (os ${n(linhas.length)} primeiros)` : ""}
         </h2>
         {linhas.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">
-            Nenhuma empresa neste filtro. <LinkMapa href="/mapa/fornecedores">Ver todas</LinkMapa>
-          </p>
+          <VazioFornecedores filtro={filtro} municipio={escolhido?.municipio ?? (filtro.municipio ? `IBGE ${filtro.municipio}` : null)} />
         ) : (
           <TabelaRolagem rotuloId="forn-lista">
             <table className="mp-tabela">
@@ -171,7 +172,9 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
           pelo menos {moedaCurta(PAGO_MINIMO_CONCENTRACAO)} pagos a empresas e compra {ROTULO_FAIXA.moderada} ou com {ROTULO_FAIXA.alta}.
         </p>
         {concentrados.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhuma prefeitura com compra concentrada nesta execução.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhuma prefeitura da PB com compra concentrada na atualização de {formatarData(referencia)}.
+          </p>
         ) : (
           <TabelaConcentracao linhas={concentrados} filtro={filtro} />
         )}
@@ -183,8 +186,8 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
         </h2>
         <ul className="mp-laudo-causas mp-laudo-miudo">
           <li>
-            Pagamentos e contratos: dados abertos do Transferegov (SICONV), painel de {formatarData(referencia)}. O contrato liga ao convênio pela
-            licitação.
+            Pagamentos e contratos: dados abertos do Transferegov (SICONV), atualização de {formatarData(referencia)}. O contrato liga ao convênio
+            pela licitação.
           </li>
           <li>
             Fornecedor é quem tem CNPJ. O que vai para a conta do próprio convenente ou do órgão executor (OBTV para o convenente ou para o
@@ -199,12 +202,47 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
             prefeitura. O Estado e as entidades ficam fora, porque trazem o IBGE do município-sede.
           </li>
           <li>
-            Inidôneos: lista de licitantes inidôneos do TCU, lida no dia do painel. O início da sanção é o trânsito em julgado do acórdão. CEIS e
-            CNEP, da CGU, ainda não entram.
+            Inidôneos: lista de licitantes inidôneos do TCU, lida no dia da atualização. O início da sanção é o trânsito em julgado do acórdão.
+            CEIS e CNEP, da CGU, ainda não entram.
           </li>
         </ul>
       </section>
     </div>
+  );
+}
+
+/**
+ * A lista vazia diz o filtro em palavras e dá um link para tirar cada um (B14b, 08/10/2026). Antes: "Nenhuma
+ * empresa neste filtro. Ver todas", sem dizer qual filtro (B12, seção 5).
+ */
+function VazioFornecedores({ filtro, municipio }: { filtro: FiltroFornecedores; municipio: string | null }) {
+  const partes: string[] = [];
+  const saidas: Saida[] = [];
+  if (filtro.q) {
+    partes.push(`“${filtro.q}” no nome ou no CNPJ`);
+    saidas.push({ rotulo: "Tirar a busca", href: url(filtro, { q: null }) });
+  }
+  if (filtro.municipio) {
+    partes.push(`nos convênios de ${municipio}`);
+    saidas.push({ rotulo: "Ver toda a PB", href: url(filtro, { municipio: null }) });
+  }
+  if (filtro.marca) {
+    partes.push(ROTULO_MARCA[filtro.marca]);
+    saidas.push({ rotulo: `Tirar o filtro “${ROTULO_MARCA[filtro.marca]}”`, href: url(filtro, { marca: null }) });
+  }
+  if (saidas.length > 1) saidas.push({ rotulo: "Ver todas as empresas", href: "/mapa/fornecedores" });
+  return (
+    <p className="pa-cartao pa-cartao-plano">
+      Nenhuma empresa
+      {partes.length > 0 && (
+        <>
+          {" "}
+          neste filtro: <strong>{partes.join(" · ")}</strong>
+        </>
+      )}
+      .
+      <Saidas saidas={saidas} />
+    </p>
   );
 }
 

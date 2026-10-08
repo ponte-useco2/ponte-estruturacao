@@ -37,7 +37,7 @@ export const VISOES: DefinicaoVisao[] = [
     rotulo: "O que mudou",
     titulo: "O que mudou desde o dado anterior",
     pergunta:
-      "Suspensivas retiradas, primeiros desembolsos, contas enviadas ou rejeitadas e propostas com desfecho, comparando cada retrato do Transferegov com o anterior.",
+      "Suspensivas retiradas, primeiros desembolsos, contas enviadas ou rejeitadas e propostas com desfecho, comparando cada atualização do Transferegov com a anterior.",
   },
   {
     id: "suspensiva",
@@ -60,7 +60,8 @@ export const VISOES: DefinicaoVisao[] = [
   {
     id: "contas",
     rotulo: "Contas",
-    titulo: "Prestação de contas atrasada, rejeitada ou em TCE",
+    // B14b (08/10/2026): a tomada de contas especial por extenso; a sigla TCE fica só para o TCE-PB (H06).
+    titulo: "Prestação de contas atrasada, rejeitada ou em tomada de contas especial",
     pergunta: "O caminho que leva à inadimplência, e de quem é a vez em cada etapa.",
   },
   {
@@ -113,7 +114,7 @@ export const ROTULO_FONTE_MOVIMENTACAO: Record<string, string> = {
   pagamento: "pagamento",
   desembolso: "desembolso",
   aditivo: "termo aditivo",
-  prorrogacao: "prorrogação de ofício",
+  prorrogacao: "prorrogação pelo concedente",
   licitacao: "licitação",
   historico: "mudança de situação",
 };
@@ -197,7 +198,7 @@ export const TIPOS_MUDANCA: DefinicaoMudanca[] = [
   { tipo: "contas_abertas", rotulo: "Prazo de prestar contas começou", grupo: "alerta", alvo: "convenio" },
   { tipo: "contas_devolvidas", rotulo: "Contas devolvidas para complementação", grupo: "alerta", alvo: "convenio" },
   { tipo: "contas_rejeitadas", rotulo: "Contas rejeitadas ou inadimplência", grupo: "alerta", alvo: "convenio" },
-  { tipo: "tce_instaurada", rotulo: "TCE instaurada", grupo: "alerta", alvo: "convenio" },
+  { tipo: "tce_instaurada", rotulo: "Tomada de contas especial instaurada", grupo: "alerta", alvo: "convenio" },
   { tipo: "saldo_parado", rotulo: "Saldo completou 1 ano parado", grupo: "alerta", alvo: "convenio" },
   { tipo: "financeiro_sem_fisico", rotulo: "Dinheiro saiu e a obra não andou", grupo: "alerta", alvo: "convenio" },
   { tipo: "proposta_negada", rotulo: "Proposta reprovada, com impedimento ou eliminada", grupo: "alerta", alvo: "proposta" },
@@ -334,7 +335,7 @@ export const LADOS_CONTAS: LadoContas[] = ["atrasada", "negativo", "tce", "conce
 export const ROTULO_LADO_CONTAS: Record<LadoContas, string> = {
   atrasada: "Atrasadas pelo convenente",
   negativo: "Rejeitadas e inadimplentes",
-  tce: "Em TCE",
+  tce: "Em tomada de contas especial",
   concedente: "Esperando análise do concedente",
 };
 
@@ -806,7 +807,7 @@ export const ROTULO_SINAL: Record<Sinal, string> = {
   saldo: "Saldo parado",
   suspensiva: "Suspensiva vencendo",
   contas_atrasadas: "Contas atrasadas",
-  contas_negativas: "Contas rejeitadas, inadimplência ou TCE",
+  contas_negativas: "Contas rejeitadas, inadimplência ou tomada de contas especial",
   sem_desembolso: "Sem desembolso há +1 ano",
 };
 /** Para as etiquetas da tabela, onde o rótulo inteiro dobra a altura da linha. */
@@ -821,7 +822,7 @@ export const DESCRICAO_SINAL: Record<Sinal, string> = {
   saldo: "R$ 100 mil ou mais sem saída há mais de um ano",
   suspensiva: "prazo vencido ou vencendo em até 90 dias",
   contas_atrasadas: "prazo das contas vencido, ou contas em complementação",
-  contas_negativas: "prestação de contas rejeitada, inadimplência ou TCE",
+  contas_negativas: "prestação de contas rejeitada, inadimplência ou tomada de contas especial",
   sem_desembolso: "assinado há mais de um ano, sem suspensiva e sem nenhum desembolso",
 };
 

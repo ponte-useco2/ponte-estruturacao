@@ -284,13 +284,20 @@ export function LaudoConteudo({
             ))}
           </ul>
         ) : (
-          <p className="pa-nota">Não há eventos suficientes para medir tempos.</p>
+          // B12b (onda 3 de UX, 08/10/2026): dizia só "Não há eventos suficientes". Sem causa nenhuma, a linha está
+          // vazia ou todos os eventos caem no dia da coleta (`lerCausas` mede de um evento ao seguinte, ou até a coleta).
+          <p className="pa-nota">
+            {laudo.linha.length === 0
+              ? `A tela “Requisitos para Celebração” do Acesso Livre não tinha evento de análise na coleta de ${data(laudo.referencia)}.`
+              : `Os eventos registrados caem todos no dia da coleta, ${data(laudo.referencia)}, e ainda não dão intervalo a medir.`}{" "}
+            O tempo com cada lado é contado de um evento de análise ao seguinte (o último, até a coleta).
+          </p>
         )}
       </section>
 
       <LinhaDoTempoSecao linha={laudo.linha} />
       <AnalistasSecao analistas={laudo.analistas} />
-      <DocumentosSecao documentos={laudo.documentos} lista={dossie.documentos} hoje={hoje} />
+      <DocumentosSecao documentos={laudo.documentos} lista={dossie.documentos} hoje={hoje} referencia={laudo.referencia} />
 
       <section aria-labelledby="laudo-fonte" className="mp-radar-secao">
         <h2 id="laudo-fonte" className="mp-radar-h2">
@@ -414,15 +421,37 @@ export function AnalistasSecao({ analistas }: { analistas: Laudo["analistas"] })
   );
 }
 
-/** Os documentos anexados na aba de requisitos: o resumo e, aberta sob pedido, a lista. */
-export function DocumentosSecao({ documentos, lista, hoje }: { documentos: Laudo["documentos"]; lista: ExigDocumento[]; hoje: string }) {
+/**
+ * Os documentos anexados na aba de requisitos: o resumo e, aberta sob pedido, a lista.
+ * `referencia`: o dia da coleta, para o vazio dizer até quando se olhou (o laudo da suspensiva passa; o diagnóstico, não).
+ */
+export function DocumentosSecao({
+  documentos,
+  lista,
+  hoje,
+  referencia = null,
+}: {
+  documentos: Laudo["documentos"];
+  lista: ExigDocumento[];
+  hoje: string;
+  referencia?: string | null;
+}) {
   return (
     <section aria-labelledby="laudo-documentos" className="mp-radar-secao">
       <h2 id="laudo-documentos" className="mp-radar-h2">
         Documentos anexados
       </h2>
       {documentos.total === 0 ? (
-        <p className="pa-cartao pa-cartao-plano">Nenhum documento anexado na aba de requisitos.</p>
+        // B12b (onda 3 de UX, 08/10/2026): dizia só que não havia documento. A seção serve ao laudo da suspensiva e ao
+        // diagnóstico dos aprovados sem assinatura, por isso a frase cobre os dois usos da aba.
+        <div className="pa-cartao pa-cartao-plano pa-pilha">
+          <p>Nenhum documento anexado na aba de requisitos até a coleta{referencia ? ` de ${data(referencia)}` : ""}.</p>
+          <p>
+            É por essa aba que o proponente entrega ao concedente o que é exigido para assinar o instrumento ou para retirar a cláusula
+            suspensiva. Próximo passo: conferir no termo o que falta e anexar por ela; se a entrega foi feita por outro caminho, confirmar com o
+            concedente que ela foi recebida.
+          </p>
+        </div>
       ) : (
         <>
           <p className="pa-nota">

@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { areaDaUrl } from "@/lib/oportunidades/osc";
 import { lerOscDoMunicipio } from "@/lib/oportunidades/osc.server";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { lerEntidadesDoMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
-import { OrganizacoesConteudo } from "./OrganizacoesConteudo";
+import { OrganizacoesConteudo, urlOrganizacoes } from "./OrganizacoesConteudo";
 
 export const metadata: Metadata = {
   title: "Organizações da sociedade civil · Mapa de Oportunidades · PONTE",
@@ -32,12 +33,22 @@ export default async function OrganizacoesPage({
   const [{ ibge }, sp] = await Promise.all([params, searchParams]);
   if (!/^25\d{5}$/.test(ibge)) notFound();
   const [osc, linhas] = await Promise.all([lerOscDoMunicipio(ibge), lerEntidadesDoMunicipio(ibge)]);
-  if (!osc) return <DadoIndisponivel kicker="Sociedade civil" titulo="O cadastro das organizações está indisponível agora" />;
 
   const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const area = areaDaUrl(sp.area);
   const q = um(sp.q).trim().slice(0, 100);
   const pagina = Math.max(1, Math.min(Number.parseInt(um(sp.p), 10) || 1, 100));
+  if (!osc) {
+    // B12b: "Tentar de novo" com os mesmos filtros; a volta é o município, na aba de onde a lista se abre.
+    return (
+      <DadoIndisponivel
+        kicker="Sociedade civil"
+        titulo="O cadastro das organizações está indisponível agora"
+        endereco={urlOrganizacoes(ibge, { area, q, p: pagina })}
+        voltarPara={{ rotulo: "Voltar ao município", href: urlMunicipio(ibge, "dinheiro") }}
+      />
+    );
+  }
   after(() => registrarUso(visitante, "mapa_organizacoes", { ibge, area: area ?? "", q: q ? "sim" : "", pagina }));
 
   // Instrumentos federais por CNPJ no município (todas as lentes): marca e põe primeiro quem tem.

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { parametrosPix } from "@/lib/oportunidades/pix";
+import { parametrosPix, urlPix } from "@/lib/oportunidades/pix";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { lerCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import { lerResumoLaudoPix } from "@/lib/oportunidades/pix-laudo.server";
@@ -30,7 +30,8 @@ export default async function PixPage({
 
   const p = parametrosPix(await searchParams);
   const leitura = await lerPix(p);
-  if (leitura.estado !== "ok") return <PixIndisponivel estado={leitura.estado} />;
+  // B14b (08/10/2026): o mesmo recorte vira "Tentar de novo".
+  if (leitura.estado !== "ok") return <PixIndisponivel estado={leitura.estado} endereco={urlPix(p, {})} />;
   // O resumo do laudo (onda 13A) só entra no recorte plano a plano (PB, especiais).
   const plano = Boolean(leitura.especiais && p.aba === "especiais");
   // O ciclo em curso (oport_30) é diário e da mesma UF da lista plano a plano.

@@ -1,7 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
-import { ABAS_BRASIL, MACRORREGIAO, abaDoBrasil, gruposDeCor, janelasPorUf, ufsLadoALado, urlBrasil, type Malha } from "./pagina-brasil.ts";
+import {
+  ABAS_BRASIL,
+  MACRORREGIAO,
+  URL_CSV_BRASIL,
+  URL_RELATORIO_BRASIL,
+  abaDoBrasil,
+  anoDeReferencia,
+  fontesDoBrasil,
+  gruposDeCor,
+  janelasPorUf,
+  metodoDoBrasil,
+  nivelNoBrasil,
+  partesDoRelatorioBrasil,
+  podeAbaBrasil,
+  ufsLadoALado,
+  urlBrasil,
+  type Malha,
+} from "./pagina-brasil.ts";
 import type { LinhaTerritorio } from "./pagina-uf.ts";
 import type { LinhaDesfecho } from "./painel.ts";
 import type { LinhaEspecialAno } from "./pix.ts";
@@ -61,4 +78,49 @@ test("U2: as malhas geradas do IBGE têm as 27 UFs e os 223 municípios da PB", 
   assert.equal(pb.areas.length, 223);
   assert.ok(pb.areas.every((a) => /^25\d{5}$/.test(a.id) && a.d.startsWith("M")));
   assert.match(br.viewBox, /^0 0 \d+ \d+$/);
+});
+
+test("C1b: o relatório do Brasil abre com o mesmo nível da aba «Relatório e dados»", () => {
+  const minimo = ABAS_BRASIL.find((a) => a.id === "relatorio")?.minimo;
+  assert.equal(minimo, 1);
+  assert.equal(podeAbaBrasil("relatorio", 0), false, "quem não vê a aba é levado à página do Brasil");
+  assert.equal(podeAbaBrasil("relatorio", 1), true);
+  assert.equal(podeAbaBrasil("relatorio", 3), true);
+  assert.equal(podeAbaBrasil("resumo", 0), true);
+  // Coerente com a escolha da aba: o nível que abre a aba é o que abre a rota.
+  for (const nivel of [0, 1, 2, 3] as const) assert.equal(podeAbaBrasil("relatorio", nivel), abaDoBrasil("relatorio", nivel) === "relatorio");
+  // A página e a rota tiram o nível da mesma regra: todo aprovado abre o relatório; o administrador também.
+  assert.equal(nivelNoBrasil(false), 1);
+  assert.equal(nivelNoBrasil(true), 3);
+  assert.ok(podeAbaBrasil("relatorio", nivelNoBrasil(false)));
+  assert.equal(URL_RELATORIO_BRASIL, "/mapa/brasil/relatorio");
+  assert.equal(URL_CSV_BRASIL, "/mapa/brasil/csv");
+});
+
+test("C1b: as partes do relatório seguem a ordem das abas e nunca mostram o que o nível não vê", () => {
+  assert.deepEqual(partesDoRelatorioBrasil(1), ["resumo", "estados", "dinheiro", "tempos"]);
+  assert.deepEqual(partesDoRelatorioBrasil(3), ["resumo", "estados", "dinheiro", "tempos"]);
+  assert.deepEqual(partesDoRelatorioBrasil(0), ["resumo", "estados", "dinheiro"], "«Tempos e funil» é do aprovado");
+  assert.ok(!partesDoRelatorioBrasil(3).includes("relatorio"), "a aba do relatório não entra nele mesmo");
+});
+
+test("C1b: o ano das contas «do ano» vem da referência, do dado ou de hoje", () => {
+  assert.equal(anoDeReferencia({ referencia: "2026-10-07", dado_ate: "2025-12-31T00:00:00Z" }, "2027-01-02"), 2026);
+  assert.equal(anoDeReferencia({ referencia: null, dado_ate: "2025-12-31T00:00:00Z" }, "2027-01-02"), 2025);
+  assert.equal(anoDeReferencia({ referencia: null, dado_ate: null }, "2027-01-02"), 2027);
+});
+
+test("C1b: fontes com a data de cada uma e método em texto neutro", () => {
+  const f = fontesDoBrasil({ painel: "2026-10-07T03:00:00Z", pix: "2026-10-06", janelas: null });
+  assert.deepEqual(f.map((x) => x.data), ["2026-10-07T03:00:00Z", "2026-10-06", null, null]);
+  assert.match(f[0].fonte, /Transferegov/);
+  assert.match(f[1].fonte, /Pix/);
+  assert.match(f[3].fonte, /IBGE/);
+  const metodo = metodoDoBrasil(2026);
+  assert.ok(metodo.some((m) => m.includes("ordem alfabética, sem classificação de melhor ou pior")));
+  assert.ok(metodo.some((m) => m.includes("tomada de contas especial")), "a tomada de contas especial vai por extenso");
+  assert.ok(metodo.some((m) => m.includes("2026")));
+  const textos = [...f.flatMap((x) => [x.fonte, x.nota]), ...metodo];
+  assert.ok(textos.every((t) => !/\bTCE\b/.test(t)), "«TCE» solto não entra: é o tribunal (TCE-PB) ou vai por extenso");
+  assert.ok(textos.every((t) => !/\b(melhor|pior)es? (UF|estado)/i.test(t)), "nenhuma UF é apontada como melhor ou pior");
 });

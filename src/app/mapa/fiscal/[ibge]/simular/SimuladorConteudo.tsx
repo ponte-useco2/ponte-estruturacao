@@ -41,6 +41,7 @@ import { EstadoDecisao } from "../../FiscalConteudo";
 import { BotaoImprimir } from "./BotaoImprimir";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
+import { Termo } from "../../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraMunicipioFiscal, { estado: "ok" }>;
 
@@ -52,7 +53,7 @@ const ROTULO_TIPO: Record<TipoProvidencia, string> = {
   bloqueio: "bloqueia",
   limite: "limite da operação",
   contrapartida: "contrapartida",
-  conferir: "conferir",
+  conferir: "a conferir",
   documento: "documento",
   alerta: "acompanhar",
 };
@@ -100,7 +101,9 @@ export function SimuladorConteudo({ leitura, sp }: { leitura: LeituraOk; sp: Rec
         </h2>
         <dl className="pa-cartao mp-fiscal-evidencia">
           <div>
-            <dt>RCL ajustada</dt>
+            <dt>
+              <Termo slug="rcl">RCL ajustada</Termo>
+            </dt>
             <dd>
               {moedaCurta(base.rcl)}
               {base.rgf ? ` · RGF ${base.rgf}` : ""}
@@ -118,7 +121,7 @@ export function SimuladorConteudo({ leitura, sp }: { leitura: LeituraOk; sp: Rec
               {servico ? `${moedaCurta(servico.valor)} · ${base.rcl ? pct((servico.valor / base.rcl) * 100) : "—"} da RCL` : "—"}
               {servico && (
                 <span className="mp-tabela-secundario">
-                  {servico.fonte === "sadipem" ? `cronograma do PVL ${servico.pvl}` : `empenhado em ${servico.exercicio} (RREO), repetido`}
+                  {servico.fonte === "sadipem" ? `cronograma do pedido ${servico.pvl} no SADIPEM` : `empenhado em ${servico.exercicio} (RREO), repetido`}
                 </span>
               )}
             </dd>
@@ -134,7 +137,7 @@ export function SimuladorConteudo({ leitura, sp }: { leitura: LeituraOk; sp: Rec
             <dd>{base.caixa ? moedaCurta(base.caixa.valor) : "—"}</dd>
           </div>
           <div>
-            <dt>Pedido de referência no SADIPEM</dt>
+            <dt>Pedido de referência no SADIPEM (sistema da STN para os pedidos de crédito)</dt>
             <dd>
               {base.pvl ? (
                 <>
@@ -270,10 +273,10 @@ function Formulario({ ibge, p }: { ibge: string; p: ParametrosSimulador }) {
       </fieldset>
       <div className="pa-linha mp-simulador-acoes">
         <button type="submit" className="pa-btn pa-btn-primario">
-          Simular
+          Simular o projeto
         </button>
         <LinkMapa href={urlSimularFiscal(ibge)} className="pa-btn">
-          Limpar
+          Limpar o formulário
         </LinkMapa>
       </div>
     </form>

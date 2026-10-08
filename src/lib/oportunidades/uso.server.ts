@@ -16,16 +16,19 @@ export type UsoMapa =
   | "mapa_carteira"
   | "mapa_municipio"
   | "mapa_entidade"
+  | "mapa_entidade_relatorio"
   | "mapa_organizacoes"
   | "mapa_uf"
+  | "mapa_uf_relatorio"
   | "mapa_brasil"
+  | "mapa_brasil_relatorio"
   | "mapa_relatorio_municipio"
   | "mapa_laudo_instrumento"
   | "mapa_glossario"
   | "mapa_seguir"
   | "mapa_deixar_de_seguir";
 
-const TIPOS: readonly UsoMapa[] = ["mapa_carteira", "mapa_municipio", "mapa_entidade", "mapa_organizacoes", "mapa_uf", "mapa_brasil", "mapa_relatorio_municipio", "mapa_laudo_instrumento", "mapa_glossario", "mapa_seguir", "mapa_deixar_de_seguir"];
+const TIPOS: readonly UsoMapa[] = ["mapa_carteira", "mapa_municipio", "mapa_entidade", "mapa_entidade_relatorio", "mapa_organizacoes", "mapa_uf", "mapa_uf_relatorio", "mapa_brasil", "mapa_brasil_relatorio", "mapa_relatorio_municipio", "mapa_laudo_instrumento", "mapa_glossario", "mapa_seguir", "mapa_deixar_de_seguir"];
 
 /** Só texto curto e número: o detalhe diz o que interessou, não guarda conteúdo. */
 export function detalheLimpo(detalhe: Record<string, unknown>): Record<string, string | number | boolean> {

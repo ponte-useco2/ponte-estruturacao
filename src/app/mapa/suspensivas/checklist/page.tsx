@@ -20,10 +20,21 @@ export default async function ChecklistPage({ searchParams }: { searchParams: Pr
   if (!visitante || visitante.status !== "aprovado") return null;
   if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
-  const leitura = await lerPadroes();
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Checklist preventivo" titulo="O checklist está indisponível agora" />;
-
   const sp = await searchParams;
   const orgao = Array.isArray(sp.orgao) ? sp.orgao[0] : sp.orgao;
+
+  const leitura = await lerPadroes();
+  if (leitura.estado !== "ok") {
+    // B14b (08/10/2026): "Tentar de novo" com o mesmo órgão e a volta à lista das suspensivas (props da B12).
+    return (
+      <DadoIndisponivel
+        kicker="Checklist preventivo"
+        titulo="O checklist está indisponível agora"
+        endereco={orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(orgao)}` : "/mapa/suspensivas/checklist"}
+        voltarPara={{ rotulo: "Ver a lista das suspensivas", href: "/mapa/suspensivas" }}
+      />
+    );
+  }
+
   return <ChecklistConteudo leitura={leitura} hoje={diaBrasilia(new Date().toISOString())} orgao={orgao ?? null} />;
 }

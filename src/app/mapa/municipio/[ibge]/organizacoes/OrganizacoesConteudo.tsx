@@ -4,6 +4,7 @@
  * carteira, quando há, ou só com o cadastro do Mapa. Inaptas, suspensas e baixadas aparecem só como número.
  */
 import Link from "next/link";
+import { parametrosBusca, urlBusca } from "@/lib/oportunidades/busca";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import {
   areasDaLista,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/oportunidades/osc";
 import type { OscDoMunicipio } from "@/lib/oportunidades/osc.server";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../../_componentes/Carregando";
 import { Termo } from "../../../_componentes/Termo";
@@ -25,7 +27,8 @@ import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 
-function url(ibge: string, f: { area?: string | null; q?: string; p?: number }): string {
+/** O endereço da lista com os filtros. Exportado para a página montar o "Tentar de novo" do indisponível (B12b). */
+export function urlOrganizacoes(ibge: string, f: { area?: string | null; q?: string; p?: number }): string {
   const s = new URLSearchParams();
   if (f.area) s.set("area", f.area);
   if (f.q) s.set("q", f.q);
@@ -70,13 +73,13 @@ export function OrganizacoesConteudo({
       </div>
 
       <nav aria-label="Área de atuação" className="pa-chips mp-radar-filtros">
-        <LinkMapa href={url(ibge, { q })} className={`pa-chip${!area ? " pa-ativo" : ""}`} aria-current={!area ? "page" : undefined}>
+        <LinkMapa href={urlOrganizacoes(ibge, { q })} className={`pa-chip${!area ? " pa-ativo" : ""}`} aria-current={!area ? "page" : undefined}>
           Todas ({n(r.ativas)})
         </LinkMapa>
         {areas.map((a) => (
           <LinkMapa
             key={a.area}
-            href={url(ibge, { area: a.area, q })}
+            href={urlOrganizacoes(ibge, { area: a.area, q })}
             className={`pa-chip${area === a.area ? " pa-ativo" : ""}`}
             aria-current={area === a.area ? "page" : undefined}
           >
@@ -100,10 +103,19 @@ export function OrganizacoesConteudo({
 
       <section aria-labelledby="osc-lista" className="mp-radar-secao">
         <h2 id="osc-lista" className="mp-radar-h2" aria-live="polite">
-          {lista.organizacoes ? `${n(lista.organizacoes)} ${lista.organizacoes === 1 ? "organização" : "organizações"}` : "Nenhuma organização com esses filtros"}
+          {lista.organizacoes
+            ? `${n(lista.organizacoes)} ${lista.organizacoes === 1 ? "organização" : "organizações"}`
+            : q
+              ? `Nenhuma organização com “${q}”`
+              : area
+                ? "Nenhuma organização"
+                : "Nenhuma organização ativa"}
           {lista.linhas < lista.organizacoes ? ` em ${n(lista.linhas)} ${lista.linhas === 1 ? "linha" : "linhas"} (as filiais vão na linha da matriz)` : ""}
           {area ? ` · ${rotuloArea(area)}` : ""}
         </h2>
+        {lista.organizacoes === 0 && (
+          <SemOrganizacao ibge={ibge} municipio={osc.ativas.length ? municipio : null} ativas={r.ativas} area={area} q={q} versao={versaoLegivel(osc.fonte.versao)} />
+        )}
         {lista.grupos.length > 0 && (
           <TabelaRolagem rotuloId="osc-lista">
             <table className="mp-tabela mp-tabela-empilha">
@@ -150,7 +162,7 @@ export function OrganizacoesConteudo({
         {lista.paginas > 1 && (
           <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
             {atual > 1 && (
-              <LinkMapa href={url(ibge, { area, q, p: atual - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
+              <LinkMapa href={urlOrganizacoes(ibge, { area, q, p: atual - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
                 ← Anteriores
               </LinkMapa>
             )}
@@ -158,7 +170,7 @@ export function OrganizacoesConteudo({
               Página {n(atual)} de {n(lista.paginas)}
             </span>
             {atual < lista.paginas && (
-              <LinkMapa href={url(ibge, { area, q, p: atual + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
+              <LinkMapa href={urlOrganizacoes(ibge, { area, q, p: atual + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
                 Próximas →
               </LinkMapa>
             )}
@@ -170,6 +182,67 @@ export function OrganizacoesConteudo({
           contatos não entram no Mapa de Oportunidades.
         </p>
       </section>
+    </div>
+  );
+}
+
+/**
+ * A lista vazia (B12b, onda 3 de UX, 08/10/2026; antes, só o título "Nenhuma organização com esses filtros", sem saída).
+ * Com filtro: onde se procurou e até três saídas — tirar os filtros, o mesmo nome em todas as áreas e o nome na Paraíba
+ * inteira, pela busca. Sem filtro: o cadastro do Ipea não tem organização ativa aqui, e a volta é o município.
+ */
+function SemOrganizacao({
+  ibge,
+  municipio,
+  ativas,
+  area,
+  q,
+  versao,
+}: {
+  ibge: string;
+  /** Null quando o cadastro não tem nenhuma ativa: o nome viria dela. */
+  municipio: string | null;
+  ativas: number;
+  area: string | null;
+  q: string;
+  versao: string;
+}) {
+  const aqui = municipio ? `em ${municipio}` : "neste município";
+  if (!area && !q) {
+    return (
+      <div className="pa-cartao pa-cartao-plano pa-pilha">
+        <p>O Mapa das OSC (Ipea), versão de {versao}, não tem organização ativa {aqui}.</p>
+        <p className="pa-linha">
+          <LinkMapa href={urlMunicipio(ibge, "dinheiro")} className="pa-btn pa-btn-pequeno">
+            Voltar ao município
+          </LinkMapa>
+        </p>
+      </div>
+    );
+  }
+  const das = `${n(ativas)} ${ativas === 1 ? "organização ativa" : "organizações ativas"} ${aqui}`;
+  return (
+    <div className="pa-cartao pa-cartao-plano pa-pilha">
+      <p>
+        {q
+          ? `A procura olhou o nome, o nome fantasia e o CNPJ ${area ? `das organizações ativas ${aqui} na área ${rotuloArea(area)}` : `das ${das}`}.`
+          : `${ativas === 1 ? `A única organização ativa ${aqui} não tem` : `Nenhuma das ${das} tem`} a área ${rotuloArea(area ?? "")} na classificação do Ipea.`}
+      </p>
+      <p className="pa-linha">
+        <LinkMapa href={urlOrganizacoes(ibge, {})} className="pa-btn pa-btn-pequeno">
+          Tirar os filtros
+        </LinkMapa>
+        {q && area && (
+          <LinkMapa href={urlOrganizacoes(ibge, { q })} className="pa-btn pa-btn-pequeno">
+            Procurar “{q}” em todas as áreas
+          </LinkMapa>
+        )}
+        {q && (
+          <LinkMapa href={urlBusca(parametrosBusca({}), { aba: "organizacoes", q })} className="pa-btn pa-btn-pequeno">
+            Procurar “{q}” na Paraíba inteira
+          </LinkMapa>
+        )}
+      </p>
     </div>
   );
 }

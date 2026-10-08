@@ -18,6 +18,7 @@ import type { LeituraPadroes } from "@/lib/oportunidades/padroes.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { Termo } from "../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraPadroes, { estado: "ok" }>;
 
@@ -44,15 +45,16 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
         <p className="pa-kicker">Cláusulas suspensivas · Paraíba</p>
         <h1 className="pa-titulo">O que acontece com quem entra em suspensiva</h1>
         <p className="pa-sub">
+          {/* B14b (08/10/2026): "preso" e "morreu" eram gíria da equipe (como o LAU-2 da B14): agora "ainda em suspensiva" e "extinto". */}
           O destino e o tempo vêm do histórico dos dados abertos: todo convênio da PB que já teve suspensiva. As condições, os analistas e os
-          documentos vêm da coleta no Acesso Livre, que só tem quem ainda está preso — por isso ela não mede tempo até a saída.
+          documentos vêm da coleta no Acesso Livre, que só tem quem ainda está em suspensiva — por isso ela não mede tempo até a saída.
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <LinkMapa href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
-            Lista das suspensivas
+            Ver a lista das suspensivas
           </LinkMapa>
           <LinkMapa href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
-            Checklist preventivo
+            Abrir o checklist preventivo
           </LinkMapa>
         </p>
       </div>
@@ -61,7 +63,10 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
         <h2 id="padroes-destino" className="mp-radar-h2">
           O destino de quem entrou em suspensiva
         </h2>
-        <p className="pa-nota">Convênios da PB assinados desde {formatarData(COORTE_DESDE)} que tiveram cláusula suspensiva.</p>
+        <p className="pa-nota">
+          Convênios da PB assinados desde {formatarData(COORTE_DESDE)} que tiveram{" "}
+          <Termo slug="condicao-suspensiva">cláusula suspensiva</Termo>.
+        </p>
         <div className="pa-grade pa-grade-3 mp-painel-cartoes">
           <article className="pa-cartao">
             <h3 className="pa-mono">Saíram</h3>
@@ -72,7 +77,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
             </p>
           </article>
           <article className="pa-cartao mp-laudo-risco mp-laudo-critico">
-            <h3 className="pa-mono">Morreram na suspensiva</h3>
+            <h3 className="pa-mono">Extintos na suspensiva</h3>
             <p className="pa-numero">{n(t.destinos.morreu.n + t.destinos.encerrou.n)}</p>
             <p className="pa-nota">
               {moedaCurta(t.destinos.morreu.valor + t.destinos.encerrou.valor)} que nunca saíram: {n(t.destinos.morreu.n)} anulados ou rescindidos e{" "}
@@ -80,7 +85,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
             </p>
           </article>
           <article className="pa-cartao">
-            <h3 className="pa-mono">Seguem presos</h3>
+            <h3 className="pa-mono">Ainda em suspensiva</h3>
             <p className="pa-numero">{n(t.destinos.segue.n)}</p>
             <p className="pa-nota">{moedaCurta(t.destinos.segue.valor)} em execução, ainda em suspensiva</p>
           </article>
@@ -100,7 +105,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
                   Tempo até sair (mediana)
                 </th>
                 <th scope="col" className="mp-num">
-                  Morreram
+                  Extintos
                 </th>
                 <th scope="col" className="mp-num">
                   Perda entre os que terminaram
@@ -118,9 +123,9 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
           </table>
         </TabelaRolagem>
         <p className="pa-nota">
-          “Morreram”: anulados, rescindidos ou cancelados com a suspensiva pendente, ou encerrados sem a retirada — nenhum real desembolsado. O SICONV
-          apaga o prazo na retirada, e é assim que se sabe quem saiu. Com menos de {MINIMO_PADRAO} convênios, o órgão aparece, mas a mediana não diz
-          muito.
+          “Extintos”: anulados, rescindidos ou cancelados com a suspensiva pendente, ou encerrados sem a retirada — nenhum real desembolsado. O
+          SICONV apaga o prazo na retirada, e é assim que se sabe quem saiu. Com menos de {MINIMO_PADRAO} convênios, o órgão aparece, mas a{" "}
+          <Termo slug="mediana">mediana</Termo> não diz muito.
         </p>
       </section>
 
@@ -170,16 +175,23 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
           Quem analisa
         </h2>
         <p className="pa-nota">
-          Pessoas do lado do concedente com {MINIMO_PADRAO} atos ou mais ({n(comPadrao.length)} de {n(analistas.length)}). “Carteira” é o órgão e o
-          programa em que a pessoa mais atua, com a fatia dos convênios dela. “Última palavra” são os convênios em que o evento mais recente é dela, e há
-          quanto tempo, até a coleta.
+          Pessoas do lado do concedente com {MINIMO_PADRAO} atos ou mais ({n(comPadrao.length)} de {n(analistas.length)}). “Onde mais atua” é o
+          órgão e o programa em que a pessoa mais atua, com a fatia dos convênios dela. “Última palavra” são os convênios em que o evento mais
+          recente é dela, e há quanto tempo, até a coleta.
         </p>
+        {/* B14b (08/10/2026): "Carteira" é o nome da página dos itens seguidos; aqui a coluna diz o que mostra. A tabela
+            vazia passa a dizer que está vazia. */}
+        {comPadrao.length === 0 ? (
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhuma pessoa com {MINIMO_PADRAO} atos ou mais na coleta de {formatarPublicacao(leitura.coletadoEm)}.
+          </p>
+        ) : (
         <TabelaRolagem rotuloId="padroes-analistas">
           <table className="mp-tabela mp-padroes-tabela">
             <thead>
               <tr>
                 <th scope="col">Pessoa</th>
-                <th scope="col">Carteira</th>
+                <th scope="col">Onde mais atua</th>
                 <th scope="col" className="mp-num">
                   Convênios (atos)
                 </th>
@@ -227,6 +239,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
             </tbody>
           </table>
         </TabelaRolagem>
+        )}
         <p className="pa-nota">
           Quem só exige e quem só atende pode ser divisão de trabalho — uma pessoa faz a triagem, outra homologa —, e não um traço pessoal. A atribuição
           ao lado do nome ajuda a separar uma coisa da outra.

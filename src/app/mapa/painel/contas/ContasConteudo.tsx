@@ -12,6 +12,10 @@ import { moedaExata, porMunicipio } from "@/lib/oportunidades/tce-tcu";
 import type { LeituraContas } from "@/lib/oportunidades/tce-tcu.server";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { Termo } from "../../_componentes/Termo";
+
+// B14b (08/10/2026): nesta página "TCE" era sempre a tomada de contas especial. Ela passa a ser escrita por extenso,
+// como no resto do Mapa: a sigla fica só para o TCE-PB e para o nome do sistema e-TCE (H06).
 
 type LeituraOk = Extract<LeituraContas, { estado: "ok" }>;
 
@@ -26,16 +30,24 @@ export function ContasConteudo({ leitura, coletas }: { leitura: LeituraOk | null
         <p className="pa-kicker">Painel · contas e obras</p>
         <h1 className="pa-titulo">Contas e obras dos convênios da PB</h1>
         <p className="pa-sub">
-          O que os dados abertos não mostram: as Tomadas de Contas Especiais no e-TCE do Tribunal de Contas da União, o valor impugnado na
-          prestação de contas e as obras paradas no acompanhamento do Transferegov.
+          O que os dados abertos não mostram: as <Termo slug="tomada-de-contas-especial">tomadas de contas especiais</Termo> no sistema
+          e-TCE do Tribunal de Contas da União, o valor impugnado na <Termo slug="prestacao-de-contas">prestação de contas</Termo> e as
+          obras paradas no acompanhamento do Transferegov.
         </p>
         <p className="mp-fiscal-aviso">
-          Uso interno da PONTE. TCE instaurada é o órgão apurando dano ao erário; quem julga é o TCU, e &quot;processo autuado&quot; não é
-          condenação. Impugnação é o concedente recusando parte da comprovação. Nenhum nome de responsável aparece aqui.
+          Uso interno da PONTE. Tomada de contas especial instaurada é o órgão apurando dano ao erário; quem julga é o TCU, e
+          &quot;processo autuado&quot; não é condenação. Impugnação é o concedente recusando parte da comprovação. Nenhum nome de
+          responsável aparece aqui.
         </p>
       </div>
 
-      {leitura ? <SecaoTce leitura={leitura} /> : <p className="pa-cartao pa-cartao-plano">O e-TCE do TCU ainda não foi consultado.</p>}
+      {leitura ? (
+        <SecaoTce leitura={leitura} />
+      ) : (
+        <p className="pa-cartao pa-cartao-plano">
+          O sistema e-TCE do TCU ainda não foi consultado: as tomadas de contas especiais aparecem depois da primeira consulta semanal.
+        </p>
+      )}
       {coletas?.impugnacoes && <SecaoImpugnacoes linhas={coletas.impugnacoes} referencia={coletas.referenciaPrestacao} />}
       {coletas?.obras && <SecaoObras linhas={coletas.obras} referencia={coletas.referenciaObras} />}
     </div>
@@ -56,26 +68,33 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
     <>
       <section aria-labelledby="contas-tce" className="mp-radar-secao">
         <h2 id="contas-tce" className="mp-radar-h2">
-          Tomadas de Contas Especiais no TCU
+          Tomadas de contas especiais no TCU
         </h2>
         <p className="pa-nota">
           Consulta de {execucao.referencia ? formatarData(execucao.referencia) : "—"}: {n(num(c.tcu_consultados))} convênios consultados
           {num(c.tcu_erros) > 0 ? `, ${n(num(c.tcu_erros))} sem resposta` : ""}
-          {num(c.tcu_nao_consultados) > 0 ? `, ${n(num(c.tcu_nao_consultados))} para a próxima rodada` : ""}. A aba &quot;TCE&quot; do convênio no
-          Transferegov fica vazia mesmo quando há TCE, porque ela hoje corre no e-TCE.
+          {num(c.tcu_nao_consultados) > 0 ? `, ${n(num(c.tcu_nao_consultados))} para a próxima consulta semanal` : ""}. A aba &quot;TCE&quot; do
+          convênio no Transferegov fica vazia mesmo quando há tomada de contas especial, porque o processo hoje corre no e-TCE.
         </p>
         <div className="pa-grade pa-grade-4 mp-painel-cartoes">
-          <Cartao titulo="Convênios com TCE" numero={n(convenios)} nota={`${n(linhas.length)} TCE no total`} />
-          <Cartao titulo="Municípios" numero={n(municipios.length)} nota="com ao menos um convênio em TCE" />
+          <Cartao
+            titulo="Convênios com tomada de contas especial"
+            numero={n(convenios)}
+            nota={`${n(linhas.length)} ${linhas.length === 1 ? "tomada de contas especial" : "tomadas de contas especiais"} no total`}
+          />
+          <Cartao titulo="Municípios" numero={n(municipios.length)} nota="com ao menos um convênio em tomada de contas especial" />
           <Cartao
             titulo="Débito original"
             numero={moedaCurta(original)}
-            nota={`soma do valor apurado na instauração${semOriginal ? ` (${n(semOriginal)} TCE sem o original informado)` : ""}`}
+            nota={`soma do valor apurado na instauração${semOriginal ? ` (${n(semOriginal)} sem o original informado)` : ""}`}
           />
-          <Cartao titulo="Débito com juros" numero={moedaCurta(comJuros)} nota="atualizado pelo TCU, na data de cada TCE" />
+          <Cartao titulo="Débito com juros" numero={moedaCurta(comJuros)} nota="atualizado pelo TCU, na data de cada processo" />
         </div>
         {municipios.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhuma TCE nos convênios consultados.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhuma tomada de contas especial nos {n(num(c.tcu_consultados))} convênios da PB consultados em{" "}
+            {execucao.referencia ? formatarData(execucao.referencia) : "—"}.
+          </p>
         ) : (
           <TabelaRolagem rotuloId="contas-tce">
             <table className="mp-tabela">
@@ -86,7 +105,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
                     Convênios
                   </th>
                   <th scope="col" className="mp-num">
-                    TCE
+                    Tomadas de contas especiais
                   </th>
                   <th scope="col" className="mp-num">
                     Débito original
@@ -115,7 +134,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
       {ordenadas.length > 0 && (
         <section aria-labelledby="contas-lista" className="mp-radar-secao">
           <h2 id="contas-lista" className="mp-radar-h2">
-            As TCE, uma a uma
+            As tomadas de contas especiais, uma a uma
           </h2>
           <TabelaRolagem rotuloId="contas-lista">
             <table className="mp-tabela">
@@ -162,6 +181,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
                         t.url_processo ? (
                           <a href={t.url_processo} target="_blank" rel="noopener noreferrer">
                             TC {t.numero_processo}
+                            <span className="pa-sr"> (abre o processo no TCU em nova aba)</span>
                           </a>
                         ) : (
                           `TC ${t.numero_processo}`
@@ -178,8 +198,9 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
             </table>
           </TabelaRolagem>
           <p className="pa-nota">
-            Fonte: API pública do e-TCE do TCU (tce.apps.tcu.gov.br), uma consulta por convênio, toda semana. Entram os convênios assinados da PB
-            na última execução do painel, menos os anulados e cancelados. TCE com situação &quot;Excluída&quot; não aparece.
+            Fonte: API pública do sistema e-TCE do TCU (tce.apps.tcu.gov.br), uma consulta por convênio, toda semana. Entram os convênios
+            assinados da PB na última atualização diária do painel, menos os anulados e cancelados. Tomada de contas especial com situação
+            &quot;Excluída&quot; não aparece.
           </p>
         </section>
       )}
@@ -195,8 +216,10 @@ function SecaoImpugnacoes({ linhas, referencia }: { linhas: PainelContasObras["i
         Impugnações na prestação de contas
       </h2>
       <p className="pa-nota">
-        {n(linhas.length)} convênios em prestação de contas com valor impugnado no SIAFI, somando {moedaCurta(total)} (coleta do Acesso Livre
-        {referencia ? ` de ${formatarData(referencia)}` : ""}).
+        {linhas.length === 0
+          ? "Nenhum convênio da PB em prestação de contas com valor impugnado no SIAFI (sistema financeiro da União)"
+          : `${n(linhas.length)} convênios em prestação de contas com valor impugnado no SIAFI (sistema financeiro da União), somando ${moedaCurta(total)}`}{" "}
+        (coleta do Acesso Livre{referencia ? ` de ${formatarData(referencia)}` : ""}).
       </p>
       {linhas.length > 0 && (
         <TabelaRolagem rotuloId="contas-impugnacao">
@@ -252,8 +275,11 @@ function SecaoObras({ linhas, referencia }: { linhas: PainelContasObras["obras"]
         Obras paradas no acompanhamento
       </h2>
       <p className="pa-nota">
-        {n(paradas.length)} obras em execução paralisadas ou atrasadas há {DIAS_SEM_MEDICAO_MODERADO} dias ou mais sem medição, pelo módulo de
-        acompanhamento de obras do Transferegov (coleta{referencia ? ` de ${formatarData(referencia)}` : ""}).
+        {paradas.length === 0
+          ? "Nenhuma obra em execução paralisada ou atrasada"
+          : `${n(paradas.length)} obras em execução paralisadas ou atrasadas`}{" "}
+        há {DIAS_SEM_MEDICAO_MODERADO} dias ou mais sem medição, pelo módulo de acompanhamento de obras do Transferegov (coleta
+        {referencia ? ` de ${formatarData(referencia)}` : ""}).
       </p>
       {paradas.length > 0 && (
         <TabelaRolagem rotuloId="contas-obras">

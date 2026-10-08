@@ -19,9 +19,11 @@ import type { LeituraInvestimentos } from "@/lib/oportunidades/busca.server";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
 import { UF_DETALHE } from "@/lib/oportunidades/instrumentos-escopo";
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import { NOME_UF, urlUf } from "@/lib/oportunidades/pagina-uf";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { trilha } from "@/lib/oportunidades/trilha";
+import { recorteDaBase } from "@/lib/oportunidades/vazios";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { Trilha } from "../../../_componentes/Trilha";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
@@ -74,7 +76,7 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
       </div>
 
       {vazio ? (
-        <p className="pa-cartao pa-cartao-plano">Nenhum investimento federal registrado para este município no recorte da busca.</p>
+        <SemInvestimento ibge={ibge} uf={uf} nome={leitura.municipio} completo={completo} />
       ) : (
         <>
           <div className="pa-grade pa-grade-3 mp-painel-cartoes">
@@ -125,6 +127,43 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
           />
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Nada no recorte (B12b, onda 3 de UX, 08/10/2026; antes, "no recorte da busca", sem dizer qual). Fora da PB o
+ * município sem nenhum convênio vivo fica vazio mesmo tendo recebido no passado, e as propostas recentes podem estar lá:
+ * as saídas são elas, na busca, e a página da UF. Na PB, só as propostas (a página do município já está no topo).
+ */
+function SemInvestimento({ ibge, uf, nome, completo }: { ibge: string; uf: string; nome: string | null; completo: boolean }) {
+  const recorte = recorteDaBase(uf);
+  const propostas = urlBusca(parametrosBusca({}), { aba: "propostas", uf, municipio: ibge });
+  // Sem nenhuma linha, o nome pode não ter vindo de lugar nenhum: "de IBGE 2408102" não se lê.
+  const de = nome ? `de ${nome}` : "deste município";
+  return (
+    <div className="pa-cartao pa-cartao-plano pa-pilha">
+      <p>
+        {completo
+          ? `Nenhum convênio, transferência especial ou fundo a fundo ${de} na base do Mapa.`
+          : `Nenhum convênio de proponente ${de} na base do Mapa.`}
+      </p>
+      <p>
+        {completo
+          ? `A base tem ${recorte.convenios}; proponente estadual fica de fora.`
+          : `Fora da Paraíba, a base tem ${recorte.convenios}: o município sem nenhum deles aparece vazio, mesmo que já tenha recebido.`}
+      </p>
+      <p className="pa-linha">
+        <LinkMapa href={propostas} className="pa-btn pa-btn-pequeno">
+          Ver as propostas do município
+        </LinkMapa>
+        {!completo && (
+          <LinkMapa href={urlUf(uf)} className="pa-btn pa-btn-pequeno">
+            Ver a página da UF ({NOME_UF[uf] ?? uf})
+          </LinkMapa>
+        )}
+      </p>
+      <p className="pa-nota">A busca das propostas traz {recorte.propostas}.</p>
     </div>
   );
 }

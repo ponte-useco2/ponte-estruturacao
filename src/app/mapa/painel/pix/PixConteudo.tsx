@@ -32,10 +32,11 @@ import type { LeituraCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import type { LeituraPix } from "@/lib/oportunidades/pix.server";
 import { LIMITE_LISTA } from "@/lib/oportunidades/pix.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import { Cartao, Lista, n } from "../Pecas";
+import { Cartao, Lista, Saidas, n, type Saida } from "../Pecas";
 import { CicloPix } from "./CicloPix";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { Termo } from "../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraPix, { estado: "ok" }>;
 
@@ -63,7 +64,7 @@ export function PixConteudo({
         <p className="pa-kicker">Painel da PONTE · uso interno</p>
         <h1 className="pa-titulo">Pix e fundo a fundo · {onde}</h1>
         <p className="pa-sub">
-          Retrato das APIs do Transferegov gravado em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>. Especiais:
+          Leitura semanal das APIs do Transferegov, gravada em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>. Especiais:
           relatórios até {data(dataDasContagens(c, "especiais_dado_ate"))}, último pagamento registrado em{" "}
           {data(dataDasContagens(c, "especiais_ultimo_pagamento"))}. Fundo a fundo: movimento até{" "}
           {data(dataDasContagens(c, "fundo_dado_ate"))}.
@@ -110,7 +111,7 @@ export function PixConteudo({
             ))}
           </select>
           <button type="submit" className="pa-btn pa-btn-pequeno">
-            Aplicar
+            Aplicar o filtro
           </button>
         </form>
       </div>
@@ -145,15 +146,16 @@ function Especiais({
   const anosComDuplicata = anosDe(anos, recorte).filter((a) => soma(anos, recorte, "duplicados", [a]) > 0);
 
   if (s("planos") === 0) {
-    return <p className="pa-cartao pa-cartao-plano">Nenhum plano de transferência especial neste recorte.</p>;
+    return <VazioPix p={p} oQue="Nenhum plano de transferência especial" outra={{ rotulo: "Ver o fundo a fundo", href: urlPix(p, { aba: "fundo" }) }} />;
   }
+  const uf = leitura.ufLista;
 
   return (
     <>
       <h2 className="mp-radar-h2">Transferências especiais · {p.uf ?? "Brasil"}</h2>
       <p className="pa-sub">
-        A emenda individual que cai direto na conta do ente, sem convênio: o ente dá ciência, apresenta o plano de trabalho, recebe e
-        presta contas por relatório de gestão.
+        A <Termo slug="pix">transferência especial</Termo> é a emenda individual que cai direto na conta do ente, sem convênio: o
+        ente dá ciência, apresenta o plano de trabalho, recebe e presta contas por relatório de gestão.
       </p>
 
       <div className="pa-grade pa-grade-3 mp-painel-cartoes">
@@ -200,16 +202,20 @@ function Especiais({
       {leitura.especiais ? (
         <>
           <CicloPix leitura={ciclo} hoje={hoje} />
+          {/* B14b (08/10/2026): o vazio diz qual situação e de que UF, no lugar de "nessa situação". */}
           <Lista
             titulo={`Pagos há mais de 12 meses sem relatório entregue · os ${LIMITE_LISTA} maiores`}
-            vazio="Nenhum plano nessa situação."
+            vazio={`Nenhum plano da ${uf} pago há mais de 12 meses sem relatório de gestão entregue.`}
           >
             {leitura.especiais.semRelatorio.length > 0 && <TabelaPlanosEspeciais linhas={leitura.especiais.semRelatorio} coluna="pago" />}
           </Lista>
-          <Lista titulo={`Impedidos · os ${LIMITE_LISTA} mais recentes e maiores`} vazio="Nenhum plano impedido.">
+          <Lista titulo={`Impedidos · os ${LIMITE_LISTA} mais recentes e maiores`} vazio={`Nenhum plano da ${uf} impedido.`}>
             {leitura.especiais.impedidos.length > 0 && <TabelaPlanosEspeciais linhas={leitura.especiais.impedidos} coluna="motivo" />}
           </Lista>
-          <Lista titulo={`Execução encerrada sem relatório final · os ${LIMITE_LISTA} maiores`} vazio="Nenhum plano nessa situação.">
+          <Lista
+            titulo={`Execução encerrada sem relatório final · os ${LIMITE_LISTA} maiores`}
+            vazio={`Nenhum plano da ${uf} com a execução encerrada sem relatório final.`}
+          >
             {leitura.especiais.encerradaSemFinal.length > 0 && (
               <TabelaPlanosEspeciais linhas={leitura.especiais.encerradaSemFinal} coluna="fim" />
             )}
@@ -224,7 +230,7 @@ function Especiais({
 
       <Ressalvas>
         <li>
-          Retrato semanal das APIs públicas do Transferegov. Na mesma data, os relatórios continuam chegando e os pagamentos do ano já
+          Leitura semanal das APIs públicas do Transferegov. Na mesma data, os relatórios continuam chegando e os pagamentos do ano já
           saíram: a lacuna diminui à medida que os entes entregam.
         </li>
         <li>
@@ -392,7 +398,9 @@ function ResumoLaudo({ laudo, uf }: { laudo: ResumoPainelLaudoPix | null; uf: st
     return (
       <div className="mp-radar-recorte">
         <h3 className="mp-radar-h3">O laudo dos planos de {uf}</h3>
-        <p className="pa-cartao pa-cartao-plano">O laudo plano a plano ainda não foi gravado (oport_23 e a próxima rodada do job).</p>
+        <p className="pa-cartao pa-cartao-plano">
+          O laudo plano a plano ainda não foi gravado: depende da migração oport_23 e da próxima leitura semanal do Pix.
+        </p>
       </div>
     );
   }
@@ -401,8 +409,9 @@ function ResumoLaudo({ laudo, uf }: { laudo: ResumoPainelLaudoPix | null; uf: st
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">O laudo dos planos de {uf}</h3>
       <p className="pa-nota">
-        Cada item do roteiro da IN-TCU 93/2024, conferido plano a plano nos dados abertos. &quot;A conferir&quot; é ponto para olhar, não
-        irregularidade. O laudo de cada plano está nas listas abaixo e na página do ente.
+        Cada item do roteiro da IN-TCU 93/2024, conferido plano a plano nos dados abertos. Ponto{" "}
+        <Termo slug="ponto-a-conferir">a conferir</Termo> é para olhar, não irregularidade. O laudo de cada plano está nas listas
+        abaixo e na página do ente.
       </p>
       <TabelaRolagem rotulo={`O laudo dos planos de ${uf}`}>
         <table className="mp-tabela">
@@ -500,15 +509,18 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
   const corte = dataDasContagens(c, "fundo_corte_parado");
 
   if (s("planos") === 0) {
-    return <p className="pa-cartao pa-cartao-plano">Nenhum plano de fundo a fundo neste recorte.</p>;
+    return (
+      <VazioPix p={p} oQue="Nenhum plano de fundo a fundo" outra={{ rotulo: "Ver as transferências especiais", href: urlPix(p, { aba: "especiais" }) }} />
+    );
   }
+  const uf = leitura.ufLista;
 
   return (
     <>
       <h2 className="mp-radar-h2">Fundo a fundo no Transferegov · {p.uf ?? "Brasil"}</h2>
       <p className="pa-sub">
-        Repasse de fundo federal para fundo do ente, por plano de ação: segurança pública, cultura, esporte, educação e outros. SUS e
-        SUAS passam pelo FNS e pelo FNAS e não estão aqui.
+        <Termo slug="fundo-a-fundo">Repasse de fundo federal para fundo do ente</Termo>, por plano de ação: segurança pública,
+        cultura, esporte, educação e outros. SUS e SUAS passam pelo FNS e pelo FNAS e não estão aqui.
       </p>
 
       <div className="pa-grade pa-grade-3 mp-painel-cartoes">
@@ -636,13 +648,22 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
 
       {leitura.fundo ? (
         <>
-          <Lista titulo={`Parados há mais de 12 meses · os ${LIMITE_LISTA} maiores saldos`} vazio="Nenhum plano parado.">
+          <Lista
+            titulo={`Parados há mais de 12 meses · os ${LIMITE_LISTA} maiores saldos`}
+            vazio={`Nenhum plano da ${uf} com saldo parado há mais de 12 meses.`}
+          >
             {leitura.fundo.parados.length > 0 && <TabelaPlanosFundo linhas={leitura.fundo.parados} coluna="pagamento" />}
           </Lista>
-          <Lista titulo={`Vigência encerrada com saldo · os ${LIMITE_LISTA} maiores`} vazio="Nenhum plano nessa situação.">
+          <Lista
+            titulo={`Vigência encerrada com saldo · os ${LIMITE_LISTA} maiores`}
+            vazio={`Nenhum plano da ${uf} com a vigência encerrada e saldo em conta.`}
+          >
             {leitura.fundo.encerradosComSaldo.length > 0 && <TabelaPlanosFundo linhas={leitura.fundo.encerradosComSaldo} coluna="vigencia" />}
           </Lista>
-          <Lista titulo={`Relatório aguardando análise · os ${LIMITE_LISTA} mais antigos`} vazio="Nenhum relatório aguardando análise.">
+          <Lista
+            titulo={`Relatório aguardando análise · os ${LIMITE_LISTA} mais antigos`}
+            vazio={`Nenhum relatório de plano da ${uf} aguardando análise.`}
+          >
             {leitura.fundo.aguardandoAnalise.length > 0 && <TabelaPlanosFundo linhas={leitura.fundo.aguardandoAnalise} coluna="relatorio" />}
           </Lista>
         </>
@@ -728,7 +749,25 @@ function Ressalvas({ children }: { children: ReactNode }) {
   );
 }
 
-export function PixIndisponivel({ estado }: { estado: "nao_ativado" | "sem_execucao" | "erro" }) {
+/**
+ * A aba sem nenhum plano no recorte (B14b, 08/10/2026): diz a UF e dá a saída para o Brasil e para a outra aba.
+ * Antes: "Nenhum plano … neste recorte", sem dizer qual nem como mudar (B12, seção 5).
+ */
+function VazioPix({ p, oQue, outra }: { p: ParametrosPix; oQue: string; outra: Saida }) {
+  const saidas: Saida[] = [...(p.uf ? [{ rotulo: "Ver o Brasil inteiro", href: urlPix(p, { uf: null }) }] : []), outra];
+  return (
+    <p className="pa-cartao pa-cartao-plano">
+      {oQue} {p.uf ? `com beneficiário da UF ${p.uf}` : "no Brasil"}, na leitura semanal mais recente.
+      <Saidas saidas={saidas} />
+    </p>
+  );
+}
+
+/**
+ * Indisponível do Pix, só para administrador. B14b (08/10/2026): `endereco` vira "Tentar de novo" quando a leitura
+ * falhou, como no `DadoIndisponivel` da B12.
+ */
+export function PixIndisponivel({ estado, endereco }: { estado: "nao_ativado" | "sem_execucao" | "erro"; endereco?: string }) {
   const texto = {
     nao_ativado: {
       titulo: "Pix e fundo a fundo ainda não foi ativado no banco",
@@ -749,8 +788,15 @@ export function PixIndisponivel({ estado }: { estado: "nao_ativado" | "sem_execu
         <p className="pa-kicker">Painel da PONTE · uso interno</p>
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
-        <p>
-          <LinkMapa href="/mapa/painel">Voltar ao painel de execução</LinkMapa>
+        <p className="pa-linha">
+          {estado === "erro" && endereco && (
+            <LinkMapa href={endereco} className="pa-btn pa-btn-pequeno">
+              Tentar de novo
+            </LinkMapa>
+          )}
+          <LinkMapa href="/mapa/painel" className="pa-btn pa-btn-pequeno">
+            Voltar ao painel de execução
+          </LinkMapa>
         </p>
       </div>
     </div>

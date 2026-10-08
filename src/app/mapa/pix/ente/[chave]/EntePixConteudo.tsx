@@ -12,6 +12,7 @@ import { PixNoTce } from "../../PixNoTce";
 import { AVISO_PIX } from "../../plano/[id]/PlanoPixConteudo";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
+import { Termo } from "../../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraLaudoEntePix, { estado: "ok" }>;
 
@@ -40,16 +41,18 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
         <h1 className="pa-titulo">{p0.beneficiario ?? "Ente"}</h1>
         <p className="pa-sub">
           {n(planos.length)} {planos.length === 1 ? "plano de ação" : "planos de ação"} · {moedaCurta(soma((p) => p.valor))} indicados ·{" "}
-          {moedaCurta(soma((p) => p.pago))} pagos · {n(conferir.length)} com ponto a conferir
+          {moedaCurta(soma((p) => p.pago))} pagos · {n(conferir.length)} com ponto{" "}
+          <Termo slug="ponto-a-conferir">a conferir</Termo>
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
+          {/* B14b (08/10/2026): botões com verbo e objeto. */}
           <a href={urlCsvEntePix(chave)} className="pa-btn pa-btn-pequeno">
-            Baixar CSV (um item por coluna)
+            Baixar os planos (CSV, um item por coluna)
           </a>
           {!cliente && (
             <LinkMapa href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
-              Painel do Pix
+              Abrir o painel do Pix
             </LinkMapa>
           )}
         </p>

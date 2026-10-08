@@ -25,9 +25,11 @@ export function CicloPix({ leitura, hoje }: { leitura: LeituraCicloPix | null; h
 
 function Conteudo({ leitura, hoje }: { leitura: LeituraCicloPix | null; hoje: string }) {
   if (!leitura || leitura.estado === "nao_ativado" || leitura.estado === "sem_execucao") {
-    return <p className="pa-nota">A coleta diária do ciclo ainda não rodou.</p>;
+    return <p className="pa-nota">A coleta diária do ciclo ainda não foi feita: a lista aparece depois da primeira.</p>;
   }
-  if (leitura.estado === "erro") return <p className="pa-nota">O ciclo em curso não pôde ser lido agora.</p>;
+  if (leitura.estado === "erro") {
+    return <p className="pa-nota">O ciclo em curso não pôde ser lido agora. Costuma ser passageiro: recarregue a página em alguns minutos.</p>;
+  }
   const c = leitura.contagens;
   const planos = ordenarCiclo(leitura.planos);
   const ente = planos.filter((p) => p.vez === "ente");

@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { urlProposta } from "@/lib/oportunidades/busca";
 import { lerProposta } from "@/lib/oportunidades/busca.server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
+import { recorteDaBase } from "@/lib/oportunidades/vazios";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { PropostaConteudo } from "./PropostaConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+
+const BUSCA_PROPOSTAS = "/mapa/busca?aba=propostas";
 
 export const metadata: Metadata = {
   title: "Proposta · Mapa de Oportunidades · PONTE",
@@ -28,18 +32,26 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
         <div className="pa-pilha">
           <p className="pa-kicker">Proposta {id}</p>
           <h1 className="pa-titulo">Esta proposta não está na busca</h1>
-          <p>
-            A busca traz as propostas enviadas da Paraíba desde 2019 e, no resto do país, as dos últimos três anos e as antigas
-            que ainda se movem. Rascunhos que nunca foram enviados não entram.
-          </p>
+          {/* B12b: o recorte de `recorteDaBase`, o mesmo dos investimentos do município. */}
+          <p>A busca traz {recorteDaBase(null).propostas}. Rascunhos que nunca foram enviados não entram.</p>
           <p className="pa-nota">
-            <LinkMapa href="/mapa/busca?aba=propostas">Buscar propostas</LinkMapa>
+            <LinkMapa href={BUSCA_PROPOSTAS}>Buscar propostas</LinkMapa>
           </p>
         </div>
       </div>
     );
   }
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker={`Proposta ${id}`} titulo="A proposta está indisponível agora" />;
+  if (leitura.estado !== "ok") {
+    // B12b: sem a leitura não se sabe o proponente nem o município (o nível acima na trilha); a volta é a busca das propostas.
+    return (
+      <DadoIndisponivel
+        kicker={`Proposta ${id}`}
+        titulo="A proposta está indisponível agora"
+        endereco={urlProposta(id)}
+        voltarPara={{ rotulo: "Buscar propostas", href: BUSCA_PROPOSTAS }}
+      />
+    );
+  }
   return (
     <PropostaConteudo
       leitura={leitura}

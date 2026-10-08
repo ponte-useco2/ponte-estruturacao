@@ -2,6 +2,9 @@
  * A página da UF em abas (U1, desenho aprovado em 08/10/2026): o território acima do município. A Paraíba tem o dado
  * completo; as outras UFs, só o que a base guarda para o país (instrumentos vivos, propostas desde 2019, tempos, Pix
  * e fundo a fundo), e a página diz isso. A lista dos municípios é neutra para quem não é administrador.
+ *
+ * Desde a C1a (08/10/2026) as seções são exportadas: o relatório para imprimir (`./relatorio`) junta todas numa peça
+ * só, como o do município, e a aba "Relatório e dados" ficou curta (o link para ele, o CSV e as fontes).
  */
 import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
@@ -19,23 +22,28 @@ import {
   ancoraRegiao,
   ROTULO_LENTE_UF,
   etapasComparadas,
+  fontesDaUf,
   funil,
   intermediariasDaUf,
   lentesDaUf,
+  metodoDaUf,
   municipiosPorRegiao,
   naUf,
   orgaosComparados,
   porChave,
   porSinais,
   porSituacao,
+  textoSemMedicoes,
+  textoSemOrgaoEstadual,
   totalTerritorio,
+  urlRelatorioUf,
   urlUf,
   type AbaUf,
   type MunicipioUf,
 } from "@/lib/oportunidades/pagina-uf";
 import type { LeituraUfOk } from "@/lib/oportunidades/pagina-uf.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
-import { CHAVE_TODOS, ROTULO_ETAPA } from "@/lib/oportunidades/painel";
+import { CHAVE_TODOS, MINIMO_MEDICOES, ROTULO_ETAPA } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { trilha } from "@/lib/oportunidades/trilha";
@@ -56,6 +64,42 @@ const dias = (x: number | null) => (x === null ? "—" : `${n(Math.round(x))} di
 /** Fora da PB, o município não tem a página em abas: a descida vai aos investimentos do município. */
 const urlDoMunicipioNaUf = (ibge: string, completa: boolean) => (completa ? urlMunicipio(ibge) : `/mapa/municipio/${ibge}/investimentos`);
 
+/** Os atalhos do administrador para os painéis dos 223 (só a PB tem): na página e no relatório (C1a). */
+export function AtalhosAdmin({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
+  if (nivel < 3 || !l.completa) return null;
+  return (
+    <>
+      <LinkMapa href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
+        Capacidade fiscal dos 223
+      </LinkMapa>
+      <LinkMapa href={`/mapa/painel?uf=${l.sigla}`} className="pa-btn pa-btn-pequeno">
+        Painel de execução
+      </LinkMapa>
+      <LinkMapa href="/mapa/painel/tce" className="pa-btn pa-btn-pequeno">
+        Tribunal de Contas (TCE-PB)
+      </LinkMapa>
+      <LinkMapa href="/mapa/painel/contas" className="pa-btn pa-btn-pequeno">
+        Contas e obras
+      </LinkMapa>
+      <LinkMapa href="/mapa/fornecedores" className="pa-btn pa-btn-pequeno">
+        Fornecedores
+      </LinkMapa>
+    </>
+  );
+}
+
+/** Fora da PB, o que a base tem e o que não tem: na página e no relatório (C1a), que dizem o mesmo. */
+export function AvisoCobertura({ l }: { l: LeituraUfOk }) {
+  if (l.completa) return null;
+  return (
+    <p className="pa-nota">
+      A PONTE cobre a Paraíba por inteiro. Para {NOME_UF[l.sigla]}, a base tem os instrumentos vivos (em execução, em prestação de contas e em{" "}
+      <Termo slug="tomada-de-contas-especial">tomada de contas especial</Termo>), as propostas desde 2019, o tempo de cada etapa e o Pix e o fundo a
+      fundo por ano. Não há fiscal, indicadores nem OSC.
+    </p>
+  );
+}
+
 function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   const nome = NOME_UF[l.sigla];
   return (
@@ -69,33 +113,9 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <BotaoImprimir />
-        {nivel >= 3 && l.completa && (
-          <>
-            <LinkMapa href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
-              Capacidade fiscal dos 223
-            </LinkMapa>
-            <LinkMapa href={`/mapa/painel?uf=${l.sigla}`} className="pa-btn pa-btn-pequeno">
-              Painel de execução
-            </LinkMapa>
-            <LinkMapa href="/mapa/painel/tce" className="pa-btn pa-btn-pequeno">
-              Tribunal de Contas (TCE-PB)
-            </LinkMapa>
-            <LinkMapa href="/mapa/painel/contas" className="pa-btn pa-btn-pequeno">
-              Contas e obras
-            </LinkMapa>
-            <LinkMapa href="/mapa/fornecedores" className="pa-btn pa-btn-pequeno">
-              Fornecedores
-            </LinkMapa>
-          </>
-        )}
+        <AtalhosAdmin l={l} nivel={nivel} />
       </p>
-      {!l.completa && (
-        <p className="pa-nota">
-          A PONTE cobre a Paraíba por inteiro. Para {nome}, a base tem os instrumentos vivos (em execução, em prestação de contas e em{" "}
-          <Termo slug="tomada-de-contas-especial">tomada de contas especial</Termo>), as propostas desde 2019, o tempo de cada etapa e o Pix e o fundo a
-          fundo por ano. Não há fiscal, indicadores nem OSC.
-        </p>
-      )}
+      <AvisoCobertura l={l} />
     </div>
   );
 }
@@ -131,7 +151,11 @@ function Cartao({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?:
   );
 }
 
-function Resumo({ l }: { l: LeituraUfOk }) {
+/**
+ * A aba de entrada. `peca` (C1a): a versão do relatório para imprimir, sem os botões que levam às outras abas (no
+ * relatório elas vêm logo abaixo) e sem a linha das leituras que falharam, que lá fica nas fontes.
+ */
+export function Resumo({ l, peca = false }: { l: LeituraUfOk; peca?: boolean }) {
   const t = l.territorio;
   const grupos = t ? porSituacao(t, l.sigla) : [];
   const g = (id: string) => grupos.find((x) => x.id === id);
@@ -171,10 +195,14 @@ function Resumo({ l }: { l: LeituraUfOk }) {
                 rotulo="Janelas abertas no Transferegov"
                 valor={n(l.janelas)}
                 nota={
-                  <Link href="/mapa" prefetch={false}>
-                    Ver as janelas
-                    <Carregando />
-                  </Link>
+                  peca ? (
+                    "Programas abertos hoje, no catálogo do Mapa."
+                  ) : (
+                    <Link href="/mapa" prefetch={false}>
+                      Ver as janelas
+                      <Carregando />
+                    </Link>
+                  )
                 }
               />
             )}
@@ -224,16 +252,18 @@ function Resumo({ l }: { l: LeituraUfOk }) {
               {versaoLegivel(l.osc.versao)}), listadas na página de cada município.
             </p>
           )}
-          <p className="mp-nao-imprimir mp-laudo-acoes">
-            <Link href={urlUf(l.sigla, "municipios")} className="pa-btn pa-btn-pequeno" prefetch={false}>
-              Ver os municípios
-              <Carregando />
-            </Link>
-            <Link href={urlUf(l.sigla, "estado")} className="pa-btn pa-btn-pequeno" prefetch={false}>
-              Ver o estado como proponente
-              <Carregando />
-            </Link>
-          </p>
+          {!peca && (
+            <p className="mp-nao-imprimir mp-laudo-acoes">
+              <Link href={urlUf(l.sigla, "municipios")} className="pa-btn pa-btn-pequeno" prefetch={false}>
+                Ver os municípios
+                <Carregando />
+              </Link>
+              <Link href={urlUf(l.sigla, "estado")} className="pa-btn pa-btn-pequeno" prefetch={false}>
+                Ver o estado como proponente
+                <Carregando />
+              </Link>
+            </p>
+          )}
         </Secao>
       )}
 
@@ -263,7 +293,7 @@ function Resumo({ l }: { l: LeituraUfOk }) {
           </TabelaRolagem>
         </Secao>
       )}
-      {l.faltas.length > 0 && <p className="pa-nota">Não puderam ser lidos agora: {l.faltas.join(", ")}.</p>}
+      {!peca && l.faltas.length > 0 && <p className="pa-nota">Não puderam ser lidos agora: {l.faltas.join(", ")}.</p>}
     </>
   );
 }
@@ -310,8 +340,11 @@ function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa
   );
 }
 
-/** O mapa dos municípios da PB (a única UF com a malha municipal), cor pela região intermediária do IBGE. */
-function MapaDaUf({ municipios }: { municipios: MunicipioUf[] }) {
+/**
+ * O mapa dos municípios da PB (a única UF com a malha municipal), cor pela região intermediária do IBGE. `alternativa`
+ * (C1a): onde está a lista com os mesmos links, quando não é logo abaixo do mapa (no relatório, é a aba Municípios).
+ */
+export function MapaDaUf({ municipios, alternativa }: { municipios: MunicipioUf[]; alternativa?: React.ReactNode }) {
   const intermediarias = intermediariasDaUf(municipios);
   const cor = gruposDeCor(intermediarias);
   const areas = new Map<string, AreaMapa>(
@@ -323,6 +356,7 @@ function MapaDaUf({ municipios }: { municipios: MunicipioUf[] }) {
       areas={areas}
       legenda={intermediarias.map((r) => ({ grupo: cor.get(r) ?? 0, rotulo: `Região intermediária de ${r}` }))}
       titulo="Mapa dos 223 municípios da Paraíba, cor pela região intermediária do IBGE"
+      alternativa={alternativa}
     />
   );
 }
@@ -408,7 +442,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
   );
 }
 
-function Estado({ l }: { l: LeituraUfOk }) {
+export function Estado({ l }: { l: LeituraUfOk }) {
   if (!l.proponentes) return <p className="pa-nota">A lista dos proponentes não pôde ser lida agora.</p>;
   const estaduais = l.proponentes
     .map((p) => ({ ...p, especie: especieDe(p.proponente, p.tipo_agente) }))
@@ -466,7 +500,8 @@ function Estado({ l }: { l: LeituraUfOk }) {
           </table>
         </TabelaRolagem>
       ) : (
-        <p>Nenhum órgão estadual com instrumento na base.</p>
+        // B12 (C1a, 08/10/2026): o vazio diz o recorte da base; fora da PB, só entram os instrumentos vivos.
+        <p>{textoSemOrgaoEstadual(l.sigla)}</p>
       )}
       <p className="pa-nota">
         A situação fiscal dos estados não entra aqui: o relatório dos estados no Tesouro Transparente não é atualizado desde 03/11/2025, e o
@@ -661,7 +696,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   );
 }
 
-function Tempos({ l }: { l: LeituraUfOk }) {
+export function Tempos({ l }: { l: LeituraUfOk }) {
   const nome = NOME_UF[l.sigla];
   const todos = l.etapas ? etapasComparadas(l.etapas, l.sigla, CHAVE_TODOS) : [];
   const orgaos = l.etapas ? orgaosComparados(l.etapas, l.sigla) : [];
@@ -675,7 +710,7 @@ function Tempos({ l }: { l: LeituraUfOk }) {
         nota={
           <>
             <Termo slug="mediana">Mediana</Termo> em dias das etapas que terminaram nos últimos 36 meses, contra a do Brasil. Marcada quando passa de 1,5 vez a
-            do país; com menos de 10 medições, não compara.
+            do país; com menos de {MINIMO_MEDICOES} medições, não compara.
           </>
         }
       >
@@ -701,7 +736,8 @@ function Tempos({ l }: { l: LeituraUfOk }) {
             </table>
           </TabelaRolagem>
         ) : (
-          <p className="pa-nota">Sem medições suficientes do tempo das etapas.</p>
+          // B12 (C1a, 08/10/2026): o vazio diz o mínimo de casos; a leitura que falhou não se passa por falta de medição.
+          <p className="pa-nota">{l.etapas ? textoSemMedicoes(l.sigla) : "O tempo das etapas não pôde ser lido agora. Costuma ser passageiro: tente de novo em alguns minutos."}</p>
         )}
         {orgaos.length > 0 && (
           <details className="mp-ent-grupo">
@@ -786,26 +822,60 @@ function Tempos({ l }: { l: LeituraUfOk }) {
   );
 }
 
-function Relatorio({ l }: { l: LeituraUfOk }) {
+/**
+ * Fontes, datas e limites (C1a, 08/10/2026): as fontes da página, cada uma com a sua data, o "como ler" e a
+ * assinatura da PONTE, como no relatório do município. Fecha o relatório para imprimir e a aba "Relatório e dados".
+ */
+export function FontesUf({ l, administrador }: { l: LeituraUfOk; administrador: boolean }) {
   return (
-    // A nota prometia "os municípios", que a aba nunca mostrou (B0, 4.6): a lista inteira sai no CSV (B11, 08/10/2026).
-    <Secao
-      id="uf-relatorio"
-      titulo="Relatório e dados"
-      nota="Para imprimir ou anexar: o resumo e o dinheiro federal do estado numa peça só. A lista dos municípios sai no CSV."
-    >
-      <p className="mp-nao-imprimir mp-laudo-acoes">
-        <BotaoImprimir />
-        <a href={`/mapa/uf/${l.sigla.toLowerCase()}/csv`} className="pa-btn pa-btn-pequeno">
-          Baixar os municípios (CSV)
-        </a>
-      </p>
-      <p className="pa-nota">
-        Fontes: Transferegov (instrumentos, propostas, tempos, Pix e fundo a fundo), arquivo de {data(l.execucao.dado_ate)}
-        {l.completa && l.osc ? `; Mapa das OSC (Ipea), versão de ${versaoLegivel(l.osc.versao)}` : ""}
-        {l.completa ? "; nos indicadores, o IBGE e as demais fontes oficiais citadas na página do município" : ""}.
-      </p>
+    <Secao id="uf-fontes" titulo="Fontes, datas e limites">
+      <ul>
+        {fontesDaUf(l, administrador).map((x) => (
+          <li key={x.fonte}>
+            <strong>{x.fonte}</strong>
+            {x.data ? ` (${data(x.data)})` : ""}: {x.nota}
+          </li>
+        ))}
+      </ul>
+      <div className="mp-rel-sub">
+        <h3 className="mp-rel-h3">Como ler</h3>
+        <ul>
+          {metodoDaUf(l.completa, administrador).map((x) => (
+            <li key={x}>{x}</li>
+          ))}
+        </ul>
+      </div>
+      {l.faltas.length > 0 && <p className="pa-nota">Não lido nesta página (a leitura falhou ou a fonte ainda não está publicada): {l.faltas.join(", ")}.</p>}
+      <p className="pa-nota">Relatório preparado por PONTE Estruturação de Projetos de Impacto.</p>
     </Secao>
+  );
+}
+
+/**
+ * A aba "Relatório e dados" (C1a, 08/10/2026; B11, 9.5): curta, como a do município. Antes repetia o Resumo e o
+ * Dinheiro dentro da aba (B0, 4.4); agora leva ao relatório para imprimir, que junta todas as abas, e dá o CSV e as
+ * fontes.
+ */
+function Relatorio({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
+  return (
+    <>
+      <Secao
+        id="uf-relatorio"
+        titulo="O relatório completo"
+        nota="Todas as abas numa peça só, com a fonte de cada número, para imprimir ou anexar. No papel, os municípios vêm somados por região; a lista, município a município, sai no CSV."
+      >
+        <p className="mp-nao-imprimir mp-laudo-acoes">
+          <LinkMapa href={urlRelatorioUf(l.sigla)} className="pa-btn">
+            Abrir o relatório para imprimir
+          </LinkMapa>
+          <a href={`/mapa/uf/${l.sigla.toLowerCase()}/csv`} className="pa-btn pa-btn-pequeno">
+            Baixar os municípios (CSV)
+          </a>
+        </p>
+      </Secao>
+      {/* as colunas do administrador (fiscal e sinais) só existem na PB */}
+      <FontesUf l={l} administrador={nivel >= 3 && l.completa} />
+    </>
   );
 }
 
@@ -821,13 +891,7 @@ export function UfConteudo({ l, aba, nivel, porSinais: ordenarPorSinais = false 
       {aba === "estado" && <Estado l={l} />}
       {aba === "dinheiro" && <Dinheiro l={l} nivel={nivel} />}
       {aba === "tempos" && <Tempos l={l} />}
-      {aba === "relatorio" && (
-        <>
-          <Relatorio l={l} />
-          <Resumo l={l} />
-          <Dinheiro l={l} nivel={nivel} />
-        </>
-      )}
+      {aba === "relatorio" && <Relatorio l={l} nivel={nivel} />}
     </div>
   );
 }

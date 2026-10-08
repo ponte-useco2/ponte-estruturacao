@@ -18,7 +18,17 @@ export default async function CarteiraPage() {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
   const leitura = await lerCarteira();
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Carteira" titulo="A carteira está indisponível agora" />;
+  if (leitura.estado !== "ok") {
+    // B12b: a carteira é o topo da descida; a volta é a lista do que se segue, em Avisos ("Meus itens").
+    return (
+      <DadoIndisponivel
+        kicker="Carteira"
+        titulo="A carteira está indisponível agora"
+        endereco="/mapa/carteira"
+        voltarPara={{ rotulo: "Ver os meus itens em Avisos", href: "/mapa/avisos?mural=itens" }}
+      />
+    );
+  }
   const hoje = diaBrasilia(new Date().toISOString());
   const carteira = montarCarteira({ seguidos: leitura.seguidos, avisos: leitura.avisos }, hoje);
   after(() => registrarUso(visitante, "mapa_carteira", { itens: carteira.itens.length, nao_lidas: carteira.naoLidas }));

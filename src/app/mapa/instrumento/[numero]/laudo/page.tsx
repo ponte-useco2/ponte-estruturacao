@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
-import { numeroValido } from "@/lib/oportunidades/busca";
+import { numeroValido, urlInstrumento, urlLaudo } from "@/lib/oportunidades/busca";
 import { EXPLICACAO_SEM_CNPJ, EXPLICACAO_SEM_FICHA, podeVerInstrumento, podeVerInstrumentoPorCnpj } from "@/lib/oportunidades/cliente";
 import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
 import { lerDiagnostico } from "@/lib/oportunidades/diagnostico";
@@ -11,6 +11,7 @@ import { diaBrasilia, dossieSemNomes, lerAcessoLivre, lerLaudo } from "@/lib/opo
 import { lerLaudoInstrumento } from "@/lib/oportunidades/laudo.server";
 import { tempoNoOrgao } from "@/lib/oportunidades/padroes";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
+import { recorteDaBase } from "@/lib/oportunidades/vazios";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
 import { DiagnosticoComplemento, DiagnosticoConteudo, FontesDiagnostico } from "./DiagnosticoConteudo";
@@ -73,13 +74,22 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
       </SemLaudo>
     ) : (
       <SemLaudo numero={numero} kicker={null} titulo="Este convênio não está na base do Mapa">
-        O laudo cobre os convênios da base do Mapa: todos os de proponente da Paraíba e, no resto do país, os que estão em execução ou em prestação
-        de contas. Confira o número ou <LinkMapa href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>procure por “{numero}”</LinkMapa>.
+        {/* B12b: o recorte de `recorteDaBase`, o mesmo da página do convênio (antes faltava a tomada de contas especial). */}
+        O laudo cobre os convênios da base do Mapa: {recorteDaBase(null).convenios}. Confira o número ou{" "}
+        <LinkMapa href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>procure por “{numero}”</LinkMapa>.
       </SemLaudo>
     );
   }
   if (leitura.estado !== "ok") {
-    return <DadoIndisponivel kicker={`Laudo · instrumento nº ${numero}`} titulo="O laudo está indisponível agora" />;
+    // B12b: "Tentar de novo" no próprio laudo; a volta é o convênio, um nível acima.
+    return (
+      <DadoIndisponivel
+        kicker={`Laudo · instrumento nº ${numero}`}
+        titulo="O laudo está indisponível agora"
+        endereco={urlLaudo(numero)}
+        voltarPara={{ rotulo: "Voltar ao convênio", href: urlInstrumento(numero) }}
+      />
+    );
   }
 
   const suspensiva = await (dossieAdiantado ?? lerLaudoInstrumento(numero));

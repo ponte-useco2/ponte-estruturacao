@@ -358,7 +358,7 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
       fato:
         `O SICONV registra ${moedaCurta(valor)} pagos à empresa em ${anos.length > 1 ? `${anos.slice(0, -1).join(", ")} e ${anos.at(-1)}` : anos[0]} ` +
         `nos convênios da administração municipal, entre eles este, e as despesas do município no TCE-PB não têm pagamento a esse CNPJ ` +
-        "nesse ano nem no seguinte. Pode ser lançamento com outro CNPJ (filial) ou atraso na prestação de contas ao TCE; vale conferir.",
+        "nesse ano nem no seguinte. Pode ser lançamento com outro CNPJ (filial) ou atraso na prestação de contas ao TCE-PB; vale conferir.",
     });
   }
   if (municipio?.faixa === "alta" && municipio.nesteConvenio && municipio.maior_fatia !== null) {

@@ -5,12 +5,14 @@
  * do relatório do município (`montarRelatorio`), com a entrada lida por CNPJ.
  *
  * Aqui fica o que é puro: o CNPJ da URL, a espécie (pelo tipo do painel e pelo nome), as abas por nível de acesso
- * (decisão D1), quem é cliente da entidade e o agrupamento do bloco "Quem recebe no município". Sem banco.
+ * (decisão D1), quem é cliente da entidade e o agrupamento do bloco "Quem recebe no município"; desde a C1c
+ * (08/10/2026), também o acesso ao relatório para imprimir, o estado vazio e as fontes que a entidade lê. Sem banco.
  */
-import { GRUPOS_SITUACAO, grupoDaSituacao } from "./busca.ts";
+import { GRUPOS_SITUACAO, grupoDaSituacao, parametrosBusca, urlBusca } from "./busca.ts";
 import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
 import type { ColunaCsv } from "./painel.ts";
 import type { AreaExcetuada, InstrumentoRelatorio } from "./relatorio-municipio.ts";
+import { TRANSFEREGOV_CONSULTA } from "./transferegov.ts";
 
 /**
  * O CNPJ como a base guarda: 14 posições, sem máscara. Aceita o alfanumérico (12 posições de letras e dígitos e 2
@@ -160,6 +162,20 @@ export function urlEntidade(cnpj: string, aba?: AbaEntidade): string {
 }
 
 /**
+ * Se o nível alcança a aba (D1). O relatório para imprimir (`/mapa/entidade/[cnpj]/relatorio`, C1c) segue a aba
+ * "Relatório e dados": quem não vê a aba não vê a página inteira numa peça só.
+ */
+export function podeAbaEntidade(aba: AbaEntidade, nivel: NivelAcesso): boolean {
+  const a = ABAS_ENTIDADE.find((x) => x.id === aba);
+  return !!a && nivel >= a.minimo;
+}
+
+/** O relatório da entidade para imprimir (C1c, 08/10/2026), no modelo do relatório do município. */
+export function urlRelatorioEntidade(cnpj: string): string {
+  return `/mapa/entidade/${encodeURIComponent(cnpj)}/relatorio`;
+}
+
+/**
  * O nível de quem abre a página da entidade. Cliente (2) é a organização de município com o IBGE confirmado,
  * diante de uma entidade municipal do mesmo IBGE (a regra do `podeVerInstrumento`), ou a organização com o CNPJ
  * confirmado (oport_31), diante da própria entidade.
@@ -257,6 +273,83 @@ export function dinheiroPorOrgao(instrumentos: InstrumentoRelatorio[]): { orgao:
     m.set(k, g);
   }
   return [...m.values()].sort((a, b) => b.valor - a.valor || a.orgao.localeCompare(b.orgao, "pt-BR"));
+}
+
+// ================================================================ vazio, fontes (C1c, 08/10/2026)
+
+/**
+ * O recorte da base do Mapa: dito na ficha "Quem é" e quando o CNPJ não tem instrumento nem proposta. Conferido no
+ * job (`painel_execucao/`) e no banco em 08/10/2026: fora da PB os instrumentos vivos incluem a tomada de contas
+ * especial (`instrumentos.py`, `vivo`), e há propostas de fora da PB (121.683 na última execução): as enviadas no ano
+ * da referência e nos dois anteriores, mais as antigas sem desfecho que tiveram evento no último ano (`propostas.py`).
+ * O texto antigo da ficha ("Propostas: só as de proponente da Paraíba") estava errado.
+ */
+export const RECORTE_BASE_ENTIDADE =
+  "Instrumentos do Transferegov: todos os de proponente da Paraíba desde 2008; fora da Paraíba, só os em execução, em prestação de contas " +
+  "ou em tomada de contas especial. Propostas: todas as de proponente da Paraíba desde 2019; fora da Paraíba, as dos últimos três anos e as " +
+  "antigas sem desfecho que se moveram no último ano.";
+
+export interface SaidaEntidadeVazia {
+  rotulo: string;
+  href: string;
+  /** Página de fora do Mapa (abre em nova aba). */
+  externo?: boolean;
+}
+
+/**
+ * O que tentar quando o CNPJ não tem instrumento nem proposta na base (B12, seção 5): procurar pelo nome, porque o
+ * convênio pode estar noutro CNPJ da mesma organização (a matriz, uma filial, um CNPJ antigo), e conferir no
+ * Transferegov o que fica fora do recorte. Sem nome (a base guarda só o CNPJ), não há busca pelo nome.
+ */
+export function saidasEntidadeVazia(e: { cnpj: string; nome: string | null | undefined }): SaidaEntidadeVazia[] {
+  const nome = (e.nome ?? "").trim();
+  const temNome = nome.length > 0 && cnpjDaUrl(nome) !== e.cnpj;
+  const base = parametrosBusca({});
+  return [
+    ...(temNome
+      ? [
+          { rotulo: `Procurar «${nome}» nos convênios`, href: urlBusca(base, { q: nome }) },
+          { rotulo: `Procurar «${nome}» nas propostas`, href: urlBusca(base, { aba: "propostas", q: nome }) },
+        ]
+      : []),
+    { rotulo: "Abrir a consulta pública do Transferegov", href: TRANSFEREGOV_CONSULTA, externo: true },
+  ];
+}
+
+type Fonte = { fonte: string; data: string | null; nota: string };
+
+/**
+ * As fontes do relatório da entidade. O motor (`montarRelatorio`) lista as do relatório do município; a entidade não
+ * lê os indicadores (são do território), lê o painel fiscal só quando é municipal e o TCE-PB só quando é a prefeitura
+ * (`lerRelatorioEntidade`). O que ela não lê sai da lista, para o papel não citar fonte sem data e sem uso. A OSC
+ * que está no Mapa das OSC ganha a linha dele, com a versão. A OSC só do cadastro (sem instrumento nem proposta) fica
+ * com o Transferegov, onde não foi achada, e o Mapa das OSC: sem convênio não há TCU, Acesso Livre nem Pix a citar.
+ */
+export function fontesDaEntidade(
+  fontes: readonly Fonte[],
+  o: { especie: EspecieEntidade; mapaOsc?: { versao: string | null } | null; soCadastro?: boolean },
+): Fonte[] {
+  const fica = (f: Fonte) => {
+    if (o.soCadastro) return f.fonte.startsWith("SICONV");
+    if (f.fonte.startsWith("Indicadores do município")) return false;
+    if (f.fonte.startsWith("Painel fiscal")) return ehMunicipal(o.especie);
+    if (f.fonte.startsWith("TCE-PB")) return o.especie === "prefeitura";
+    return true;
+  };
+  return [
+    ...fontes.filter(fica),
+    ...(o.mapaOsc
+      ? [
+          {
+            fonte: "Mapa das Organizações da Sociedade Civil (Ipea)",
+            data: null,
+            nota:
+              `Cadastro da Receita Federal, área de atuação e CEBAS${o.mapaOsc.versao ? `, versão de ${o.mapaOsc.versao}` : ""}. ` +
+              "Endereço, dirigentes e contatos não entram.",
+          },
+        ]
+      : []),
+  ];
 }
 
 /** O CSV dos instrumentos da entidade (aba "Relatório e dados"). */

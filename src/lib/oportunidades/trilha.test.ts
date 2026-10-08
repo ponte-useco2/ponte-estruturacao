@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { eloInstrumento, eloProposta, trilha, type Elo } from "./trilha.ts";
+import { MUNICIPIOS_PB, REGIOES_IMEDIATAS_PB, regiaoDoMunicipioPb } from "./municipios-pb.ts";
+import { eloInstrumento, eloProposta, lugarDaEntidade, trilha, type Elo } from "./trilha.ts";
 
 const rotulos = (elos: Elo[]) => elos.map((e) => e.rotulo);
 const links = (elos: Elo[]) => elos.map((e) => e.href);
@@ -60,4 +61,54 @@ test("B11: convênio, proposta e laudo descem até o instrumento", () => {
   assert.equal(eloProposta("1234567", null).rotulo, "Proposta nº 1234567");
   // elos vazios no fim não contam
   assert.deepEqual(rotulos(trilha({ uf: "PB" }, null, false, undefined)), ["Brasil", "Paraíba"]);
+});
+
+test("C1c: a região imediata dos 223 — cada município da lista em uma região só, 15 imediatas e 4 intermediárias", () => {
+  const codigos = REGIOES_IMEDIATAS_PB.flatMap((r) => r.ibges.split(" "));
+  assert.equal(codigos.length, 223);
+  assert.equal(new Set(codigos).size, 223, "nenhum código repetido");
+  assert.ok(MUNICIPIOS_PB.every(([ibge]) => regiaoDoMunicipioPb(ibge) !== null), "todo município da lista tem região");
+  assert.equal(REGIOES_IMEDIATAS_PB.length, 15);
+  assert.equal(new Set(REGIOES_IMEDIATAS_PB.map((r) => r.intermediaria)).size, 4);
+  assert.deepEqual(regiaoDoMunicipioPb("2510808"), { imediata: "Patos", intermediaria: "Patos" });
+  assert.deepEqual(regiaoDoMunicipioPb(" 2504009 "), { imediata: "Campina Grande", intermediaria: "Campina Grande" });
+  assert.deepEqual(regiaoDoMunicipioPb("2516201"), { imediata: "Sousa", intermediaria: "Sousa - Cajazeiras" });
+  assert.equal(regiaoDoMunicipioPb("3509502"), null, "fora da PB");
+  assert.equal(regiaoDoMunicipioPb(null), null);
+});
+
+test("C1c: trilha da entidade da PB passa pela região imediata, tirada do IBGE da sede", () => {
+  const patos = lugarDaEntidade({ cnpj: "09084815000170", nome: "MUNICIPIO DE PATOS", uf: "PB", cod_ibge: "2510808", municipio: "Patos" });
+  const t = trilha(patos);
+  assert.deepEqual(rotulos(t), ["Brasil", "Paraíba", "Região imediata de Patos", "Patos", "MUNICIPIO DE PATOS"]);
+  assert.deepEqual(links(t), ["/mapa/brasil", "/mapa/uf/pb", "/mapa/uf/pb?aba=municipios#regiao-patos", "/mapa/municipio/2510808", null]);
+  // a região de nome composto leva à âncora da UF
+  const marcacao = trilha(lugarDaEntidade({ cnpj: "11222333000181", nome: "ASSOCIACAO DE EXEMPLO", uf: "pb", cod_ibge: "2509057", municipio: "Marcação" }));
+  assert.equal(marcacao[2].rotulo, "Região imediata de Mamanguape - Rio Tinto");
+  assert.equal(marcacao[2].href, "/mapa/uf/pb?aba=municipios#regiao-mamanguape-rio-tinto");
+});
+
+test("C1c: entidade sem região — fora da PB, sem UF, sem código ou com código de outra UF, o elo não aparece", () => {
+  const sp = trilha(lugarDaEntidade({ cnpj: "51885242000140", nome: "MUNICIPIO DE CAMPINAS", uf: "SP", cod_ibge: "3509502", municipio: "Campinas" }));
+  assert.deepEqual(rotulos(sp), ["Brasil", "São Paulo", "Campinas", "MUNICIPIO DE CAMPINAS"]);
+  // UF do dado diz PB, mas o código é de outra UF: nada de região inventada
+  assert.deepEqual(rotulos(trilha(lugarDaEntidade({ cnpj: "51885242000140", nome: "X", uf: "PB", cod_ibge: "3509502", municipio: "Campinas" }))), ["Brasil", "Paraíba", "Campinas", "X"]);
+  // código da PB, mas sem UF no dado: some a UF e, com ela, a região
+  assert.deepEqual(rotulos(trilha(lugarDaEntidade({ cnpj: "09084815000170", nome: "MUNICIPIO DE PATOS", uf: null, cod_ibge: "2510808", municipio: "Patos" }))), ["Brasil", "Patos", "MUNICIPIO DE PATOS"]);
+  // sem município nem código: só Brasil, UF e a entidade
+  assert.deepEqual(rotulos(trilha(lugarDaEntidade({ cnpj: "08885692000104", nome: "CTLC", uf: "PB", cod_ibge: null, municipio: null }))), ["Brasil", "Paraíba", "CTLC"]);
+  // só o nome do município, sem código: o elo existe sem link, e sem região
+  const semCodigo = trilha(lugarDaEntidade({ cnpj: "08885692000104", nome: "CTLC", uf: "PB", cod_ibge: "", municipio: "Campina Grande" }));
+  assert.deepEqual(rotulos(semCodigo), ["Brasil", "Paraíba", "Campina Grande", "CTLC"]);
+  assert.equal(semCodigo[2].href, null);
+});
+
+test("C1c: o relatório para imprimir volta à aba «Relatório e dados» da entidade", () => {
+  const lugar = lugarDaEntidade({ cnpj: "08885692000104", nome: "CENTRO TECNOLOGICO LYNALDO CAVALCANTI", uf: "PB", cod_ibge: "2504009", municipio: "Campina Grande" }, "relatorio");
+  const t = trilha(lugar, "Relatório completo");
+  assert.deepEqual(rotulos(t), ["Brasil", "Paraíba", "Região imediata de Campina Grande", "Campina Grande", "CENTRO TECNOLOGICO LYNALDO CAVALCANTI", "Relatório completo"]);
+  assert.equal(t[4].href, "/mapa/entidade/08885692000104?aba=relatorio");
+  assert.equal(t.at(-1)?.href, null);
+  // sem aba (a OSC só do cadastro não tem abas), a entidade volta à página dela
+  assert.equal(trilha(lugarDaEntidade({ cnpj: "08885692000104", nome: "CTLC", uf: "PB" }), "Relatório completo")[2].href, "/mapa/entidade/08885692000104");
 });

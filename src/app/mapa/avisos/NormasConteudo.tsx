@@ -5,6 +5,7 @@
 import { formatarData } from "@/lib/oportunidades/central";
 import type { LeituraNormas } from "@/lib/oportunidades/favoritos.server";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 export function NormasConteudo({ leitura }: { leitura: LeituraNormas }) {
   return (
@@ -21,9 +22,32 @@ export function NormasConteudo({ leitura }: { leitura: LeituraNormas }) {
       {leitura.estado === "nao_ativado" ? (
         <p className="pa-cartao pa-cartao-plano">O mural de normas ainda não foi ativado.</p>
       ) : leitura.estado === "erro" ? (
-        <p className="pa-cartao pa-cartao-plano">Não foi possível ler as normas agora. Tente de novo em alguns minutos.</p>
+        // B12b (onda 3 de UX, 08/10/2026): o "Tente de novo" virou link para o próprio mural.
+        <div className="pa-cartao pa-cartao-plano pa-pilha">
+          <p>Não foi possível ler as normas agora. Costuma ser passageiro: tente de novo em alguns minutos.</p>
+          <p className="pa-linha">
+            <LinkMapa href="/mapa/avisos?mural=normas" className="pa-btn pa-btn-pequeno">
+              Tentar de novo
+            </LinkMapa>
+          </p>
+        </div>
       ) : leitura.normas.length === 0 ? (
-        <p className="pa-cartao pa-cartao-plano">Nenhuma norma publicada no mural ainda.</p>
+        // B12b: o mural vazio diz o que vai aparecer aqui e para onde ir enquanto isso.
+        <div className="pa-cartao pa-cartao-plano pa-pilha">
+          <p>Nenhuma norma publicada no mural ainda.</p>
+          <p>
+            Quando a equipe da PONTE publicar uma portaria, instrução normativa ou decreto que mude as regras das transferências, a norma aparece
+            aqui, com o link para o texto oficial.
+          </p>
+          <p className="pa-linha">
+            <LinkMapa href="/mapa" className="pa-btn pa-btn-pequeno">
+              Ver as janelas abertas
+            </LinkMapa>
+            <LinkMapa href="/mapa/avisos" className="pa-btn pa-btn-pequeno">
+              Ver o que mudou no catálogo
+            </LinkMapa>
+          </p>
+        </div>
       ) : (
         <ul className="pa-pilha mp-normas">
           {leitura.normas.map((n) => (

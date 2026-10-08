@@ -5,12 +5,13 @@ import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { quemRecebe } from "@/lib/oportunidades/pagina-entidade";
-import { PODE, abaEscolhida } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, abaEscolhida, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerResumoOscMunicipio } from "@/lib/oportunidades/osc.server";
 import { lerEntidadesDoMunicipio, lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
+import { voltarParaUf } from "@/lib/oportunidades/vazios";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { MunicipioConteudo } from "./MunicipioConteudo";
@@ -43,8 +44,18 @@ export default async function MunicipioPage({
     searchParams,
   ]);
   if (leitura.estado === "nao_encontrado") notFound();
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Município" titulo="A página do município está indisponível agora" />;
   const aba = abaEscolhida(sp.aba, nivel);
+  if (leitura.estado !== "ok") {
+    // B12b: "Tentar de novo" na mesma aba; a volta é a Paraíba, um nível acima (a região imediata viria da leitura que falhou).
+    return (
+      <DadoIndisponivel
+        kicker="Município"
+        titulo="A página do município está indisponível agora"
+        endereco={urlMunicipio(ibge, aba)}
+        voltarPara={voltarParaUf("PB") ?? undefined}
+      />
+    );
+  }
   const seguidas = await lerSeguidas();
   after(() => registrarUso(visitante, "mapa_municipio", { ibge, aba, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);

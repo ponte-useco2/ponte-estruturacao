@@ -67,7 +67,11 @@ export function Lista({
   csv,
 }: {
   titulo: string;
-  vazio: string;
+  /**
+   * O que aparece quando a lista não tem linha. B14b (08/10/2026): pode levar links (`Saidas`), para dizer o
+   * recorte e como mudá-lo; o texto vai dentro de um parágrafo, então só cabe conteúdo em linha.
+   */
+  vazio: ReactNode;
   children: ReactNode;
   /** Endereço do CSV com todos os convênios da lista, não só os mostrados. */
   csv?: string;
@@ -83,8 +87,36 @@ export function Lista({
   );
 }
 
+/** Uma saída de estado vazio: o link que muda o recorte, com verbo no rótulo ("Ver o Brasil inteiro"). */
+export interface Saida {
+  rotulo: string;
+  href: string;
+}
+
+/**
+ * As saídas de um estado vazio das telas do administrador, em linha e separadas por " · " (B14b, 08/10/2026).
+ * Antes o vazio dizia "Nenhum … neste recorte" sem dizer qual nem como mudar (B12, seção 5). Vai no fim do
+ * parágrafo do vazio; sem saída, não desenha nada. Links repetidos (mesmo destino) aparecem uma vez.
+ */
+export function Saidas({ saidas }: { saidas: Saida[] }) {
+  const unicas = saidas.filter((s, k) => saidas.findIndex((x) => x.href === s.href) === k);
+  if (!unicas.length) return null;
+  return (
+    <>
+      {" "}
+      {unicas.map((s, k) => (
+        <span key={s.href}>
+          {k > 0 && " · "}
+          <LinkMapa href={s.href}>{s.rotulo}</LinkMapa>
+        </span>
+      ))}
+    </>
+  );
+}
+
 /** Link comum para a rota de exportação: o navegador baixa o arquivo. */
-export function BotaoCsv({ href, rotulo = "Baixar CSV" }: { href: string; rotulo?: string }) {
+// B14b (08/10/2026): o rótulo padrão diz o que baixa; o CSV traz todos os convênios da lista, não só os mostrados.
+export function BotaoCsv({ href, rotulo = "Baixar todos os convênios (CSV)" }: { href: string; rotulo?: string }) {
   return (
     <a href={href} className="pa-btn pa-btn-pequeno mp-painel-csv" download>
       {rotulo}
@@ -103,7 +135,7 @@ export function CelulaConvenio({ c, naFicha }: { c: ConvenioPainel; naFicha?: bo
         <CopiarNumero numero={c.nr_convenio} />
         {/* Na ficha da prefeitura, todo convênio é do próprio município: o cliente também abre o laudo. */}
         {" · "}
-        <LinkMapa href={urlLaudo(c.nr_convenio)}>laudo</LinkMapa>
+        <LinkMapa href={urlLaudo(c.nr_convenio)}>ver o laudo</LinkMapa>
       </span>
       {c.dias_sem_movimentacao !== null && c.dias_sem_movimentacao !== undefined && (
         <span className={`mp-tabela-secundario${c.dias_sem_movimentacao > 365 ? " mp-painel-urgente" : ""}`}>

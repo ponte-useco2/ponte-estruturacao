@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { urlTce } from "@/lib/oportunidades/tce";
 import { lerTceMunicipio } from "@/lib/oportunidades/tce.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
@@ -19,7 +20,17 @@ export default async function TceMunicipioPage({ params }: { params: Promise<{ i
   const { ibge } = await params;
   if (!/^25\d{5}$/.test(ibge)) notFound();
   const leitura = await lerTceMunicipio(ibge);
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Painel · TCE-PB" titulo="O município no TCE-PB está indisponível agora" />;
+  if (leitura.estado !== "ok") {
+    // B14b (08/10/2026): "Tentar de novo" e a volta à lista dos municípios (props da B12).
+    return (
+      <DadoIndisponivel
+        kicker="Painel · TCE-PB"
+        titulo="O município no TCE-PB está indisponível agora"
+        endereco={urlTce(ibge)}
+        voltarPara={{ rotulo: "Ver todos os municípios no TCE-PB", href: urlTce() }}
+      />
+    );
+  }
   if (!leitura.cobertura.length) notFound();
   return <TceMunicipioConteudo leitura={leitura} />;
 }

@@ -19,7 +19,7 @@
  *  · a contagem de janelas fica em toda opção, e a ressalva explica por que
  *    tantos temas têm zero — senão o zero parece defeito.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Preferencias } from "@/lib/oportunidades/aderencia";
 import type { OpcaoContada, OpcoesPreferencia } from "@/lib/oportunidades/opcoes";
@@ -58,6 +58,7 @@ export function PreferenciasPainel({
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [expandidas, setExpandidas] = useState<ReadonlySet<Eixo>>(() => new Set<Eixo>());
+  const buscaRef = useRef<HTMLInputElement>(null);
 
   const total = opcoes.temas.length + opcoes.orgaos.length + opcoes.naturezas.length;
   const marcadas = useMemo(
@@ -101,6 +102,47 @@ export function PreferenciasPainel({
 
   const filtro = semAcento(busca.trim());
 
+  const colunas = GRUPOS.map(({ eixo, titulo }) => {
+    const lista: OpcaoContada[] = opcoes[eixo];
+    const escolhidos = preferencias[eixo];
+
+    // Subtema fica guardado atrás do pai: as verticais de fomento da Finep
+    // — subvenção econômica, bioeconomia, descarbonização — só aparecem
+    // com Inovação marcado. Sem isso a coluna teria 29 caixas de uma vez,
+    // e as verticais só fazem sentido para quem já decidiu que quer
+    // inovação. A BUSCA também as revela, para quem sabe o que procura
+    // chegar lá sem marcar o pai antes.
+    const disponiveis = filtro
+      ? lista
+      : lista.filter(
+          (o) =>
+            o.pai === undefined ||
+            escolhidos.includes(o.pai) ||
+            // Vertical marcada continua à vista mesmo se o pai for
+            // desmarcado depois: escolha guardada que some da tela é
+            // estado invisível, e estado invisível ninguém desfaz.
+            escolhidos.includes(o.valor),
+        );
+
+    const casaram = filtro
+      ? disponiveis.filter((o) => semAcento(o.rotulo).includes(filtro))
+      : expandidas.has(eixo)
+        ? disponiveis
+        : disponiveis.slice(0, VISIVEIS_POR_COLUNA);
+    const restantes = filtro ? 0 : disponiveis.length - casaram.length;
+    return { eixo, titulo, escolhidos, disponiveis, casaram, restantes };
+  });
+
+  // B12b (onda 3 de UX, 08/10/2026): a procura que não acha nada nas três colunas dizia "Nada com esse nome aqui." três
+  // vezes, sem saída. Agora uma frase só, com o que foi procurado e "Limpar a procura"; a frase por coluna fica para
+  // quando alguma outra coluna achou.
+  const semNada = filtro !== "" && colunas.every((c) => c.casaram.length === 0);
+  function limparProcura() {
+    setBusca("");
+    // O botão some junto com a frase: o foco volta ao campo, que fica.
+    buscaRef.current?.focus();
+  }
+
   return (
     <section className="pa-cartao pa-pilha pa-mapa-prefs-abertas" aria-label="O que você prefere acompanhar">
       <div className="pa-linha">
@@ -127,6 +169,7 @@ export function PreferenciasPainel({
               de instituição
             </label>
             <input
+              ref={buscaRef}
               id="mapa-busca-pref"
               className="pa-input"
               type="search"
@@ -135,6 +178,15 @@ export function PreferenciasPainel({
               onChange={(e) => setBusca(e.target.value)}
             />
           </div>
+
+          {semNada && (
+            <p className="pa-linha">
+              <span>Nenhum tema, órgão ou tipo de instituição com “{busca.trim()}” no nome.</span>
+              <button type="button" className="pa-btn pa-btn-pequeno" onClick={limparProcura}>
+                Limpar a procura
+              </button>
+            </p>
+          )}
 
           {marcadas.length > 0 && (
             <div className="pa-linha pa-mapa-marcadas">
@@ -162,42 +214,14 @@ export function PreferenciasPainel({
       </div>
 
       <div className="pa-grade pa-grade-3">
-        {GRUPOS.map(({ eixo, titulo }) => {
-          const lista: OpcaoContada[] = opcoes[eixo];
-          const escolhidos = preferencias[eixo];
-
-          // Subtema fica guardado atrás do pai: as verticais de fomento da Finep
-          // — subvenção econômica, bioeconomia, descarbonização — só aparecem
-          // com Inovação marcado. Sem isso a coluna teria 29 caixas de uma vez,
-          // e as verticais só fazem sentido para quem já decidiu que quer
-          // inovação. A BUSCA também as revela, para quem sabe o que procura
-          // chegar lá sem marcar o pai antes.
-          const disponiveis = filtro
-            ? lista
-            : lista.filter(
-                (o) =>
-                  o.pai === undefined ||
-                  escolhidos.includes(o.pai) ||
-                  // Vertical marcada continua à vista mesmo se o pai for
-                  // desmarcado depois: escolha guardada que some da tela é
-                  // estado invisível, e estado invisível ninguém desfaz.
-                  escolhidos.includes(o.valor),
-              );
-
-          const casaram = filtro
-            ? disponiveis.filter((o) => semAcento(o.rotulo).includes(filtro))
-            : expandidas.has(eixo)
-              ? disponiveis
-              : disponiveis.slice(0, VISIVEIS_POR_COLUNA);
-          const restantes = filtro ? 0 : disponiveis.length - casaram.length;
-
+        {colunas.map(({ eixo, titulo, escolhidos, disponiveis, casaram, restantes }) => {
           return (
             <fieldset key={eixo} className="pa-fieldset pa-mapa-col">
               <legend className="pa-campo-rotulo">
                 {titulo} <span className="pa-mono">{disponiveis.length}</span>
               </legend>
 
-              {casaram.length === 0 && <span className="pa-mono">Nada com esse nome aqui.</span>}
+              {casaram.length === 0 && !semNada && <span className="pa-mono">Nada com esse nome aqui.</span>}
 
               {casaram.map((o) => {
                 const marcado = escolhidos.includes(o.valor);

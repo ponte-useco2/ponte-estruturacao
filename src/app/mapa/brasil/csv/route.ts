@@ -1,5 +1,5 @@
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
-import { COLUNAS_CSV_UFS, ufsLadoALado } from "@/lib/oportunidades/pagina-brasil";
+import { COLUNAS_CSV_UFS, anoDeReferencia, ufsLadoALado } from "@/lib/oportunidades/pagina-brasil";
 import { lerBrasil } from "@/lib/oportunidades/pagina-brasil.server";
 import { paraCsv } from "@/lib/oportunidades/painel";
 import { visitanteAtual } from "@/lib/supabase-auth";
@@ -15,7 +15,7 @@ export async function GET() {
   const leitura = await lerBrasil();
   if (leitura.estado !== "ok" || !leitura.territorio) return new Response("Indisponível", { status: 503, headers: CABECALHOS_PRIVADOS });
   const hoje = diaBrasilia(new Date().toISOString());
-  const ano = Number((leitura.execucao.referencia ?? leitura.execucao.dado_ate ?? hoje).slice(0, 4));
+  const ano = anoDeReferencia(leitura.execucao, hoje);
   const linhas = ufsLadoALado(leitura.territorio, leitura.desfechos ?? [], leitura.pix ?? [], leitura.janelas, ano);
   return new Response(paraCsv(COLUNAS_CSV_UFS, linhas), {
     headers: { ...CABECALHOS_PRIVADOS, "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="ufs-brasil-${hoje}.csv"` },

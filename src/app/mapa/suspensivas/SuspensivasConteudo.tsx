@@ -8,8 +8,10 @@ import { compararUrgencia, diaBrasilia, diasEntre, nivelPrazo, type Nivel } from
 import type { LeituraSuspensivas, LinhaSuspensiva } from "@/lib/oportunidades/laudo.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { Saidas, type Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
+import { Termo } from "../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraSuspensivas, { estado: "ok" }>;
 interface Filtro {
@@ -58,6 +60,13 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
   const vencidos = linhas.filter((l) => l.contexto?.dt_suspensiva && !l.contexto.dt_retirada_suspensiva && l.contexto.dt_suspensiva < hoje).length;
   const esperas = linhas.filter((l) => l.parado_desde).map((l) => diasEntre(l.parado_desde as string, referencia)).sort((a, b) => a - b);
   const mediana = esperas.length ? esperas[Math.floor(esperas.length / 2)] : null;
+  // B14b (08/10/2026): o vazio diz o filtro e dá um link para tirar cada um (antes: "Nenhum convênio neste filtro.
+  // Ver todos", sem dizer qual — B12, seção 5).
+  const filtros = [...(prazo.id ? [`prazo ${prazo.nome.toLowerCase()}`] : []), ...(orgao ? [tituloOrgao(orgao)] : [])];
+  const saidas: Saida[] = [
+    ...(prazo.id ? [{ rotulo: "Ver todos os prazos", href: url(f, { prazo: null }) }] : []),
+    ...(orgao ? [{ rotulo: "Ver todos os órgãos", href: url(f, { orgao: null }) }] : []),
+  ];
 
   return (
     <div className="pa-pagina mp-radar mp-suspensivas">
@@ -65,14 +74,15 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         <p className="pa-kicker">Cláusulas suspensivas · Paraíba</p>
         <h1 className="pa-titulo">Convênios esperando a retirada da suspensiva</h1>
         <p className="pa-sub">
-          Do prazo mais apertado ao mais folgado; no mesmo prazo, quem está parado há mais tempo vem antes. Cada linha abre o laudo do convênio.
+          Convênios assinados com <Termo slug="condicao-suspensiva">condição suspensiva</Termo>, do prazo mais apertado ao mais
+          folgado; no mesmo prazo, quem está parado há mais tempo vem antes. Cada linha abre o laudo do convênio.
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <LinkMapa href="/mapa/suspensivas/padroes" className="pa-btn pa-btn-pequeno">
-            Padrões: destino, tempo e quem analisa
+            Ver os padrões: destino, tempo e quem analisa
           </LinkMapa>
           <LinkMapa href={f.orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(f.orgao)}` : "/mapa/suspensivas/checklist"} className="pa-btn pa-btn-pequeno">
-            Checklist preventivo
+            Abrir o checklist preventivo
           </LinkMapa>
         </p>
       </div>
@@ -136,7 +146,14 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         </h2>
         {linhas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">
-            Nenhum convênio neste filtro. <LinkMapa href="/mapa/suspensivas">Ver todos</LinkMapa>
+            {filtros.length > 0 ? (
+              <>
+                Nenhum dos {n(todas.length)} convênios da coleta neste filtro: <strong>{filtros.join(" · ")}</strong>.
+              </>
+            ) : (
+              <>Nenhum convênio em suspensiva na coleta.</>
+            )}
+            <Saidas saidas={saidas.length > 1 ? [...saidas, { rotulo: "Ver todos os convênios", href: "/mapa/suspensivas" }] : saidas} />
           </p>
         ) : (
           <TabelaRolagem rotuloId="suspensivas-lista">
@@ -151,7 +168,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
                   <th scope="col">Prazo da suspensiva</th>
                   <th scope="col">A vez é do</th>
                   <th scope="col" className="mp-num">
-                    Rodadas
+                    Pedidos de complementação
                   </th>
                 </tr>
               </thead>
@@ -165,7 +182,8 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         )}
         <p className="pa-nota">
           Andamento: Acesso Livre do Transferegov, coleta de {leitura.coletadoEm ? formatarPublicacao(leitura.coletadoEm) : "data desconhecida"}. Valores e
-          prazos: dados abertos do Transferegov, contados até {formatarData(hoje)}. “Rodadas” são os pedidos de complementação registrados pelo concedente.
+          prazos: dados abertos do Transferegov, contados até {formatarData(hoje)}. Os pedidos de complementação são os registrados pelo
+          concedente.
         </p>
       </section>
     </div>

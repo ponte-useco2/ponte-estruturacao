@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
+import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { ABAS_UF, abaDaUf, siglaDaUrl, urlUf, type AbaUf } from "@/lib/oportunidades/pagina-uf";
 import { lerUf } from "@/lib/oportunidades/pagina-uf.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
@@ -42,7 +43,17 @@ export default async function UfPage({
   const aba = abaDaUf(sp.aba, nivel);
   const porSinais = administrador && sp.ordem === "sinais";
   const leitura = await lerUf(sigla, administrador);
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Estado" titulo="A página do estado está indisponível agora" />;
+  // B12 (C1a, 08/10/2026): "Tentar de novo" volta à mesma aba; a outra saída sobe um nível, ao Brasil.
+  if (leitura.estado !== "ok") {
+    return (
+      <DadoIndisponivel
+        kicker="Estado"
+        titulo="A página do estado está indisponível agora"
+        endereco={urlUf(sigla, aba)}
+        voltarPara={{ rotulo: "Abrir a página do Brasil", href: urlBrasil() }}
+      />
+    );
+  }
   after(() => registrarUso(visitante, "mapa_uf", { uf: sigla, aba, nivel }));
   return <UfConteudo l={leitura} aba={aba} nivel={nivel} porSinais={porSinais} />;
 }

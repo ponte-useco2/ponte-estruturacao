@@ -176,7 +176,22 @@ export function InstrumentoConteudo({
             A linha do tempo existe para os convênios de proponente da Paraíba. Os demais aparecem aqui só com valores e prazos.
           </p>
         ) : leitura.eventos.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhum evento registrado no Transferegov para este convênio.</p>
+          // B12b (onda 3 de UX, 08/10/2026): dizia só que não havia evento. Agora diz até quando se leu, o caso comum
+          // (convênio recém-assinado ou ainda sem movimento) e o que fazer para saber do primeiro.
+          <div className="pa-cartao pa-cartao-plano pa-pilha">
+            <p>Nenhum evento registrado no Transferegov para este convênio até {formatarPublicacao(leitura.execucao.dado_ate)}.</p>
+            <p>
+              É o caso de convênio recém-assinado ou ainda sem movimento. A linha do tempo junta mudança de situação, desembolso,
+              pagamento, termo aditivo, prorrogação e licitação, e a base é relida uma vez por dia.
+              {seguindo === false && <> Siga o convênio (“☆ Seguir”, no alto da página) para ser avisado quando ele mudar.</>}
+              {seguindo === true && (
+                <>
+                  {" "}
+                  Você segue este convênio: quando ele mudar, o aviso aparece em <LinkMapa href="/mapa/avisos?mural=itens">Meus itens</LinkMapa>.
+                </>
+              )}
+            </p>
+          </div>
         ) : (
           <>
             <p className="pa-nota">

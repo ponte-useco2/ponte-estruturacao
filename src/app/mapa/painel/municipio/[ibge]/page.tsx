@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { parametrosFicha } from "@/lib/oportunidades/painel";
+import { parametrosFicha, parametrosPainel, urlFicha, urlPainel } from "@/lib/oportunidades/painel";
 import { lerFichaMunicipio } from "@/lib/oportunidades/painel.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { FichaConteudo } from "../../FichaMunicipio";
@@ -32,7 +32,16 @@ export default async function FichaMunicipioPage({
   if (!f) redirect("/mapa/painel");
 
   const leitura = await lerFichaMunicipio(f);
-  if (leitura.estado !== "ok") return <PainelIndisponivel estado={leitura.estado} />;
+  if (leitura.estado !== "ok") {
+    // B14b (08/10/2026): "Tentar de novo" com os mesmos filtros e a volta ao painel da UF do município.
+    return (
+      <PainelIndisponivel
+        estado={leitura.estado}
+        endereco={urlFicha(f)}
+        voltarPara={{ rotulo: `Voltar ao painel (${f.uf})`, href: urlPainel(parametrosPainel({ uf: f.uf }), {}) }}
+      />
+    );
+  }
 
   return <FichaConteudo f={f} ficha={leitura} />;
 }

@@ -22,6 +22,7 @@ import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { CONDICAO_CANAL, ORDEM_CANAL, ROTULO_CANAL, type CanalV2 } from "@/lib/oportunidades/contrato-v2";
 import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe, type Tema } from "@/lib/oportunidades/temas";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
+import { vazioCatalogo } from "@/lib/oportunidades/vazios";
 import { copiarTexto } from "@/lib/area-de-transferencia";
 import { Tag } from "../_design/primitivos";
 import { EstrelaSeguir } from "./_componentes/EstrelaSeguir";
@@ -69,6 +70,7 @@ export function CatalogoClient({
 }) {
   const [filtros, setFiltros] = useState<FiltrosCatalogo>(SEM_FILTRO);
   const [anuncio, setAnuncio] = useState("");
+  const buscaRef = useRef<HTMLInputElement>(null);
   const seguidas = useMemo(() => (janelasSeguidas ? new Set(janelasSeguidas) : null), [janelasSeguidas]);
 
   const visiveis = useMemo(() => filtrarJanelas(vista.janelas, filtros), [vista.janelas, filtros]);
@@ -82,11 +84,17 @@ export function CatalogoClient({
   // fileira de zeros é ruído que empurra os que importam para baixo.
   const raizes = TEMAS_RAIZ.filter((t) => (porAssunto.get(t.id) ?? 0) > 0);
 
-  const filtrando =
-    filtros.fontes.length > 0 ||
-    filtros.canais.length > 0 ||
-    filtros.assuntos.length > 0 ||
-    filtros.busca.trim() !== "";
+  const outrosFiltros = filtros.fontes.length > 0 || filtros.canais.length > 0 || filtros.assuntos.length > 0;
+  const filtrando = outrosFiltros || filtros.busca.trim() !== "";
+
+  /**
+   * Os botões do vazio somem com o vazio (a lista volta no lugar deles): sem levar o foco a algum lugar, ele cairia no
+   * corpo da página. Vai para o campo de busca, que fica, e a contagem viva anuncia quantas janelas voltaram.
+   */
+  function mudarFiltrosDoVazio(novos: FiltrosCatalogo) {
+    setFiltros(novos);
+    buscaRef.current?.focus();
+  }
 
   function alternarAssunto(id: string) {
     setFiltros((f) => {
@@ -179,6 +187,7 @@ export function CatalogoClient({
             Buscar
           </label>
           <input
+            ref={buscaRef}
             id="catalogo-busca"
             type="search"
             className="pa-input"
@@ -322,15 +331,13 @@ export function CatalogoClient({
       </div>
 
       {visiveis.length === 0 ? (
-        <div className="pa-cartao pa-cartao-plano mp-vazio">
-          <p>
-            {filtrando
-              ? "Nenhuma janela com esses filtros."
-              : entidade
-                ? `Nenhuma janela aberta hoje aceita ${entidade.tipo.toLowerCase()}.`
-                : "Nenhuma janela aberta hoje."}
-          </p>
-        </div>
+        <VazioCatalogo
+          vista={vista}
+          filtros={filtros}
+          outrosFiltros={outrosFiltros}
+          tipo={entidade ? tipoNaFrase(entidade.tipo) : null}
+          mudarFiltros={mudarFiltrosDoVazio}
+        />
       ) : (
         <ul className="pa-pilha mp-janelas">
           {visiveis.map((j) => (
@@ -350,6 +357,67 @@ export function CatalogoClient({
       <p className="pa-nota mp-procedencia">
         Catálogo gerado em {formatarPublicacao(vista.geradoEm)}. Prazos contados a partir de{" "}
         {formatarData(vista.hoje)}, no horário da Paraíba.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Nenhuma janela na lista (B12b, onda 3 de UX, 08/10/2026; antes, uma frase sem saída). Diz o que se procurou ou o
+ * recorte (`vazioCatalogo`), o motivo provável quando há fonte com problema e até três saídas: tirar os filtros (ou só
+ * os que não são a busca), conferir o tipo declarado da entidade, e Avisos, onde a janela nova aparece quando entra
+ * no catálogo. Os filtros são estado da tela, por isso botões, e não links.
+ */
+function VazioCatalogo({
+  vista,
+  filtros,
+  outrosFiltros,
+  tipo,
+  mudarFiltros,
+}: {
+  vista: CatalogoVista;
+  filtros: FiltrosCatalogo;
+  outrosFiltros: boolean;
+  tipo: string | null;
+  mudarFiltros: (novos: FiltrosCatalogo) => void;
+}) {
+  const termo = filtros.busca.trim();
+  const filtrando = outrosFiltros || termo !== "";
+  const { frase, motivo } = vazioCatalogo({
+    busca: filtros.busca,
+    outrosFiltros,
+    tipo,
+    abertasHoje: vista.universo.abertasHoje,
+    fontesComProblema: vista.fontesComProblema.map((f) => f.nome),
+  });
+  return (
+    <div className="pa-cartao pa-cartao-plano pa-pilha mp-vazio">
+      <p>{frase}</p>
+      {motivo && <p>{motivo}</p>}
+      {filtrando ? (
+        <p className="pa-linha">
+          <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => mudarFiltros(SEM_FILTRO)}>
+            Tirar os filtros
+          </button>
+          {termo && outrosFiltros && (
+            <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => mudarFiltros({ ...SEM_FILTRO, busca: filtros.busca })}>
+              Buscar “{termo}” sem os outros filtros
+            </button>
+          )}
+        </p>
+      ) : (
+        tipo &&
+        vista.universo.abertasHoje > 0 && (
+          <p className="pa-linha">
+            <LinkMapa href="/mapa/conta/organizacao" className="pa-btn pa-btn-pequeno">
+              Conferir o tipo declarado da entidade
+            </LinkMapa>
+          </p>
+        )
+      )}
+      <p className="pa-nota">
+        A lista vem do catálogo gerado em {formatarPublicacao(vista.geradoEm)}, que é atualizado todo dia. Quando uma janela nova entra nele,
+        ela aparece em <LinkMapa href="/mapa/avisos">Avisos</LinkMapa>, em “O que mudou no catálogo”.
       </p>
     </div>
   );

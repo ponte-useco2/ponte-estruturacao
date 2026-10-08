@@ -231,3 +231,39 @@ export const MUNICIPIOS_PB: readonly (readonly [ibge: string, nome: string])[] =
   ["2517209", "Vieirópolis"],
   ["2517407", "Zabelê"],
 ];
+
+/**
+ * As regiões geográficas imediatas da PB (IBGE, divisão regional de 2017), cada uma com a intermediária e os códigos
+ * dos seus municípios (C1c, 08/10/2026). Servem à trilha da entidade, que não lia a região (B11, 9.1): pelo IBGE da
+ * sede, sem ida ao banco.
+ *
+ * Copiadas da última execução do job dos municípios (`mun_grupo`, execução 4, concluída em 05/10/2026), que lê a API
+ * de localidades do IBGE (`municipios/grupos.py`). Conferidas pelo MCP: 223 municípios, 15 imediatas, 4 intermediárias,
+ * nenhum sem região, e a mesma soma (md5 de "ibge:imediata:intermediaria") do banco. São os nomes que a página da UF
+ * agrupa e a do município mostra, então a âncora `#regiao-…` da trilha casa. Município novo na PB entra aqui também.
+ */
+export const REGIOES_IMEDIATAS_PB: readonly { imediata: string; intermediaria: string; ibges: string }[] = [
+  { imediata: "Campina Grande", intermediaria: "Campina Grande", ibges: "2500304 2500403 2500536 2500577 2501104 2501203 2501302 2501351 2501575 2501708 2502151 2502508 2503100 2504009 2504074 2504355 2505006 2506004 2506103 2506251 2506509 2506806 2507200 2507705 2507804 2508307 2509206 2509339 2509503 2510501 2512002 2512408 2512507 2512705 2512754 2512788 2513158 2513851 2513943 2514008 2515104 2515401 2515807 2516102 2516508 2516755 2517001" },
+  { imediata: "Cuité - Nova Floresta", intermediaria: "Campina Grande", ibges: "2501534 2501609 2505105 2505352 2506202 2510105 2510303 2511103 2511400 2516151" },
+  { imediata: "Monteiro", intermediaria: "Campina Grande", ibges: "2503902 2509701 2510600 2512200 2514107 2515203 2517407" },
+  { imediata: "Sumé", intermediaria: "Campina Grande", ibges: "2500734 2504702 2504850 2508505 2510659 2514800 2515500 2516300" },
+  { imediata: "Guarabira", intermediaria: "João Pessoa", ibges: "2500502 2500809 2500908 2501005 2501500 2501906 2502706 2503506 2503605 2504157 2505204 2505709 2505808 2506301 2508208 2508554 2509800 2511608 2511707 2511806 2512747 2515609 2515906 2515930 2516003 2516409" },
+  { imediata: "Itabaiana", intermediaria: "João Pessoa", ibges: "2506905 2509404 2509909 2513109 2514453" },
+  { imediata: "João Pessoa", intermediaria: "João Pessoa", ibges: "2500601 2501807 2503001 2503209 2503803 2504603 2504900 2505238 2506400 2507507 2507606 2507903 2508604 2509107 2511202 2511509 2511905 2512762 2513703 2515005 2515302 2515971" },
+  { imediata: "Mamanguape - Rio Tinto", intermediaria: "João Pessoa", ibges: "2501401 2504033 2505279 2507101 2507309 2508901 2509057 2509305 2512721 2512903" },
+  { imediata: "Catolé do Rocha - São Bento", intermediaria: "Patos", ibges: "2502003 2502300 2502805 2502904 2504306 2507408 2509370 2512804 2513901 2514651" },
+  { imediata: "Itaporanga", intermediaria: "Patos", ibges: "2500205 2502102 2502607 2504405 2505303 2505600 2506608 2507002 2510204 2511004 2511301 2513356 2513505 2513604 2514305" },
+  { imediata: "Patos", intermediaria: "Patos", ibges: "2500106 2501153 2503407 2503555 2504207 2504801 2505402 2505501 2505907 2506707 2508703 2508802 2509396 2510402 2510709 2510808 2512606 2513000 2513406 2513802 2514404 2514602 2514701 2514909 2516706 2517100" },
+  { imediata: "Pombal", intermediaria: "Patos", ibges: "2503753 2504504 2508109 2510907 2512101 2513927 2513968" },
+  { imediata: "Princesa Isabel", intermediaria: "Patos", ibges: "2508000 2509008 2512309 2514552 2516607" },
+  { imediata: "Cajazeiras", intermediaria: "Sousa - Cajazeiras", ibges: "2500700 2502201 2502409 2503308 2503704 2504108 2509602 2512077 2513307 2514503 2515708 2516805" },
+  { imediata: "Sousa", intermediaria: "Sousa - Cajazeiras", ibges: "2500775 2502052 2508406 2509156 2510006 2512036 2513208 2513653 2513984 2514206 2516201 2516904 2517209" },
+];
+
+const REGIAO_DO_IBGE = new Map(REGIOES_IMEDIATAS_PB.flatMap((r) => r.ibges.split(" ").map((ibge) => [ibge, r] as const)));
+
+/** A região imediata e a intermediária de um município da PB pelo código do IBGE; null fora da PB ou sem código. */
+export function regiaoDoMunicipioPb(ibge: string | null | undefined): { imediata: string; intermediaria: string } | null {
+  const r = REGIAO_DO_IBGE.get((ibge ?? "").trim());
+  return r ? { imediata: r.imediata, intermediaria: r.intermediaria } : null;
+}

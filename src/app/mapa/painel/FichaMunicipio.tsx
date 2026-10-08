@@ -43,6 +43,7 @@ import {
   BotaoCsv,
   Cartao,
   Lista,
+  Saidas,
   TabelaContas,
   TabelaFisico,
   TabelaMudancas,
@@ -51,9 +52,11 @@ import {
   TabelaSuspensiva,
   TabelaVigencia,
   n,
+  type Saida,
 } from "./Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
+import { Termo } from "../_componentes/Termo";
 
 /**
  * A ficha do município no painel, só do administrador. Desde a F1c (07/10/2026) a prefeitura vai para a página do
@@ -75,34 +78,42 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
   const semConvenio = [ficha.suspensiva, ficha.nunca, ficha.vigencia, ficha.contas, ficha.saldo, ficha.fisico].every(
     (l) => l.length === 0,
   );
+  // B14b (08/10/2026): os vazios da ficha dizem de quem e de quando, e dão a saída. Na prefeitura, ver todos os
+  // proponentes do município; com filtro de assinatura ou de movimentação, tirá-lo.
+  const daPrefeitura = f.quem === "prefeitura" ? "da prefeitura " : "";
+  const verTodos: Saida[] = f.quem === "prefeitura" ? [{ rotulo: "Ver todos os proponentes no município", href: urlFicha(f, { quem: "todos" }) }] : [];
+  const tirarFiltros: Saida[] = [
+    ...(periodo ? [{ rotulo: "Ver todos os anos de assinatura", href: urlFicha(f, { assinadoDe: null, assinadoAte: null }) }] : []),
+    ...(f.movimento ? [{ rotulo: "Tirar o filtro de movimentação", href: urlFicha(f, { movimento: null }) }] : []),
+  ];
 
   return (
     <div className="pa-pagina mp-radar mp-painel">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <LinkMapa href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</LinkMapa> · município em análise
+          <LinkMapa href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</LinkMapa> · ficha do município
         </p>
         <h1 className="pa-titulo">
           {nome}/{f.uf}
         </h1>
         <p className="pa-sub">
-          IBGE {f.ibge}. Dado até <strong>{formatarPublicacao(ficha.execucao.dado_ate)}</strong>: o arquivo retrata{" "}
-          {formatarData(ficha.execucao.referencia)}. Prazos contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}.
+          IBGE {f.ibge}. Dado até <strong>{formatarPublicacao(ficha.execucao.dado_ate)}</strong>: o arquivo do Transferegov traz a
+          situação de {formatarData(ficha.execucao.referencia)}. Prazos contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}.
         </p>
         {/* A página do município em abas (F1) e o painel fiscal (onda 8) cobrem só a PB. */}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <LinkMapa href={urlMunicipio(f.ibge)}>Página do município: o que trava, dinheiro, contas, controle e indicadores →</LinkMapa>
+            <LinkMapa href={urlMunicipio(f.ibge)}>Abrir a página do município: o que trava, dinheiro, contas, controle e indicadores →</LinkMapa>
           </p>
         )}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <LinkMapa href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</LinkMapa>
+            <LinkMapa href={`/mapa/fiscal/${f.ibge}`}>Ver a capacidade fiscal e a elegibilidade deste município →</LinkMapa>
           </p>
         )}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <LinkMapa href={urlEntePix(f.ibge)}>Emendas Pix do município: o laudo de cada plano de ação →</LinkMapa>
+            <LinkMapa href={urlEntePix(f.ibge)}>Abrir o laudo do Pix do município, plano a plano →</LinkMapa>
           </p>
         )}
       </div>
@@ -164,12 +175,12 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
             </select>
           </fieldset>
           <button type="submit" className="pa-btn pa-btn-pequeno">
-            Aplicar
+            Aplicar os filtros
           </button>
         </form>
       </div>
 
-      {f.quem === "prefeitura" && <Sinais sinais={ficha.sinais} />}
+      {f.quem === "prefeitura" && <Sinais sinais={ficha.sinais} uf={f.uf} />}
 
       <section aria-labelledby="ficha-mudancas" className="mp-radar-secao">
         <h2 id="ficha-mudancas" className="mp-radar-h2">
@@ -178,7 +189,16 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
         </h2>
         {ficha.mudancas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">
-            Nenhuma mudança {f.quem === "prefeitura" ? "da prefeitura " : ""}nos convênios e propostas acompanhados.
+            Nenhuma mudança {daPrefeitura}nos convênios e propostas de {nome} nos últimos {DIAS_FICHA_MUDANCAS} dias.
+            <Saidas
+              saidas={[
+                ...verTodos,
+                {
+                  rotulo: `Ver as mudanças de toda a UF (${f.uf}) no painel`,
+                  href: urlPainel(parametrosPainel({ visao: "mudancas", uf: f.uf }), { dias: 30 }),
+                },
+              ]}
+            />
           </p>
         ) : (
           <>
@@ -209,7 +229,12 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
           <Cartao
             rotulo="Contas atrasadas ou negativas"
             quantidade={contas("atrasada").n + contas("negativo").n}
-            nota={<>TCE: {n(contas("tce").n)} · esperando o concedente: {n(contas("concedente").n)}</>}
+            nota={
+              <>
+                Em <Termo slug="tomada-de-contas-especial">tomada de contas especial</Termo>: {n(contas("tce").n)} · esperando o
+                concedente: {n(contas("concedente").n)}
+              </>
+            }
             tom={contas("negativo").n > 0 ? "urgente" : undefined}
           />
           <Cartao rotulo="Saldo parado há +1 ano" quantidade={r("saldo")("parado").n} valor={r("saldo")("parado").valor} legenda="em conta" />
@@ -223,8 +248,10 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
 
         {semConvenio && (
           <p className="pa-cartao pa-cartao-plano">
-            Nenhum convênio {f.quem === "prefeitura" ? "da prefeitura " : ""}em alguma das visões do painel
-            {periodo ? `, ${periodo}` : ""}.
+            Nenhum convênio {daPrefeitura}aparece nas seis visões do painel
+            {periodo ? `, entre os ${periodo}` : ""}
+            {f.movimento ? `, ${ROTULO_MOVIMENTO[f.movimento]}` : ""}.
+            <Saidas saidas={[...tirarFiltros, ...verTodos]} />
           </p>
         )}
         <Bloco titulo="Cláusula suspensiva, pelo prazo" linhas={ficha.suspensiva.length} total={r("suspensiva")("total").n} href={noPainel("suspensiva")}>
@@ -262,7 +289,10 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
           de assinatura acima vale só para os convênios.
         </p>
         {ficha.porAno.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhuma proposta recente {f.quem === "prefeitura" ? "da prefeitura" : "no município"}.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhuma proposta {f.quem === "prefeitura" ? "da prefeitura" : "no município"} enviada desde {anoMinimoPropostas}.
+            <Saidas saidas={verTodos} />
+          </p>
         ) : (
           <>
             <TabelaRolagem rotuloId="ficha-propostas">
@@ -302,19 +332,22 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
               </table>
             </TabelaRolagem>
 
-            <Lista titulo="Sem desfecho, das mais paradas para as menos" vazio="Nenhuma proposta esperando desfecho.">
+            <Lista titulo="Sem desfecho, das mais paradas para as menos" vazio={`Nenhuma proposta ${daPrefeitura}esperando desfecho.`}>
               {ficha.semDesfecho.length > 0 && <TabelaPropostas linhas={ficha.semDesfecho} quando="movimento" />}
             </Lista>
-            <Lista titulo="Reprovadas, impedidas e eliminadas, as mais recentes" vazio="Nenhuma proposta negada.">
+            <Lista
+              titulo="Reprovadas, impedidas e eliminadas, as mais recentes"
+              vazio={`Nenhuma proposta ${daPrefeitura}reprovada, impedida ou eliminada desde ${anoMinimoPropostas}.`}
+            >
               {ficha.negadas.length > 0 && <TabelaPropostas linhas={ficha.negadas} quando="movimento" />}
             </Lista>
-            <Lista titulo="Assinadas, as mais recentes" vazio="Nenhuma proposta assinada.">
+            <Lista titulo="Assinadas, as mais recentes" vazio={`Nenhuma proposta ${daPrefeitura}assinada desde ${anoMinimoPropostas}.`}>
               {ficha.assinadas.length > 0 && <TabelaPropostas linhas={ficha.assinadas} quando="assinatura" />}
             </Lista>
             <p className="pa-nota">
               <strong>Em lote</strong> são 100 ou mais reprovações no mesmo dia pelo mesmo órgão: encerramento de edital, não
-              análise de mérito. Os números copiados são os que se digitam na consulta de propostas e de programas do
-              Transferegov.
+              análise de mérito. &ldquo;Nunca analisada&rdquo; é a proposta no <Termo slug="limbo">limbo</Termo>. Os números
+              copiados são os que se digitam na consulta de propostas e de programas do Transferegov.
             </p>
           </>
         )}
@@ -337,14 +370,20 @@ const SINAIS_DA_FICHA: { sinal: Sinal; marca: (m: MunicipioPainel) => boolean; r
   },
 ];
 
-function Sinais({ sinais }: { sinais: MunicipioPainel | null }) {
+function Sinais({ sinais, uf }: { sinais: MunicipioPainel | null; uf: string }) {
   return (
     <section aria-labelledby="ficha-sinais" className="mp-radar-secao">
       <h2 id="ficha-sinais" className="mp-radar-h2">
         Sinais da prefeitura{sinais ? ` · ${sinais.n_sinais} de 5` : ""}
       </h2>
       {!sinais ? (
-        <p className="pa-cartao pa-cartao-plano">Nenhum dos cinco sinais aceso para a prefeitura.</p>
+        <p className="pa-cartao pa-cartao-plano">
+          Nenhum dos cinco sinais aceso para a prefeitura.
+          {/* B14b (08/10/2026): a saída para comparar com os vizinhos. */}
+          <Saidas
+            saidas={[{ rotulo: `Ver os municípios com mais sinais (${uf})`, href: urlPainel(parametrosPainel({ visao: "municipios", uf }), {}) }]}
+          />
+        </p>
       ) : (
         <ul className="mp-painel-sinais">
           {SINAIS_DA_FICHA.map(({ sinal, marca, resumo }) => (

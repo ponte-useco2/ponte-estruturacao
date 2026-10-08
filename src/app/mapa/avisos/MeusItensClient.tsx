@@ -265,11 +265,12 @@ export function MeusItensClient({
 
           {visiveis.length === 0 ? (
             <div className="pa-cartao pa-cartao-plano">
+              {/* B12b (onda 3 de UX, 08/10/2026): o arquivo vazio diz como se arquiva e o que o arquivo guarda. */}
               <p>
                 {aba === "nao_lidas"
                   ? "Nenhum aviso sem ler. Quando um item seguido mudar, ele aparece aqui."
                   : aba === "arquivadas"
-                    ? "Nenhum aviso arquivado."
+                    ? "Nenhum aviso arquivado. O botão “Arquivar” de cada aviso o tira de “Não lidos” e de “Todos” e o guarda aqui, de onde ele pode voltar com “Desarquivar”."
                     : "Nenhum aviso ainda. O primeiro chega quando um item seguido mudar."}
               </p>
             </div>

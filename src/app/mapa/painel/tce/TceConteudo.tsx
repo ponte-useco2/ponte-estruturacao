@@ -16,13 +16,16 @@ import {
   type TcePixMunicipio,
 } from "@/lib/oportunidades/tce";
 import type { LeituraPainelTce } from "@/lib/oportunidades/tce.server";
+import { Saidas, type Saida } from "../Pecas";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { Termo } from "../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraPainelTce, { estado: "ok" }>;
 
+// B14b (08/10/2026): "TCE" solto aqui é sempre o TCE-PB, e passa a ser escrito assim (H06).
 export const AVISO_TCE =
-  "Uso interno da PONTE. Despesas abertas do TCE-PB cruzadas com os pagamentos do SICONV. O TCE não traz o número do convênio: o " +
+  "Uso interno da PONTE. Despesas abertas do TCE-PB cruzadas com os pagamentos do SICONV. O TCE-PB não traz o número do convênio: o " +
   "casamento é pelo município, pelo CNPJ do credor e pelo ano. O que não casa é para conferir, não irregularidade. Pessoa física não " +
   "aparece: só o valor somado.";
 
@@ -40,6 +43,11 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
   const resumo = resumirConciliacao(ms);
   const pixOrdenado = [...pix].sort((a, b) => marcasPix(b).length - marcasPix(a).length || b.pago - a.pago);
   const concOrdenada = [...ms].sort((a, b) => b.siconv_so - a.siconv_so || b.tce_convenio_so - a.tce_convenio_so || b.siconv_pj - a.siconv_pj);
+  // B14b (08/10/2026): o ano vazio aponta para o ano mais próximo que tem dado, no lugar de "neste ano".
+  const outroAno = (comDado: number[]): Saida[] => {
+    const a = [...new Set(comDado)].filter((x) => x !== ano).sort((x, y) => Math.abs(x - ano) - Math.abs(y - ano) || y - x)[0];
+    return a ? [{ rotulo: `Ver ${a}`, href: `${urlTce()}?ano=${a}` }] : [];
+  };
 
   return (
     <div className="pa-pagina mp-radar">
@@ -47,8 +55,9 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
         <p className="pa-kicker">Painel · TCE-PB</p>
         <h1 className="pa-titulo">Dinheiro federal nas contas dos municípios</h1>
         <p className="pa-sub">
-          Como cada município da PB gastou o Pix (transferência especial) e se o que o SICONV registra pago a empresas nos convênios aparece nas
-          despesas que o município presta ao TCE-PB — e o contrário.
+          Como cada município da PB gastou o <Termo slug="pix">Pix</Termo> (transferência especial) e se o que o SICONV registra pago a
+          empresas nos convênios aparece nas despesas que o município presta ao Tribunal de Contas do Estado (
+          <Termo slug="tce-pb">TCE-PB</Termo>) — e o contrário.
         </p>
         <p className="mp-fiscal-aviso">{AVISO_TCE}</p>
         <p className="pa-nota">
@@ -87,7 +96,10 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
           O Pix nas contas de {ano}
         </h2>
         {pix.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nenhum município com despesa paga na fonte do Pix neste ano, entre os arquivos lidos.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhum município com despesa paga na fonte do Pix (706) em {ano}, nos arquivos do TCE-PB lidos para esse ano.
+            <Saidas saidas={outroAno(leitura.pix.map((x) => x.ano))} />
+          </p>
         ) : (
           <TabelaRolagem rotuloId="tce-pix">
             <table className="mp-tabela">
@@ -126,7 +138,10 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
           Convênios: SICONV × TCE-PB em {ano}
         </h2>
         {ms.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">Nada a conciliar neste ano.</p>
+          <p className="pa-cartao pa-cartao-plano">
+            Nenhum pagamento a empresa para conciliar entre o SICONV e o TCE-PB em {ano}.
+            <Saidas saidas={outroAno(leitura.municipios.map((x) => x.ano))} />
+          </p>
         ) : (
           <TabelaRolagem rotuloId="tce-conciliacao">
             <table className="mp-tabela">
@@ -137,16 +152,16 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
                     SICONV pagou
                   </th>
                   <th scope="col" className="mp-num">
-                    Achado no TCE
+                    Achado no TCE-PB
                   </th>
                   <th scope="col" className="mp-num">
                     Só no SICONV
                   </th>
                   <th scope="col" className="mp-num">
-                    Convênio no TCE
+                    Convênio no TCE-PB
                   </th>
                   <th scope="col" className="mp-num">
-                    Só no TCE
+                    Só no TCE-PB
                   </th>
                 </tr>
               </thead>
@@ -161,8 +176,8 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
         <p className="pa-nota">
           “SICONV pagou”: pagamentos a empresas nos convênios da administração municipal (prefeitura, fundos, autarquias), sem a OBTV para o
           próprio convenente. Casa quando o TCE-PB tem pagamento ao mesmo CNPJ no mesmo ano ou no seguinte, em qualquer fonte (a contrapartida
-          sai de recurso próprio). “Convênio no TCE”: fontes 700, 631 e 570 (convênios da União), pagas a empresas; “só no TCE” é o que não
-          tem par no SICONV no mesmo ano nem no anterior.
+          sai de recurso próprio). “Convênio no TCE-PB”: fontes 700, 631 e 570 (convênios da União), pagas a empresas; “só no TCE-PB” é o
+          que não tem par no SICONV no mesmo ano nem no anterior.
         </p>
       </section>
     </div>

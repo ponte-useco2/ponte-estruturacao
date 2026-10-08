@@ -78,6 +78,7 @@ import { CopiarNumero } from "./CopiarNumero";
 import {
   Cartao,
   Lista,
+  Saidas,
   TabelaContas,
   TabelaFisico,
   TabelaMudancas,
@@ -86,21 +87,94 @@ import {
   TabelaSuspensiva,
   TabelaVigencia,
   n,
+  type Saida,
 } from "./Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
+import { Termo } from "../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraPainel, { estado: "ok" }>;
+
+/** O nome do município do filtro, de onde a leitura tiver; sem nome, o código IBGE. */
+function nomeDoMunicipio(p: ParametrosPainel, leitura: LeituraOk): string | null {
+  return p.municipio
+    ? (leitura.opcoesMunicipio.find((m) => m.cod_ibge === p.municipio)?.municipio ??
+        leitura.convenios.find((c) => c.cod_ibge === p.municipio)?.municipio ??
+        leitura.mudancas.find((m) => m.cod_ibge === p.municipio)?.municipio ??
+        `IBGE ${p.municipio}`)
+    : null;
+}
+
+/**
+ * O recorte da visão em palavras e as saídas que o ampliam, uma por filtro ligado (B14b, 08/10/2026). Antes o
+ * vazio dizia "neste recorte" sem dizer qual nem como mudar (B12, seção 5). Só entram os filtros que a visão
+ * usa: o órgão não vale em municípios e mudanças; o período e a movimentação, só nas visões de convênio.
+ */
+function recorteDoPainel(p: ParametrosPainel, leitura: LeituraOk): { texto: string; saidas: Saida[] } {
+  const nome = nomeDoMunicipio(p, leitura);
+  const partes = [nome ? `${nome}/${p.uf}` : (p.uf ?? "Brasil")];
+  const saidas: Saida[] = [];
+  if (nome) saidas.push({ rotulo: `Ver toda a UF (${p.uf})`, href: urlPainel(p, { municipio: null }) });
+  else if (p.uf) saidas.push({ rotulo: "Ver o Brasil inteiro", href: urlPainel(p, { uf: null }) });
+  if (p.orgao && p.visao !== "municipios" && p.visao !== "mudancas") {
+    partes.push(p.orgao);
+    saidas.push({ rotulo: "Tirar o filtro do órgão", href: urlPainel(p, { orgao: null }) });
+  }
+  if (ehVisaoConvenio(p.visao)) {
+    const periodo = periodoPorExtenso(p.assinadoDe, p.assinadoAte);
+    if (periodo) {
+      partes.push(periodo);
+      saidas.push({ rotulo: "Ver todos os anos de assinatura", href: urlPainel(p, { assinadoDe: null, assinadoAte: null }) });
+    }
+    if (p.movimento) {
+      partes.push(ROTULO_MOVIMENTO[p.movimento]);
+      saidas.push({ rotulo: "Tirar o filtro de movimentação", href: urlPainel(p, { movimento: null }) });
+    }
+  }
+  if (p.visao === "mudancas") {
+    partes.push(ROTULO_DIAS_MUDANCA[p.dias].toLowerCase());
+    if (p.tipo) {
+      partes.push(definicaoMudanca(p.tipo).rotulo);
+      saidas.push({ rotulo: "Ver todos os tipos de mudança", href: urlPainel(p, { tipo: null }) });
+    }
+    if (p.dias < 30) saidas.push({ rotulo: "Ver os últimos 30 dias", href: urlPainel(p, { dias: 30 }) });
+  }
+  if (p.visao === "tempos" && p.ano !== null) {
+    partes.push(`etapas terminadas em ${p.ano}`);
+    saidas.push({ rotulo: "Ver os últimos 36 meses", href: urlPainel(p, { ano: null }) });
+  }
+  return { texto: partes.join(" · "), saidas };
+}
+
+/**
+ * O vazio de uma lista do painel: o que não há, o recorte em negrito e as saídas (B14b). `semSaidas` para a
+ * segunda lista vazia da mesma visão, que repetiria os mesmos links logo abaixo da primeira.
+ */
+function VazioPainel({
+  p,
+  leitura,
+  oQue,
+  extras = [],
+  semSaidas = false,
+}: {
+  p: ParametrosPainel;
+  leitura: LeituraOk;
+  oQue: string;
+  extras?: Saida[];
+  semSaidas?: boolean;
+}) {
+  const r = recorteDoPainel(p, leitura);
+  return (
+    <>
+      {oQue} neste recorte: <strong>{r.texto}</strong>.{!semSaidas && <Saidas saidas={[...extras, ...r.saidas]} />}
+    </>
+  );
+}
 
 export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
   const { execucao } = leitura;
   const def = definicao(p.visao);
-  const nomeMunicipio = p.municipio
-    ? (leitura.opcoesMunicipio.find((m) => m.cod_ibge === p.municipio)?.municipio ??
-      leitura.convenios.find((c) => c.cod_ibge === p.municipio)?.municipio ??
-      leitura.mudancas.find((m) => m.cod_ibge === p.municipio)?.municipio ??
-      `IBGE ${p.municipio}`)
-    : null;
+  const nomeMunicipio = nomeDoMunicipio(p, leitura);
   const onde = nomeMunicipio ? `${nomeMunicipio}/${p.uf}` : (p.uf ?? "Brasil");
   const periodo = ehVisaoConvenio(p.visao) ? periodoPorExtenso(p.assinadoDe, p.assinadoAte) : "";
 
@@ -129,7 +203,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         <p className="pa-kicker">Painel da PONTE · uso interno</p>
         <h1 className="pa-titulo">Onde o dinheiro trava · {onde}</h1>
         <p className="pa-sub">
-          Dado até <strong>{formatarPublicacao(execucao.dado_ate)}</strong>: o arquivo do Transferegov retrata{" "}
+          Dado até <strong>{formatarPublicacao(execucao.dado_ate)}</strong>: o arquivo do Transferegov traz a situação de{" "}
           {formatarData(execucao.referencia)}. Prazos e idades contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}; a
           seleção de cada lista segue o dia do arquivo.
         </p>
@@ -192,7 +266,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         {p.visao === "contas" && <Contas p={p} leitura={leitura} />}
         {p.visao === "saldo" && <Saldo p={p} leitura={leitura} />}
         {p.visao === "fisico" && <Fisico p={p} leitura={leitura} />}
-        {p.visao === "municipios" && <Municipios leitura={leitura} />}
+        {p.visao === "municipios" && <Municipios p={p} leitura={leitura} />}
         {p.visao === "tempos" && <Tempos p={p} leitura={leitura} />}
         {p.visao === "aprovacao" && <Aprovacao p={p} leitura={leitura} />}
       </section>
@@ -235,13 +309,13 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       {c.mudancas_acima_do_teto === true && (
         <p className="pa-cartao pa-cartao-plano">
-          A última execução encontrou {n(Number(c.mudancas_total ?? 0))} mudanças, acima do teto de gravação. Isso costuma ser
-          troca de regra ou arquivo com defeito: as contagens ficaram registradas, as linhas não.
+          A última atualização diária encontrou {n(Number(c.mudancas_total ?? 0))} mudanças, acima do teto de gravação. Isso costuma
+          ser troca de regra ou arquivo com defeito: as contagens ficaram registradas, as linhas não.
         </p>
       )}
       {(c.mudancas_desde ?? null) === null && total === 0 && (
         <p className="pa-cartao pa-cartao-plano">
-          As mudanças começam a aparecer na próxima execução do painel: a comparação precisa de um retrato anterior gravado.
+          As mudanças começam a aparecer depois da próxima atualização diária: a comparação precisa dos dados do dia anterior gravados.
         </p>
       )}
 
@@ -302,7 +376,7 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
         titulo={`${
           mostrados > leitura.mudancas.length ? `As ${n(leitura.mudancas.length)} primeiras, de ${n(mostrados)}` : "Uma a uma"
         }${p.dias > 1 ? ", do dado mais recente e pelo valor" : ", pelo valor"}`}
-        vazio="Nenhuma mudança neste recorte e período."
+        vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhuma mudança" />}
       >
         {leitura.mudancas.length > 0 && <TabelaMudancas linhas={leitura.mudancas} comData={p.dias > 1} />}
       </Lista>
@@ -343,21 +417,30 @@ function Suspensiva({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk })
         />
       </div>
       <p className="pa-nota">
-        O SICONV registra um prazo por convênio para a cláusula inteira, e não um por exigência. As exigências são lidas
-        do texto do motivo, que costuma ser uma lista-padrão — mostram o que foi pedido, não necessariamente o que ainda
-        falta entregar.
+        O SICONV registra um prazo por convênio para a <Termo slug="condicao-suspensiva">cláusula</Termo> inteira, e não um por
+        exigência. As exigências são lidas do texto do motivo, que costuma ser uma lista-padrão — mostram o que foi pedido, não
+        necessariamente o que ainda falta entregar.
       </p>
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Repasse" colunaDestaque="Vence em até 90 dias" />
 
-      <Lista titulo="Os próximos a vencer" vazio="Nenhuma cláusula suspensiva a vencer neste recorte." csv={urlExportar(p)}>
+      <Lista
+        titulo="Os próximos a vencer"
+        vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhuma cláusula suspensiva a vencer" />}
+        csv={urlExportar(p)}
+      >
         {leitura.convenios.length > 0 && <TabelaSuspensiva linhas={leitura.convenios} />}
       </Lista>
-      {leitura.vencidos.length > 0 && (
-        <Lista titulo="Já vencidos, dos mais recentes aos mais antigos" vazio="">
-          <TabelaSuspensiva linhas={leitura.vencidos} />
-        </Lista>
-      )}
+      {/* B14b (08/10/2026): antes, com `vazio=""`, a lista vazia sumia sem dizer nada. Agora fica e diz o recorte;
+          as saídas só aparecem se a lista de cima não as tiver dado. */}
+      <Lista
+        titulo="Já vencidos, dos mais recentes aos mais antigos"
+        vazio={
+          <VazioPainel p={p} leitura={leitura} oQue="Nenhuma cláusula suspensiva já vencida" semSaidas={leitura.convenios.length === 0} />
+        }
+      >
+        {leitura.vencidos.length > 0 && <TabelaSuspensiva linhas={leitura.vencidos} />}
+      </Lista>
     </>
   );
 }
@@ -384,7 +467,7 @@ function NuncaDesembolsado({ p, leitura }: { p: ParametrosPainel; leitura: Leitu
           tom="urgente"
           nota={
             <>
-              <Tag tom="proto">hipótese</Tag> Fila do concedente: o convenente fez a sua parte.
+              <Tag tom="proto">hipótese</Tag> A vez é do concedente: o convenente fez a sua parte.
             </>
           }
         />
@@ -403,15 +486,16 @@ function NuncaDesembolsado({ p, leitura }: { p: ParametrosPainel; leitura: Leitu
         />
       </div>
       <p className="pa-nota">
-        A etapa é a mais avançada registrada: licitação homologada e aceita pelo concedente. Dispensa e cotação não
-        contam como licitação. A plataforma não registra licitação deserta ou fracassada.
+        Nunca desembolsado: nenhum <Termo slug="desembolso">desembolso</Termo> registrado até a data do arquivo. A etapa é a mais avançada
+        registrada: licitação homologada e aceita pelo concedente. Dispensa e cotação não contam como licitação. A plataforma
+        não registra licitação deserta ou fracassada.
       </p>
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Repasse" colunaDestaque="Aceite há +90 dias" />
 
       <Lista
         titulo="Aceitos há mais tempo, depois os assinados há mais tempo"
-        vazio="Nenhum convênio sem desembolso neste recorte."
+        vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum convênio assinado sem desembolso" />}
         csv={urlExportar(p)}
       >
         {leitura.convenios.length > 0 && <TabelaNunca linhas={leitura.convenios} />}
@@ -439,14 +523,19 @@ function Vigencia({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
       />
       <p className="pa-nota">
         Em execução, com menos da metade do repasse desembolsada. &ldquo;A desembolsar&rdquo; é o repasse que ainda não chegou à
-        conta. Extensões somam os termos aditivos de vigência e as prorrogações de ofício.
+        conta. Extensões somam os termos aditivos de <Termo slug="vigencia">vigência</Termo> e as prorrogações feitas pelo
+        concedente.
       </p>
 
       <MotivosAditivos p={p} leitura={leitura} />
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="A desembolsar" colunaDestaque="Termina em até 90 dias" />
 
-      <Lista titulo="Os que terminam primeiro" vazio="Nenhum convênio em risco de vigência neste recorte." csv={urlExportar(p)}>
+      <Lista
+        titulo="Os que terminam primeiro"
+        vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum convênio com a vigência em risco" />}
+        csv={urlExportar(p)}
+      >
         {leitura.convenios.length > 0 && <TabelaVigencia linhas={leitura.convenios} />}
       </Lista>
     </>
@@ -521,7 +610,7 @@ function MotivosAditivos({ p, leitura }: { p: ParametrosPainel; leitura: Leitura
         </TabelaRolagem>
       </div>
       <p className="pa-nota mp-painel-nota-larga">
-        <Tag tom="proto">classificação automática</Tag> O motivo é lido do texto da justificativa por expressões do estudo; cada
+        <Tag tom="proto">classificação automática</Tag> O motivo é lido do texto da justificativa por expressões do estudo da PONTE; cada
         aditivo recebe a primeira categoria que casar. Cerca de um quarto dos textos não cai em nenhuma. O texto em si não é
         guardado.
       </p>
@@ -548,7 +637,7 @@ function Contas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           nota={<>Vez do convenente · {n(r("convenente_1ano").n)} há mais de um ano</>}
         />
         <Cartao rotulo="Rejeitadas e inadimplentes" quantidade={r("negativo").n} valor={r("negativo").valor} tom="urgente" />
-        <Cartao rotulo="Em TCE" quantidade={r("tce").n} valor={r("tce").valor} />
+        <Cartao rotulo="Em tomada de contas especial" quantidade={r("tce").n} valor={r("tce").valor} />
         <Cartao
           rotulo="Esperando análise do concedente"
           quantidade={r("concedente").n}
@@ -557,8 +646,9 @@ function Contas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
         />
       </div>
       <p className="pa-nota">
-        Valores de repasse. TCE é marca própria e se sobrepõe às situações. Inadimplente no SICONV não é o CAUC, que é o
-        que de fato bloqueia — e o estudo mostrou que municípios com inadimplência aberta seguem assinando convênios.
+        Valores de repasse. A <Termo slug="tomada-de-contas-especial">tomada de contas especial</Termo> é marca própria e se
+        sobrepõe às situações. Inadimplente no SICONV não é o <Termo slug="cauc">CAUC</Termo>, que é o que de fato bloqueia — e o
+        estudo da PONTE mostrou que municípios com inadimplência aberta seguem assinando convênios.
       </p>
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Repasse" colunaDestaque="Parados há +1 ano" />
@@ -582,11 +672,11 @@ function Contas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           {
             atrasada: "Atrasadas mais recentes — onde ainda dá para regularizar",
             negativo: "Rejeitadas e inadimplentes, pelo valor",
-            tce: "Em TCE, pelo valor",
+            tce: "Em tomada de contas especial, pelo valor",
             concedente: "Esperando análise há mais tempo",
           }[p.lado]
         }
-        vazio="Nenhum convênio nesta lista."
+        vazio={<VazioPainel p={p} leitura={leitura} oQue={`Nenhum convênio na lista “${ROTULO_LADO_CONTAS[p.lado]}”`} />}
         csv={urlExportar(p)}
       >
         {leitura.convenios.length > 0 && <TabelaContas linhas={leitura.convenios} />}
@@ -630,7 +720,11 @@ function Saldo({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Saldo parado" colunaDestaque="Nunca pagaram" />
 
-      <Lista titulo="Os maiores saldos parados" vazio="Nenhuma conta parada há mais de um ano neste recorte." csv={urlExportar(p)}>
+      <Lista
+        titulo="Os maiores saldos parados"
+        vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhuma conta parada há mais de um ano" />}
+        csv={urlExportar(p)}
+      >
         {leitura.convenios.length > 0 && <TabelaSaldo linhas={leitura.convenios} />}
       </Lista>
     </>
@@ -677,14 +771,18 @@ function Fisico({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Desembolsado" colunaDestaque="Parados há +1 ano" />
 
-      <Lista titulo="Os maiores valores desembolsados" vazio="Nenhum convênio com desembolso alto e físico baixo neste recorte." csv={urlExportar(p)}>
+      <Lista
+        titulo="Os maiores valores desembolsados"
+        vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum convênio com desembolso alto e físico baixo" />}
+        csv={urlExportar(p)}
+      >
         {leitura.convenios.length > 0 && <TabelaFisico linhas={leitura.convenios} />}
       </Lista>
     </>
   );
 }
 
-function Municipios({ leitura }: { leitura: LeituraOk }) {
+function Municipios({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
   const porSinais = new Map(leitura.resumo.filter((l) => l.visao === "municipios").map((l) => [Number(l.chave), l.n]));
   const com = (k: number) => porSinais.get(k) ?? 0;
 
@@ -709,7 +807,7 @@ function Municipios({ leitura }: { leitura: LeituraOk }) {
         convênios, tendem a acender mais sinais — o filtro por UF ajuda a comparar vizinhos.
       </p>
 
-      <Lista titulo="Os com mais sinais" vazio="Nenhum município com sinal neste recorte.">
+      <Lista titulo="Os com mais sinais" vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum município com sinal aceso" />}>
         {leitura.municipios.length > 0 && (
           <table className="mp-tabela">
             <thead>
@@ -796,10 +894,10 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
         </p>
       ) : (
         <p className="pa-nota">
-          Mediana das etapas que terminaram desde {formatarData(inicioJanela(leitura.execucao.referencia))}, nos últimos 36
-          meses: metade levou menos que isso. Aprovação é o plano de trabalho aprovado; assinatura, a data formal do
-          convênio; conclusão, a prestação de contas aprovada. &ldquo;Ainda nesta etapa&rdquo; conta, nas etapas de proposta,
-          só as enviadas na mesma janela; nas de convênio, os que estão nela hoje.
+          <Termo slug="mediana">Mediana</Termo> das etapas que terminaram desde {formatarData(inicioJanela(leitura.execucao.referencia))},
+          nos últimos 36 meses: metade levou menos que isso. Aprovação é o plano de trabalho aprovado; assinatura, a data formal
+          do convênio; conclusão, a prestação de contas aprovada. &ldquo;Ainda nesta etapa&rdquo; conta, nas etapas de proposta,
+          só as enviadas nos mesmos 36 meses; nas de convênio, os que estão nela hoje.
         </p>
       )}
 
@@ -811,7 +909,9 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
               <tr>
                 <th scope="col">Com quem estava</th>
                 <th scope="col" className="mp-num">Mediana</th>
-                <th scope="col" className="mp-num">9 em cada 10 em até</th>
+                <th scope="col" className="mp-num">
+                  <Termo slug="p90">9 em cada 10 em até</Termo>
+                </th>
                 <th scope="col" className="mp-num">Assinadas medidas</th>
               </tr>
             </thead>
@@ -832,8 +932,8 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           </table>
         </TabelaRolagem>
         <p className="pa-nota">
-          Nas propostas assinadas na janela, o tempo somado em análise do concedente, em complementação pelo proponente e
-          aprovada esperando a assinatura. As medianas não se somam: cada uma é o meio da sua própria distribuição.
+          Nas propostas assinadas nos últimos 36 meses, o tempo somado em análise do concedente, em complementação pelo
+          proponente e aprovada esperando a assinatura. As medianas não se somam: cada uma é o meio da sua própria distribuição.
         </p>
       </div>}
 
@@ -859,9 +959,19 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
             : `Mediana em dias, por órgão concedente${porAno ? ` · etapas terminadas em ${p.ano}` : ""}`
         }
         vazio={
-          porAno && porPrograma && p.uf
-            ? "Por ano, os programas só são medidos no Brasil inteiro: por UF a amostra de cada um é pequena demais."
-            : `Nenhum ${porPrograma ? "programa" : "órgão"} com medição neste recorte.`
+          porAno && porPrograma && p.uf ? (
+            <>
+              Por ano, os programas só são medidos no Brasil inteiro: por UF a amostra de cada um é pequena demais.
+              <Saidas
+                saidas={[
+                  { rotulo: "Ver o Brasil inteiro", href: urlPainel(p, { uf: null }) },
+                  { rotulo: `Ver os últimos 36 meses em ${p.uf}`, href: urlPainel(p, { ano: null }) },
+                ]}
+              />
+            </>
+          ) : (
+            <VazioPainel p={p} leitura={leitura} oQue={`Nenhum ${porPrograma ? "programa" : "órgão"} com medição`} />
+          )
         }
       >
         {linhas.length > 0 && (
@@ -874,7 +984,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
                     {ROTULO_ETAPA[e]}
                   </th>
                 ))}
-                <th scope="col" className="mp-num">{porAno ? `Assinadas em ${p.ano}` : "Assinadas na janela"}</th>
+                <th scope="col" className="mp-num">{porAno ? `Assinadas em ${p.ano}` : "Assinadas em 36 meses"}</th>
                 {porAno ? null : <th scope="col" className="mp-num">Propostas sem desfecho</th>}
               </tr>
             </thead>
@@ -951,6 +1061,10 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
   const orgaos = leitura.desfechos.filter((d) => d.cod_programa === null && d.orgao_sup !== null);
   const programas = leitura.desfechos.filter((d) => d.cod_programa !== null);
   const historico = Number(leitura.execucao.contagens.propostas_impedimento_historico ?? 0);
+  // B14b: no vazio, a saída para o ano anterior ao escolhido (ou o mais próximo que houver).
+  const anos = anosEnvio(leitura.execucao.referencia);
+  const outroAno = anos.find((a) => a < ano) ?? anos.find((a) => a !== ano);
+  const outroAnoSaida = outroAno ? [{ rotulo: `Ver as enviadas em ${outroAno}`, href: urlPainel(p, { ano: outroAno }) }] : [];
 
   return (
     <>
@@ -969,7 +1083,9 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
       </nav>
 
       {!total ? (
-        <p className="pa-cartao pa-cartao-plano">Nenhuma proposta enviada em {ano} neste recorte.</p>
+        <p className="pa-cartao pa-cartao-plano">
+          <VazioPainel p={p} leitura={leitura} oQue={`Nenhuma proposta enviada em ${ano}`} extras={outroAnoSaida} />
+        </p>
       ) : (
         <>
           <div className="pa-grade pa-grade-4 mp-painel-cartoes">
@@ -1040,7 +1156,9 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
               </TabelaRolagem>
             </div>
             <div className="mp-radar-recorte">
-              <h3 className="mp-radar-h3">Com e sem emenda parlamentar</h3>
+              <h3 className="mp-radar-h3">
+                Com e sem <Termo slug="emenda-parlamentar">emenda parlamentar</Termo>
+              </h3>
               <TabelaRolagem rotulo="Com e sem emenda parlamentar">
                 <table className="mp-tabela">
                   <thead>
@@ -1100,7 +1218,15 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
 
       <Lista
         titulo={`Programas com mais propostas enviadas em ${ano}`}
-        vazio="Nenhum programa com proposta enviada neste recorte."
+        vazio={
+          <VazioPainel
+            p={p}
+            leitura={leitura}
+            oQue={`Nenhum programa com proposta enviada em ${ano}`}
+            extras={outroAnoSaida}
+            semSaidas={!total}
+          />
+        }
       >
         {programas.length > 0 && (
           <TabelaDesfechos
@@ -1286,7 +1412,7 @@ function Filtros({
           </>
         )}
         <button type="submit" className="pa-btn pa-btn-pequeno">
-          Aplicar
+          Aplicar os filtros
         </button>
       </form>
     </div>
@@ -1380,7 +1506,19 @@ function PorOrgao({
   );
 }
 
-export function PainelIndisponivel({ estado }: { estado: "nao_ativado" | "sem_execucao" | "erro" }) {
+/**
+ * Indisponível do painel, só para administrador: pode falar da migração e do workflow. B14b (08/10/2026): como o
+ * `DadoIndisponivel` da B12, `endereco` vira "Tentar de novo" (só quando a leitura falhou) e `voltarPara`, a volta.
+ */
+export function PainelIndisponivel({
+  estado,
+  endereco,
+  voltarPara,
+}: {
+  estado: "nao_ativado" | "sem_execucao" | "erro";
+  endereco?: string;
+  voltarPara?: Saida;
+}) {
   const texto = {
     nao_ativado: {
       titulo: "O painel ainda não foi ativado no banco",
@@ -1402,6 +1540,20 @@ export function PainelIndisponivel({ estado }: { estado: "nao_ativado" | "sem_ex
         <p className="pa-kicker">Painel da PONTE · uso interno</p>
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
+        {((estado === "erro" && endereco) || voltarPara) && (
+          <p className="pa-linha">
+            {estado === "erro" && endereco && (
+              <LinkMapa href={endereco} className="pa-btn pa-btn-pequeno">
+                Tentar de novo
+              </LinkMapa>
+            )}
+            {voltarPara && (
+              <LinkMapa href={voltarPara.href} className="pa-btn pa-btn-pequeno">
+                {voltarPara.rotulo}
+              </LinkMapa>
+            )}
+          </p>
+        )}
       </div>
     </div>
   );
