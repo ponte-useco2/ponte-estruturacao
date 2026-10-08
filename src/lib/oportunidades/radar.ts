@@ -198,6 +198,7 @@ export function moedaCurta(v: number | null | undefined): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
   const fmt = (n: number, casas: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+  if (Math.abs(v) >= 1e12) return `R$ ${fmt(v / 1e12, 1)} tri`;
   if (Math.abs(v) >= 1e9) return `R$ ${fmt(v / 1e9, 1)} bi`;
   if (Math.abs(v) >= 1e6) return `R$ ${fmt(v / 1e6, 1)} mi`;
   if (Math.abs(v) >= 1e3) return `R$ ${fmt(v / 1e3, 0)} mil`;

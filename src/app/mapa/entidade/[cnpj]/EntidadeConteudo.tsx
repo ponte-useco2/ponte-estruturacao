@@ -17,6 +17,7 @@ import {
   type AbaEntidade,
 } from "@/lib/oportunidades/pagina-entidade";
 import { PODE, destinoConvenio, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { NOME_UF, siglaDaUrl, urlUf } from "@/lib/oportunidades/pagina-uf";
 import {
   ROTULO_CEBAS,
   idade,
@@ -64,7 +65,13 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
     <div className="pa-pilha mp-radar-cabeca">
       <nav aria-label="Onde você está" className="mp-mun-trilha">
         <span>Brasil</span>
-        <span>{e.uf === "PB" ? "Paraíba" : (e.uf ?? "UF não informada")}</span>
+        {e.uf && siglaDaUrl(e.uf) ? (
+          <Link href={urlUf(e.uf)} prefetch={false}>
+            {NOME_UF[e.uf]}
+          </Link>
+        ) : (
+          <span>UF não informada</span>
+        )}
         {e.municipio && (ehPb(e.cod_ibge) ? <Link href={urlMunicipio(e.cod_ibge as string)} prefetch={false}>{e.municipio}</Link> : <span>{e.municipio}</span>)}
         <span aria-current="page">{e.nome}</span>
       </nav>

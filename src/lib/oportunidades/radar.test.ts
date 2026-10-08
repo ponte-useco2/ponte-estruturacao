@@ -72,6 +72,7 @@ test("moeda curta", () => {
   assert.equal(moedaCurta(1_250_000), "R$ 1,3 mi");
   assert.equal(moedaCurta(350_000), "R$ 350 mil");
   assert.equal(moedaCurta(2_100_000_000), "R$ 2,1 bi");
+  assert.equal(moedaCurta(10_943_345_439_000), "R$ 10,9 tri", "o PIB do Brasil, em mil R$ × 1000");
   assert.equal(moedaCurta(900), "R$ 900");
   assert.equal(moedaCurta(null), "—");
 });
