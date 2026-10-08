@@ -30,6 +30,7 @@ import { ROTULO_DESFECHO } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA, TEMAS_RAIZ } from "@/lib/oportunidades/temas";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { Carregando } from "../_componentes/Carregando";
 import { EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 
 type LeituraOk = Extract<LeituraBusca, { estado: "ok" }>;
@@ -164,7 +165,9 @@ export function BuscaConteudo({
 
       <section aria-labelledby="busca-resultado" className="mp-radar-secao">
         <h2 id="busca-resultado" className="mp-radar-h2" aria-live="polite">
-          {vazio
+          {leitura.semFiltro
+            ? "Digite um termo ou escolha um filtro"
+            : vazio
             ? "Nada encontrado"
             : p.aba === "instrumentos"
               ? contagem(leitura.total, "convênio", "convênios")
@@ -178,7 +181,12 @@ export function BuscaConteudo({
             </>
           ) : null}
         </h2>
-        {vazio ? (
+        {leitura.semFiltro ? (
+          <p className="pa-cartao pa-cartao-plano">
+            A busca procura em todo o painel: digite um número, uma palavra do programa ou do objeto, o nome do proponente ou o CNPJ, ou
+            escolha a UF, o tema ou a situação.
+          </p>
+        ) : vazio ? (
           <p className="pa-cartao pa-cartao-plano">
             Nenhum resultado com esses termos e filtros. Busque por uma palavra só, tire um filtro ou confira o número.
           </p>
@@ -247,6 +255,7 @@ function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; 
                 <span className="mp-busca-numero">
                   <Link prefetch={false} href={urlInstrumento(l.nr_convenio)} className="mp-tabela-principal">
                     nº {l.nr_convenio}
+                    <Carregando />
                   </Link>
                   {seguidas && (
                     <EstrelaSeguir
@@ -262,6 +271,7 @@ function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; 
                   {l.cnpj ? (
                     <Link prefetch={false} href={urlEntidade(l.cnpj)}>
                       {l.proponente ?? "—"}
+                      <Carregando />
                     </Link>
                   ) : (
                     (l.proponente ?? "—")
@@ -311,6 +321,7 @@ function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguid
                 <span className="mp-busca-numero">
                   <Link prefetch={false} href={urlProposta(l.id_proposta)} className="mp-tabela-principal">
                     nº {l.nr_proposta ?? l.id_proposta}
+                    <Carregando />
                   </Link>
                   {seguidas && (
                     <EstrelaSeguir
@@ -326,6 +337,7 @@ function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguid
                   {l.cnpj ? (
                     <Link prefetch={false} href={urlEntidade(l.cnpj)}>
                       {l.proponente ?? "—"}
+                      <Carregando />
                     </Link>
                   ) : (
                     (l.proponente ?? "—")
@@ -370,6 +382,7 @@ function TabelaOrganizacoes({ linhas }: { linhas: OscBusca[] }) {
                 <th scope="row">
                   <Link prefetch={false} href={urlEntidade(l.cnpj)} className="mp-tabela-principal">
                     {nomeOsc(l)}
+                    <Carregando />
                   </Link>
                   <span className="mp-tabela-secundario">
                     {cnpjLegivel(l.cnpj)} · {l.municipio ?? "—"}/PB{l.matriz === false ? " · filial" : ""}

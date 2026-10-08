@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   GRUPOS_SITUACAO,
   PAGINA_MAXIMA,
+  buscaSemFiltro,
   contagem,
   desfechosDoGrupo,
   fracoesDaMaior,
@@ -117,6 +118,15 @@ test("F1c: o município vai para a página em abas na PB e para os investimentos
   assert.equal(urlDoMunicipio("2513802", "dinheiro"), "/mapa/municipio/2513802?aba=dinheiro");
   assert.equal(urlDoMunicipio("2513802", "trava"), "/mapa/municipio/2513802");
   assert.equal(urlDoMunicipio("3550308", "dinheiro"), "/mapa/municipio/3550308/investimentos");
+});
+
+test("teste da E3: sem termo nem filtro, a busca de convênios e propostas não consulta", () => {
+  assert.equal(buscaSemFiltro(parametrosBusca({})), true);
+  assert.equal(buscaSemFiltro(parametrosBusca({ aba: "propostas", q: " % " })), true, "termo que não filtra não conta");
+  assert.equal(buscaSemFiltro(parametrosBusca({ q: "creche" })), false);
+  assert.equal(buscaSemFiltro(parametrosBusca({ uf: "PB" })), false);
+  assert.equal(buscaSemFiltro(parametrosBusca({ tema: "saude" })), false);
+  assert.equal(buscaSemFiltro(parametrosBusca({ aba: "organizacoes" })), false, "o cadastro das OSC é leve: lista sem termo");
 });
 
 test("E3: a aba das organizações é só da PB, sem tema nem grupo", () => {

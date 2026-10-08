@@ -13,6 +13,7 @@ import {
   nomeOsc,
   rotuloNatureza,
   situacaoNaReceita,
+  subareasUteis,
   versaoLegivel,
   type OscNaLista,
 } from "./osc.ts";
@@ -37,6 +38,15 @@ test("E3: versão do arquivo do Ipea, natureza e nome", () => {
   assert.equal(fantasiaUtil({ razao_social: "SOS SERTAO - ORGANIZACAO SERTANEJA", nome_fantasia: "SOS SERTÃO" }), null);
   assert.equal(fantasiaUtil({ razao_social: "ASSOCIACAO X", nome_fantasia: "ASSOCIACAO X" }), null);
   assert.equal(fantasiaUtil({ razao_social: "FUNDACAO NAPOLEAO LAUREANO", nome_fantasia: "HOSPITAL NAPOLEAO LAUREANO" }), "HOSPITAL NAPOLEAO LAUREANO");
+});
+
+test("teste da E3: a subárea com o nome da área não se repete entre parênteses", () => {
+  assert.deepEqual(subareasUteis({ areas: ["religiao"], subareas: ["religiao"] }), []);
+  assert.deepEqual(
+    subareasUteis({ areas: ["assistencia_social", "desenvolvimento_e_defesa_de_direitos_e_interesses"], subareas: ["assistencia_social", "desenvolvimento_e_defesa_de_direitos"] }),
+    [],
+  );
+  assert.deepEqual(subareasUteis({ areas: ["assistencia_social", "saude"], subareas: ["assistencia_social", "hospitais"] }), ["Hospitais"]);
 });
 
 test("E3: idade pela fundação e situação na Receita", () => {
@@ -106,6 +116,7 @@ test("E3: lista do município — nome sem acento, quem tem instrumento primeiro
     ["ASSOCIAÇÃO DOS AGRICULTORES", 0, 0],
   ]);
   assert.equal(r.organizacoes, 4);
+  assert.equal(r.linhas, 3, "a filial vai na linha da matriz");
   assert.equal(r.paginas, 1);
   assert.equal(listaDoMunicipio(lista, instrumentos, { area: "saude", q: "", pagina: 9 }).grupos.length, 1, "página fora do fim volta para a última");
 });

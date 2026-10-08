@@ -22,8 +22,8 @@ import {
   idade,
   rotuloArea,
   rotuloNatureza,
-  rotuloSubarea,
   situacaoNaReceita,
+  subareasUteis,
   versaoLegivel,
 } from "@/lib/oportunidades/osc";
 import type { LeituraCadastroOsc } from "@/lib/oportunidades/osc.server";
@@ -207,6 +207,7 @@ function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: s
   const c = osc.cadastro;
   const situacao = situacaoNaReceita(c);
   const anos = idade(c.dt_fundacao, hoje);
+  const subareas = subareasUteis(c);
   return (
     <Secao
       id="ent-cadastro"
@@ -255,7 +256,7 @@ function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: s
         <dt>Área de atuação</dt>
         <dd>
           {c.areas.length ? c.areas.map(rotuloArea).join("; ") : "não informada"}
-          {c.subareas.length > 0 && <span className="pa-nota"> ({c.subareas.map(rotuloSubarea).join("; ")})</span>}
+          {subareas.length > 0 && <span className="pa-nota"> ({subareas.join("; ")})</span>}
         </dd>
         {c.cnae_principal && (
           <>

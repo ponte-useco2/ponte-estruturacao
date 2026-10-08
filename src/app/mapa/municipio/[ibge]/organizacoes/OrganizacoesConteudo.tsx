@@ -104,6 +104,7 @@ export function OrganizacoesConteudo({
       <section aria-labelledby="osc-lista" className="mp-radar-secao">
         <h2 id="osc-lista" className="mp-radar-h2" aria-live="polite">
           {lista.organizacoes ? `${n(lista.organizacoes)} ${lista.organizacoes === 1 ? "organização" : "organizações"}` : "Nenhuma organização com esses filtros"}
+          {lista.linhas < lista.organizacoes ? ` em ${n(lista.linhas)} ${lista.linhas === 1 ? "linha" : "linhas"} (as filiais vão na linha da matriz)` : ""}
           {area ? ` · ${rotuloArea(area)}` : ""}
         </h2>
         {lista.grupos.length > 0 && (

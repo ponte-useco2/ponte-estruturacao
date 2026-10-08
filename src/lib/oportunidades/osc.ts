@@ -133,6 +133,12 @@ export const rotuloNatureza = (codigo: string | null | undefined) =>
 export const rotuloArea = (a: string) => ROTULO_AREA[a] ?? a.replace(/_/g, " ");
 export const rotuloSubarea = (a: string) => ROTULO_SUBAREA[a] ?? a.replace(/_/g, " ");
 
+/** As subáreas que acrescentam alguma coisa: a que tem o mesmo nome da área ("Religião (Religião)") sai. */
+export function subareasUteis(o: Pick<CadastroOsc, "areas" | "subareas">): string[] {
+  const areas = new Set(o.areas.map(rotuloArea));
+  return o.subareas.map(rotuloSubarea).filter((s) => !areas.has(s));
+}
+
 /** O nome que a lista mostra: a razão social; sem ela, o nome fantasia; sem os dois, o CNPJ. */
 export function nomeOsc(o: Pick<CadastroOsc, "cnpj" | "razao_social" | "nome_fantasia">): string {
   return o.razao_social || o.nome_fantasia || o.cnpj;
@@ -244,8 +250,10 @@ export function filtrarPorNome<T extends Pick<OscNaLista, "cnpj" | "razao_social
 
 export interface ListaOsc {
   grupos: (GrupoOsc & { instrumentos: number })[];
-  /** Organizações (linhas, com as filiais) depois dos filtros. */
+  /** Organizações (CNPJs, com as filiais) depois dos filtros. */
   organizacoes: number;
+  /** Linhas da tabela (as filiais vão na linha da matriz), em todas as páginas. */
+  linhas: number;
   paginas: number;
 }
 
@@ -264,5 +272,10 @@ export function listaDoMunicipio(
     .sort((a, b) => b.instrumentos - a.instrumentos || nomeOsc(a.principal).localeCompare(nomeOsc(b.principal), "pt-BR"));
   const paginas = Math.max(1, Math.ceil(grupos.length / OSC_POR_PAGINA));
   const pagina = Math.min(Math.max(1, filtros.pagina), paginas);
-  return { grupos: grupos.slice((pagina - 1) * OSC_POR_PAGINA, pagina * OSC_POR_PAGINA), organizacoes: filtradas.length, paginas };
+  return {
+    grupos: grupos.slice((pagina - 1) * OSC_POR_PAGINA, pagina * OSC_POR_PAGINA),
+    organizacoes: filtradas.length,
+    linhas: grupos.length,
+    paginas,
+  };
 }

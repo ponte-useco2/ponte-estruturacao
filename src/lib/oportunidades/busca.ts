@@ -141,6 +141,15 @@ export function termosDaBusca(q: string): string[] {
   return [...new Set(termos)].slice(0, MAXIMO_TERMOS);
 }
 
+/**
+ * Convênios ou propostas sem termo e sem filtro: a lista seria o painel inteiro (79 mil convênios, 137 mil
+ * propostas), a consulta mais pesada da busca (2,5 s com o banco aquecido; passou dos 8 s da API logo depois da
+ * rodada diária de 08/10/2026). A tela pede um termo ou um filtro em vez de consultar.
+ */
+export function buscaSemFiltro(p: ParametrosBusca): boolean {
+  return p.aba !== "organizacoes" && termosDaBusca(p.q).length === 0 && !p.uf && !p.municipio && !p.tema && !p.grupo;
+}
+
 export function situacoesDoGrupo(grupo: string | null): string[] | null {
   return grupo ? (GRUPOS_SITUACAO.find((g) => g.id === grupo)?.situacoes ?? null) : null;
 }

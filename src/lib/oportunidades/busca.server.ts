@@ -8,6 +8,7 @@
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import {
   LIMITE_POR_PAGINA,
+  buscaSemFiltro,
   desfechosDoGrupo,
   situacoesDoGrupo,
   termosDaBusca,
@@ -76,6 +77,8 @@ export type LeituraBusca =
       fonteOsc: FonteOsc | null;
       total: number;
       municipios: OpcaoMunicipioBusca[];
+      /** Convênios ou propostas sem termo nem filtro: nada foi consultado (`buscaSemFiltro`). */
+      semFiltro?: boolean;
     };
 
 export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
@@ -85,6 +88,9 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
   if (ehFalha(ex)) return ex;
 
   const termos = termosDaBusca(p.q);
+  if (buscaSemFiltro(p)) {
+    return { estado: "ok", execucao: ex, instrumentos: [], propostas: [], organizacoes: [], fonteOsc: null, total: 0, municipios: [], semFiltro: true };
+  }
   if (p.aba === "organizacoes") {
     const [osc, municipios] = await Promise.all([
       buscarOsc(termos, p.municipio, LIMITE_POR_PAGINA, (p.pagina - 1) * LIMITE_POR_PAGINA),
