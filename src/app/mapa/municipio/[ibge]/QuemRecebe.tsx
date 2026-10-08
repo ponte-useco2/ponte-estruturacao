@@ -11,6 +11,7 @@ import { ROTULO_AREA, rotuloArea, rotuloNatureza, versaoLegivel, type FonteOsc, 
 import { EXPLICA_LENTE, ROTULO_ESPECIE, ROTULO_LENTE, urlEntidade, type EntidadeNoMunicipio, type LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Carregando } from "../../_componentes/Carregando";
+import { Termo } from "../../_componentes/Termo";
 import { Secao } from "./relatorio/RelatorioConteudo";
 
 const n = (x: number) => x.toLocaleString("pt-BR");
@@ -29,11 +30,22 @@ function SociedadeCivil({ osc, ibge, municipio }: { osc: { resumo: ResumoOscMuni
     <div className="mp-ent-osc">
       <h3 className="mp-rel-h3">Todas as organizações da sociedade civil</h3>
       <p>
-        O Mapa das OSC (Ipea, versão de {versaoLegivel(osc.fonte.versao)}) registra <strong>{plural(r.ativas, "organização ativa", "organizações ativas")}</strong>{" "}
-        com sede em {municipio}: {plural(r.matrizes, "matriz", "matrizes")} e {plural(r.filiais, "filial", "filiais")}.
-        {fora > 0 && <> Outras {n(fora)} estão inaptas, suspensas ou baixadas na Receita e ficam fora da lista.</>}
+        O <Termo slug="mapa-das-osc">Mapa das OSC</Termo> (Ipea, versão de {versaoLegivel(osc.fonte.versao)}) registra{" "}
+        <strong>{plural(r.ativas, "organização ativa", "organizações ativas")}</strong> com sede em {municipio}: {plural(r.matrizes, "matriz", "matrizes")} e{" "}
+        {plural(r.filiais, "filial", "filiais")}.
+        {fora > 0 && (
+          <>
+            {" "}
+            Outras {n(fora)} estão <Termo slug="osc-ativa">inaptas, suspensas ou baixadas</Termo> na Receita e ficam fora da lista.
+          </>
+        )}
         {r.recentes > 0 && <> {plural(r.recentes, "foi fundada", "foram fundadas")} nos últimos 5 anos.</>}
-        {r.com_cebas > 0 && <> {plural(r.com_cebas, "tem", "têm")} CEBAS nas planilhas do Mapa.</>}
+        {r.com_cebas > 0 && (
+          <>
+            {" "}
+            {plural(r.com_cebas, "tem", "têm")} <Termo slug="cebas">CEBAS</Termo> nas planilhas do Mapa.
+          </>
+        )}
       </p>
       <div className="mp-tabela-rolagem">
         <table className="mp-tabela mp-ent-areas">
@@ -60,7 +72,9 @@ function SociedadeCivil({ osc, ibge, municipio }: { osc: { resumo: ResumoOscMuni
           </tbody>
         </table>
       </div>
-      <p className="pa-nota">Por natureza jurídica: {naturezas.map(([k, x]) => `${rotuloNatureza(k === "sem_natureza" ? null : k)} ${n(x)}`).join("; ")}.</p>
+      <p className="pa-nota">
+        Por <Termo slug="natureza-juridica">natureza jurídica</Termo>: {naturezas.map(([k, x]) => `${rotuloNatureza(k === "sem_natureza" ? null : k)} ${n(x)}`).join("; ")}.
+      </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <Link href={`/mapa/municipio/${ibge}/organizacoes`} className="pa-btn pa-btn-pequeno" prefetch={false}>
           Ver as {n(r.ativas)} organizações
@@ -90,7 +104,11 @@ export function QuemRecebe({
     <Secao
       id="mun-quem-recebe"
       titulo="Quem recebe no município"
-      nota={`Os proponentes com instrumento e sede em ${municipio}, cada um com a sua página: carteira, fila e dinheiro.`}
+      nota={
+        <>
+          Os <Termo slug="proponente">proponentes</Termo> com instrumento e sede em {municipio}, cada um com a sua página: carteira, fila e dinheiro.
+        </>
+      }
     >
       {grupos.map((g) => (
         <details key={g.lente} className="mp-ent-grupo" open>

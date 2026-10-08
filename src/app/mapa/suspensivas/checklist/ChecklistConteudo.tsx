@@ -3,11 +3,11 @@
  * pede (os que vencem marcados), os pedidos nas palavras dele e o tempo típico até a retirada.
  * Sem órgão escolhido, mostra a lista dos órgãos que têm base na coleta.
  */
-import Link from "next/link";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { COORTE_DESDE, MINIMO_PADRAO, lerHistorico, montarChecklist, tituloOrgao } from "@/lib/oportunidades/padroes";
 import type { LeituraPadroes } from "@/lib/oportunidades/padroes.server";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraPadroes, { estado: "ok" }>;
 
@@ -41,12 +41,12 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
         <ul className="mp-checklist-orgaos">
           {orgaos.map(([o, q]) => (
             <li key={o}>
-              <Link prefetch={false} href={url(o)} className="pa-cartao mp-checklist-orgao">
+              <LinkMapa href={url(o)} className="pa-cartao mp-checklist-orgao">
                 <strong>{tituloOrgao(o)}</strong>
                 <span className="mp-laudo-miudo">
                   {n(q)} {q === 1 ? "convênio" : "convênios"} em suspensiva{q < MINIMO_PADRAO ? " · poucos casos" : ""}
                 </span>
-              </Link>
+              </LinkMapa>
             </li>
           ))}
         </ul>
@@ -75,12 +75,12 @@ export function ChecklistConteudo({ leitura, hoje, orgao }: { leitura: LeituraOk
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link prefetch={false} href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
+          <LinkMapa href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
             Outro órgão
-          </Link>
-          <Link prefetch={false} href={`/mapa/suspensivas?orgao=${encodeURIComponent(escolhido)}`} className="pa-btn pa-btn-pequeno">
+          </LinkMapa>
+          <LinkMapa href={`/mapa/suspensivas?orgao=${encodeURIComponent(escolhido)}`} className="pa-btn pa-btn-pequeno">
             Os convênios deste órgão
-          </Link>
+          </LinkMapa>
         </p>
         <p className="mp-fiscal-aviso">
           Não é a lista oficial de exigências: é o que os registros mostram. Confira sempre o edital do programa, a portaria e o termo.

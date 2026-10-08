@@ -3,7 +3,6 @@
  * impugnações na prestação de contas (13C.2) e as obras paradas no acompanhamento (13C.3). Cada parte vem
  * de uma leitura própria e some sozinha quando falta. Recebe as leituras prontas; aqui só se apresenta.
  */
-import Link from "next/link";
 import { urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
 import { moedaContas, obrasParadas, DIAS_SEM_MEDICAO_MODERADO } from "@/lib/oportunidades/contas-obras";
@@ -11,6 +10,7 @@ import type { PainelContasObras } from "@/lib/oportunidades/contas-obras.server"
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { moedaExata, porMunicipio } from "@/lib/oportunidades/tce-tcu";
 import type { LeituraContas } from "@/lib/oportunidades/tce-tcu.server";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraContas, { estado: "ok" }>;
 
@@ -137,7 +137,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
                 {ordenadas.map((t, k) => (
                   <tr key={`${t.nr_convenio}-${t.codigo ?? k}`}>
                     <td>
-                      <Link prefetch={false} href={`${urlInstrumento(t.nr_convenio)}/laudo`}>{t.nr_convenio}</Link>
+                      <LinkMapa href={`${urlInstrumento(t.nr_convenio)}/laudo`}>{t.nr_convenio}</LinkMapa>
                       <br />
                       <span className="mp-laudo-miudo">{t.situacao_convenio ?? ""}</span>
                     </td>
@@ -220,7 +220,7 @@ function SecaoImpugnacoes({ linhas, referencia }: { linhas: PainelContasObras["i
               {linhas.map((l) => (
                 <tr key={l.nr_convenio}>
                   <td>
-                    <Link prefetch={false} href={`${urlInstrumento(l.nr_convenio)}/laudo`}>{l.nr_convenio}</Link>
+                    <LinkMapa href={`${urlInstrumento(l.nr_convenio)}/laudo`}>{l.nr_convenio}</LinkMapa>
                     <br />
                     <span className="mp-laudo-miudo">{l.situacao_convenio ?? ""}</span>
                   </td>
@@ -279,7 +279,7 @@ function SecaoObras({ linhas, referencia }: { linhas: PainelContasObras["obras"]
               {paradas.map((o) => (
                 <tr key={o.nr_convenio}>
                   <td>
-                    <Link prefetch={false} href={`${urlInstrumento(o.nr_convenio)}/laudo`}>{o.nr_convenio}</Link>
+                    <LinkMapa href={`${urlInstrumento(o.nr_convenio)}/laudo`}>{o.nr_convenio}</LinkMapa>
                     {o.paralisado ? (
                       <>
                         <br />

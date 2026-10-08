@@ -2,7 +2,6 @@
  * Dinheiro federal no TCE-PB: o Pix por município e a conciliação SICONV × TCE-PB, num ano.
  * Recebe a leitura pronta (lib/oportunidades/tce.server.ts); aqui só se apresenta.
  */
-import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
@@ -17,6 +16,7 @@ import {
   type TcePixMunicipio,
 } from "@/lib/oportunidades/tce";
 import type { LeituraPainelTce } from "@/lib/oportunidades/tce.server";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraPainelTce, { estado: "ok" }>;
 
@@ -59,10 +59,10 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
       <nav aria-label="Ano" className="pa-chips mp-nao-imprimir">
         <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Ano</span>
         {anos.map((a) => (
-          <Link prefetch={false} key={a} href={`${urlTce()}?ano=${a}`} className={`pa-chip${a === ano ? " pa-ativo" : ""}`} aria-current={a === ano ? "true" : undefined}>
+          <LinkMapa key={a} href={`${urlTce()}?ano=${a}`} className={`pa-chip${a === ano ? " pa-ativo" : ""}`} aria-current={a === ano ? "true" : undefined}>
             {a}
             {a >= hoje ? " (em curso)" : ""}
-          </Link>
+          </LinkMapa>
         ))}
       </nav>
 
@@ -184,9 +184,9 @@ function LinhaPix({ p }: { p: TcePixMunicipio }) {
   return (
     <tr>
       <th scope="row">
-        <Link prefetch={false} href={urlTce(p.ibge)} className="mp-tabela-principal">
+        <LinkMapa href={urlTce(p.ibge)} className="mp-tabela-principal">
           {p.municipio ?? `IBGE ${p.ibge}`}
-        </Link>
+        </LinkMapa>
         <span className="mp-tabela-secundario">
           {n(p.n_credores_pj)} {p.n_credores_pj === 1 ? "empresa" : "empresas"}
         </span>
@@ -211,9 +211,9 @@ function LinhaConciliacao({ m }: { m: TceFederalMunicipio }) {
   return (
     <tr>
       <th scope="row">
-        <Link prefetch={false} href={urlTce(m.ibge)} className="mp-tabela-principal">
+        <LinkMapa href={urlTce(m.ibge)} className="mp-tabela-principal">
           {m.municipio ?? `IBGE ${m.ibge}`}
-        </Link>
+        </LinkMapa>
         {!m.coberto && <span className="mp-tabela-secundario">arquivo do TCE-PB ainda não lido</span>}
       </th>
       <td className="mp-num">{m.siconv_pj > 0 ? moedaCurta(m.siconv_pj) : "—"}</td>

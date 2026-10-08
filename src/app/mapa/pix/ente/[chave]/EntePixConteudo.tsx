@@ -2,7 +2,6 @@
  * Os planos do Pix de um ente: um por linha, com o pior ponto a conferir e o estado dos itens que mais
  * pesam; o CSV traz todos os itens, um por coluna. Recebe a leitura pronta.
  */
-import Link from "next/link";
 import { BotaoImprimir } from "@/app/mapa/fiscal/[ibge]/simular/BotaoImprimir";
 import { formatarData } from "@/lib/oportunidades/central";
 import { ROTULO_LADO_MOTIVO } from "@/lib/oportunidades/pix";
@@ -11,6 +10,7 @@ import type { LeituraLaudoEntePix } from "@/lib/oportunidades/pix-laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { PixNoTce } from "../../PixNoTce";
 import { AVISO_PIX } from "../../plano/[id]/PlanoPixConteudo";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraLaudoEntePix, { estado: "ok" }>;
 
@@ -47,9 +47,9 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
             Baixar CSV (um item por coluna)
           </a>
           {!cliente && (
-            <Link prefetch={false} href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
+            <LinkMapa href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
               Painel do Pix
-            </Link>
+            </LinkMapa>
           )}
         </p>
         <p className="mp-fiscal-aviso">{AVISO_PIX}</p>
@@ -117,9 +117,9 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
               {planos.map((p) => (
                 <tr key={p.id_plano_acao}>
                   <th scope="row">
-                    <Link prefetch={false} href={urlLaudoPix(p.id_plano_acao)} className="mp-tabela-principal">
+                    <LinkMapa href={urlLaudoPix(p.id_plano_acao)} className="mp-tabela-principal">
                       {p.codigo_plano_acao ?? p.id_plano_acao}
-                    </Link>
+                    </LinkMapa>
                     <span className="mp-tabela-secundario">
                       {p.ano} · {p.autor ?? "autor não informado"}
                       {p.situacao?.startsWith("IMPEDIDO") ? " · impedido" : ""}

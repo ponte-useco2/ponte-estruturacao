@@ -53,6 +53,7 @@ import {
   ListaAchados,
   Secao,
 } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type Destino = (nr: string) => string;
 
@@ -65,17 +66,17 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <Link href={urlBrasil()} prefetch={false}>
+        <LinkMapa href={urlBrasil()}>
           Brasil
-        </Link>
+        </LinkMapa>
         {e.uf && siglaDaUrl(e.uf) ? (
-          <Link href={urlUf(e.uf)} prefetch={false}>
+          <LinkMapa href={urlUf(e.uf)}>
             {NOME_UF[e.uf]}
-          </Link>
+          </LinkMapa>
         ) : (
           <span>UF não informada</span>
         )}
-        {e.municipio && (ehPb(e.cod_ibge) ? <Link href={urlMunicipio(e.cod_ibge as string)} prefetch={false}>{e.municipio}</Link> : <span>{e.municipio}</span>)}
+        {e.municipio && (ehPb(e.cod_ibge) ? <LinkMapa href={urlMunicipio(e.cod_ibge as string)}>{e.municipio}</LinkMapa> : <span>{e.municipio}</span>)}
         <span aria-current="page">{e.nome}</span>
       </nav>
       <h1 className="pa-titulo">{e.nome}</h1>
@@ -94,14 +95,14 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
         <EstrelaSeguir tipo="entidade" chave={e.cnpj} nome={`a entidade ${e.nome}`} seguindo={seguindo} />
         <BotaoImprimir />
         {ehPb(e.cod_ibge) && (
-          <Link href={urlMunicipio(e.cod_ibge as string)} className="pa-btn pa-btn-pequeno" prefetch={false}>
+          <LinkMapa href={urlMunicipio(e.cod_ibge as string)} className="pa-btn pa-btn-pequeno">
             Página do município
-          </Link>
+          </LinkMapa>
         )}
         {PODE.interno(nivel) && ehPb(e.cod_ibge) && municipal && (
-          <Link href={`/mapa/painel/municipio/${e.cod_ibge}?quem=todos`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+          <LinkMapa href={`/mapa/painel/municipio/${e.cod_ibge}?quem=todos`} className="pa-btn pa-btn-pequeno">
             Ficha no painel
-          </Link>
+          </LinkMapa>
         )}
       </p>
     </div>

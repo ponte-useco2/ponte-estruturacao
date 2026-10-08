@@ -32,6 +32,7 @@ import { ROTULO_TEMA, TEMAS_RAIZ } from "@/lib/oportunidades/temas";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { Carregando } from "../_componentes/Carregando";
 import { EstrelaSeguir } from "../_componentes/EstrelaSeguir";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraBusca, { estado: "ok" }>;
 
@@ -81,14 +82,14 @@ export function BuscaConteudo({
             ["organizacoes", "Organizações"],
           ] as const
         ).map(([aba, rotulo]) => (
-          <Link prefetch={false}
+          <LinkMapa
             key={aba}
             href={urlBusca(p, { aba })}
             className={`pa-chip${p.aba === aba ? " pa-ativo" : ""}`}
             aria-current={p.aba === aba ? "page" : undefined}
           >
             {rotulo}
-          </Link>
+          </LinkMapa>
         ))}
       </nav>
 
@@ -177,7 +178,7 @@ export function BuscaConteudo({
           {p.municipio ? (
             <>
               {" "}
-              · <Link prefetch={false} href={urlDoMunicipio(p.municipio, "dinheiro")}>{ehMunicipioPb(p.municipio) ? "ver a página do município" : "ver os investimentos do município"}</Link>
+              · <LinkMapa href={urlDoMunicipio(p.municipio, "dinheiro")}>{ehMunicipioPb(p.municipio) ? "ver a página do município" : "ver os investimentos do município"}</LinkMapa>
             </>
           ) : null}
         </h2>
@@ -200,17 +201,17 @@ export function BuscaConteudo({
         {paginas > 1 && (
           <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
             {p.pagina > 1 && (
-              <Link prefetch={false} href={urlBusca(p, { pagina: p.pagina - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
+              <LinkMapa href={urlBusca(p, { pagina: p.pagina - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
                 ← Anteriores
-              </Link>
+              </LinkMapa>
             )}
             <span className="pa-nota">
               Página {n(p.pagina)} de {n(paginas)} · {LIMITE_POR_PAGINA} por página
             </span>
             {p.pagina < paginas && (
-              <Link prefetch={false} href={urlBusca(p, { pagina: p.pagina + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
+              <LinkMapa href={urlBusca(p, { pagina: p.pagina + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
                 Próximos →
-              </Link>
+              </LinkMapa>
             )}
           </nav>
         )}
@@ -411,7 +412,7 @@ export function DadoIndisponivel({ titulo, kicker }: { titulo: string; kicker: s
         <h1 className="pa-titulo">{titulo}</h1>
         <p>Os dados não puderam ser lidos agora. Tente de novo em alguns minutos.</p>
         <p className="pa-nota">
-          <Link prefetch={false} href="/mapa">Voltar às janelas</Link>
+          <LinkMapa href="/mapa">Voltar às janelas</LinkMapa>
         </p>
       </div>
     </div>

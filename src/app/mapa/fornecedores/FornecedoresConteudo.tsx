@@ -3,7 +3,6 @@
  * Recebe a leitura pronta (lib/oportunidades/fornecedores.server.ts); aqui só se apresenta.
  */
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
 import {
   FATIA_ALTA,
@@ -17,6 +16,7 @@ import {
 } from "@/lib/oportunidades/fornecedores";
 import { POR_PAGINA, type FiltroFornecedores, type LeituraPainelFornecedores, type LinhaPainel } from "@/lib/oportunidades/fornecedores.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraPainelFornecedores, { estado: "ok" }>;
 
@@ -128,7 +128,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
         </h2>
         {linhas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">
-            Nenhuma empresa neste filtro. <Link prefetch={false} href="/mapa/fornecedores">Ver todas</Link>
+            Nenhuma empresa neste filtro. <LinkMapa href="/mapa/fornecedores">Ver todas</LinkMapa>
           </p>
         ) : (
           <div className="mp-tabela-rolagem">
@@ -232,9 +232,9 @@ function Linha({ l }: { l: LinhaPainel }) {
   return (
     <tr>
       <th scope="row">
-        <Link prefetch={false} href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
+        <LinkMapa href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
           {nomeFornecedor(l)}
-        </Link>
+        </LinkMapa>
         <span className="mp-tabela-secundario">
           CNPJ {cnpjLegivel(l.cnpj)}
           {l.mei ? " · MEI" : ""}
@@ -292,16 +292,16 @@ function TabelaConcentracao({ linhas, filtro }: { linhas: (ConcentracaoMunicipio
           {linhas.map((m) => (
             <tr key={m.cod_ibge}>
               <th scope="row">
-                <Link prefetch={false} href={url(filtro, { municipio: m.cod_ibge, q: null, marca: null })} className="mp-tabela-principal">
+                <LinkMapa href={url(filtro, { municipio: m.cod_ibge, q: null, marca: null })} className="mp-tabela-principal">
                   {m.municipio ?? `IBGE ${m.cod_ibge}`}
-                </Link>
+                </LinkMapa>
                 <span className="mp-tabela-secundario">
                   {n(m.n_fornecedores)} fornecedores · {n(m.convenios)} {m.convenios === 1 ? "convênio" : "convênios"}
                 </span>
               </th>
               <td>
                 {m.maior_cnpj ? (
-                  <Link prefetch={false} href={urlFornecedor(m.maior_cnpj)}>{nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj })}</Link>
+                  <LinkMapa href={urlFornecedor(m.maior_cnpj)}>{nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj })}</LinkMapa>
                 ) : (
                   "—"
                 )}

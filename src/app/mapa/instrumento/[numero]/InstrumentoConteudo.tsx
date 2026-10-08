@@ -1,7 +1,6 @@
 /**
  * A página de um convênio: valores, prazos e, na PB, a linha do tempo. Recebe os dados já lidos.
  */
-import Link from "next/link";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import {
   ROTULO_TIPO_EVENTO,
@@ -23,6 +22,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { CopiarNumero } from "../../painel/CopiarNumero";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraInstrumento, { estado: "ok" }>;
 
@@ -60,18 +60,18 @@ export function InstrumentoConteudo({
         {i.objeto && <p className="pa-sub">{i.objeto}</p>}
         <p className="pa-sub">
           {i.cnpj ? (
-            <Link href={urlEntidade(i.cnpj)} prefetch={false}>
+            <LinkMapa href={urlEntidade(i.cnpj)}>
               <strong>{i.proponente ?? "Proponente não informado"}</strong>
-            </Link>
+            </LinkMapa>
           ) : (
             <strong>{i.proponente ?? "Proponente não informado"}</strong>
           )}
           {i.cod_ibge ? (
             <>
               {" · "}
-              <Link prefetch={false} href={urlDoMunicipio(i.cod_ibge)}>
+              <LinkMapa href={urlDoMunicipio(i.cod_ibge)}>
                 {i.municipio ?? `IBGE ${i.cod_ibge}`}/{i.uf}
-              </Link>
+              </LinkMapa>
             </>
           ) : null}
           {i.orgao_sup ? ` · ${i.orgao_sup}` : ""}
@@ -82,16 +82,16 @@ export function InstrumentoConteudo({
           {i.subsituacao && <span className="pa-tag">{i.subsituacao}</span>}
           {i.com_emenda && <span className="pa-tag">com emenda parlamentar</span>}
           {temas.map((t) => (
-            <Link prefetch={false} key={t} href={urlBusca(parametrosBusca({}), { tema: t, uf: i.uf })} className="pa-tag">
+            <LinkMapa key={t} href={urlBusca(parametrosBusca({}), { tema: t, uf: i.uf })} className="pa-tag">
               {ROTULO_TEMA[t]}
-            </Link>
+            </LinkMapa>
           ))}
         </p>
         {laudo && (
           <p className="mp-nao-imprimir mp-laudo-acoes">
-            <Link prefetch={false} href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`} className="pa-btn pa-btn-pequeno">
+            <LinkMapa href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`} className="pa-btn pa-btn-pequeno">
               Laudo do instrumento
-            </Link>
+            </LinkMapa>
             <span className="pa-nota">onde está, quanto tempo contra o típico, riscos e o que fazer</span>
           </p>
         )}
@@ -144,7 +144,7 @@ export function InstrumentoConteudo({
         </dl>
         {i.id_proposta && (
           <p className="pa-nota">
-            <Link prefetch={false} href={urlProposta(i.id_proposta)}>Ver a proposta que originou o convênio</Link>
+            <LinkMapa href={urlProposta(i.id_proposta)}>Ver a proposta que originou o convênio</LinkMapa>
           </p>
         )}
       </section>

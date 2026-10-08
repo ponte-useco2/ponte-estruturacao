@@ -9,7 +9,6 @@
  * que veio depois (reapresentação no mesmo ano, reindicação no seguinte). Plano com análise do plano de
  * trabalho registrada: o órgão, a situação e o trecho do parecer, como o órgão escreveu.
  */
-import Link from "next/link";
 import { BotaoImprimir } from "@/app/mapa/fiscal/[ibge]/simular/BotaoImprimir";
 import { formatarData } from "@/lib/oportunidades/central";
 import {
@@ -27,6 +26,7 @@ import { ROTULO_LADO_MOTIVO } from "@/lib/oportunidades/pix";
 import type { LeituraLaudoPlanoPix } from "@/lib/oportunidades/pix-laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { PixNoTce } from "../../PixNoTce";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraLaudoPlanoPix, { estado: "ok" }>;
 
@@ -62,14 +62,14 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           {chaveEnte && (
-            <Link prefetch={false} href={urlEntePix(chaveEnte)} className="pa-btn pa-btn-pequeno">
+            <LinkMapa href={urlEntePix(chaveEnte)} className="pa-btn pa-btn-pequeno">
               Todos os planos do ente
-            </Link>
+            </LinkMapa>
           )}
           {!cliente && (
-            <Link prefetch={false} href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
+            <LinkMapa href="/mapa/painel/pix?aba=especiais&uf=PB" className="pa-btn pa-btn-pequeno">
               Painel do Pix
-            </Link>
+            </LinkMapa>
           )}
         </p>
         <p className="mp-fiscal-aviso">{AVISO_PIX}</p>

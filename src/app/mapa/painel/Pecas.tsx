@@ -2,7 +2,6 @@
  * Peças do painel usadas pelas visões e pela ficha do município: cartão, lista e as
  * tabelas de convênio de cada visão. Só desenham o que recebem.
  */
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { urlLaudo } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
@@ -26,6 +25,7 @@ import type { ConvenioPainel } from "@/lib/oportunidades/painel.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Tag } from "../../_design/primitivos";
 import { CopiarNumero } from "./CopiarNumero";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 export const n = (x: number) => x.toLocaleString("pt-BR");
 
@@ -98,11 +98,11 @@ export function CelulaConvenio({ c, naFicha }: { c: ConvenioPainel; naFicha?: bo
     <th scope="row">
       <span className="mp-tabela-principal">{c.proponente ?? "—"}</span>
       <span className="mp-tabela-secundario">
-        {!naFicha && c.cod_ibge ? <Link prefetch={false} href={urlFicha({ ibge: c.cod_ibge })}>{lugar}</Link> : lugar} · nº {c.nr_convenio}{" "}
+        {!naFicha && c.cod_ibge ? <LinkMapa href={urlFicha({ ibge: c.cod_ibge })}>{lugar}</LinkMapa> : lugar} · nº {c.nr_convenio}{" "}
         <CopiarNumero numero={c.nr_convenio} />
         {/* Na ficha da prefeitura, todo convênio é do próprio município: o cliente também abre o laudo. */}
         {" · "}
-        <Link prefetch={false} href={urlLaudo(c.nr_convenio)}>laudo</Link>
+        <LinkMapa href={urlLaudo(c.nr_convenio)}>laudo</LinkMapa>
       </span>
       {c.dias_sem_movimentacao !== null && c.dias_sem_movimentacao !== undefined && (
         <span className={`mp-tabela-secundario${c.dias_sem_movimentacao > 365 ? " mp-painel-urgente" : ""}`}>
@@ -374,7 +374,7 @@ export function TabelaMudancas({ linhas, naFicha, comData }: { linhas: MudancaPa
               <th scope="row">
                 <span className="mp-tabela-principal">{m.proponente ?? "—"}</span>
                 <span className="mp-tabela-secundario">
-                  {!naFicha && m.cod_ibge ? <Link prefetch={false} href={urlFicha({ ibge: m.cod_ibge })}>{lugar}</Link> : lugar} ·{" "}
+                  {!naFicha && m.cod_ibge ? <LinkMapa href={urlFicha({ ibge: m.cod_ibge })}>{lugar}</LinkMapa> : lugar} ·{" "}
                   {m.alvo === "proposta" ? "proposta" : "convênio"} nº {m.numero ?? m.chave}{" "}
                   {m.numero && <CopiarNumero numero={m.numero} />}
                 </span>

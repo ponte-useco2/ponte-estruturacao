@@ -2,7 +2,7 @@
  * As três partes do mural de avisos. Cada uma tem URL própria (`?mural=`), para o link
  * de um aviso de item seguido poder ser mandado a alguém e o voltar do navegador funcionar.
  */
-import Link from "next/link";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 export type Mural = "catalogo" | "itens" | "normas";
 
@@ -29,7 +29,7 @@ export function MuralAbas({
         {PARTES.map((p) => {
           const n = naoLidas[p.id];
           return (
-            <Link prefetch={false}
+            <LinkMapa
               key={p.id}
               href={p.href}
               className={`pa-chip${atual === p.id ? " pa-ativo" : ""}`}
@@ -43,7 +43,7 @@ export function MuralAbas({
                   <span className="pa-sr"> não {n === 1 ? "lido" : "lidos"}</span>
                 </span>
               ) : null}
-            </Link>
+            </LinkMapa>
           );
         })}
       </nav>

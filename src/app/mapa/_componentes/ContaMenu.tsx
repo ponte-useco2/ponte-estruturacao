@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { ROTULO_AGENTE, type Organizacao } from "@/lib/oportunidades/organizacao";
 import { trocarOrganizacao } from "../conta/organizacao/acoes";
+import { LinkMapa } from "./LinkMapa";
 
 function inicial(nome: string | null, email: string): string {
   const base = (nome ?? email).trim();
@@ -114,7 +115,7 @@ export function ContaMenu({
           <p className="pa-mono pa-menu-grupo">Organização</p>
 
           {organizacoes.length === 0 ? (
-            <Link prefetch={false} href="/mapa/conta/organizacao">Declarar a entidade</Link>
+            <LinkMapa href="/mapa/conta/organizacao">Declarar a entidade</LinkMapa>
           ) : (
             <>
               {organizacoes.map((o) => (
@@ -135,7 +136,7 @@ export function ContaMenu({
                   </button>
                 </form>
               ))}
-              <Link prefetch={false} href="/mapa/conta/organizacao">Acrescentar outra</Link>
+              <LinkMapa href="/mapa/conta/organizacao">Acrescentar outra</LinkMapa>
             </>
           )}
 

@@ -2,7 +2,6 @@
  * Um município no TCE-PB: o Pix ano a ano (com as marcas do art. 166-A e as empresas) e a conciliação dos
  * convênios, empresa por empresa. Recebe a leitura pronta; aqui só se apresenta.
  */
-import Link from "next/link";
 import { urlLaudo } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
 import { cnpjLegivel, nomeFornecedor, urlFornecedor } from "@/lib/oportunidades/fornecedores";
@@ -13,6 +12,7 @@ import { ROTULO_SITUACAO, marcasPix, pct, resumirConciliacao, urlTce, type Situa
 import type { LeituraTceMunicipio } from "@/lib/oportunidades/tce.server";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AVISO_TCE } from "../TceConteudo";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraTceMunicipio, { estado: "ok" }>;
 
@@ -39,15 +39,15 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
         <p className="pa-sub">O Pix nas contas do município e os convênios do SICONV conferidos com as despesas prestadas ao TCE-PB.</p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link prefetch={false} href={urlTce()} className="pa-btn pa-btn-pequeno">
+          <LinkMapa href={urlTce()} className="pa-btn pa-btn-pequeno">
             Todos os municípios
-          </Link>
-          <Link prefetch={false} href={urlMunicipio(leitura.ibge, "controle")} className="pa-btn pa-btn-pequeno">
+          </LinkMapa>
+          <LinkMapa href={urlMunicipio(leitura.ibge, "controle")} className="pa-btn pa-btn-pequeno">
             Página do município
-          </Link>
-          <Link prefetch={false} href={urlFicha({ ibge: leitura.ibge })} className="pa-btn pa-btn-pequeno">
+          </LinkMapa>
+          <LinkMapa href={urlFicha({ ibge: leitura.ibge })} className="pa-btn pa-btn-pequeno">
             Ficha do município no painel
-          </Link>
+          </LinkMapa>
         </p>
         <p className="mp-fiscal-aviso">{AVISO_TCE}</p>
       </div>
@@ -225,9 +225,9 @@ function LinhaPar({ p }: { p: TceFederalPar }) {
     <tr>
       <th scope="row">
         {p.siconv > 0 ? (
-          <Link prefetch={false} href={urlFornecedor(p.cnpj)} className="mp-tabela-principal">
+          <LinkMapa href={urlFornecedor(p.cnpj)} className="mp-tabela-principal">
             {nomeFornecedor(p)}
-          </Link>
+          </LinkMapa>
         ) : (
           <span className="mp-tabela-principal">{nomeFornecedor(p)}</span>
         )}
@@ -237,7 +237,7 @@ function LinhaPar({ p }: { p: TceFederalPar }) {
             {p.convenios.slice(0, 4).map((nr, k) => (
               <span key={nr}>
                 {k > 0 ? ", " : ""}
-                <Link prefetch={false} href={urlLaudo(nr)}>nº {nr}</Link>
+                <LinkMapa href={urlLaudo(nr)}>nº {nr}</LinkMapa>
               </span>
             ))}
             {p.convenios.length > 4 ? ` e mais ${n(p.convenios.length - 4)}` : ""}

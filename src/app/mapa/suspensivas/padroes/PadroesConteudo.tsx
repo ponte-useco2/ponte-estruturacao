@@ -2,7 +2,6 @@
  * Padrões das cláusulas suspensivas da PB: o destino de quem entrou (histórico), as condições que
  * travam hoje, quem analisa e os documentos que voltam. Recebe as leituras prontas de padroes.ts.
  */
-import Link from "next/link";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import {
@@ -17,6 +16,7 @@ import {
 } from "@/lib/oportunidades/padroes";
 import type { LeituraPadroes } from "@/lib/oportunidades/padroes.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraPadroes, { estado: "ok" }>;
 
@@ -47,12 +47,12 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
           documentos vêm da coleta no Acesso Livre, que só tem quem ainda está preso — por isso ela não mede tempo até a saída.
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
-          <Link prefetch={false} href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
+          <LinkMapa href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
             Lista das suspensivas
-          </Link>
-          <Link prefetch={false} href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
+          </LinkMapa>
+          <LinkMapa href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
             Checklist preventivo
-          </Link>
+          </LinkMapa>
         </p>
       </div>
 
@@ -282,9 +282,9 @@ function LinhaOrgao({ o, temChecklist }: { o: LinhaHistorico; temChecklist: bool
       <th scope="row">
         <span className="mp-tabela-principal">{tituloOrgao(o.orgao)}</span>
         {temChecklist && (
-          <Link prefetch={false} href={urlChecklist(o.orgao)} className="mp-tabela-secundario mp-nao-imprimir">
+          <LinkMapa href={urlChecklist(o.orgao)} className="mp-tabela-secundario mp-nao-imprimir">
             checklist preventivo
-          </Link>
+          </LinkMapa>
         )}
       </th>
       <td className="mp-num">{n(o.total)}</td>

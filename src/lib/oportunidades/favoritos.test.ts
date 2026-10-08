@@ -4,11 +4,17 @@ import fs from "node:fs";
 import path from "node:path";
 import type { PayloadV2 } from "./contrato-v2.ts";
 import {
+  FRASE_JANELA_FECHOU,
+  TIPOS_ITEM,
+  FRASE_JANELA_REABRIU,
   abertasParaAvisos,
   chaveValida,
   filtrarAvisos,
   fraseDoAviso,
+  nomeDoItemSeguido,
   retratoDaJanela,
+  rotuloEstrela,
+  situacaoDaJanela,
   somaNaoLidos,
   urlDoItem,
 } from "./favoritos.ts";
@@ -120,4 +126,86 @@ test("oport_31: entidade se segue pelo CNPJ (alfanumérico aceito) e abre a pág
   assert.equal(urlDoItem("entidade", "09112236000194"), "/mapa/entidade/09112236000194");
   const a = { id: "1", tipo: "entidade", chave: "09112236000194", evento: "instrumentos", titulo: "X", antes: "88", depois: "89", referencia: "r", criado_em: "2026-10-08T12:00:00Z", lida_em: null, arquivada_em: null } as const;
   assert.equal(fraseDoAviso(a as never).rotulo, "Instrumentos no painel");
+});
+
+test("B8: a estrela diz qual item, nos dois estados, sem depender de cor", () => {
+  const fora = rotuloEstrela("janela", "Edital CNPq 24/2026", false);
+  assert.deepEqual(fora, {
+    icone: "☆",
+    visivel: "Seguir",
+    item: "a janela Edital CNPq 24/2026",
+    nomeAcessivel: "Seguir a janela Edital CNPq 24/2026",
+    acao: "Seguir a janela Edital CNPq 24/2026",
+    confirmacao: "Você deixou de seguir a janela Edital CNPq 24/2026.",
+    desfazer: "voltar a seguir a janela Edital CNPq 24/2026",
+    desfeito: "Você deixou de seguir a janela Edital CNPq 24/2026.",
+  });
+  const dentro = rotuloEstrela("janela", "Edital CNPq 24/2026", true);
+  assert.equal(dentro.icone, "★");
+  assert.equal(dentro.visivel, "Seguindo");
+  assert.equal(dentro.nomeAcessivel, "Seguindo a janela Edital CNPq 24/2026");
+  assert.equal(dentro.acao, "Deixar de seguir a janela Edital CNPq 24/2026");
+  assert.equal(dentro.confirmacao, "Agora você segue a janela Edital CNPq 24/2026.");
+  assert.equal(dentro.desfeito, "Você voltou a seguir a janela Edital CNPq 24/2026.");
+  // WCAG 2.5.3: o nome acessível começa pelo texto à vista
+  for (const r of [fora, dentro]) assert.equal(r.nomeAcessivel, `${r.visivel} ${r.item}`);
+});
+
+test("B8: o nome que já vem com artigo (costume das telas) não repete o tipo", () => {
+  assert.equal(rotuloEstrela("instrumento", "o convênio nº 956541", true).acao, "Deixar de seguir o convênio nº 956541");
+  assert.equal(rotuloEstrela("janela", "a janela X", false).nomeAcessivel, "Seguir a janela X");
+  assert.equal(rotuloEstrela("municipio", "o município Patos", true).confirmacao, "Agora você segue o município Patos.");
+  assert.equal(rotuloEstrela("entidade", "Prefeitura de Patos", false).nomeAcessivel, "Seguir a entidade Prefeitura de Patos");
+  assert.equal(rotuloEstrela("proposta", "a proposta nº 34797/2026", false).acao, "Seguir a proposta nº 34797/2026");
+  // título com maiúscula que começa como o artigo é título, não artigo
+  assert.equal(rotuloEstrela("janela", "A janela da inovação", false).acao, "Seguir a janela A janela da inovação");
+  // ponto final do nome não dobra o da frase
+  assert.equal(rotuloEstrela("entidade", "a entidade X Ltda.", false).confirmacao, "Você deixou de seguir a entidade X Ltda.");
+});
+
+test("B8: nome do item seguido — convênio pelo número, título longo encurtado, reserva sem repetir o tipo", () => {
+  assert.equal(nomeDoItemSeguido("instrumento", "956541", "Construção de praça"), "o convênio nº 956541");
+  assert.equal(nomeDoItemSeguido("municipio", "2510808", "Patos"), "o município Patos");
+  assert.equal(nomeDoItemSeguido("janela", "cnpq-24-2026", "Janela cnpq-24-2026"), "a janela cnpq-24-2026");
+  assert.equal(nomeDoItemSeguido("proposta", "2241841", null), "a proposta 2241841");
+  assert.equal(nomeDoItemSeguido("entidade", "09112236000194", "  "), "a entidade 09112236000194");
+  const longo = nomeDoItemSeguido("janela", "x", `Programa ${"de apoio à inovação ".repeat(10)}`);
+  assert.ok(longo.startsWith("a janela Programa de apoio"));
+  assert.ok(longo.endsWith("…"));
+  assert.ok(longo.length <= "a janela ".length + 100);
+});
+
+test("B8: janela fechada não vira link para o catálogo; o último aviso de abrir/fechar decide", () => {
+  // as frases que a geração grava são as que a situação lê
+  assert.equal(fraseDoAviso({ tipo: "janela", evento: "encerrada", antes: "2026-09-18", depois: null }).rotulo, FRASE_JANELA_FECHOU);
+  assert.equal(fraseDoAviso({ tipo: "janela", evento: "reaberta", antes: null, depois: "2026-12-01" }).rotulo, FRASE_JANELA_REABRIU);
+  assert.equal(fraseDoAviso({ tipo: "janela", evento: "fechando", antes: "2026-09-18", depois: "1" }, "2026-10-08").rotulo, FRASE_JANELA_FECHOU);
+
+  // Meus itens: sem retrato, aberta até o aviso de que fechou
+  assert.equal(situacaoDaJanela([]), "aberta");
+  assert.equal(situacaoDaJanela(["O prazo da janela mudou", FRASE_JANELA_FECHOU]), "fechada");
+  assert.equal(situacaoDaJanela([FRASE_JANELA_REABRIU, FRASE_JANELA_FECHOU]), "aberta", "reabriu depois de fechar");
+  assert.equal(situacaoDaJanela([FRASE_JANELA_FECHOU, FRASE_JANELA_REABRIU]), "fechada", "fechou de novo");
+
+  // Carteira: o retrato com prazo à frente vale mais que aviso velho; sem prazo à frente e sem aviso, não dá para dizer
+  assert.equal(situacaoDaJanela([FRASE_JANELA_FECHOU], true), "aberta");
+  assert.equal(situacaoDaJanela([FRASE_JANELA_FECHOU], false), "fechada");
+  assert.equal(situacaoDaJanela([], false), "incerta");
+  assert.equal(situacaoDaJanela([FRASE_JANELA_REABRIU], false), "incerta", "reabriu, mas sem prazo à frente");
+});
+
+test("B0: município de fora da PB abre os investimentos (a página com abas só aceita a PB)", () => {
+  assert.equal(urlDoItem("municipio", "2510808"), "/mapa/municipio/2510808");
+  assert.equal(urlDoItem("municipio", "3550308"), "/mapa/municipio/3550308/investimentos");
+  assert.equal(urlDoItem("municipio", "5300108"), "/mapa/municipio/5300108/investimentos");
+});
+
+test("B0: cada tipo diz o próprio tipo na estrela (a entidade era lida como janela)", () => {
+  const esperado = { janela: "a janela X", instrumento: "o convênio nº 123", proposta: "a proposta X", municipio: "o município X", entidade: "a entidade X" };
+  for (const tipo of TIPOS_ITEM) {
+    const nome = nomeDoItemSeguido(tipo, "123", "X");
+    assert.equal(nome, esperado[tipo], tipo);
+    assert.equal(rotuloEstrela(tipo, nome, true).nomeAcessivel, `Seguindo ${esperado[tipo]}`, tipo);
+    assert.equal(rotuloEstrela(tipo, nome, false).confirmacao, `Você deixou de seguir ${esperado[tipo]}.`, tipo);
+  }
 });

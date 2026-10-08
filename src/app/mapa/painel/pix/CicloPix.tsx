@@ -2,12 +2,12 @@
  * O ciclo em curso do Pix no painel (oport_30): os planos da UF do exercício com o plano de trabalho pendente, da
  * vez do município primeiro e do prazo mais próximo. É a lista de quem procurar antes que o plano fique impedido.
  */
-import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
 import { diasAte, ordenarCiclo } from "@/lib/oportunidades/pix-ciclo";
 import type { LeituraCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import { urlLaudoPix } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 const VEZ: Record<string, string> = { ente: "município", orgao: "órgão federal", a_conferir: "a conferir" };
 
@@ -62,9 +62,9 @@ function Conteudo({ leitura, hoje }: { leitura: LeituraCicloPix | null; hoje: st
                   <tr key={p.id_plano_acao}>
                     <td>{p.beneficiario ?? "—"}</td>
                     <td>
-                      <Link href={urlLaudoPix(p.id_plano_acao)} prefetch={false}>
+                      <LinkMapa href={urlLaudoPix(p.id_plano_acao)}>
                         {p.codigo_plano_acao ?? p.id_plano_acao}
-                      </Link>
+                      </LinkMapa>
                       {p.autor ? <span className="mp-laudo-miudo"> · {p.autor}</span> : null}
                     </td>
                     <td>{VEZ[p.vez] ?? p.vez}</td>

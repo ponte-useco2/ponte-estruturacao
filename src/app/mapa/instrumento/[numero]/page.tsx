@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { numeroValido } from "@/lib/oportunidades/busca";
 import { podeVerInstrumento } from "@/lib/oportunidades/cliente";
@@ -10,6 +9,7 @@ import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { InstrumentoConteudo } from "./InstrumentoConteudo";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Convênio · Mapa de Oportunidades · PONTE",
@@ -36,7 +36,7 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
             prestação de contas. Confira o número ou procure pelo programa.
           </p>
           <p className="pa-nota">
-            <Link prefetch={false} href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>Buscar por “{numero}”</Link>
+            <LinkMapa href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>Buscar por “{numero}”</LinkMapa>
           </p>
         </div>
       </div>

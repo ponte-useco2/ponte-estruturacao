@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EXPLICACAO_SEM_CNPJ } from "@/lib/oportunidades/cliente";
 import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { visitanteAtual } from "@/lib/supabase-auth";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Minha organização · Mapa de Oportunidades · PONTE",
@@ -33,9 +33,9 @@ export default async function MinhaOrganizacaoPage() {
         <h1 className="pa-titulo">{e.titulo}</h1>
         <p>{e.texto}</p>
         <p className="pa-nota">
-          <Link prefetch={false} href="/mapa/conta/organizacao">
+          <LinkMapa href="/mapa/conta/organizacao">
             Ver o cadastro da organização
-          </Link>
+          </LinkMapa>
         </p>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { contarNaoLidas } from "@/lib/oportunidades/notificacoes.server";
 import { somaNaoLidos } from "@/lib/oportunidades/favoritos";
 import { contarAvisosItensNaoLidos } from "@/lib/oportunidades/favoritos.server";
 import { ehAdministrador } from "@/lib/supabase-auth";
+import { LinkMapa } from "./LinkMapa";
 
 /**
  * Moldura do Mapa de Oportunidades — o produto, não o protótipo.
@@ -78,6 +79,8 @@ export async function MapaFrame({
         <div className="mp-rodape-inner">
           <p className="pa-mono">Acesso restrito · fontes oficiais de fomento</p>
           <div className="pa-espaco" />
+          {/* O glossário (B7) explica os termos que as páginas marcam; no menu não coube (onda 1 de UX, 08/10/2026). */}
+          <LinkMapa href="/mapa/glossario">Glossário</LinkMapa>
           <Link prefetch={false} href="/privacidade">Privacidade</Link>
           <Link prefetch={false} href="/termos">Termos</Link>
         </div>

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { LinkMapa } from "./_componentes/LinkMapa";
 
 /**
  * O "não encontrado" de dentro do Mapa: município, instrumento ou proposta que não existe nas fontes. Antes de
@@ -13,7 +13,7 @@ export default function NaoEncontradoNoMapa() {
         <h1 className="pa-titulo">Este endereço não leva a nada nas fontes do Mapa</h1>
         <p>O código pode estar incompleto ou errado, ou o item pode ter saído das fontes oficiais.</p>
         <p className="pa-nota">
-          <Link prefetch={false} href="/mapa/busca">Procurar na busca</Link> · <Link prefetch={false} href="/mapa">Voltar às janelas</Link>
+          <LinkMapa href="/mapa/busca">Procurar na busca</LinkMapa> · <LinkMapa href="/mapa">Voltar às janelas</LinkMapa>
         </p>
       </div>
     </div>

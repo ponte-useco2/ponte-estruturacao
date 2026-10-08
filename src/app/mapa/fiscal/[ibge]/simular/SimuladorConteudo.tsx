@@ -2,7 +2,6 @@
  * Simular um projeto num município da PB: o que ele já tem, o formulário, o diagnóstico com o caminho
  * mínimo, os limites da operação ano a ano e o cronograma. A mesma página é o relatório para imprimir.
  */
-import Link from "next/link";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   AVISO_FIXO,
@@ -40,6 +39,7 @@ import {
 import { Tag } from "../../../../_design/primitivos";
 import { EstadoDecisao } from "../../FiscalConteudo";
 import { BotaoImprimir } from "./BotaoImprimir";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraMunicipioFiscal, { estado: "ok" }>;
 
@@ -81,7 +81,7 @@ export function SimuladorConteudo({ leitura, sp }: { leitura: LeituraOk; sp: Rec
     <div className="pa-pagina mp-radar mp-painel mp-fiscal mp-simulador">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <Link prefetch={false} href="/mapa/fiscal">Capacidade fiscal · Paraíba</Link> · <Link prefetch={false} href={urlMunicipioFiscal(m.ibge)}>{m.nome}</Link>
+          <LinkMapa href="/mapa/fiscal">Capacidade fiscal · Paraíba</LinkMapa> · <LinkMapa href={urlMunicipioFiscal(m.ibge)}>{m.nome}</LinkMapa>
         </p>
         <h1 className="pa-titulo">Simular um projeto · {m.nome}/PB</h1>
         <p className="pa-sub">
@@ -271,9 +271,9 @@ function Formulario({ ibge, p }: { ibge: string; p: ParametrosSimulador }) {
         <button type="submit" className="pa-btn pa-btn-primario">
           Simular
         </button>
-        <Link prefetch={false} href={urlSimularFiscal(ibge)} className="pa-btn">
+        <LinkMapa href={urlSimularFiscal(ibge)} className="pa-btn">
           Limpar
-        </Link>
+        </LinkMapa>
       </div>
     </form>
   );

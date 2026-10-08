@@ -9,11 +9,18 @@
  * ação vale para o que está na tela, e o aviso de desfazer não some sozinho.
  */
 import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
-import { filtrarAvisos, type AbaItens, type TipoItem } from "@/lib/oportunidades/favoritos";
+import {
+  ROTULO_TIPO_ITEM,
+  filtrarAvisos,
+  nomeDoItemSeguido,
+  situacaoDaJanela,
+  type AbaItens,
+  type TipoItem,
+} from "@/lib/oportunidades/favoritos";
 import { Tag } from "../../_design/primitivos";
-import { EstrelaSeguir } from "../_componentes/EstrelaSeguir";
+import { AvisoSeguir, EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { arquivarItens, desarquivarItens, marcarItensLidos, marcarItensNaoLidos, type ResultadoAcao } from "../acoes";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 export interface AvisoVista {
   id: string;
@@ -56,6 +63,31 @@ function textoFeito(acao: Acao, n: number): string {
     desarquivar: n === 1 ? "desarquivado" : "desarquivados",
   }[acao];
   return `${avisos} ${verbo}.`;
+}
+
+/**
+ * As janelas que fecharam, pelo endereço. A janela não tem página: o link é a âncora do cartão no catálogo, que só
+ * lista as abertas — fechada, o link caía no topo do catálogo e a estrela à mão era a de outra janela (B8, teste de
+ * 08/10/2026). Esta tela não tem o retrato, só os avisos: chegam do servidor do mais novo para o mais velho, e o
+ * último "fechou"/"abriu de novo" de cada janela decide (`situacaoDaJanela`).
+ */
+function janelasFechadas(avisos: readonly AvisoVista[]): Set<string> {
+  const rotulos = new Map<string, string[]>();
+  for (const a of avisos) {
+    if (a.tipoRotulo === ROTULO_TIPO_ITEM.janela) rotulos.set(a.url, [...(rotulos.get(a.url) ?? []), a.rotulo]);
+  }
+  return new Set([...rotulos].filter(([, r]) => situacaoDaJanela(r) === "fechada").map(([url]) => url));
+}
+
+/** O nome do item: link para a página dele, ou só o nome com "(fechada)" quando a janela saiu do catálogo. */
+function NomeDoItem({ titulo, url, fechada }: { titulo: string; url: string; fechada: boolean }) {
+  if (!fechada) return <LinkMapa href={url}>{titulo}</LinkMapa>;
+  return (
+    <>
+      {titulo}
+      <span className="mp-estrela-fechada"> (fechada)</span>
+    </>
+  );
 }
 
 const ABAS: readonly { id: AbaItens; rotulo: string }[] = [
@@ -119,12 +151,15 @@ export function MeusItensClient({
   }
 
   const naoLidosVisiveis = visiveis.filter((a) => !a.lida_em).map((a) => a.id);
+  const fechadas = janelasFechadas(avisos);
 
   return (
     <div className="pa-pagina pa-mapa">
       <p className="pa-sr" role="status" aria-atomic="true">
         {anuncio}
       </p>
+      {/* Deixar de seguir tira o item da lista na hora: o aviso com "Desfazer" fica aqui, fora dela. */}
+      <AvisoSeguir />
 
       <div className="pa-pagina-cabeca">
         <div className="pa-pilha">
@@ -164,12 +199,12 @@ export function MeusItensClient({
             situação, receber desembolso, ganhar aditivo ou tiver o prazo alterado, o aviso aparece aqui.
           </p>
           <div className="pa-linha">
-            <Link prefetch={false} href="/mapa" className="pa-btn pa-btn-pequeno">
+            <LinkMapa href="/mapa" className="pa-btn pa-btn-pequeno">
               Ver as janelas
-            </Link>
-            <Link prefetch={false} href="/mapa/busca" className="pa-btn pa-btn-pequeno">
+            </LinkMapa>
+            <LinkMapa href="/mapa/busca" className="pa-btn pa-btn-pequeno">
               Buscar convênios e propostas
-            </Link>
+            </LinkMapa>
           </div>
         </div>
       ) : (
@@ -262,7 +297,7 @@ export function MeusItensClient({
                         <h2 className="pa-oportunidade-titulo">{a.rotulo}</h2>
                         <p className="pa-mapa-descricao">{a.detalhe}</p>
                         <p className="mp-aviso-item-titulo">
-                          <Link prefetch={false} href={a.url}>{a.titulo}</Link>
+                          <NomeDoItem titulo={a.titulo} url={a.url} fechada={a.tipoRotulo === ROTULO_TIPO_ITEM.janela && fechadas.has(a.url)} />
                         </p>
                       </div>
                       <div className="pa-oportunidade-lado">
@@ -305,14 +340,15 @@ export function MeusItensClient({
           </h2>
           <ul className="pa-pilha">
             {seguidos.map((s) => (
+              // A estrela na frente do nome do próprio item, na mesma linha: no fim da linha, longe do nome, foi
+              // confundida com a do item vizinho (B8).
               <li key={`${s.tipo}:${s.chave}`} className="pa-cartao-plano pa-linha mp-seguido">
+                <EstrelaSeguir tipo={s.tipo} chave={s.chave} nome={nomeDoItemSeguido(s.tipo, s.chave, s.titulo)} seguindo />
                 <Tag>{s.tipoRotulo}</Tag>
                 <span className="mp-seguido-titulo">
-                  <Link prefetch={false} href={s.url}>{s.titulo}</Link>
+                  <NomeDoItem titulo={s.titulo} url={s.url} fechada={s.tipo === "janela" && fechadas.has(s.url)} />
                   {s.ausente && <span className="pa-mono"> · saiu da busca</span>}
                 </span>
-                <span className="pa-espaco" />
-                <EstrelaSeguir tipo={s.tipo} chave={s.chave} nome={s.titulo} seguindo />
               </li>
             ))}
           </ul>

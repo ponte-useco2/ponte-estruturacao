@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   consequenciaDoAviso,
   dataDaReferencia,
+  janelaAberta,
   montarCarteira,
   recomendacoesInstrumento,
   recomendacoesJanela,
@@ -70,6 +71,15 @@ test("convênio: prazo contado até hoje decide a ação", () => {
   const pc = recomendacoesInstrumento({ situacao: "Aguardando Prestação de Contas", dt_limite_contas: "2020-02-29" }, HOJE, null);
   assert.equal(pc[0].acao, "Enviar a prestação de contas");
   assert.match(pc[0].fato, /venceu em 29\/02\/2020, há 2\.407 dias/, "milhar com ponto");
+});
+
+test("janela aberta no retrato: com prazo à frente ou sem prazo; vencida ou fechada, não", () => {
+  assert.equal(janelaAberta({ aberta: true, prazo: "2026-11-30" }, HOJE), true);
+  assert.equal(janelaAberta({ aberta: true, prazo: null }, HOJE), true, "fluxo contínuo: aberta sem prazo e sem recomendação");
+  assert.deepEqual(recomendacoesJanela({ aberta: true, prazo: null }, HOJE), []);
+  assert.equal(janelaAberta({ aberta: true, prazo: "2020-01-01" }, HOJE), false);
+  assert.equal(janelaAberta({ aberta: false, prazo: "2026-11-30" }, HOJE), false);
+  assert.equal(janelaAberta({}, HOJE), false);
 });
 
 test("janela aberta pede a decisão de preparar; fechada não pede nada", () => {

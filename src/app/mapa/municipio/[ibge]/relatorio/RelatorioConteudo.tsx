@@ -32,6 +32,7 @@ import { Carregando } from "../../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { GraficoPessoal } from "./GraficoPessoal";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 const AVISO_INTERNO =
   "Uso interno da PONTE. Leitura automática de fontes públicas, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, " +
@@ -778,26 +779,26 @@ export function RelatorioConteudo({ r, seguindo, nivel = 3 }: { r: Relatorio; se
           <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">
             Achados em CSV
           </a>
-          <Link href={`/mapa/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+          <LinkMapa href={`/mapa/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
             Página do município
-          </Link>
+          </LinkMapa>
           {PODE.interno(nivel) && (
             <>
-              <Link href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno" prefetch={false}>
+              <LinkMapa href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
                 Painel fiscal
-              </Link>
-              <Link href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+              </LinkMapa>
+              <LinkMapa href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
                 Ficha no painel
-              </Link>
-              <Link href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+              </LinkMapa>
+              <LinkMapa href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno">
                 TCE-PB
-              </Link>
+              </LinkMapa>
             </>
           )}
           {PODE.laudo(nivel) && (
-            <Link href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+            <LinkMapa href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno">
               Laudo do Pix
-            </Link>
+            </LinkMapa>
           )}
         </p>
         <p className="mp-fiscal-aviso">{PODE.interno(nivel) ? AVISO_INTERNO : AVISO}</p>

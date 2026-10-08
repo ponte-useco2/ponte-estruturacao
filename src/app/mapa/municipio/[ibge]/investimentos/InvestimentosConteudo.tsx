@@ -2,7 +2,6 @@
  * Investimentos federais num município: convênios por tema, situação e modalidade, e os planos de
  * transferências especiais e de fundo a fundo do ente. Recebe os dados já lidos.
  */
-import Link from "next/link";
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
 import {
   ROTULO_GRUPO_INVESTIMENTO,
@@ -22,6 +21,7 @@ import { UF_DETALHE } from "@/lib/oportunidades/instrumentos-escopo";
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraInvestimentos, { estado: "ok" }>;
 
@@ -58,10 +58,10 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
         <p className="pa-nota">
           {ehMunicipioPb(ibge) && (
             <>
-              <Link prefetch={false} href={urlMunicipio(ibge, "dinheiro")}>Página do município</Link> ·{" "}
+              <LinkMapa href={urlMunicipio(ibge, "dinheiro")}>Página do município</LinkMapa> ·{" "}
             </>
           )}
-          <Link prefetch={false} href={busca}>Ver os convênios do município na busca</Link>
+          <LinkMapa href={busca}>Ver os convênios do município na busca</LinkMapa>
         </p>
       </div>
 
@@ -155,7 +155,7 @@ function Barras({
               return (
                 <tr key={l.chave}>
                   <th scope="row">
-                    {href ? <Link prefetch={false} href={href}>{rotulo(l)}</Link> : rotulo(l)}
+                    {href ? <LinkMapa href={href}>{rotulo(l)}</LinkMapa> : rotulo(l)}
                     {/* A barra é decoração: o número está na coluna ao lado. */}
                     <span className="mp-barra" aria-hidden="true">
                       <span className="mp-barra-cheia" style={{ width: `${Math.max(fracao * 100, 0.5)}%` }} />

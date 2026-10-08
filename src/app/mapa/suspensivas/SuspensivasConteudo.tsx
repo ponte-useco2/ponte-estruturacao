@@ -2,13 +2,13 @@
  * Lista dos convênios em cláusula suspensiva da última coleta, do mais urgente ao menos.
  * O prazo da suspensiva manda na ordem (é ele que extingue o instrumento); o tempo parado desempata.
  */
-import Link from "next/link";
 import { ORIGEM_SUSPENSIVAS } from "@/lib/oportunidades/abas";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { compararUrgencia, diaBrasilia, diasEntre, nivelPrazo, type Nivel } from "@/lib/oportunidades/laudo";
 import type { LeituraSuspensivas, LinhaSuspensiva } from "@/lib/oportunidades/laudo.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraSuspensivas, { estado: "ok" }>;
 interface Filtro {
@@ -67,12 +67,12 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
           Do prazo mais apertado ao mais folgado; no mesmo prazo, quem está parado há mais tempo vem antes. Cada linha abre o laudo do convênio.
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
-          <Link prefetch={false} href="/mapa/suspensivas/padroes" className="pa-btn pa-btn-pequeno">
+          <LinkMapa href="/mapa/suspensivas/padroes" className="pa-btn pa-btn-pequeno">
             Padrões: destino, tempo e quem analisa
-          </Link>
-          <Link prefetch={false} href={f.orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(f.orgao)}` : "/mapa/suspensivas/checklist"} className="pa-btn pa-btn-pequeno">
+          </LinkMapa>
+          <LinkMapa href={f.orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(f.orgao)}` : "/mapa/suspensivas/checklist"} className="pa-btn pa-btn-pequeno">
             Checklist preventivo
-          </Link>
+          </LinkMapa>
         </p>
       </div>
 
@@ -101,30 +101,30 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         <nav aria-label="Prazo da suspensiva" className="pa-chips">
           <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Prazo</span>
           {FILTROS_PRAZO.map((x) => (
-            <Link prefetch={false}
+            <LinkMapa
               key={x.nome}
               href={url(f, { prazo: x.id })}
               className={`pa-chip${x.id === f.prazo ? " pa-ativo" : ""}`}
               aria-current={x.id === f.prazo ? "true" : undefined}
             >
               {x.nome}
-            </Link>
+            </LinkMapa>
           ))}
         </nav>
         <nav aria-label="Órgão" className="pa-chips">
           <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Órgão</span>
-          <Link prefetch={false} href={url(f, { orgao: null })} className={`pa-chip${!f.orgao ? " pa-ativo" : ""}`} aria-current={!f.orgao ? "true" : undefined}>
+          <LinkMapa href={url(f, { orgao: null })} className={`pa-chip${!f.orgao ? " pa-ativo" : ""}`} aria-current={!f.orgao ? "true" : undefined}>
             Todos
-          </Link>
+          </LinkMapa>
           {orgaos.map(([o]) => (
-            <Link prefetch={false}
+            <LinkMapa
               key={o}
               href={url(f, { orgao: o })}
               className={`pa-chip${o === f.orgao ? " pa-ativo" : ""}`}
               aria-current={o === f.orgao ? "true" : undefined}
             >
               {tituloOrgao(o)} ({n(porOrgaoNoPrazo.get(o) ?? 0)})
-            </Link>
+            </LinkMapa>
           ))}
         </nav>
       </div>
@@ -135,7 +135,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         </h2>
         {linhas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">
-            Nenhum convênio neste filtro. <Link prefetch={false} href="/mapa/suspensivas">Ver todos</Link>
+            Nenhum convênio neste filtro. <LinkMapa href="/mapa/suspensivas">Ver todos</LinkMapa>
           </p>
         ) : (
           <div className="mp-tabela-rolagem">
@@ -179,9 +179,9 @@ function Linha({ l, hoje, referencia }: { l: LinhaSuspensiva; hoje: string; refe
   return (
     <tr>
       <th scope="row">
-        <Link prefetch={false} href={urlLaudo(l.numero)} className="mp-tabela-principal">
+        <LinkMapa href={urlLaudo(l.numero)} className="mp-tabela-principal">
           {c?.municipio ?? "Município não informado"} · nº {l.numero}
-        </Link>
+        </LinkMapa>
         <span className="mp-tabela-secundario">{c?.programa ?? "Programa não informado"}</span>
       </th>
       <td>{c?.orgao_sup ? tituloOrgao(c.orgao_sup) : "—"}</td>

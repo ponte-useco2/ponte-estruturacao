@@ -3,15 +3,15 @@
  * o fato que a sustenta. Recebe a carteira montada (lib/oportunidades/carteira.ts); aqui só se apresenta.
  * Impressa, é o relatório da carteira.
  */
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
-import { ROTULO_TIPO_ITEM } from "@/lib/oportunidades/favoritos";
+import { ROTULO_TIPO_ITEM, nomeDoItemSeguido, situacaoDaJanela, type SituacaoJanela } from "@/lib/oportunidades/favoritos";
 import { ROTULO_CLASSE } from "@/lib/oportunidades/fila";
 import type { Carteira, Consequencia, ItemCarteira, MudancaCarteira, Recomendacao } from "@/lib/oportunidades/carteira";
-import { EstrelaSeguir } from "../_componentes/EstrelaSeguir";
+import { AvisoSeguir, EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../fiscal/[ibge]/simular/BotaoImprimir";
 import { MarcarLidas } from "./MarcarLidas";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 const ROTULO: Record<Consequencia, string> = { alto: "alto", moderado: "moderado", informativo: "informação" };
 
@@ -32,11 +32,48 @@ function Secao({ id, titulo, nota, children }: { id: string; titulo: string; not
   );
 }
 
-function nomeDoItem(i: ItemCarteira): string {
-  if (i.tipo === "municipio") return `o município ${i.titulo}`;
-  if (i.tipo === "instrumento") return `o convênio nº ${i.chave}`;
-  if (i.tipo === "proposta") return `a proposta ${i.chave}`;
-  return `a janela ${i.titulo}`;
+/**
+ * A janela não tem página: o link é a âncora do cartão no catálogo, que só lista as abertas (`situacaoDaJanela`).
+ * O retrato vem em `i.aberta` (aberta com prazo à frente ou sem prazo). As mudanças vêm da pior para a mais
+ * branda; a situação lê as frases da mais nova para a mais velha.
+ */
+function situacao(i: ItemCarteira): SituacaoJanela {
+  if (i.tipo !== "janela") return "aberta";
+  const rotulos = [...i.mudancas].sort((a, b) => b.criado_em.localeCompare(a.criado_em)).map((m) => m.rotulo);
+  return situacaoDaJanela(rotulos, i.aberta === true);
+}
+
+/**
+ * O nome do item com a estrela DELE colada na frente, na mesma linha (B8: a estrela compacta solta no fim da linha
+ * foi confundida com a do item vizinho). Estrela com texto ("★ Seguindo"): o que ela é não fica só na dica, que o
+ * toque não mostra. Uma estrela por item: no bloco do tipo; "O que mudou" repete o item sem ela (`estrela={false}`),
+ * para a tela não mostrar ★ numa linha e ☆ na outra. Janela fechada fica sem link, com "(fechada)": o link levava
+ * ao topo do catálogo, e a estrela à mão lá era a de outra janela.
+ */
+function NomeComEstrela({ i, etiqueta, texto, estrela = true }: { i: ItemCarteira; etiqueta?: ReactNode; texto?: ReactNode; estrela?: boolean }) {
+  const s = situacao(i);
+  const nome = texto ?? i.titulo;
+  return (
+    <span className="mp-estrela-item">
+      {estrela && (
+        <span className="mp-nao-imprimir">
+          <EstrelaSeguir tipo={i.tipo} chave={i.chave} nome={nomeDoItemSeguido(i.tipo, i.chave, i.titulo)} seguindo />
+        </span>
+      )}
+      {etiqueta}
+      <span className="mp-estrela-item-nome">
+        {s === "aberta" ? (
+          <LinkMapa href={i.url}>
+            {nome}
+          </LinkMapa>
+        ) : (
+          nome
+        )}
+        {s === "fechada" && <span className="mp-estrela-fechada"> (fechada)</span>}
+        {s === "incerta" && <span className="mp-estrela-fechada"> (fechada ou sem prazo informado)</span>}
+      </span>
+    </span>
+  );
 }
 
 function quantasNaoLidas(i: ItemCarteira): string {
@@ -71,15 +108,12 @@ function Mudancas({ m }: { m: MudancaCarteira[] }) {
   );
 }
 
-function Cabeca({ i }: { i: ItemCarteira }) {
+function Cabeca({ i, estrela = true }: { i: ItemCarteira; estrela?: boolean }) {
   return (
     <p className="mp-cart-cabeca">
-      <span className="pa-tag">{ROTULO_TIPO_ITEM[i.tipo]}</span> <Link prefetch={false} href={i.url}>{i.titulo}</Link>
+      <NomeComEstrela i={i} estrela={estrela} etiqueta={<span className="pa-tag">{ROTULO_TIPO_ITEM[i.tipo]}</span>} />
       {i.ausente && <span className="mp-cart-mudo"> · saiu das fontes; mostra o último retrato</span>}
-      {i.dadoDe && <span className="mp-cart-mudo"> · dado de {formatarData(i.dadoDe)}</span>}{" "}
-      <span className="mp-nao-imprimir">
-        <EstrelaSeguir tipo={i.tipo} chave={i.chave} nome={nomeDoItem(i)} seguindo compacta />
-      </span>
+      {i.dadoDe && <span className="mp-cart-mudo"> · dado de {formatarData(i.dadoDe)}</span>}
     </p>
   );
 }
@@ -105,11 +139,14 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
         <p className="mp-nao-imprimir mp-laudo-acoes">
           {!c.vazia && <BotaoImprimir />}
           <MarcarLidas ids={naoLidas} rotulo="Marcar tudo como lido" />
-          <Link prefetch={false} href="/mapa/avisos" className="pa-btn pa-btn-pequeno">
+          <LinkMapa href="/mapa/avisos" className="pa-btn pa-btn-pequeno">
             Todos os avisos
-          </Link>
+          </LinkMapa>
         </p>
       </div>
+
+      {/* Deixar de seguir tira o item da carteira na hora: o aviso com "Desfazer" fica aqui, fora da lista. */}
+      <AvisoSeguir />
 
       {c.vazia && (
         <Secao id="cart-vazia" titulo="Comece a sua carteira">
@@ -119,16 +156,16 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
           </p>
           <ul className="mp-cart-lista mp-cart-passos">
             <li>
-              Município: na página do município (procure pelo nome na <Link prefetch={false} href="/mapa/busca">Busca</Link>).
+              Município: na página do município (procure pelo nome na <LinkMapa href="/mapa/busca">Busca</LinkMapa>).
             </li>
             <li>
               Entidade (prefeitura, fundo, organização da sociedade civil, órgão estadual): na página dela, aberta pelo nome do proponente.
             </li>
             <li>
-              Convênio e proposta: na <Link prefetch={false} href="/mapa/busca">Busca</Link>, pelo número ou pelo programa.
+              Convênio e proposta: na <LinkMapa href="/mapa/busca">Busca</LinkMapa>, pelo número ou pelo programa.
             </li>
             <li>
-              Janela: nas <Link prefetch={false} href="/mapa">Janelas</Link> abertas.
+              Janela: nas <LinkMapa href="/mapa">Janelas</LinkMapa> abertas.
             </li>
           </ul>
         </Secao>
@@ -139,7 +176,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
           <ul className="mp-laudo-lista">
             {c.comMudanca.map((i) => (
               <li key={`${i.tipo}:${i.chave}`} className={`pa-cartao mp-laudo-risco mp-laudo-${i.pior}`}>
-                <Cabeca i={i} />
+                <Cabeca i={i} estrela={false} />
                 <Mudancas m={i.mudancas.filter((m) => !m.lida)} />
                 {i.recomendacoes[0] && (
                   <p className="mp-cart-proxima">
@@ -172,7 +209,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                 <Recomendacoes r={i.recomendacoes} />
                 {i.restantes > 0 && (
                   <p className="mp-cart-mudo">
-                    {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <Link prefetch={false} href={i.url}>página do município</Link>.
+                    {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <LinkMapa href={i.url}>página do município</LinkMapa>.
                   </p>
                 )}
               </article>
@@ -198,7 +235,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                 <Recomendacoes r={i.recomendacoes} />
                 {i.restantes > 0 && (
                   <p className="mp-cart-mudo">
-                    {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <Link prefetch={false} href={i.url}>página da entidade</Link>.
+                    {i.restantes === 1 ? "Mais 1 ponto a olhar" : `Mais ${i.restantes} pontos a olhar`} na <LinkMapa href={i.url}>página da entidade</LinkMapa>.
                   </p>
                 )}
               </article>
@@ -223,7 +260,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                 {c.porTipo.instrumento.map((i) => (
                   <tr key={i.chave}>
                     <td>
-                      <Link prefetch={false} href={i.url}>{i.chave}</Link>
+                      <NomeComEstrela i={i} texto={i.chave} />
                       <span className="mp-tabela-secundario">{i.titulo}</span>
                     </td>
                     <td data-rotulo="Situação e vigência">
@@ -257,7 +294,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
           <ul className="mp-cart-lista">
             {c.porTipo.proposta.map((i) => (
               <li key={i.chave}>
-                <Link prefetch={false} href={i.url}>{i.titulo}</Link> <span className="mp-cart-mudo">· proposta {i.chave}</span>
+                <NomeComEstrela i={i} /> <span className="mp-cart-mudo">· proposta {i.chave}</span>
                 {i.mudancas.some((m) => !m.lida) && <span className="mp-cart-mudo"> · {quantasNaoLidas(i)}</span>}
               </li>
             ))}
@@ -270,14 +307,13 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
           <ul className="mp-cart-lista">
             {c.porTipo.janela.map((i) => (
               <li key={i.chave}>
-                <Link prefetch={false} href={i.url}>{i.titulo}</Link>
-                {i.recomendacoes[0] ? (
+                {/* a janela fechada some do catálogo: aqui é o único lugar à mão para deixar de segui-la */}
+                <NomeComEstrela i={i} />
+                {i.recomendacoes[0] && (
                   <span>
                     {" "}
                     · <Nivel nivel={i.recomendacoes[0].nivel} /> {i.recomendacoes[0].acao} <span className="mp-cart-mudo">({i.recomendacoes[0].fato})</span>
                   </span>
-                ) : (
-                  <span className="mp-cart-mudo"> · fechada ou sem prazo informado</span>
                 )}
               </li>
             ))}

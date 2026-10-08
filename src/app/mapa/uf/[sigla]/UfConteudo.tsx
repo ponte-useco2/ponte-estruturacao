@@ -39,8 +39,10 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { Carregando } from "../../_componentes/Carregando";
 import { MapaTerritorio } from "../../_componentes/MapaTerritorio";
+import { Termo } from "../../_componentes/Termo";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { Secao } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 const n = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("pt-BR"));
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
@@ -55,9 +57,9 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <Link href={urlBrasil()} prefetch={false}>
+        <LinkMapa href={urlBrasil()}>
           Brasil
-        </Link>
+        </LinkMapa>
         <span aria-current="page">{nome}</span>
       </nav>
       <h1 className="pa-titulo">{nome}</h1>
@@ -70,28 +72,29 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         <BotaoImprimir />
         {nivel >= 3 && l.completa && (
           <>
-            <Link href="/mapa/fiscal" className="pa-btn pa-btn-pequeno" prefetch={false}>
+            <LinkMapa href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
               Fiscal dos 223
-            </Link>
-            <Link href={`/mapa/painel?uf=${l.sigla}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+            </LinkMapa>
+            <LinkMapa href={`/mapa/painel?uf=${l.sigla}`} className="pa-btn pa-btn-pequeno">
               Painel
-            </Link>
-            <Link href="/mapa/painel/tce" className="pa-btn pa-btn-pequeno" prefetch={false}>
-              TCE-PB
-            </Link>
-            <Link href="/mapa/painel/contas" className="pa-btn pa-btn-pequeno" prefetch={false}>
+            </LinkMapa>
+            <LinkMapa href="/mapa/painel/tce" className="pa-btn pa-btn-pequeno">
+              Tribunal de Contas (TCE-PB)
+            </LinkMapa>
+            <LinkMapa href="/mapa/painel/contas" className="pa-btn pa-btn-pequeno">
               Contas e obras
-            </Link>
-            <Link href="/mapa/fornecedores" className="pa-btn pa-btn-pequeno" prefetch={false}>
+            </LinkMapa>
+            <LinkMapa href="/mapa/fornecedores" className="pa-btn pa-btn-pequeno">
               Fornecedores
-            </Link>
+            </LinkMapa>
           </>
         )}
       </p>
       {!l.completa && (
         <p className="pa-nota">
-          A PONTE cobre a Paraíba por inteiro. Para {nome}, a base tem os instrumentos vivos (em execução, em prestação de contas e em
-          TCE), as propostas desde 2019, o tempo de cada etapa e o Pix e o fundo a fundo por ano. Não há fiscal, indicadores nem OSC.
+          A PONTE cobre a Paraíba por inteiro. Para {nome}, a base tem os instrumentos vivos (em execução, em prestação de contas e em{" "}
+          <Termo slug="tomada-de-contas-especial">tomada de contas especial</Termo>), as propostas desde 2019, o tempo de cada etapa e o Pix e o fundo a
+          fundo por ano. Não há fiscal, indicadores nem OSC.
         </p>
       )}
     </div>
@@ -143,9 +146,26 @@ function Resumo({ l }: { l: LeituraUfOk }) {
       <Secao id="uf-numeros" titulo="Em números">
         {t ? (
           <div className="pa-grade pa-grade-4 mp-painel-cartoes">
-            <Cartao rotulo="Em execução" valor={n(g("execucao")?.n ?? 0)} nota={`${moedaCurta(g("execucao")?.valor ?? 0)} de valor global; ${moedaCurta(g("execucao")?.desembolsado ?? 0)} desembolsados.`} />
+            <Cartao
+              rotulo="Em execução"
+              valor={n(g("execucao")?.n ?? 0)}
+              nota={
+                <>
+                  {moedaCurta(g("execucao")?.valor ?? 0)} de <Termo slug="valor-global">valor global</Termo>; {moedaCurta(g("execucao")?.desembolsado ?? 0)}{" "}
+                  <Termo slug="desembolso">desembolsados</Termo>.
+                </>
+              }
+            />
             <Cartao rotulo="Prestando contas" valor={n(g("contas")?.n ?? 0)} nota={`${moedaCurta(g("contas")?.valor ?? 0)} de valor global.`} />
-            <Cartao rotulo="Municípios com instrumento vivo" valor={n(vivos?.municipios ?? 0)} nota={`${n(vivos?.proponentes ?? 0)} proponentes com instrumento vivo.`} />
+            <Cartao
+              rotulo="Municípios com instrumento vivo"
+              valor={n(vivos?.municipios ?? 0)}
+              nota={
+                <>
+                  {n(vivos?.proponentes ?? 0)} <Termo slug="proponente">proponentes</Termo> com <Termo slug="instrumento-vivo">instrumento vivo</Termo>.
+                </>
+              }
+            />
             {f && <Cartao rotulo={`Propostas em ${ano}`} valor={n(f.enviadas)} nota={`${n(f.assinadas)} assinadas até agora; ${n(f.emAndamento)} em andamento.`} />}
             {l.janelas !== null && (
               <Cartao
@@ -200,7 +220,8 @@ function Resumo({ l }: { l: LeituraUfOk }) {
           </div>
           {l.osc && (
             <p className="pa-nota">
-              Na sociedade civil, além das que têm instrumento: {n(l.osc.ativas)} organizações ativas no Mapa das OSC (Ipea, versão de{" "}
+              Na sociedade civil, além das que têm instrumento: {n(l.osc.ativas)} organizações ativas no <Termo slug="mapa-das-osc">Mapa das OSC</Termo> (Ipea,
+              versão de{" "}
               {versaoLegivel(l.osc.versao)}), listadas na página de cada município.
             </p>
           )}
@@ -311,26 +332,49 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
   if (!l.municipios) return <p className="pa-nota">A lista dos municípios não pôde ser lida agora.</p>;
   // o fiscal e os sinais do painel só existem para a Paraíba
   const admin = nivel >= 3 && l.completa;
-  const ordem = ordenarPorSinais
-    ? "ordenados pelos sinais do painel (só o administrador vê esta ordem)"
-    : l.completa
-      ? "em ordem alfabética dentro de cada região imediata do IBGE"
-      : "em ordem alfabética";
-  const nota = l.completa
-    ? `Os ${n(l.municipios.length)} municípios, ${ordem}. Instrumentos: todos os da base desde 2008; porte: o tercil da população entre os 223; OSC: as ativas no Mapa das OSC.`
-    : `Os ${n(l.municipios.length)} municípios com instrumento vivo na base, ${ordem}.`;
+  const ordem: React.ReactNode = ordenarPorSinais ? (
+    "ordenados pelos sinais do painel (só o administrador vê esta ordem)"
+  ) : l.completa ? (
+    <>
+      em ordem alfabética dentro de cada <Termo slug="regiao-imediata">região imediata</Termo> do IBGE
+    </>
+  ) : (
+    "em ordem alfabética"
+  );
+  const nota = l.completa ? (
+    <>
+      Os {n(l.municipios.length)} municípios, {ordem}. Instrumentos: todos os da base desde 2008; porte: o <Termo slug="tercil">tercil</Termo> da população
+      entre os 223; OSC: as <Termo slug="osc-ativa">ativas</Termo> no Mapa das OSC.
+      {!ordenarPorSinais && (
+        <>
+          {" "}
+          No mapa, a cor é a da <Termo slug="regiao-intermediaria">região intermediária</Termo>.
+        </>
+      )}
+      {admin && (
+        <>
+          {" "}
+          A coluna da transferência voluntária mostra a decisão B do <Termo slug="decisoes-fiscais">painel fiscal</Termo>.
+        </>
+      )}
+    </>
+  ) : (
+    <>
+      Os {n(l.municipios.length)} municípios com <Termo slug="instrumento-vivo">instrumento vivo</Termo> na base, {ordem}.
+    </>
+  );
   return (
     <Secao id="uf-municipios" titulo="Os municípios" nota={nota}>
       {l.completa && !ordenarPorSinais && <MapaDaUf municipios={l.municipios} />}
       {admin && (
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <span className="pa-nota">Administrador: </span>
-          <Link href={urlUf(l.sigla, "municipios")} className={`pa-chip${!ordenarPorSinais ? " pa-ativo" : ""}`} prefetch={false}>
+          <LinkMapa href={urlUf(l.sigla, "municipios")} className={`pa-chip${!ordenarPorSinais ? " pa-ativo" : ""}`}>
             Por região
-          </Link>
-          <Link href={`${urlUf(l.sigla, "municipios")}&ordem=sinais`} className={`pa-chip${ordenarPorSinais ? " pa-ativo" : ""}`} prefetch={false}>
+          </LinkMapa>
+          <LinkMapa href={`${urlUf(l.sigla, "municipios")}&ordem=sinais`} className={`pa-chip${ordenarPorSinais ? " pa-ativo" : ""}`}>
             Por sinais do painel
-          </Link>
+          </LinkMapa>
         </p>
       )}
       {ordenarPorSinais ? (
@@ -365,7 +409,18 @@ function Estado({ l }: { l: LeituraUfOk }) {
     <Secao
       id="uf-estado"
       titulo="O estado como proponente"
-      nota={`O governo, as secretarias, as universidades, os fundos e as autarquias estaduais com instrumento na base${l.completa ? "" : " (só os vivos)"}, cada um com a sua página.`}
+      nota={
+        <>
+          O governo, as secretarias, as universidades, os fundos e as autarquias estaduais com instrumento na base
+          {!l.completa && (
+            <>
+              {" "}
+              (só os <Termo slug="instrumento-vivo">vivos</Termo>)
+            </>
+          )}
+          , cada um com a sua página.
+        </>
+      }
     >
       {estaduais.length ? (
         <div className="mp-tabela-rolagem">
@@ -406,7 +461,7 @@ function Estado({ l }: { l: LeituraUfOk }) {
       )}
       <p className="pa-nota">
         A situação fiscal dos estados não entra aqui: o relatório dos estados no Tesouro Transparente não é atualizado desde 03/11/2025, e o
-        extrato do CAUC tem verificação manual.
+        extrato do <Termo slug="cauc">CAUC</Termo> tem verificação manual.
       </p>
     </Secao>
   );
@@ -434,7 +489,18 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
       <Secao
         id="uf-situacao"
         titulo="Os instrumentos por situação"
-        nota={l.completa ? "Todos os instrumentos da base, desde 2008." : "Só os vivos: fora da Paraíba a base não guarda os encerrados."}
+        nota={
+          <>
+            {l.completa ? (
+              "Todos os instrumentos da base, desde 2008."
+            ) : (
+              <>
+                Só os <Termo slug="instrumento-vivo">vivos</Termo>: fora da Paraíba a base não guarda os encerrados.
+              </>
+            )}{" "}
+            O <Termo slug="valor-global">valor global</Termo> é o total previsto; o <Termo slug="desembolso">desembolsado</Termo>, o que já foi liberado.
+          </>
+        }
       >
         <div className="mp-tabela-rolagem">
           <table className="mp-tabela">
@@ -459,7 +525,16 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
           </table>
         </div>
       </Secao>
-      <Secao id="uf-orgaos" titulo="De onde vem o dinheiro" nota="Os instrumentos vivos por órgão concedente, do maior valor para o menor.">
+      <Secao
+        id="uf-orgaos"
+        titulo="De onde vem o dinheiro"
+        nota={
+          <>
+            Os {l.completa ? <Termo slug="instrumento-vivo">instrumentos vivos</Termo> : "instrumentos vivos"} por órgão concedente, do maior valor para o
+            menor.
+          </>
+        }
+      >
         <div className="mp-tabela-rolagem">
           <table className="mp-tabela">
             <thead>
@@ -506,7 +581,15 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         </Secao>
       )}
       {nivel >= 1 && pix.length > 0 && (
-        <Secao id="uf-pix" titulo="Pix (transferências especiais)" nota={`Os planos de ação com beneficiário ${l.sigla === "BR" ? "no país" : "no estado"}, por ano da emenda.`}>
+        <Secao
+          id="uf-pix"
+          titulo="Pix (transferências especiais)"
+          nota={
+            <>
+              Os planos de ação do <Termo slug="pix">Pix</Termo> com beneficiário {l.sigla === "BR" ? "no país" : "no estado"}, por ano da emenda.
+            </>
+          }
+        >
           <div className="mp-tabela-rolagem">
             <table className="mp-tabela">
               <thead>
@@ -534,7 +617,15 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         </Secao>
       )}
       {nivel >= 1 && fundoPorAno.size > 0 && (
-        <Secao id="uf-fundo" titulo="Fundo a fundo" nota={`Os planos de ação do fundo a fundo com entes ${l.sigla === "BR" ? "de todo o país" : "do estado"}, por ano.`}>
+        <Secao
+          id="uf-fundo"
+          titulo="Fundo a fundo"
+          nota={
+            <>
+              Os planos de ação do <Termo slug="fundo-a-fundo">fundo a fundo</Termo> com entes {l.sigla === "BR" ? "de todo o país" : "do estado"}, por ano.
+            </>
+          }
+        >
           <div className="mp-tabela-rolagem">
             <table className="mp-tabela">
               <thead>
@@ -572,7 +663,12 @@ function Tempos({ l }: { l: LeituraUfOk }) {
       <Secao
         id="uf-tempos"
         titulo={`Quanto leva cada etapa ${naUf(l.sigla)}`}
-        nota="Mediana em dias das etapas que terminaram nos últimos 36 meses, contra a do Brasil. Marcada quando passa de 1,5 vez a do país; com menos de 10 medições, não compara."
+        nota={
+          <>
+            <Termo slug="mediana">Mediana</Termo> em dias das etapas que terminaram nos últimos 36 meses, contra a do Brasil. Marcada quando passa de 1,5 vez a
+            do país; com menos de 10 medições, não compara.
+          </>
+        }
       >
         {todos.some((e) => e.uf !== null) ? (
           <div className="mp-tabela-rolagem">
@@ -634,7 +730,16 @@ function Tempos({ l }: { l: LeituraUfOk }) {
         )}
       </Secao>
       {f.length > 0 && (
-        <Secao id="uf-funil" titulo="O funil das propostas" nota="As propostas por ano de envio e o que aconteceu com elas até agora. Os anos recentes ainda têm muita proposta em andamento.">
+        <Secao
+          id="uf-funil"
+          titulo="O funil das propostas"
+          nota={
+            <>
+              As propostas por ano de envio e o que aconteceu com elas até agora. Os anos recentes ainda têm muita proposta em andamento; entre parênteses, as{" "}
+              <Termo slug="limbo">paradas há mais de um ano</Termo>.
+            </>
+          }
+        >
           <div className="mp-tabela-rolagem">
             <table className="mp-tabela">
               <thead>

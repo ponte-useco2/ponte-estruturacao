@@ -782,7 +782,8 @@
 .pa-root .mp-laudo-frase.mp-laudo-moderado, .pa-root .mp-laudo-risco.mp-laudo-moderado { border-left-color: var(--mp-moderado); }
 .pa-root .mp-laudo-nivel { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .pa-root .mp-laudo-nivel.mp-laudo-critico { background: var(--pa-danger); color: #fff; border-color: var(--pa-danger); }
-.pa-root .mp-laudo-nivel.mp-laudo-alto { background: #b08a3e; color: #fff; border-color: #b08a3e; }
+/* Fundo #8a6a2a desde 08/10/2026 (auditoria B1+B2, A05): o #b08a3e dava 3,21:1 com o branco; este dá 5,03:1. */
+.pa-root .mp-laudo-nivel.mp-laudo-alto { background: #8a6a2a; color: #fff; border-color: #8a6a2a; }
 .pa-root .mp-laudo-nivel.mp-laudo-moderado { background: var(--mp-moderado); color: #fff; border-color: var(--mp-moderado); }
 /* Laudo do Pix (onda 13A): o item atendido tem cor própria e discreta; informação, prazo e legado ficam neutros. */
 .pa-root .mp-laudo-risco.mp-laudo-atendido { border-left-color: #3d7a4f; }
@@ -1018,7 +1019,9 @@
    A página do município em abas (F1a, 06/10/2026): trilha, identificação e as abas como links (?aba=).
    ------------------------------------------------------------------------------------------------ */
 .pa-root .mp-mun-trilha { display: flex; flex-wrap: wrap; gap: 0.35rem; font-size: 0.82rem; color: var(--pa-muted); }
-.pa-root .mp-mun-trilha span + span::before { content: "›"; margin-right: 0.35rem; color: var(--pa-border); }
+/* O separador vai entre quaisquer elos: os elos são links (<a>), e o "span + span" de antes nunca casava (auditoria
+   B1+B2, A01). Em inline-block, o sublinhado do link não o alcança; o "/ \"\"" tira o "›" da leitura em voz alta. */
+.pa-root .mp-mun-trilha > * + *::before { content: "›"; content: "›" / ""; display: inline-block; margin-right: 0.35rem; color: var(--pa-muted); text-decoration: none; }
 .pa-root .mp-mun-trilha [aria-current] { color: var(--pa-text); font-weight: 600; }
 .pa-root .mp-mun-chips { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
 .pa-root .mp-mun-abas { display: flex; gap: 0.15rem; overflow-x: auto; border-bottom: 1px solid var(--pa-border); margin: 0.4rem 0 0.2rem; scrollbar-width: thin; }
@@ -1028,4 +1031,39 @@
 .pa-root .mp-so-imprimir { display: none; }
 @media print {
   .pa-root .mp-so-imprimir { display: block; }
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Integração da onda 1 de UX (08/10/2026).
+   ------------------------------------------------------------------------------------------------ */
+
+/* Link no meio do texto parece link (auditoria B1+B2, A01; WCAG 1.4.1): a regra base tira cor e sublinhado de todo
+   <a>, e o link no parágrafo, na nota e na trilha ficava igual ao texto. Especificidade baixa de propósito: o link
+   com classe própria (botão, aba, chip) e as regras de componente continuam valendo. */
+.pa-root :where(p, li, dd, .pa-nota, .pa-sub, .mp-mun-trilha) a:where(:not([class])) {
+  color: var(--pa-brand-2);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.pa-root :where(p, li, dd, .pa-nota, .pa-sub, .mp-mun-trilha) a:where(:not([class])):hover { text-decoration-thickness: 2px; }
+
+/* O texto do Carregando para o leitor de tela (.pa-sr, posição absoluta) se ancora no próprio link: solto, ele escapava
+   da caixa das abas que rola de lado e alargava a página no celular (prévia de 08/10/2026, 382 px em 375). */
+.pa-root a:has(> .mp-carregando) { position: relative; }
+
+/* Enquanto um link espera o servidor, o resto da página esmaece (proposta da B10). Na troca de aba (?aba=) o esqueleto
+   do loading.tsx não aparece, porque a página é a mesma: sem isto, o único sinal era o ponto na aba. O bloco com o link
+   clicado e o cabeçalho da página ficam inteiros; o atraso curto evita piscar quando a resposta vem logo. */
+.pa-root .pa-pagina:has(.mp-carregando-ativo) > :not(:has(.mp-carregando-ativo), .mp-radar-cabeca),
+.pa-root:has(.pa-top .mp-carregando-ativo) .pa-main > * {
+  opacity: 0.4;
+  transition: opacity 0.2s ease 0.15s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pa-root .pa-pagina:has(.mp-carregando-ativo) > :not(:has(.mp-carregando-ativo), .mp-radar-cabeca),
+  .pa-root:has(.pa-top .mp-carregando-ativo) .pa-main > * { transition: none; }
+}
+@media print {
+  .pa-root .pa-pagina > *, .pa-root .pa-main > * { opacity: 1 !important; }
 }

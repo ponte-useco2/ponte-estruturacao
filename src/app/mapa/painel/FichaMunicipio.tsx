@@ -2,7 +2,6 @@
  * Ficha do município: tudo o que trava num lugar, para a conversa com a prefeitura.
  * Recebe os dados já lidos e só desenha, como o PainelConteudo.
  */
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
@@ -53,6 +52,7 @@ import {
   TabelaVigencia,
   n,
 } from "./Pecas";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 /**
  * A ficha do município no painel, só do administrador. Desde a F1c (07/10/2026) a prefeitura vai para a página do
@@ -79,7 +79,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
     <div className="pa-pagina mp-radar mp-painel">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <Link prefetch={false} href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</Link> · município em análise
+          <LinkMapa href={urlPainel(parametrosPainel({ uf: f.uf }), {})}>Painel da PONTE · {f.uf}</LinkMapa> · município em análise
         </p>
         <h1 className="pa-titulo">
           {nome}/{f.uf}
@@ -91,31 +91,31 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
         {/* A página do município em abas (F1) e o painel fiscal (onda 8) cobrem só a PB. */}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <Link prefetch={false} href={urlMunicipio(f.ibge)}>Página do município: o que trava, dinheiro, contas, controle e indicadores →</Link>
+            <LinkMapa href={urlMunicipio(f.ibge)}>Página do município: o que trava, dinheiro, contas, controle e indicadores →</LinkMapa>
           </p>
         )}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <Link prefetch={false} href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</Link>
+            <LinkMapa href={`/mapa/fiscal/${f.ibge}`}>Capacidade fiscal e elegibilidade deste município →</LinkMapa>
           </p>
         )}
         {f.uf === "PB" && (
           <p className="pa-nota">
-            <Link prefetch={false} href={urlEntePix(f.ibge)}>Emendas Pix do município: o laudo de cada plano de ação →</Link>
+            <LinkMapa href={urlEntePix(f.ibge)}>Emendas Pix do município: o laudo de cada plano de ação →</LinkMapa>
           </p>
         )}
       </div>
 
       <nav aria-label="Quais proponentes" className="pa-chips mp-painel-lados mp-painel-quem">
         {(["prefeitura", "todos"] as const).map((q) => (
-          <Link prefetch={false}
+          <LinkMapa
             key={q}
             href={urlFicha(f, { quem: q })}
             className={`pa-chip${f.quem === q ? " pa-ativo" : ""}`}
             aria-current={f.quem === q ? "true" : undefined}
           >
             {q === "prefeitura" ? "Prefeitura" : "Todos os proponentes no município"}
-          </Link>
+          </LinkMapa>
         ))}
       </nav>
 
@@ -182,9 +182,9 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
         ) : (
           <>
             <p className="pa-nota">
-              <Link prefetch={false} href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
+              <LinkMapa href={urlPainel(parametrosPainel({ visao: "mudancas", municipio: f.ibge }), { dias: 7 })}>
                 Ver no painel, com a contagem por tipo
-              </Link>
+              </LinkMapa>
             </p>
             <div className="mp-tabela-rolagem">
               <TabelaMudancas linhas={ficha.mudancas} naFicha comData />
@@ -396,7 +396,7 @@ function Bloco({
       </h3>
       {href && (
         <p className="pa-nota">
-          <Link prefetch={false} href={href}>Ver no painel, com os números por órgão</Link>
+          <LinkMapa href={href}>Ver no painel, com os números por órgão</LinkMapa>
         </p>
       )}
       <div className="mp-tabela-rolagem">{children}</div>

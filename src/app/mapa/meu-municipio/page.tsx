@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { urlDoMunicipio } from "@/lib/oportunidades/busca";
 import { EXPLICACAO_SEM_FICHA } from "@/lib/oportunidades/cliente";
 import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Meu município · Mapa de Oportunidades · PONTE",
@@ -35,7 +35,7 @@ export default async function MeuMunicipioPage() {
         <h1 className="pa-titulo">{e.titulo}</h1>
         <p>{e.texto}</p>
         <p className="pa-nota">
-          <Link prefetch={false} href="/mapa/conta/organizacao">Ver o cadastro da organização</Link>
+          <LinkMapa href="/mapa/conta/organizacao">Ver o cadastro da organização</LinkMapa>
         </p>
       </div>
     </div>

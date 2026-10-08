@@ -1,7 +1,6 @@
 /**
  * A lista dos 223 municípios da PB no Painel de Capacidade Fiscal. Recebe os dados já lidos e só desenha.
  */
-import Link from "next/link";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   AVISO_FIXO,
@@ -21,6 +20,7 @@ import {
 } from "@/lib/oportunidades/fiscal";
 import type { LeituraFiscal } from "@/lib/oportunidades/fiscal.server";
 import { Tag } from "../../_design/primitivos";
+import { LinkMapa } from "../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraFiscal, { estado: "ok" }>;
 
@@ -65,9 +65,9 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
             <ul className="mp-fiscal-contagem">
               {GRUPOS_DECISAO.map((e) => (
                 <li key={e}>
-                  <Link prefetch={false} href={urlFiscal(p, { decisao: d.id, estado: e })} aria-current={p.decisao === d.id && p.estado === e ? "true" : undefined}>
+                  <LinkMapa href={urlFiscal(p, { decisao: d.id, estado: e })} aria-current={p.decisao === d.id && p.estado === e ? "true" : undefined}>
                     <EstadoDecisao estado={e} /> <span className="mp-num">{n(contagem[d.id][e] ?? 0)}</span>
-                  </Link>
+                  </LinkMapa>
                 </li>
               ))}
             </ul>
@@ -113,9 +113,9 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
           Filtrar
         </button>
         {(p.q || p.decisao) && (
-          <Link prefetch={false} href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
+          <LinkMapa href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
             Limpar
-          </Link>
+          </LinkMapa>
         )}
         </div>
       </form>
@@ -149,9 +149,9 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
                   return (
                     <tr key={m.ibge}>
                       <th scope="row">
-                        <Link prefetch={false} href={urlMunicipioFiscal(m.ibge)} className="mp-tabela-principal">
+                        <LinkMapa href={urlMunicipioFiscal(m.ibge)} className="mp-tabela-principal">
                           {m.nome}
-                        </Link>
+                        </LinkMapa>
                         <span className="mp-tabela-secundario">
                           IBGE {m.ibge}
                           {m.populacao ? ` · ${n(m.populacao)} hab.` : ""}
@@ -201,7 +201,7 @@ export function FiscalIndisponivel({ estado }: { estado: "nao_ativado" | "sem_ex
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
         <p>
-          <Link prefetch={false} href="/mapa/painel">Voltar ao painel de execução</Link>
+          <LinkMapa href="/mapa/painel">Voltar ao painel de execução</LinkMapa>
         </p>
       </div>
     </div>

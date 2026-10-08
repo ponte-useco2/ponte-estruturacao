@@ -20,6 +20,8 @@ import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { urlUf } from "@/lib/oportunidades/pagina-uf";
 import { Carregando } from "../../../_componentes/Carregando";
+import { Termo } from "../../../_componentes/Termo";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 
@@ -57,40 +59,39 @@ export function OrganizacoesConteudo({
     <div className="pa-pagina mp-radar mp-mun">
       <div className="pa-pilha mp-radar-cabeca">
         <nav aria-label="Onde você está" className="mp-mun-trilha">
-          <Link href={urlBrasil()} prefetch={false}>
+          <LinkMapa href={urlBrasil()}>
             Brasil
-          </Link>
-          <Link href={urlUf("PB")} prefetch={false}>
+          </LinkMapa>
+          <LinkMapa href={urlUf("PB")}>
             Paraíba
-          </Link>
-          <Link href={urlMunicipio(ibge, "dinheiro")} prefetch={false}>
+          </LinkMapa>
+          <LinkMapa href={urlMunicipio(ibge, "dinheiro")}>
             {municipio}
-          </Link>
+          </LinkMapa>
           <span aria-current="page">Organizações da sociedade civil</span>
         </nav>
         <h1 className="pa-titulo">Organizações da sociedade civil em {municipio}</h1>
         <p className="pa-sub">
-          {n(r.ativas)} {r.ativas === 1 ? "organização ativa" : "organizações ativas"} ({n(r.matrizes)} matrizes e {n(r.filiais)} filiais) no Mapa das
-          OSC do Ipea, versão de {versaoLegivel(osc.fonte.versao)}.
-          {fora > 0 && ` Outras ${n(fora)} estão inaptas, suspensas ou baixadas na Receita e não entram na lista.`} Primeiro as que têm instrumento
-          federal na base; as filiais aparecem junto da matriz.
+          {n(r.ativas)} <Termo slug="osc-ativa">{r.ativas === 1 ? "organização ativa" : "organizações ativas"}</Termo> ({n(r.matrizes)} matrizes e{" "}
+          {n(r.filiais)} filiais) no <Termo slug="mapa-das-osc">Mapa das OSC</Termo> do Ipea, versão de {versaoLegivel(osc.fonte.versao)}.
+          {fora > 0 && ` Outras ${n(fora)} estão inaptas, suspensas ou baixadas na Receita e não entram na lista.`} Primeiro as que têm{" "}
+          <Termo slug="convenio">instrumento federal</Termo> na base; as filiais aparecem junto da matriz.
         </p>
       </div>
 
       <nav aria-label="Área de atuação" className="pa-chips mp-radar-filtros">
-        <Link href={url(ibge, { q })} className={`pa-chip${!area ? " pa-ativo" : ""}`} aria-current={!area ? "page" : undefined} prefetch={false}>
+        <LinkMapa href={url(ibge, { q })} className={`pa-chip${!area ? " pa-ativo" : ""}`} aria-current={!area ? "page" : undefined}>
           Todas ({n(r.ativas)})
-        </Link>
+        </LinkMapa>
         {areas.map((a) => (
-          <Link
+          <LinkMapa
             key={a.area}
             href={url(ibge, { area: a.area, q })}
             className={`pa-chip${area === a.area ? " pa-ativo" : ""}`}
             aria-current={area === a.area ? "page" : undefined}
-            prefetch={false}
           >
             {rotuloArea(a.area)} ({n(a.n)})
-          </Link>
+          </LinkMapa>
         ))}
       </nav>
 
@@ -119,7 +120,9 @@ export function OrganizacoesConteudo({
               <thead>
                 <tr>
                   <th scope="col">Organização</th>
-                  <th scope="col">Natureza</th>
+                  <th scope="col">
+                    <Termo slug="natureza-juridica">Natureza</Termo>
+                  </th>
                   <th scope="col">Área</th>
                   <th scope="col">Fundação</th>
                   <th scope="col">Instrumentos federais</th>
@@ -157,17 +160,17 @@ export function OrganizacoesConteudo({
         {lista.paginas > 1 && (
           <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
             {atual > 1 && (
-              <Link href={url(ibge, { area, q, p: atual - 1 })} className="pa-btn pa-btn-pequeno" rel="prev" prefetch={false}>
+              <LinkMapa href={url(ibge, { area, q, p: atual - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
                 ← Anteriores
-              </Link>
+              </LinkMapa>
             )}
             <span className="pa-nota">
               Página {n(atual)} de {n(lista.paginas)}
             </span>
             {atual < lista.paginas && (
-              <Link href={url(ibge, { area, q, p: atual + 1 })} className="pa-btn pa-btn-pequeno" rel="next" prefetch={false}>
+              <LinkMapa href={url(ibge, { area, q, p: atual + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
                 Próximas →
-              </Link>
+              </LinkMapa>
             )}
           </nav>
         )}

@@ -65,6 +65,12 @@ export interface ItemCarteira {
   mudancas: MudancaCarteira[];
   /** A pior consequência entre as mudanças não lidas; null sem mudança nova. */
   pior: Consequencia | null;
+  /**
+   * Só na janela: se o último retrato a dá como aberta, com prazo de hoje em diante ou sem prazo (fluxo contínuo).
+   * Decide se o nome vira link para o cartão do catálogo (`situacaoDaJanela`); a recomendação não serve para isso,
+   * porque a janela aberta sem prazo não tem nenhuma.
+   */
+  aberta?: boolean;
 }
 
 export interface Carteira {
@@ -315,6 +321,13 @@ export function recomendacoesInstrumento(e: Record<string, unknown>, hoje: strin
   return r.sort(compararFila);
 }
 
+/** Janela aberta no retrato: com prazo de hoje em diante, ou sem prazo informado (fluxo contínuo). */
+export function janelaAberta(e: Record<string, unknown>, hoje: string): boolean {
+  if (e.aberta !== true) return false;
+  const dias = diasAte(txt(e.prazo), hoje);
+  return dias === null || dias >= 0;
+}
+
 /** Janela aberta: a decisão que ela pede. */
 export function recomendacoesJanela(e: Record<string, unknown>, hoje: string): Recomendacao[] {
   const prazo = txt(e.prazo);
@@ -402,6 +415,7 @@ export function montarCarteira(
       restantes: Math.max(0, todas.length - MAX_RECOMENDACOES),
       mudancas,
       pior,
+      ...(s.tipo === "janela" ? { aberta: janelaAberta(e, hoje) } : {}),
     };
   });
 

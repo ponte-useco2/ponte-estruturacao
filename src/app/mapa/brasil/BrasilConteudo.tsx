@@ -24,6 +24,7 @@ import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, medianaComparavel } from "@/
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Carregando } from "../_componentes/Carregando";
 import { MapaTerritorio } from "../_componentes/MapaTerritorio";
+import { Termo } from "../_componentes/Termo";
 import { BotaoImprimir } from "../fiscal/[ibge]/simular/BotaoImprimir";
 import { Secao } from "../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { Dinheiro } from "../uf/[sigla]/UfConteudo";
@@ -104,7 +105,16 @@ function Resumo({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
 
   return (
     <>
-      <Secao id="br-numeros" titulo="Em números" nota="Os instrumentos vivos (em execução, em prestação de contas e em TCE) de todo o país.">
+      <Secao
+        id="br-numeros"
+        titulo="Em números"
+        nota={
+          <>
+            Os <Termo slug="instrumento-vivo">instrumentos vivos</Termo> (em execução, em prestação de contas e em{" "}
+            <Termo slug="tomada-de-contas-especial">tomada de contas especial</Termo>) de todo o país.
+          </>
+        }
+      >
         {t ? (
           <div className="pa-grade pa-grade-4 mp-painel-cartoes">
             <Cartao rotulo="Instrumentos vivos" valor={n(vivos?.n ?? 0)} nota={`${moedaCurta(vivos?.valor ?? 0)} de valor global.`} />
@@ -121,7 +131,16 @@ function Resumo({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
           <p className="pa-cartao pa-cartao-plano">As somas do país saem na próxima rodada diária do painel.</p>
         )}
       </Secao>
-      <Secao id="br-mapa" titulo="As 27 UFs" nota="Cada UF leva à sua página. A Paraíba tem o dado completo; as outras, o que a base guarda para o país.">
+      <Secao
+        id="br-mapa"
+        titulo="As 27 UFs"
+        nota={
+          <>
+            Cada UF leva à sua página; a cor é a da <Termo slug="macrorregiao">macrorregião</Termo>. A Paraíba tem o dado completo; as outras, o que a base
+            guarda para o país.
+          </>
+        }
+      >
         <MapaDoBrasil />
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <Link href={urlBrasil("estados")} className="pa-btn pa-btn-pequeno" prefetch={false}>
@@ -142,7 +161,12 @@ function Estados({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
     <Secao
       id="br-ufs"
       titulo="As 27 UFs lado a lado"
-      nota={`Em ordem alfabética. Instrumentos: só os vivos, os únicos que a base guarda para todas as UFs. Propostas e Pix: ${ano}, até agora.`}
+      nota={
+        <>
+          Em ordem alfabética. Instrumentos: só os <Termo slug="instrumento-vivo">vivos</Termo>, os únicos que a base guarda para todas as UFs. Propostas e{" "}
+          <Termo slug="pix">Pix</Termo>: {ano}, até agora.
+        </>
+      }
     >
       <div className="mp-tabela-rolagem">
         <table className="mp-tabela">
@@ -201,7 +225,16 @@ function Tempos({ l }: { l: LeituraBrasilOk }) {
   const dias = (x: number | null) => (x === null ? "—" : `${n(Math.round(x))} dias`);
   return (
     <>
-      <Secao id="br-tempos" titulo="Quanto leva cada etapa no Brasil" nota="Mediana e P90 em dias das etapas que terminaram nos últimos 36 meses. A comparação de cada UF com o país está na página dela.">
+      <Secao
+        id="br-tempos"
+        titulo="Quanto leva cada etapa no Brasil"
+        nota={
+          <>
+            Em dias, das etapas que terminaram nos últimos 36 meses: a <Termo slug="mediana">mediana</Termo> e o{" "}
+            <Termo slug="p90">9 em cada 10 até</Termo>. A comparação de cada UF com o país está na página dela.
+          </>
+        }
+      >
         <div className="mp-tabela-rolagem">
           <table className="mp-tabela">
             <thead>
@@ -226,7 +259,16 @@ function Tempos({ l }: { l: LeituraBrasilOk }) {
         </div>
       </Secao>
       {f.length > 0 && (
-        <Secao id="br-funil" titulo="O funil das propostas no Brasil" nota="As propostas por ano de envio e o que aconteceu com elas até agora.">
+        <Secao
+          id="br-funil"
+          titulo="O funil das propostas no Brasil"
+          nota={
+            <>
+              As propostas por ano de envio e o que aconteceu com elas até agora. Entre as em andamento, as{" "}
+              <Termo slug="limbo">paradas há mais de um ano</Termo> vêm entre parênteses.
+            </>
+          }
+        >
           <div className="mp-tabela-rolagem">
             <table className="mp-tabela">
               <thead>

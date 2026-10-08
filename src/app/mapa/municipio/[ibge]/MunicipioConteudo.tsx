@@ -37,6 +37,7 @@ import {
   EmOrdem,
   Secao,
 } from "./relatorio/RelatorioConteudo";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
 
@@ -46,16 +47,16 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <Link href={urlBrasil()} prefetch={false}>
+        <LinkMapa href={urlBrasil()}>
           Brasil
-        </Link>
-        <Link href={urlUf("PB")} prefetch={false}>
+        </LinkMapa>
+        <LinkMapa href={urlUf("PB")}>
           Paraíba
-        </Link>
+        </LinkMapa>
         {g?.regiao_imediata && (
-          <Link href={urlRegiao("PB", g.regiao_imediata)} prefetch={false}>
+          <LinkMapa href={urlRegiao("PB", g.regiao_imediata)}>
             Região imediata de {g.regiao_imediata}
-          </Link>
+          </LinkMapa>
         )}
         <span aria-current="page">{r.nome}</span>
       </nav>
@@ -75,9 +76,9 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
         <EstrelaSeguir tipo="municipio" chave={r.ibge} nome={`o município ${r.nome}`} seguindo={seguindo} />
         <BotaoImprimir />
         {PODE.interno(nivel) && (
-          <Link href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+          <LinkMapa href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
             Ficha no painel
-          </Link>
+          </LinkMapa>
         )}
       </p>
     </div>
@@ -148,13 +149,13 @@ export function MunicipioConteudo({
           {entidades !== undefined && <QuemRecebe grupos={entidades} municipio={r.nome} ibge={r.ibge} osc={osc} />}
           <BlocoConvenios r={r} destino={destino} />
           <Mais>
-            <Link href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+            <LinkMapa href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno">
               Por tema, modalidade e tipo
-            </Link>
+            </LinkMapa>
             {PODE.laudo(nivel) && (
-              <Link href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+              <LinkMapa href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno">
                 Laudo do Pix
-              </Link>
+              </LinkMapa>
             )}
           </Mais>
           <BlocoPropostas r={r} destino={destino} />
@@ -170,12 +171,12 @@ export function MunicipioConteudo({
           <BlocoFiscal r={r} destino={destino} />
           {PODE.interno(nivel) && (
             <Mais>
-              <Link href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno" prefetch={false}>
+              <LinkMapa href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
                 Painel fiscal completo
-              </Link>
-              <Link href={`/mapa/fiscal/${r.ibge}/simular`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+              </LinkMapa>
+              <LinkMapa href={`/mapa/fiscal/${r.ibge}/simular`} className="pa-btn pa-btn-pequeno">
                 Simulador de crédito
-              </Link>
+              </LinkMapa>
             </Mais>
           )}
           {!r.fiscal && <p>O painel fiscal ainda não tem este município.</p>}
@@ -188,9 +189,9 @@ export function MunicipioConteudo({
           <BlocoTramita />
           {PODE.interno(nivel) && (
             <Mais>
-              <Link href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno" prefetch={false}>
+              <LinkMapa href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno">
                 Despesas no TCE-PB
-              </Link>
+              </LinkMapa>
             </Mais>
           )}
         </>
@@ -203,9 +204,9 @@ export function MunicipioConteudo({
         <>
           <Secao id="mun-relatorio" titulo="O relatório completo" nota="Todas as abas numa peça só, com a fonte de cada número, para imprimir ou anexar.">
             <Mais>
-              <Link href={`/mapa/municipio/${r.ibge}/relatorio`} className="pa-btn" prefetch={false}>
+              <LinkMapa href={`/mapa/municipio/${r.ibge}/relatorio`} className="pa-btn">
                 Abrir o relatório para imprimir
-              </Link>
+              </LinkMapa>
               <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">
                 Achados em CSV
               </a>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EXPLICACAO_SEM_FICHA } from "@/lib/oportunidades/cliente";
 import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
@@ -8,6 +7,7 @@ import { lerLaudoPlanoPix } from "@/lib/oportunidades/pix-laudo.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
 import { PlanoPixConteudo } from "./PlanoPixConteudo";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Laudo do Pix · Mapa de Oportunidades · PONTE",
@@ -69,7 +69,7 @@ function SemLaudo({ kicker, titulo, texto }: { kicker: string; titulo: string; t
         <h1 className="pa-titulo">{titulo}</h1>
         <p className="pa-sub">{texto}</p>
         <p className="pa-sub">
-          <Link prefetch={false} href="/mapa/meu-municipio">Voltar ao Meu município</Link>
+          <LinkMapa href="/mapa/meu-municipio">Voltar ao Meu município</LinkMapa>
         </p>
       </div>
     </div>

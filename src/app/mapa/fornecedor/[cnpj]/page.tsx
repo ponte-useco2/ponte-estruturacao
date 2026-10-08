@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cnpjLegivel, cnpjValido } from "@/lib/oportunidades/fornecedores";
 import { lerDossieFornecedor } from "@/lib/oportunidades/fornecedores.server";
@@ -7,6 +6,7 @@ import { lerTceDoFornecedor } from "@/lib/oportunidades/tce.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { FornecedorConteudo } from "./FornecedorConteudo";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Fornecedor · Mapa de Oportunidades · PONTE",
@@ -37,7 +37,7 @@ export default async function FornecedorPage({ params }: { params: Promise<{ cnp
             pelo nome.
           </p>
           <p className="pa-nota">
-            <Link prefetch={false} href={`/mapa/fornecedores?q=${encodeURIComponent(cnpj)}`}>Procurar na lista</Link>
+            <LinkMapa href={`/mapa/fornecedores?q=${encodeURIComponent(cnpj)}`}>Procurar na lista</LinkMapa>
           </p>
         </div>
       </div>

@@ -1,0 +1,172 @@
+/* =====================================================================
+   O termo do glossário (B7, 08/10/2026) e a página /mapa/glossario.
+
+   O termo é um <button> com cara de palavra sublinhada; o balão é um
+   elemento `popover` irmão dele. Só tokens existentes do Mapa (`--pa-*`).
+
+   Duas regras de leitura do código abaixo:
+     · o balão FECHADO não declara `display`: quem o esconde é a folha do
+       navegador ([popover]:not(:popover-open)). Declarar `display` na
+       classe base venceria a do navegador e deixaria o balão sempre aberto;
+     · o balão herda a tipografia de onde a palavra está (nota, cabeçalho de
+       tabela em caixa alta, título): por isso ele zera fonte, caixa,
+       espaçamento e quebra de linha.
+
+   Posição: com posicionamento por âncora (Chrome, Edge, Safari recentes),
+   o balão sai logo abaixo da palavra e vira para cima ou para o lado quando
+   não cabe; sem ele, fica centrado na tela, como o navegador põe todo
+   popover. O nome da âncora chega por `--mp-termo-ancora`, que o Termo.tsx
+   define por instância.
+   ===================================================================== */
+
+.pa-root .mp-termo-botao {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: inherit;
+  white-space: normal;
+  cursor: help;
+  /* Pontilhado na marca-2 (#14607a): 7,0:1 sobre o branco e ~6,6:1 sobre o fundo da nota, acima dos 3:1 pedidos. */
+  text-decoration: underline dotted;
+  text-decoration-color: var(--pa-brand-2);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.22em;
+  anchor-name: var(--mp-termo-ancora);
+}
+.pa-root .mp-termo-botao:hover { color: var(--pa-brand-2); text-decoration-style: solid; }
+/* Separada da regra acima: navegador que não conhece :popover-open descartaria as duas juntas. */
+.pa-root .mp-termo-botao:has(+ .mp-termo-painel:popover-open) { color: var(--pa-brand-2); text-decoration-style: solid; }
+.pa-root .mp-termo-botao:focus-visible { outline: 3px solid var(--pa-brand-2); outline-offset: 2px; border-radius: 4px; }
+
+.pa-root .mp-termo-painel {
+  box-sizing: border-box;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: 0.85rem 1rem 0.95rem;
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-r);
+  background: var(--pa-surface);
+  color: var(--pa-text);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--pa-dark) 18%, transparent);
+  font-family: var(--pa-font);
+  font-size: 0.88rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  opacity: 0;
+  transition: opacity 0.14s ease, translate 0.14s ease, overlay 0.14s allow-discrete, display 0.14s allow-discrete;
+}
+.pa-root .mp-termo-painel:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  opacity: 1;
+  translate: 0 0;
+}
+@starting-style {
+  .pa-root .mp-termo-painel:popover-open { opacity: 0; translate: 0 -0.25rem; }
+}
+
+@supports (position-area: bottom) {
+  .pa-root .mp-termo-painel {
+    position-anchor: var(--mp-termo-ancora);
+    inset: auto;
+    margin: 0.4rem 0;
+    position-area: bottom span-right;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
+/* No celular, o balão preso à palavra saía cortado na borda direita (prévia de 08/10/2026 a 375 px: as tentativas de
+   posição também não cabiam). Abaixo de 30rem ele vira uma faixa no pé da tela, com a mesma margem dos dois lados. */
+@media (max-width: 30rem) {
+  .pa-root .mp-termo-painel {
+    position-area: none;
+    position-try-fallbacks: none;
+    inset: auto 1rem calc(1rem + env(safe-area-inset-bottom, 0px)) 1rem;
+    width: auto;
+    margin: 0;
+  }
+}
+
+.pa-root .mp-termo-cabeca { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.pa-root .mp-termo-nome {
+  font-family: var(--pa-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--pa-brand);
+}
+/* Botões e links soltos no balão: alvo de toque de 44 px (o termo no meio do texto fica com o tamanho da palavra). */
+.pa-root .mp-termo-fechar {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -0.65rem -0.75rem -0.5rem 0;
+  border-radius: 999px;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--pa-muted);
+}
+.pa-root .mp-termo-fechar:hover { background: var(--pa-surface-2); color: var(--pa-text); }
+.pa-root .mp-termo-curta { display: block; color: var(--pa-text); }
+.pa-root .mp-termo-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -0.4rem 0 -0.5rem;
+  color: var(--pa-brand-2);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-root .mp-termo-painel { transition: none; }
+}
+
+/* Navegador sem popover: a palavra fica como texto comum e o balão não aparece solto no parágrafo. */
+@supports not selector(:popover-open) {
+  .pa-root .mp-termo-painel { display: none; }
+  .pa-root .mp-termo-botao { cursor: inherit; text-decoration: none; }
+}
+
+@media print {
+  .pa-root .mp-termo-botao { text-decoration: none; }
+  .pa-root .mp-termo-painel { display: none !important; }
+}
+
+/* ------------------------------------------------ a página do glossário */
+.pa-root .mp-glossario-letras { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.25rem 0 1.25rem; }
+.pa-root .mp-glossario-letras .pa-chip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  text-decoration: none;
+  font-weight: 700;
+}
+.pa-root .mp-glossario-letra { scroll-margin-top: calc(var(--pa-top-total) + 1rem); }
+.pa-root .mp-glossario-lista { display: grid; gap: 0.75rem; }
+.pa-root .mp-glossario-termo { scroll-margin-top: calc(var(--pa-top-total) + 1rem); }
+.pa-root .mp-glossario-termo:target { border-color: var(--pa-brand-2); box-shadow: 0 0 0 2px var(--pa-brand-2); }
+.pa-root .mp-glossario-nome { margin: 0 0 0.4rem; font-size: 1.05rem; color: var(--pa-brand); }
+.pa-root .mp-glossario-termo p { margin: 0 0 0.55rem; line-height: 1.55; }
+.pa-root .mp-glossario-termo p:last-child { margin-bottom: 0; }
+.pa-root .mp-glossario-curta { font-weight: 600; }
+.pa-root .mp-glossario-meta { font-size: 0.82rem; color: var(--pa-muted); }
+.pa-root .mp-glossario-meta a { color: var(--pa-brand-2); }

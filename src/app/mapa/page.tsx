@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { lerCatalogo, lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server";
 import { montarCatalogo } from "@/lib/oportunidades/catalogo-v2";
 import { codigosPorJanela } from "@/lib/oportunidades/codigos-transferegov";
@@ -10,6 +9,7 @@ import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { CatalogoClient } from "./CatalogoClient";
+import { LinkMapa } from "./_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Janelas · Mapa de Oportunidades · PONTE",
@@ -88,9 +88,9 @@ function CatalogoIndisponivel({ estado }: { estado: "ausente" | "invalido" }) {
             : "O arquivo do catálogo não pôde ser lido. A equipe é avisada pelo registro do servidor. Os avisos do Transferegov continuam funcionando."}
         </p>
         <div className="pa-linha">
-          <Link prefetch={false} href="/mapa/avisos" className="pa-btn">
+          <LinkMapa href="/mapa/avisos" className="pa-btn">
             Ver os avisos
-          </Link>
+          </LinkMapa>
         </div>
       </div>
     </div>

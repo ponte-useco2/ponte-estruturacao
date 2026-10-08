@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { lerProposta } from "@/lib/oportunidades/busca.server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
@@ -7,6 +6,7 @@ import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { PropostaConteudo } from "./PropostaConteudo";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Proposta · Mapa de Oportunidades · PONTE",
@@ -33,7 +33,7 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
             que ainda se movem. Rascunhos que nunca foram enviados não entram.
           </p>
           <p className="pa-nota">
-            <Link prefetch={false} href="/mapa/busca?aba=propostas">Buscar propostas</Link>
+            <LinkMapa href="/mapa/busca?aba=propostas">Buscar propostas</LinkMapa>
           </p>
         </div>
       </div>

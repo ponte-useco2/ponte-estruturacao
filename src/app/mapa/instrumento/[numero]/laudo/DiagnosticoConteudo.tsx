@@ -6,7 +6,6 @@
  * Dois usos: a página inteira (`DiagnosticoConteudo`), para quem não tem dossiê da suspensiva; e o
  * complemento (`DiagnosticoComplemento`), que entra no fim do laudo da suspensiva quando há dossiê.
  */
-import Link from "next/link";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
@@ -33,6 +32,7 @@ import { descreverTce, tituloDebito, type SecaoTceTcu } from "@/lib/oportunidade
 import { moedaContas, type SecaoContasObras } from "@/lib/oportunidades/contas-obras";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 const aviso = (cliente: boolean) =>
   `Leitura automática dos dados abertos do Transferegov${cliente ? "" : " e do painel fiscal"}. Não substitui o termo, o parecer do ` +
@@ -79,9 +79,9 @@ export function DiagnosticoConteudo({
         </p>
         <h1 className="pa-titulo">
           {i.cnpj ? (
-            <Link prefetch={false} href={urlEntidade(i.cnpj)}>
+            <LinkMapa href={urlEntidade(i.cnpj)}>
               {titulo}
-            </Link>
+            </LinkMapa>
           ) : (
             titulo
           )}
@@ -96,13 +96,13 @@ export function DiagnosticoConteudo({
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link prefetch={false} href={urlInstrumento(i.nr_convenio)} className="pa-btn pa-btn-pequeno">
+          <LinkMapa href={urlInstrumento(i.nr_convenio)} className="pa-btn pa-btn-pequeno">
             Ver o instrumento
-          </Link>
+          </LinkMapa>
           {d.fiscal && !cliente && (
-            <Link prefetch={false} href={urlMunicipioFiscal(d.fiscal.ibge)} className="pa-btn pa-btn-pequeno">
+            <LinkMapa href={urlMunicipioFiscal(d.fiscal.ibge)} className="pa-btn pa-btn-pequeno">
               Painel fiscal do município
-            </Link>
+            </LinkMapa>
           )}
         </p>
         <p className="mp-fiscal-aviso">{aviso(cliente)}</p>
@@ -246,7 +246,7 @@ export function DiagnosticoConteudo({
         </ul>
         {i.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <Link prefetch={false} href={urlDoMunicipio(i.cod_ibge, "dinheiro")}>Outros investimentos em {i.municipio ?? "neste município"}</Link>
+            <LinkMapa href={urlDoMunicipio(i.cod_ibge, "dinheiro")}>Outros investimentos em {i.municipio ?? "neste município"}</LinkMapa>
           </p>
         )}
       </section>
@@ -496,9 +496,9 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
             {d.proponente.cnpj && (
               <>
                 {" · "}
-                <Link href={urlEntidade(d.proponente.cnpj)} prefetch={false}>
+                <LinkMapa href={urlEntidade(d.proponente.cnpj)}>
                   página da entidade
-                </Link>
+                </LinkMapa>
               </>
             )}
           </p>
@@ -641,7 +641,7 @@ function Distribuicao({
           Na mesma etapa: {mostrados.map((nr, k) => (
             <span key={nr}>
               {k > 0 ? ", " : ""}
-              <Link prefetch={false} href={urlInstrumento(nr)}>nº {nr}</Link>
+              <LinkMapa href={urlInstrumento(nr)}>nº {nr}</LinkMapa>
             </span>
           ))}
           {v.mesmaEtapa.numeros.length > mostrados.length ? ` e mais ${n(v.mesmaEtapa.numeros.length - mostrados.length)}` : ""}.
@@ -953,9 +953,9 @@ function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
           {f.linhas.map((l) => (
             <tr key={l.cnpj}>
               <th scope="row">
-                <Link prefetch={false} href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
+                <LinkMapa href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
                   {l.nome}
-                </Link>
+                </LinkMapa>
                 <span className="mp-tabela-secundario">
                   CNPJ {cnpjLegivel(l.cnpj)}
                   {l.mei ? " · MEI" : ""}

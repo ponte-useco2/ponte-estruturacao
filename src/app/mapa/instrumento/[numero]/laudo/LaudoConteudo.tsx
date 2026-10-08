@@ -3,7 +3,6 @@
  * inação, causas, linha do tempo com o texto do concedente, quem analisou e os documentos.
  * Recebe a leitura pronta (lib/oportunidades/laudo.ts); aqui só se apresenta.
  */
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
@@ -21,6 +20,7 @@ import {
 import type { ContextoPainel } from "@/lib/oportunidades/laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
+import { LinkMapa } from "../../../_componentes/LinkMapa";
 
 const AVISO =
   "Leitura automática de registros públicos do Transferegov (Acesso Livre e dados abertos). Não substitui o termo assinado, " +
@@ -81,18 +81,18 @@ export function LaudoConteudo({
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
-          <Link prefetch={false} href={urlInstrumento(numero)} className="pa-btn pa-btn-pequeno">
+          <LinkMapa href={urlInstrumento(numero)} className="pa-btn pa-btn-pequeno">
             Ver o convênio
-          </Link>
+          </LinkMapa>
           {!cliente && (
-            <Link prefetch={false} href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
+            <LinkMapa href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
               Todas as suspensivas
-            </Link>
+            </LinkMapa>
           )}
           {!cliente && contexto.orgao_sup && (
-            <Link prefetch={false} href={`/mapa/suspensivas/checklist?orgao=${encodeURIComponent(contexto.orgao_sup)}`} className="pa-btn pa-btn-pequeno">
+            <LinkMapa href={`/mapa/suspensivas/checklist?orgao=${encodeURIComponent(contexto.orgao_sup)}`} className="pa-btn pa-btn-pequeno">
               Checklist deste órgão
-            </Link>
+            </LinkMapa>
           )}
         </p>
         <p className="mp-fiscal-aviso">{AVISO}</p>
@@ -311,7 +311,7 @@ export function LaudoConteudo({
         </ul>
         {contexto.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <Link prefetch={false} href={urlDoMunicipio(contexto.cod_ibge, "dinheiro")}>Outros investimentos em {contexto.municipio ?? "neste município"}</Link>
+            <LinkMapa href={urlDoMunicipio(contexto.cod_ibge, "dinheiro")}>Outros investimentos em {contexto.municipio ?? "neste município"}</LinkMapa>
           </p>
         )}
       </section>

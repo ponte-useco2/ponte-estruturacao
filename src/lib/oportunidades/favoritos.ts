@@ -40,17 +40,131 @@ export const ROTULO_TIPO_ITEM: Record<TipoItem, string> = {
   entidade: "Entidade",
 };
 
-/** Para onde o item leva. A janela não tem página própria: o cartão no catálogo tem âncora. */
+/** Como as frases chamam o item: "Você deixou de seguir a janela X." */
+export const ARTIGO_TIPO_ITEM: Record<TipoItem, string> = {
+  janela: "a janela",
+  instrumento: "o convênio",
+  proposta: "a proposta",
+  municipio: "o município",
+  entidade: "a entidade",
+};
+
+/** Nome longo (o título da janela, o objeto da proposta) vai encurtado para caber no botão e no aviso. */
+const LIMITE_NOME = 100;
+
+function encurtar(t: string): string {
+  const s = t.trim().replace(/\s+/g, " ");
+  if (s.length <= LIMITE_NOME) return s;
+  const corte = s.slice(0, LIMITE_NOME - 1);
+  const espaco = corte.lastIndexOf(" ");
+  return `${(espaco > LIMITE_NOME * 0.6 ? corte.slice(0, espaco) : corte).replace(/[\s,.;:–—-]+$/, "")}…`;
+}
+
+/**
+ * O item seguido nas frases da estrela: "o convênio nº 956541", "a janela Edital…". O convênio vai pelo número,
+ * porque o título dele é o objeto. O título de reserva das telas ("Janela abc", quando o banco não tem título)
+ * não se repete: vira "a janela abc".
+ */
+export function nomeDoItemSeguido(tipo: TipoItem, chave: string, titulo: string | null): string {
+  if (tipo === "instrumento") return `${ARTIGO_TIPO_ITEM.instrumento} nº ${chave}`;
+  const proprio = titulo?.trim() && titulo.trim() !== `${ROTULO_TIPO_ITEM[tipo]} ${chave}` ? titulo : null;
+  return `${ARTIGO_TIPO_ITEM[tipo]} ${proprio ? encurtar(proprio) : chave}`;
+}
+
+/** O artigo e o tipo na frente, uma vez só: as telas mandam "a janela X" (o costume da onda 7) ou só "X". */
+function comArtigo(tipo: TipoItem, nome: string): string {
+  const n = nome.trim().replace(/\.$/, "");
+  const artigo = ARTIGO_TIPO_ITEM[tipo];
+  return n === artigo || n.startsWith(`${artigo} `) ? n : `${artigo} ${n}`;
+}
+
+/** Os textos da estrela num estado. Tudo diz QUAL item: no teste de 08/10/2026 a estrela sem nome levou ao item errado. */
+export interface RotuloEstrela {
+  /** A marca, que não depende de cor: ☆ vazia, ★ cheia. Vai com aria-hidden. */
+  icone: "☆" | "★";
+  /** O texto à vista ao lado da marca: "Seguir" ou "Seguindo". */
+  visivel: string;
+  /** O item com artigo, uma vez só: "a janela X". No botão vai em texto oculto, depois do texto à vista. */
+  item: string;
+  /**
+   * O nome acessível: o texto à vista e o item ("Seguindo a janela X"). Começa pelo que se vê, para quem comanda
+   * por voz (WCAG 2.5.3); o estado vai em aria-pressed.
+   */
+  nomeAcessivel: string;
+  /** O que o clique faz, com o item: "Seguir a janela X" / "Deixar de seguir a janela X". É o title (a dica). */
+  acao: string;
+  /** O aviso depois de chegar a este estado pela estrela. */
+  confirmacao: string;
+  /** O que o "Desfazer" faz a partir deste estado, para o leitor de tela: "voltar a seguir a janela X". */
+  desfazer: string;
+  /** O aviso depois de chegar a este estado pelo "Desfazer". */
+  desfeito: string;
+}
+
+export function rotuloEstrela(tipo: TipoItem, nome: string, seguindo: boolean): RotuloEstrela {
+  const item = comArtigo(tipo, nome);
+  return seguindo
+    ? {
+        icone: "★",
+        visivel: "Seguindo",
+        item,
+        nomeAcessivel: `Seguindo ${item}`,
+        acao: `Deixar de seguir ${item}`,
+        confirmacao: `Agora você segue ${item}.`,
+        desfazer: `deixar de seguir ${item}`,
+        desfeito: `Você voltou a seguir ${item}.`,
+      }
+    : {
+        icone: "☆",
+        visivel: "Seguir",
+        item,
+        nomeAcessivel: `Seguir ${item}`,
+        acao: `Seguir ${item}`,
+        confirmacao: `Você deixou de seguir ${item}.`,
+        desfazer: `voltar a seguir ${item}`,
+        desfeito: `Você deixou de seguir ${item}.`,
+      };
+}
+
 /**
  * Onde o item abre. O município abre a página com abas para todo aprovado (F1, 06/10/2026): o que cada um vê
- * lá dentro depende do nível de acesso, e o relatório completo é uma das abas.
+ * lá dentro depende do nível de acesso, e o relatório completo é uma das abas. A janela não tem página própria:
+ * o cartão no catálogo tem âncora, e só a aberta tem cartão (`situacaoDaJanela`).
  */
 export function urlDoItem(tipo: TipoItem, chave: string): string {
   if (tipo === "instrumento") return `/mapa/instrumento/${encodeURIComponent(chave)}`;
   if (tipo === "proposta") return `/mapa/proposta/${encodeURIComponent(chave)}`;
-  if (tipo === "municipio") return `/mapa/municipio/${encodeURIComponent(chave)}`;
+  // A página com abas só existe para a PB (`^25\d{5}$`); fora dela, a estrela vem dos investimentos, que aceitam
+  // qualquer UF, e o link para a página com abas dava 404 na carteira e em Meus itens (inventário B0, 08/10/2026).
+  if (tipo === "municipio") {
+    return /^25\d{5}$/.test(chave) ? `/mapa/municipio/${chave}` : `/mapa/municipio/${encodeURIComponent(chave)}/investimentos`;
+  }
   if (tipo === "entidade") return `/mapa/entidade/${encodeURIComponent(chave)}`;
   return `/mapa#janela-${chave}`;
+}
+
+/** As frases de abrir e fechar da janela: `fraseDoAviso` as escreve e `situacaoDaJanela` as lê. */
+export const FRASE_JANELA_FECHOU = "A janela fechou";
+export const FRASE_JANELA_REABRIU = "A janela abriu de novo";
+
+export type SituacaoJanela = "aberta" | "fechada" | "incerta";
+
+/**
+ * Se o nome da janela seguida pode virar link. A janela não tem página própria: `urlDoItem` aponta para a âncora
+ * do cartão no catálogo, e o catálogo só lista as abertas. Fechada, o link caía no topo do catálogo, onde a estrela
+ * à mão era a de outra janela (teste de 08/10/2026). Só "aberta" vira link.
+ *
+ * `rotulos`: as frases dos avisos da janela (`fraseDoAviso`), da mais nova para a mais velha; o último
+ * "fechou"/"abriu de novo" decide. `retrato`: o que o último retrato comparado diz, quando a tela o tem —
+ * true = aberta com prazo de hoje em diante; false = não (fechada, sem prazo ou prazo vencido desde a última
+ * rodada), e aí, sem aviso de que fechou, não dá para dizer qual: "incerta". Sem retrato (Meus itens), a janela
+ * conta como aberta até chegar o aviso de que fechou: só se segue janela que está no catálogo.
+ */
+export function situacaoDaJanela(rotulos: readonly string[], retrato?: boolean): SituacaoJanela {
+  if (retrato === true) return "aberta";
+  const sinal = rotulos.find((r) => r === FRASE_JANELA_FECHOU || r === FRASE_JANELA_REABRIU);
+  if (sinal === FRASE_JANELA_FECHOU) return "fechada";
+  return retrato === false ? "incerta" : "aberta";
 }
 
 export interface ItemSeguido {
@@ -219,13 +333,13 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
     case "prazo":
       return { rotulo: "O prazo da janela mudou", detalhe: `${antes ? formatarData(antes) : "sem prazo"} → ${depois ? formatarData(depois) : "sem prazo"}` };
     case "encerrada":
-      return { rotulo: "A janela fechou", detalhe: antes ? `O prazo era ${formatarData(antes)}.` : "Saiu das janelas abertas." };
+      return { rotulo: FRASE_JANELA_FECHOU, detalhe: antes ? `O prazo era ${formatarData(antes)}.` : "Saiu das janelas abertas." };
     case "reaberta":
-      return { rotulo: "A janela abriu de novo", detalhe: depois ? `Fecha em ${formatarData(depois)}.` : "Sem prazo informado pela fonte." };
+      return { rotulo: FRASE_JANELA_REABRIU, detalhe: depois ? `Fecha em ${formatarData(depois)}.` : "Sem prazo informado pela fonte." };
     case "fechando": {
       const dias = numero(depois);
       if (hoje && antes && antes < hoje) {
-        return { rotulo: "A janela fechou", detalhe: `O prazo era ${formatarData(antes)}; o aviso foi do dia em que ${dias === 1 ? "faltava 1 dia" : `faltavam ${dias ?? "poucos"} dias`}.` };
+        return { rotulo: FRASE_JANELA_FECHOU, detalhe: `O prazo era ${formatarData(antes)}; o aviso foi do dia em que ${dias === 1 ? "faltava 1 dia" : `faltavam ${dias ?? "poucos"} dias`}.` };
       }
       const quando = dias === 0 ? "Fecha hoje" : dias === 1 ? "Falta 1 dia" : `Faltam ${dias ?? "poucos"} dias`;
       return { rotulo: quando, detalhe: antes ? `O prazo é ${formatarData(antes)}.` : "Prazo curto." };

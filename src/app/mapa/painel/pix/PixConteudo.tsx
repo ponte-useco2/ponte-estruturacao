@@ -1,7 +1,6 @@
 /**
  * A exibição de "Pix e fundo a fundo". Recebe os dados já lidos e só desenha.
  */
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { UFS } from "@/lib/oportunidades/organizacao";
@@ -35,6 +34,7 @@ import { LIMITE_LISTA } from "@/lib/oportunidades/pix.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Cartao, Lista, n } from "../Pecas";
 import { CicloPix } from "./CicloPix";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraPix, { estado: "ok" }>;
 
@@ -70,27 +70,27 @@ export function PixConteudo({
       </div>
 
       <nav aria-label="Seções" className="pa-chips mp-painel-visoes">
-        <Link prefetch={false} href="/mapa/painel" className="pa-chip">
+        <LinkMapa href="/mapa/painel" className="pa-chip">
           ← Painel de execução
-        </Link>
+        </LinkMapa>
         {/* Onda 12, parte 3B: o Pix como o município gastou, nas despesas que ele presta ao TCE-PB (só PB). */}
-        <Link prefetch={false} href="/mapa/painel/tce" className="pa-chip">
+        <LinkMapa href="/mapa/painel/tce" className="pa-chip">
           Pix nas contas dos municípios (TCE-PB) →
-        </Link>
+        </LinkMapa>
         {(
           [
             ["especiais", "Transferências especiais (Pix)"],
             ["fundo", "Fundo a fundo"],
           ] as const
         ).map(([aba, rotulo]) => (
-          <Link prefetch={false}
+          <LinkMapa
             key={aba}
             href={urlPix(p, { aba })}
             className={`pa-chip${p.aba === aba ? " pa-ativo" : ""}`}
             aria-current={p.aba === aba ? "page" : undefined}
           >
             {rotulo}
-          </Link>
+          </LinkMapa>
         ))}
       </nav>
 
@@ -217,7 +217,7 @@ function Especiais({
       ) : (
         <p className="pa-nota">
           A lista plano a plano sai só para {leitura.ufLista}.{" "}
-          <Link prefetch={false} href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</Link>.
+          <LinkMapa href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</LinkMapa>.
         </p>
       )}
 
@@ -453,14 +453,14 @@ function TabelaPlanosEspeciais({ linhas, coluna }: { linhas: PlanoEspecial[]; co
           <tr key={l.id_plano_acao}>
             <th scope="row">
               {l.cnpj ? (
-                <Link prefetch={false} href={urlEntePix(l.cnpj)} className="mp-tabela-principal">
+                <LinkMapa href={urlEntePix(l.cnpj)} className="mp-tabela-principal">
                   {l.beneficiario ?? "—"}
-                </Link>
+                </LinkMapa>
               ) : (
                 <span className="mp-tabela-principal">{l.beneficiario ?? "—"}</span>
               )}
               <span className="mp-tabela-secundario">
-                <Link prefetch={false} href={urlLaudoPix(l.id_plano_acao)}>laudo do plano {l.codigo_plano_acao ?? l.id_plano_acao}</Link> · {l.ano}
+                <LinkMapa href={urlLaudoPix(l.id_plano_acao)}>laudo do plano {l.codigo_plano_acao ?? l.id_plano_acao}</LinkMapa> · {l.ano}
                 {l.numero_emenda ? ` · emenda ${l.numero_emenda}` : ""}
                 {l.duplicado ? " · contado duas vezes" : ""}
               </span>
@@ -648,7 +648,7 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
       ) : (
         <p className="pa-nota">
           O extrato das contas e a lista plano a plano saem só para {leitura.ufLista}.{" "}
-          <Link prefetch={false} href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</Link>.
+          <LinkMapa href={urlPix(p, { uf: leitura.ufLista })}>Ver {leitura.ufLista}</LinkMapa>.
         </p>
       )}
 
@@ -749,7 +749,7 @@ export function PixIndisponivel({ estado }: { estado: "nao_ativado" | "sem_execu
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
         <p>
-          <Link prefetch={false} href="/mapa/painel">Voltar ao painel de execução</Link>
+          <LinkMapa href="/mapa/painel">Voltar ao painel de execução</LinkMapa>
         </p>
       </div>
     </div>

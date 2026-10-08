@@ -1,0 +1,67 @@
+/* ==========================================================================
+   Esqueleto das páginas do Mapa (B10, 08/10/2026).
+
+   Mostrado pelo `loading.tsx` de cada rota enquanto o servidor lê o banco: no
+   teste de 08/10/2026 as telas levaram de 5 a 15 s sem retorno visual nenhum.
+   Só tokens do `mapa.css`, nenhuma cor nova. A geometria vem das classes da
+   própria página (`pa-pagina`, `mp-radar-cabeca`, `mp-mun-abas`, `pa-grade-4`,
+   `mp-tabela-rolagem`, `mp-busca-form`), para o conteúdo entrar no mesmo lugar.
+   ========================================================================== */
+
+/* Entra com um atraso curto: navegação que responde logo não pisca o esqueleto. */
+.pa-root .mp-esq { animation: mp-esq-entrar 0.2s ease-out 0.1s both; }
+
+/* O aviso escrito ("Carregando a página…"), com o mesmo ponto que pulsa no link clicado. */
+.pa-root .mp-esq-status { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.9rem; color: var(--pa-brand-2); }
+.pa-root .mp-esq-status::before {
+  content: ""; flex: none; width: 0.55rem; height: 0.55rem; border-radius: 999px;
+  background: currentColor; animation: mp-pulso 0.9s ease-in-out infinite;
+}
+
+/* O osso: um bloco no lugar de cada texto, número, botão ou campo. A largura vem do componente. */
+.pa-root .mp-esq-osso {
+  display: block; max-width: 100%; height: 0.8rem; margin: 0.2rem 0;
+  border-radius: var(--pa-r); background: var(--pa-border);
+  animation: mp-esq-pulso 1.6s ease-in-out infinite;
+}
+.pa-root .mp-esq-rotulo { height: 0.6rem; }
+.pa-root .mp-esq-titulo { height: clamp(1.35rem, 2.6vw, 1.85rem); margin: 0.1rem 0 0.25rem; }
+.pa-root .mp-esq-secao { height: 1.15rem; margin: 0 0 0.7rem; }
+.pa-root .mp-esq-numero { height: 1.7rem; margin: 0.35rem 0; }
+.pa-root .mp-esq-botao { height: 32px; margin: 0; }
+.pa-root .mp-esq-chip { height: 36px; margin: 0; border-radius: 999px; }
+.pa-root .mp-esq-campo { height: 44px; margin: 0; }
+.pa-root .mp-esq-figura {
+  height: auto; aspect-ratio: 16 / 10; max-width: 720px; margin: 0;
+  background: var(--pa-surface-2); border: 1px solid var(--pa-border);
+}
+
+/* Trilha "Onde você está", acima do título. */
+.pa-root .mp-esq-trilha { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.pa-root .mp-esq-trilha .mp-esq-osso { height: 0.7rem; }
+
+/* Abas: o contêiner é o `mp-mun-abas` da página; a primeira aparece marcada, como a aba de entrada. */
+.pa-root .mp-esq-aba { flex: none; padding: 0.6rem 0.85rem; border-bottom: 3px solid transparent; }
+.pa-root .mp-esq-aba-atual { border-bottom-color: var(--pa-border); }
+.pa-root .mp-esq-aba .mp-esq-osso { height: 0.75rem; margin: 0.15rem 0; }
+
+/* Tabela: mesma caixa que rola (`mp-tabela-rolagem`); a primeira coluna é a do nome, as outras são números. */
+.pa-root .mp-esq-linha {
+  display: grid; grid-template-columns: minmax(0, 2.2fr) repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: center;
+  padding: 0.6rem 0.7rem; border-bottom: 1px solid var(--pa-border);
+}
+.pa-root .mp-esq-linha:last-child { border-bottom: 0; }
+.pa-root .mp-esq-linha > :not(:first-child) { justify-self: end; }
+.pa-root .mp-esq-linha-cabeca { background: var(--pa-surface-2); }
+.pa-root .mp-esq-linha-cabeca .mp-esq-osso { height: 0.55rem; }
+
+@keyframes mp-esq-entrar { from { opacity: 0; } }
+@keyframes mp-esq-pulso { 50% { opacity: 0.45; } }
+
+/* Sem movimento: o esqueleto aparece de uma vez e fica parado; o texto continua dizendo que a página está a caminho. */
+@media (prefers-reduced-motion: reduce) {
+  /* O `::before` fica numa regra à parte: pseudoelemento dentro de `:is()` é descartado. */
+  .pa-root :is(.mp-esq, .mp-esq-osso) { animation: none; }
+  .pa-root .mp-esq-status::before { animation: none; opacity: 0.6; }
+  .pa-root .mp-esq-osso { opacity: 0.7; }
+}

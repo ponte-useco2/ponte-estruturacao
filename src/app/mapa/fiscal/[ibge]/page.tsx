@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { lerFiscalMunicipio } from "@/lib/oportunidades/fiscal.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { FiscalIndisponivel } from "../FiscalConteudo";
 import { FiscalMunicipioConteudo } from "./FiscalMunicipioConteudo";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
   title: "Capacidade fiscal do município · Painel · PONTE",
@@ -27,7 +27,7 @@ export default async function FiscalMunicipioPage({ params }: { params: Promise<
           <p className="pa-kicker">Capacidade fiscal · IBGE {ibge}</p>
           <h1 className="pa-titulo">Este código não está entre os 223 municípios da Paraíba</h1>
           <p>
-            <Link prefetch={false} href="/mapa/fiscal">Voltar à lista</Link>
+            <LinkMapa href="/mapa/fiscal">Voltar à lista</LinkMapa>
           </p>
         </div>
       </div>

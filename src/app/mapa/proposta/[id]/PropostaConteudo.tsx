@@ -1,7 +1,6 @@
 /**
  * A página de uma proposta: onde ela está, de quem é a vez e quanto o órgão costuma levar.
  */
-import Link from "next/link";
 import { parametrosBusca, urlBusca, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import type { LeituraProposta } from "@/lib/oportunidades/busca.server";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
@@ -17,6 +16,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { CopiarNumero } from "../../painel/CopiarNumero";
+import { LinkMapa } from "../../_componentes/LinkMapa";
 
 type LeituraOk = Extract<LeituraProposta, { estado: "ok" }>;
 
@@ -58,9 +58,9 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           {p.cod_ibge ? (
             <>
               {" · "}
-              <Link prefetch={false} href={urlDoMunicipio(p.cod_ibge)}>
+              <LinkMapa href={urlDoMunicipio(p.cod_ibge)}>
                 {p.municipio ?? `IBGE ${p.cod_ibge}`}/{p.uf}
-              </Link>
+              </LinkMapa>
             </>
           ) : null}
           {p.orgao_sup ? ` · ${p.orgao_sup}` : ""}
@@ -69,9 +69,9 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           <span className="pa-tag">{ROTULO_DESFECHO[p.desfecho] ?? p.desfecho}</span>
           {p.com_emenda && <span className="pa-tag">com emenda parlamentar</span>}
           {temas.map((t) => (
-            <Link prefetch={false} key={t} href={urlBusca(parametrosBusca({ aba: "propostas" }), { tema: t, uf: p.uf })} className="pa-tag">
+            <LinkMapa key={t} href={urlBusca(parametrosBusca({ aba: "propostas" }), { tema: t, uf: p.uf })} className="pa-tag">
               {ROTULO_TEMA[t]}
-            </Link>
+            </LinkMapa>
           ))}
         </p>
       </div>
@@ -152,7 +152,7 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           {leitura.convenioNaBusca ? (
             <>
               {" · "}
-              <Link prefetch={false} href={urlInstrumento(p.nr_convenio)}>ver o convênio</Link>
+              <LinkMapa href={urlInstrumento(p.nr_convenio)}>ver o convênio</LinkMapa>
             </>
           ) : (
             ", que não está na busca (fora da PB, só entram os convênios em execução ou em prestação de contas)"
