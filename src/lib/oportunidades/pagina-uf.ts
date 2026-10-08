@@ -13,7 +13,7 @@
 import { GRUPOS_SITUACAO } from "./busca.ts";
 import type { ItemCatalogo } from "./indicadores-municipio.ts";
 import { especieDe, lenteDe, type LenteEntidade } from "./pagina-entidade.ts";
-import type { NivelAcesso } from "./pagina-municipio.ts";
+import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
 import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, maisLento, medianaComparavel, type ColunaCsv, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
 
 export const NOME_UF: Record<string, string> = {
@@ -52,14 +52,17 @@ export function siglaDaUrl(v: string | null | undefined): string | null {
 
 export type AbaUf = "resumo" | "municipios" | "estado" | "dinheiro" | "tempos" | "relatorio";
 
-/** As abas e o nível mínimo de cada uma (D1): o público vê o resumo, os municípios, o estado e o dinheiro resumido. */
+/**
+ * As abas e o nível mínimo de cada uma (D1): o público vê o resumo, os municípios, o estado e o dinheiro resumido. Os
+ * nomes comuns aos 4 níveis vêm de `NOME_ABA` (B11, 08/10/2026: "Dinheiro" virou "Dinheiro federal", como no município).
+ */
 export const ABAS_UF: readonly { id: AbaUf; nome: string; minimo: NivelAcesso }[] = [
-  { id: "resumo", nome: "Resumo", minimo: 0 },
+  { id: "resumo", nome: NOME_ABA.resumo, minimo: 0 },
   { id: "municipios", nome: "Municípios", minimo: 0 },
   { id: "estado", nome: "O estado como proponente", minimo: 0 },
-  { id: "dinheiro", nome: "Dinheiro", minimo: 0 },
+  { id: "dinheiro", nome: NOME_ABA.dinheiro, minimo: 0 },
   { id: "tempos", nome: "Tempos e funil", minimo: 1 },
-  { id: "relatorio", nome: "Relatório e dados", minimo: 1 },
+  { id: "relatorio", nome: NOME_ABA.relatorio, minimo: 1 },
 ];
 
 export function abaDaUf(pedida: string | string[] | undefined, nivel: NivelAcesso): AbaUf {
@@ -78,7 +81,7 @@ export function ancoraRegiao(regiao: string): string {
   return `regiao-${s}`;
 }
 
-/** A trilha do município volta à lista dos municípios da UF, na região dele. */
+/** A trilha do município (`trilha.ts`) volta à lista dos municípios da UF, na região dele. */
 export function urlRegiao(sigla: string, regiao: string): string {
   return `${urlUf(sigla, "municipios")}#${ancoraRegiao(regiao)}`;
 }
@@ -188,14 +191,34 @@ export interface MunicipioUf {
 
 const porNome = (a: { nome: string }, b: { nome: string }) => a.nome.localeCompare(b.nome, "pt-BR");
 
-/** A lista neutra: as regiões imediatas em ordem alfabética, e os municípios em ordem alfabética dentro de cada uma. */
-export function municipiosPorRegiao(ms: MunicipioUf[]): { regiao: string; municipios: MunicipioUf[] }[] {
+/** As regiões intermediárias da lista, sem repetir e em ordem alfabética: a ordem da legenda e das cores do mapa da PB. */
+export function intermediariasDaUf(ms: MunicipioUf[]): string[] {
+  return [...new Set(ms.map((m) => m.intermediaria).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+/**
+ * A lista neutra: os municípios em ordem alfabética dentro de cada região imediata. O mapa da PB pinta pela região
+ * intermediária e a tabela agrupa pela imediata (achado H12 da auditoria B1+B2): cada grupo diz a sua intermediária, e
+ * os grupos vêm na ordem da legenda — as intermediárias em ordem alfabética e, dentro de cada uma, as imediatas — para
+ * as regiões da mesma cor ficarem juntas (B11, 08/10/2026). Continua alfabética, sem ordem de problema.
+ */
+export function municipiosPorRegiao(ms: MunicipioUf[]): { regiao: string; intermediaria: string | null; municipios: MunicipioUf[] }[] {
   const SEM = "Região não informada";
   const grupos = new Map<string, MunicipioUf[]>();
   for (const m of ms) grupos.set(m.regiao ?? SEM, [...(grupos.get(m.regiao ?? SEM) ?? []), m]);
-  return [...grupos.entries()]
-    .sort((a, b) => Number(a[0] === SEM) - Number(b[0] === SEM) || a[0].localeCompare(b[0], "pt-BR"))
-    .map(([regiao, xs]) => ({ regiao, municipios: [...xs].sort(porNome) }));
+  // Pelo desenho do IBGE, toda imediata cabe numa intermediária só: vale a primeira que aparecer no grupo.
+  const comIntermediaria = [...grupos.entries()].map(([regiao, xs]) => ({
+    regiao,
+    intermediaria: regiao === SEM ? null : (xs.find((m) => m.intermediaria)?.intermediaria ?? null),
+    municipios: [...xs].sort(porNome),
+  }));
+  return comIntermediaria.sort(
+    (a, b) =>
+      Number(a.regiao === SEM) - Number(b.regiao === SEM) ||
+      Number(a.intermediaria === null) - Number(b.intermediaria === null) ||
+      (a.intermediaria ?? "").localeCompare(b.intermediaria ?? "", "pt-BR") ||
+      a.regiao.localeCompare(b.regiao, "pt-BR"),
+  );
 }
 
 /** Só para o administrador: quem tem mais sinais do painel primeiro. */

@@ -1,0 +1,28 @@
+/* =====================================================================
+   B12 (onda 2 de UX, 08/10/2026; achado A15 da auditoria B1+B2) —
+   "Pular para o conteúdo". Fora da tela até receber o foco; com o foco,
+   aparece no canto de cima, acima do cabeçalho grudado (z-index 60).
+   O alvo é o <main id="conteudo"> da moldura (MapaFrame).
+   Só tokens do Mapa.
+   ===================================================================== */
+
+.pa-root .mp-pular {
+  position: absolute; z-index: 80; left: 0.8rem; top: 0.5rem;
+  display: inline-flex; align-items: center; min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  background: var(--pa-surface); color: var(--pa-brand-2);
+  border: 2px solid var(--pa-brand-2); border-radius: var(--pa-r);
+  font-weight: 700; font-size: 0.9rem;
+  text-decoration: underline; text-underline-offset: 2px;
+  transform: translateY(calc(-100% - 1rem));
+}
+.pa-root .mp-pular:focus { transform: none; outline: 3px solid var(--pa-brand-2); outline-offset: 2px; }
+
+/* O salto para no começo do conteúdo, não embaixo do cabeçalho grudado. */
+.pa-root .pa-main#conteudo { scroll-margin-top: calc(var(--pa-top-total) + 0.5rem); }
+/* O <main> recebe o foco só pelo salto: a moldura inteira contornada não ajuda ninguém. */
+.pa-root .pa-main#conteudo:focus { outline: none; }
+
+@media print {
+  .mp-pular { display: none !important; }
+}

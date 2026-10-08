@@ -30,15 +30,19 @@ import { rotuloDemaisPc33, secaoPc33 } from "@/lib/oportunidades/portaria33";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { descreverTce, tituloDebito, type SecaoTceTcu } from "@/lib/oportunidades/tce-tcu";
 import { moedaContas, type SecaoContasObras } from "@/lib/oportunidades/contas-obras";
+import { eloInstrumento, trilha } from "@/lib/oportunidades/trilha";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { Termo } from "../../../_componentes/Termo";
+import { Trilha } from "../../../_componentes/Trilha";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 const aviso = (cliente: boolean) =>
   `Leitura automática dos dados abertos do Transferegov${cliente ? "" : " e do painel fiscal"}. Não substitui o termo, o parecer do ` +
   "concedente nem orientação jurídica: confira no Transferegov a situação, a vigência e as condições do instrumento antes de agir.";
 
-const ROTULO_NIVEL: Record<Nivel, string> = { critico: "crítico", alto: "alto", moderado: "moderado", informativo: "informativo" };
+const ROTULO_NIVEL: Record<Nivel, string> = { critico: "crítico", alto: "alto", moderado: "moderado", informativo: "informação" };
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 const dias = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "dia" : "dias"}`;
@@ -74,6 +78,17 @@ export function DiagnosticoConteudo({
   return (
     <div className="pa-pagina mp-radar mp-laudo">
       <div className="pa-pilha mp-radar-cabeca">
+        <Trilha
+          elos={trilha(
+            {
+              uf: i.uf,
+              municipio: i.cod_ibge || i.municipio ? { ibge: i.cod_ibge, nome: i.municipio } : null,
+              entidade: { cnpj: i.cnpj, nome: i.proponente ? nomeProponente(i) : null },
+            },
+            eloInstrumento(i.nr_convenio, i.modalidade),
+            "Laudo",
+          )}
+        />
         <p className="pa-kicker">
           Laudo do instrumento · {rotuloModalidade(i.modalidade) ?? "instrumento"} nº {i.nr_convenio}
         </p>
@@ -97,11 +112,11 @@ export function DiagnosticoConteudo({
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           <LinkMapa href={urlInstrumento(i.nr_convenio)} className="pa-btn pa-btn-pequeno">
-            Ver o instrumento
+            Abrir a página do convênio
           </LinkMapa>
           {d.fiscal && !cliente && (
             <LinkMapa href={urlMunicipioFiscal(d.fiscal.ibge)} className="pa-btn pa-btn-pequeno">
-              Painel fiscal do município
+              Abrir o painel fiscal do município
             </LinkMapa>
           )}
         </p>
@@ -168,7 +183,7 @@ export function DiagnosticoConteudo({
           <h2 id="diag-tempo" className="mp-radar-h2">
             O tempo nesta etapa, contra quem já passou por ela
           </h2>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="diag-tempo">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -202,7 +217,7 @@ export function DiagnosticoConteudo({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           <p className="pa-nota">
             Etapa «{t.rotulo}». Este instrumento: {t.dias !== null ? `${dias(t.dias)} desde ${t.marco}, contados até ${data(hoje)}` : "sem data de início"}. A metade e o “9 em
             cada 10” vêm das etapas que terminaram nos últimos {Math.round(DIAS_JANELA_TEMPO / 365)} anos; “nesta etapa agora” conta quem ainda não saiu dela.
@@ -246,7 +261,9 @@ export function DiagnosticoConteudo({
         </ul>
         {i.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <LinkMapa href={urlDoMunicipio(i.cod_ibge, "dinheiro")}>Outros investimentos em {i.municipio ?? "neste município"}</LinkMapa>
+            <LinkMapa href={urlDoMunicipio(i.cod_ibge, "dinheiro")}>
+              Ver os outros investimentos {i.municipio ? `em ${i.municipio}` : "neste município"}
+            </LinkMapa>
           </p>
         )}
       </section>
@@ -278,7 +295,7 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
   return (
     <>
       <li>
-        Instrumento, valores, datas e situação: dados abertos do Transferegov (SICONV), painel de {data(referencia)}; prazos contados até {data(hoje)}.
+        Instrumento, valores, datas e situação: dados abertos do Transferegov (SICONV) de {data(referencia)}; prazos contados até {data(hoje)}.
       </li>
       <li>
         Tempo na etapa: marcos do histórico da proposta (envio, aprovação do plano de trabalho, assinatura, 1º desembolso), comparados com as
@@ -286,10 +303,10 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
         menos de 10 medições, a comparação não é feita.
       </li>
       <li>
-        Programa: na UF, todos os instrumentos da busca (na PB, a busca tem todos); no Brasil, as propostas enviadas desde 2019 — fora da PB a busca só
+        Programa: na UF, todos os instrumentos da base do Mapa (na PB, a base tem todos); no Brasil, as propostas enviadas desde 2019 — fora da PB a base só
         tem os instrumentos vivos, e contá-los esconderia os que ficaram pelo caminho.
       </li>
-      {d.proponente && <li>Proponente: os instrumentos do mesmo CNPJ na busca (todos, se o proponente é da PB; fora dela, só os vivos).</li>}
+      {d.proponente && <li>Proponente: os instrumentos do mesmo CNPJ na base do Mapa (todos, se o proponente é da PB; fora dela, só os vivos).</li>}
       <li>Emenda de origem: arquivo de emendas do SICONV, ligado pela proposta. O autor é agente público e aparece como registrado.</li>
       {d.fiscal && <li>Situação fiscal: painel de capacidade fiscal, decisão “receber transferência voluntária”, de {data(d.fiscal.referencia)}.</li>}
       {d.contasObras && (
@@ -308,7 +325,7 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
         <li>
           Fornecedores: pagamentos, contratos (ligados pela licitação) e empenhos do SICONV. Pessoa física entra só somada, sem nome; o que vai
           para a conta do próprio convenente ou do executor não é fornecedor. O “no TCE-PB” casa o pagamento com as despesas do município no
-          TCE-PB pelo CNPJ e pelo ano (o TCE não traz o número do convênio). A marca de inidôneo é a lista do TCU no dia do painel
+          TCE-PB pelo CNPJ e pelo ano (o TCE-PB não traz o número do convênio). A marca de inidôneo é a lista do TCU no dia do painel
           {d.fornecedores.tcuVerificado ? "" : " (não lida nesta execução: sem marca não quer dizer fora da lista)"}. Concentração é indicador
           para olhar, não irregularidade.
         </li>
@@ -439,7 +456,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
           </p>
           {pr.naUf && <Distribuicao v={pr.naUf} rotulo={`Na ${pr.uf}`} etapa={d.etapa} semNumeros={cliente} />}
           {pr.funis.length > 0 && (
-            <div className="mp-tabela-rolagem">
+            <TabelaRolagem rotulo="Propostas enviadas desde 2019 e o que aconteceu com elas">
               <table className="mp-tabela">
                 <caption className="mp-laudo-legenda-tabela">Propostas enviadas desde 2019 e o que aconteceu com elas</caption>
                 <thead>
@@ -475,7 +492,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TabelaRolagem>
           )}
           {brasil && brasil.enviadas > 0 && (
             <p className="pa-nota">
@@ -497,7 +514,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
               <>
                 {" · "}
                 <LinkMapa href={urlEntidade(d.proponente.cnpj)}>
-                  página da entidade
+                  abrir a página da entidade
                 </LinkMapa>
               </>
             )}
@@ -511,7 +528,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
           <h2 id="diag-emenda" className="mp-radar-h2">
             De onde veio o dinheiro
           </h2>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="diag-emenda">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -537,7 +554,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           <p className="pa-nota">Emendas parlamentares ligadas à proposta, como registradas no SICONV.</p>
         </section>
       )}
@@ -577,6 +594,7 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
                   {p.canal && p.canal !== "voluntaria" ? ` · ${ROTULO_CANAL[p.canal].toLowerCase()}` : ""} ·{" "}
                   <a href={p.fonteUrl} target="_blank" rel="noopener noreferrer">
                     {p.fonteNome}
+                    <span className="pa-sr"> (abre em nova aba)</span>
                   </a>
                 </p>
               </li>
@@ -606,7 +624,7 @@ function Distribuicao({
   const mostrados = semNumeros ? [] : v.mesmaEtapa.numeros.slice(0, 12);
   return (
     <>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo={`${rotulo}: ${n(v.total)} (${moedaCurta(v.valor)} de repasse)`}>
         <table className="mp-tabela">
           <caption className="mp-laudo-legenda-tabela">
             {rotulo}: {n(v.total)} ({moedaCurta(v.valor)} de repasse)
@@ -635,7 +653,7 @@ function Distribuicao({
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       {mostrados.length > 0 && (
         <p className="pa-nota">
           Na mesma etapa: {mostrados.map((nr, k) => (
@@ -698,9 +716,9 @@ function ExecucaoPc33({ i }: { i: InstrumentoLaudo }) {
         </details>
       )}
       <p className="pa-nota">
-        Conferido nos dados abertos do SICONV (cronograma de desembolso, metas, plano de aplicação, histórico do projeto, desembolsos,
-        pagamentos e contrapartida). &quot;A conferir&quot; é ponto para olhar, não irregularidade: a exceção pode estar justificada fora dos
-        dados abertos.
+        Conferido pela <Termo slug="pc-33">Portaria Conjunta 33/2023</Termo> ou pela norma da época, nos dados abertos do Transferegov (cronograma de
+        desembolso, metas, plano de aplicação, histórico do projeto, desembolsos, pagamentos e contrapartida). Ponto{" "}
+        <Termo slug="ponto-a-conferir">a conferir</Termo> é para olhar, não irregularidade: a exceção pode estar justificada fora dos dados abertos.
       </p>
     </section>
   );
@@ -724,11 +742,11 @@ function ContasEObra({ s, cliente }: { s: SecaoContasObras | null; cliente: bool
           <p className="pa-sub">{p.frase}</p>
           {p.cumprimento && <p className="pa-nota">{p.cumprimento}</p>}
           {p.eventos.length > 0 && (
-            <div className="mp-tabela-rolagem">
+            <TabelaRolagem rotuloId="diag-contas-obra">
               <table className="mp-tabela">
                 <thead>
                   <tr>
-                    <th scope="col">Evento no SIAFI</th>
+                    <th scope="col">Evento no SIAFI (sistema financeiro da União)</th>
                     <th scope="col">Data</th>
                     <th scope="col" className="mp-num">
                       Valor
@@ -748,7 +766,7 @@ function ContasEObra({ s, cliente }: { s: SecaoContasObras | null; cliente: bool
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TabelaRolagem>
           )}
           {p.pareceres.length > 0 && (
             <ul className="mp-laudo-lista">
@@ -803,7 +821,7 @@ function ContasNoTcu({ s }: { s: SecaoTceTcu | null }) {
           {s.tces.map((t, k) => (
             <li key={`${t.codigo ?? k}`} className="pa-cartao mp-laudo-risco mp-laudo-critico">
               <p>
-                <span className="pa-tag mp-laudo-nivel mp-laudo-critico">{t.situacao ?? "TCE"}</span>{" "}
+                <span className="pa-tag mp-laudo-nivel mp-laudo-critico">{t.situacao ?? "tomada de contas especial"}</span>{" "}
                 <strong>{tituloDebito(t)}</strong>
               </p>
               <p>{descreverTce(t)}</p>
@@ -820,6 +838,7 @@ function ContasNoTcu({ s }: { s: SecaoTceTcu | null }) {
                     (t.url_processo ? (
                       <a href={t.url_processo} target="_blank" rel="noopener noreferrer">
                         Processo TC {t.numero_processo} no TCU
+                        <span className="pa-sr"> (abre em nova aba)</span>
                       </a>
                     ) : (
                       `Processo TC ${t.numero_processo} no TCU`
@@ -832,9 +851,10 @@ function ContasNoTcu({ s }: { s: SecaoTceTcu | null }) {
         </ul>
       )}
       <p className="pa-nota">
-        Fonte: API pública do e-TCE do Tribunal de Contas da União, consultada toda semana para os convênios assinados da PB. A aba
-        &quot;TCE&quot; do convênio no Transferegov fica vazia mesmo quando há TCE, porque a TCE hoje corre no e-TCE. TCE instaurada é o órgão
-        apurando dano; quem julga é o TCU, e &quot;processo autuado&quot; não é condenação.
+        Fonte: API pública do sistema e-TCE do Tribunal de Contas da União, consultada toda semana para os convênios assinados da PB. A aba
+        &quot;TCE&quot; do convênio no Transferegov fica vazia mesmo quando há tomada de contas especial, porque o processo hoje corre no e-TCE.{" "}
+        <Termo slug="tomada-de-contas-especial">Tomada de contas especial</Termo> instaurada é o órgão apurando dano; quem julga é o TCU, e
+        &quot;processo autuado&quot; não é condenação.
       </p>
     </section>
   );
@@ -907,6 +927,7 @@ function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
                 rel="noopener noreferrer"
               >
                 ver no mapa
+                <span className="pa-sr"> (abre o OpenStreetMap em nova aba)</span>
               </a>
             </span>
             .
@@ -931,7 +952,7 @@ function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
 
 function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
   return (
-    <div className="mp-tabela-rolagem">
+    <TabelaRolagem rotulo="Empresas que receberam ou foram contratadas neste convênio">
       <table className="mp-tabela">
         <caption className="mp-laudo-legenda-tabela">Empresas que receberam ou foram contratadas neste convênio</caption>
         <thead>
@@ -993,13 +1014,13 @@ function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </TabelaRolagem>
   );
 }
 
 function TabelaContratos({ f }: { f: SecaoFornecedores }) {
   return (
-    <div className="mp-tabela-rolagem">
+    <TabelaRolagem rotulo="Contratos do convênio">
       <table className="mp-tabela">
         <caption className="mp-laudo-legenda-tabela">Contratos do convênio</caption>
         <thead>
@@ -1032,6 +1053,6 @@ function TabelaContratos({ f }: { f: SecaoFornecedores }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </TabelaRolagem>
   );
 }

@@ -36,13 +36,13 @@ test("seção: com TCE, sem TCE, sem consulta e fora do universo", () => {
 test("uma TCE numa linha", () => {
   assert.equal(
     descreverTce(tce()),
-    'TCE nº 518/2018 instaurada em 03/01/2018 por "não comprovação da regular aplicação dos recursos repassados pela União", ' +
+    'Tomada de contas especial nº 518/2018 instaurada em 03/01/2018 por "não comprovação da regular aplicação dos recursos repassados pela União", ' +
       "débito original de R$ 103.439,36 (R$ 274.114,28 com juros em 14/04/2020).",
   );
-  assert.equal(descreverTce(tce({ numero: null, dt_instauracao: null, motivo: null, debito_com_juros: 103439.36 })), "TCE de 2018, débito original de R$ 103.439,36.");
+  assert.equal(descreverTce(tce({ numero: null, dt_instauracao: null, motivo: null, debito_com_juros: 103439.36 })), "Tomada de contas especial de 2018, débito original de R$ 103.439,36.");
   // TCE antiga sem o débito original (736581, Campina Grande): vale o atualizado, e o texto diz isso.
   const antiga = tce({ numero: null, dt_instauracao: null, motivo: null, debito_original: null, debito_com_juros: 3562508.9, dt_atualizacao_debito: "2017-04-12" });
-  assert.equal(descreverTce(antiga), "TCE de 2018, débito de R$ 3.562.508,90 com juros em 12/04/2017 (o original não é informado).");
+  assert.equal(descreverTce(antiga), "Tomada de contas especial de 2018, débito de R$ 3.562.508,90 com juros em 12/04/2017 (o original não é informado).");
   assert.equal(tituloDebito(antiga), "Débito de R$ 3.562.508,90 com juros");
   assert.equal(tituloDebito(tce()), "Débito original de R$ 103.439,36");
   assert.match(riscoTceTcu({ consulta: consulta(1), tces: [antiga], referencia: null })!.fato, /^Débito de R\$ 3\.562\.508,90 com juros; processo/);

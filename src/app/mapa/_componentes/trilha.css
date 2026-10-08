@@ -1,0 +1,36 @@
+/* =====================================================================
+   A trilha "Onde você está" (B11, 08/10/2026; achados H08 e A14 da
+   auditoria B1+B2). Desenho em `Trilha.tsx`.
+
+   O desenho base continua no mapa.css, na classe `.mp-mun-trilha`, que
+   agora vai na lista (<ol>): fileira que quebra, cor apagada, o "›"
+   entre os elos (o ::before de cada <li> a partir do segundo), o elo
+   atual em negrito e o link sublinhado. Aqui fica só:
+     · o reset da lista (o design system zera <ul>, não <ol>);
+     · os elos alinhados pelo meio, porque no celular o link fica mais
+       alto que o texto do elo atual;
+     · o alvo de toque de 44 px abaixo de 640 px (A14: a trilha tinha
+       cerca de 19 px de altura e 5 px entre os links; o projeto adota
+       44 px nos alvos novos — WCAG 2.5.5).
+   Só tokens e classes que já existem; nada de cor nova.
+   ===================================================================== */
+
+.pa-root .mp-trilha .mp-mun-trilha {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .pa-root .mp-trilha .mp-mun-trilha {
+    row-gap: 0;
+  }
+  /* A altura do alvo vem do link, não da fonte: o texto continua do mesmo tamanho. */
+  .pa-root .mp-trilha .mp-mun-trilha a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

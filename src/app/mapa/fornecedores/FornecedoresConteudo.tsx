@@ -17,6 +17,7 @@ import {
 import { POR_PAGINA, type FiltroFornecedores, type LeituraPainelFornecedores, type LinhaPainel } from "@/lib/oportunidades/fornecedores.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPainelFornecedores, { estado: "ok" }>;
 
@@ -131,7 +132,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
             Nenhuma empresa neste filtro. <LinkMapa href="/mapa/fornecedores">Ver todas</LinkMapa>
           </p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="forn-lista">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -156,7 +157,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
         {total > POR_PAGINA && <p className="pa-nota">Refine pela busca ou pelo município para ver as demais.</p>}
       </section>
@@ -271,7 +272,7 @@ function Linha({ l }: { l: LinhaPainel }) {
 
 function TabelaConcentracao({ linhas, filtro }: { linhas: (ConcentracaoMunicipio & { faixa: string })[]; filtro: FiltroFornecedores }) {
   return (
-    <div className="mp-tabela-rolagem">
+    <TabelaRolagem rotuloId="forn-concentracao">
       <table className="mp-tabela">
         <thead>
           <tr>
@@ -316,6 +317,6 @@ function TabelaConcentracao({ linhas, filtro }: { linhas: (ConcentracaoMunicipio
           ))}
         </tbody>
       </table>
-    </div>
+    </TabelaRolagem>
   );
 }

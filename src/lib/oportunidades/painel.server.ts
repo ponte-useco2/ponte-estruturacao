@@ -8,6 +8,7 @@
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import { diaBrasilia } from "./laudo";
+import { compararPor, lerPorChave, type CriterioOrdem, type ErroLeitura, type RespostaPagina } from "./paginacao";
 import {
   ANOS_MOTIVOS,
   DESFECHOS_ABERTOS,
@@ -212,38 +213,86 @@ function consultaConvenios(db: Banco, execucaoId: number, f: FiltrosConvenio) {
 }
 type ConsultaConvenios = ReturnType<typeof consultaConvenios>;
 
+/** Na suspensiva da tela: a vencer (prazo >= referência da execução) ou já vencidos (prazo < referência). */
+interface PrazoSuspensiva {
+  referencia: string;
+  vencidos: boolean;
+}
+
 /**
- * O universo e a ordem de urgência de cada visão de convênio — a mesma na tela e no CSV.
- * Na suspensiva, `vencidos` separa os prazos já passados (ver `lerPainel`).
+ * O universo de cada visão de convênio (só os filtros; a ordem é a de `ordemDaVisao`).
+ *
+ * Na suspensiva da tela, `prazo` separa a vencer e vencidos pela data, e não por `suspensiva_dias` (D35,
+ * 08/10/2026): o job grava `suspensiva_dias = suspensiva_prazo − referência` (`painel_execucao/convenios.py`), então
+ * `dias >= 0` é o mesmo que `prazo >= referência` (conferido de novo em 08/10, execução 42: 0 divergências entre
+ * 6.142), e o prazo é a coluna do índice parcial da oport_35 — a lista do Brasil deixa de varrer a tabela (675 ms).
  */
-function naVisao(q: ConsultaConvenios, visao: Visao, lado: LadoContas, vencidos = false): ConsultaConvenios {
+function filtrarVisao(q: ConsultaConvenios, visao: Visao, lado: LadoContas, prazo?: PrazoSuspensiva): ConsultaConvenios {
   switch (visao) {
-    case "suspensiva":
-      return vencidos
-        ? q.eq("em_suspensiva", true).lt("suspensiva_dias", 0).order("suspensiva_prazo", { ascending: false })
-        : q.eq("em_suspensiva", true).gte("suspensiva_dias", 0).order("suspensiva_prazo", { ascending: true });
+    case "suspensiva": {
+      const s = q.eq("em_suspensiva", true);
+      if (!prazo) return s;
+      return prazo.vencidos ? s.lt("suspensiva_prazo", prazo.referencia) : s.gte("suspensiva_prazo", prazo.referencia);
+    }
     case "nunca":
-      return q
-        .eq("nunca_desembolsado", true)
-        .order("aceite_parado", { ascending: false })
-        .order("dt_aceite", { ascending: true, nullsFirst: false })
-        .order("dt_assinatura", { ascending: true });
+      return q.eq("nunca_desembolsado", true);
     case "vigencia":
-      return q.not("vigencia_faixa", "is", null).order("dias_para_fim", { ascending: true });
+      return q.not("vigencia_faixa", "is", null);
     case "contas":
-      // As atrasadas há mais tempo são convênios de 2008 que ninguém vai regularizar;
-      // as recentes são onde ainda dá para agir antes da inadimplência.
-      if (lado === "atrasada") return q.eq("contas_atrasada", true).order("dias_apos_limite", { ascending: true });
-      if (lado === "negativo") return q.eq("contas_lado", "negativo").order("repasse", { ascending: false });
-      if (lado === "tce") return q.eq("tce", true).order("repasse", { ascending: false });
-      return q.eq("contas_lado", "concedente").order("dias_com_concedente", { ascending: false });
+      if (lado === "atrasada") return q.eq("contas_atrasada", true);
+      if (lado === "negativo") return q.eq("contas_lado", "negativo");
+      if (lado === "tce") return q.eq("tce", true);
+      return q.eq("contas_lado", "concedente");
     case "saldo":
-      return q.eq("saldo_parado", true).order("saldo_conta", { ascending: false });
+      return q.eq("saldo_parado", true);
     case "fisico":
-      return q.eq("financeiro_sem_fisico", true).order("desembolsado", { ascending: false });
+      return q.eq("financeiro_sem_fisico", true);
     default:
       return q;
   }
+}
+
+/**
+ * A ordem de urgência de cada visão — a mesma na tela e no CSV (que a refaz depois de ler pela chave). Os índices
+ * parciais da oport_35 seguem estas ordens; mudar aqui pede rever o índice.
+ */
+function ordemDaVisao(visao: Visao, lado: LadoContas, vencidos = false): CriterioOrdem[] {
+  switch (visao) {
+    case "suspensiva":
+      // A vencer pelo mais próximo; vencidos dos mais recentes aos mais antigos.
+      return [{ coluna: "suspensiva_prazo", ascendente: !vencidos }];
+    case "nunca":
+      return [
+        { coluna: "aceite_parado", ascendente: false },
+        { coluna: "dt_aceite", ascendente: true, nulosPrimeiro: false },
+        { coluna: "dt_assinatura", ascendente: true },
+      ];
+    case "vigencia":
+      return [{ coluna: "dias_para_fim", ascendente: true }];
+    case "contas":
+      // As atrasadas há mais tempo são convênios de 2008 que ninguém vai regularizar;
+      // as recentes são onde ainda dá para agir antes da inadimplência.
+      if (lado === "atrasada") return [{ coluna: "dias_apos_limite", ascendente: true }];
+      if (lado === "negativo" || lado === "tce") return [{ coluna: "repasse", ascendente: false }];
+      return [{ coluna: "dias_com_concedente", ascendente: false }];
+    case "saldo":
+      return [{ coluna: "saldo_conta", ascendente: false }];
+    case "fisico":
+      return [{ coluna: "desembolsado", ascendente: false }];
+    default:
+      return [];
+  }
+}
+
+/**
+ * O universo e a ordem de urgência de cada visão de convênio.
+ * Na suspensiva, `prazo` separa os prazos já passados (ver `lerPainel`).
+ */
+function naVisao(q: ConsultaConvenios, visao: Visao, lado: LadoContas, prazo?: PrazoSuspensiva): ConsultaConvenios {
+  return ordemDaVisao(visao, lado, prazo?.vencidos ?? false).reduce(
+    (b, c) => b.order(c.coluna, { ascending: c.ascendente, nullsFirst: c.nulosPrimeiro }),
+    filtrarVisao(q, visao, lado, prazo),
+  );
 }
 
 export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
@@ -462,10 +511,11 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
     assinadoAte: p.assinadoAte,
     movimento: p.movimento,
   };
-  const lista = naVisao(consultaConvenios(db, execucao.id, filtrosConvenio), p.visao, p.lado).limit(LIMITE_LISTA);
+  const prazo = (vencidos: boolean): PrazoSuspensiva => ({ referencia: execucao.referencia, vencidos });
+  const lista = naVisao(consultaConvenios(db, execucao.id, filtrosConvenio), p.visao, p.lado, prazo(false)).limit(LIMITE_LISTA);
   const vencidos =
     p.visao === "suspensiva"
-      ? naVisao(consultaConvenios(db, execucao.id, filtrosConvenio), "suspensiva", p.lado, true).limit(LIMITE_VENCIDOS)
+      ? naVisao(consultaConvenios(db, execucao.id, filtrosConvenio), "suspensiva", p.lado, prazo(true)).limit(LIMITE_VENCIDOS)
       : Promise.resolve({ data: [], error: null });
   // "Por que se prorroga": aditivos de vigência do recorte nos últimos anos.
   const anoDado = Number(execucao.referencia.slice(0, 4));
@@ -520,9 +570,10 @@ export type LeituraExportacao<T> =
   | { estado: "erro"; mensagem: string }
   | { estado: "ok"; execucao: ExecucaoPainel; linhas: T[]; truncado: boolean };
 
-async function exportarPaginado<T>(
-  montar: (db: Banco, execucaoId: number) => { range: (de: number, ate: number) => PromiseLike<{ data: unknown; error: { message: string } | null }> },
-): Promise<LeituraExportacao<T>> {
+type LeituraLinhas<T> = { linhas: T[]; truncado: boolean } | { erro: ErroLeitura };
+
+/** A última execução concluída e, nela, as linhas que `ler` trouxer. */
+async function exportar<T>(ler: (db: Banco, execucaoId: number) => Promise<LeituraLinhas<T>>): Promise<LeituraExportacao<T>> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const ultima = await db.rpc("painel_ultima_execucao");
@@ -533,51 +584,70 @@ async function exportarPaginado<T>(
   const execucao = (ultima.data as ExecucaoPainel[] | null)?.[0];
   if (!execucao) return { estado: "sem_execucao" };
 
-  // O PostgREST corta cada resposta em 1.000 linhas: lê em páginas, com ordem total.
+  const r = await ler(db, execucao.id);
+  if ("erro" in r) {
+    console.error("exportar:", r.erro.message);
+    return { estado: "erro", mensagem: r.erro.message };
+  }
+  return { estado: "ok", execucao, linhas: r.linhas, truncado: r.truncado };
+}
+
+/** O PostgREST corta cada resposta em 1.000 linhas: lê em páginas por faixa, com ordem total. */
+async function lerPorFaixa<T>(consulta: (de: number, ate: number) => PromiseLike<RespostaPagina>): Promise<LeituraLinhas<T>> {
   const linhas: T[] = [];
   for (let inicio = 0; inicio < LIMITE_EXPORTACAO; inicio += PAGINA_EXPORTACAO) {
-    const pagina = await montar(db, execucao.id).range(inicio, inicio + PAGINA_EXPORTACAO - 1);
-    if (pagina.error) {
-      console.error("exportar:", pagina.error.message);
-      return { estado: "erro", mensagem: pagina.error.message };
-    }
+    const pagina = await consulta(inicio, inicio + PAGINA_EXPORTACAO - 1);
+    if (pagina.error) return { erro: pagina.error };
     const dados = (pagina.data ?? []) as T[];
     linhas.push(...dados);
-    if (dados.length < PAGINA_EXPORTACAO) return { estado: "ok", execucao, linhas, truncado: false };
+    if (dados.length < PAGINA_EXPORTACAO) return { linhas, truncado: false };
   }
-  return { estado: "ok", execucao, linhas, truncado: true };
+  return { linhas, truncado: true };
 }
 
 /**
  * Todos os convênios de uma visão com os filtros da tela. `null` como visão = todos os
  * convênios do painel que passam nos filtros (a exportação da ficha do município).
+ *
+ * Lê pelo número do convênio (D35, 08/10/2026) e refaz a ordem da tela aqui. Por faixa, cada página repetia a
+ * varredura e a ordenação da visão inteira: "nunca desembolsado" do Brasil, ~2,8 s × 22 páginas. Pelo número, cada
+ * página continua de onde a anterior parou (`painel_convenio_nr_idx`; a tabela está gravada quase na ordem do
+ * número). Acima do teto de 50 mil linhas o corte passaria a ser pelos números, não pela ordem da tela — nenhuma
+ * visão chega perto (a maior, "nunca" no Brasil, tem 21 mil).
  */
 export function lerConveniosParaExportar(visao: Visao | null, lado: LadoContas, filtros: FiltrosConvenio) {
-  return exportarPaginado<ConvenioPainel>((db, execucaoId) => {
-    const base = consultaConvenios(db, execucaoId, filtros);
-    // Na suspensiva o CSV leva os vencidos junto, pelo prazo; a tela os separa em duas listas.
-    const consulta =
-      visao === null
-        ? base
-        : visao === "suspensiva"
-          ? base.eq("em_suspensiva", true).order("suspensiva_prazo", { ascending: true })
-          : naVisao(base, visao, lado);
-    // Desempate pelo número: sem ordem total, a paginação por faixa repete ou pula linhas.
-    return consulta.order("nr_convenio", { ascending: true });
+  return exportar<ConvenioPainel>(async (db, execucaoId) => {
+    const r = await lerPorChave<ConvenioPainel>(
+      (c) => c.nr_convenio,
+      (depois, tamanho) => {
+        const base = consultaConvenios(db, execucaoId, filtros);
+        // Na suspensiva o CSV leva os vencidos junto, pelo prazo; a tela os separa em duas listas.
+        let q = visao === null ? base : filtrarVisao(base, visao, lado);
+        if (depois !== null) q = q.gt("nr_convenio", depois);
+        return q.order("nr_convenio", { ascending: true }).limit(tamanho);
+      },
+      { teto: LIMITE_EXPORTACAO, pagina: PAGINA_EXPORTACAO },
+    );
+    if ("erro" in r) return r;
+    // Desempate pelo número, como antes: a ordem é total.
+    const ordem: CriterioOrdem[] = [...(visao === null ? [] : ordemDaVisao(visao, lado)), { coluna: "nr_convenio", ascendente: true }];
+    return { linhas: r.linhas.sort(compararPor<ConvenioPainel>(ordem)), truncado: r.truncado };
   });
 }
 
-/** As propostas recentes de um município, para o CSV da ficha. */
+/** As propostas recentes de um município, para o CSV da ficha (poucas, pelo índice do município: por faixa). */
 export function lerPropostasParaExportar(ibge: string, agente: string | null) {
-  return exportarPaginado<PropostaPainel & { municipio: string | null; uf: string | null }>((db, execucaoId) => {
-    let q = db
-      .from("painel_proposta")
-      .select(`uf, municipio, ${COLUNAS_PROPOSTA}`)
-      .eq("execucao_id", execucaoId)
-      .eq("cod_ibge", ibge);
-    if (agente) q = q.eq("tipo_agente", agente);
-    return q.order("dt_envio", { ascending: false }).order("id_proposta", { ascending: true });
-  });
+  return exportar<PropostaPainel & { municipio: string | null; uf: string | null }>((db, execucaoId) =>
+    lerPorFaixa((de, ate) => {
+      let q = db
+        .from("painel_proposta")
+        .select(`uf, municipio, ${COLUNAS_PROPOSTA}`)
+        .eq("execucao_id", execucaoId)
+        .eq("cod_ibge", ibge);
+      if (agente) q = q.eq("tipo_agente", agente);
+      return q.order("dt_envio", { ascending: false }).order("id_proposta", { ascending: true }).range(de, ate);
+    }),
+  );
 }
 
 function semNulos<T extends Record<string, unknown>>(o: T): Partial<T> {

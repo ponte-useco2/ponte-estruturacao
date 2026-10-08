@@ -16,6 +16,7 @@ import {
   resumoEventos,
   rotuloModalidade,
   rotuloSituacaoHistorico,
+  saidasIndisponivel,
   situacoesDoGrupo,
   termosDaBusca,
   totalDePaginas,
@@ -127,6 +128,32 @@ test("teste da E3: sem termo nem filtro, a busca de convênios e propostas não 
   assert.equal(buscaSemFiltro(parametrosBusca({ uf: "PB" })), false);
   assert.equal(buscaSemFiltro(parametrosBusca({ tema: "saude" })), false);
   assert.equal(buscaSemFiltro(parametrosBusca({ aba: "organizacoes" })), false, "o cadastro das OSC é leve: lista sem termo");
+});
+
+test("B12: indisponível — sem endereço, busca e janelas; com endereço, 'Tentar de novo' e sem link para a própria página", () => {
+  assert.deepEqual(saidasIndisponivel(), {
+    tentar: null,
+    saidas: [
+      { rotulo: "Procurar na busca", href: "/mapa/busca" },
+      { rotulo: "Voltar às janelas", href: "/mapa" },
+    ],
+  });
+  assert.deepEqual(saidasIndisponivel("/mapa/busca?q=creche&pagina=2"), {
+    tentar: "/mapa/busca?q=creche&pagina=2",
+    saidas: [{ rotulo: "Voltar às janelas", href: "/mapa" }],
+  });
+  const mun = saidasIndisponivel("/mapa/municipio/2516201/relatorio", { rotulo: "Voltar ao município", href: "/mapa/municipio/2516201" });
+  assert.deepEqual(mun.saidas.map((s) => s.rotulo), ["Voltar ao município", "Procurar na busca", "Voltar às janelas"]);
+  // A volta para a mesma página é o próprio "Tentar de novo"; endereço de fora do Mapa não vira link.
+  assert.deepEqual(saidasIndisponivel("/mapa/carteira", { rotulo: "Carteira", href: "/mapa/carteira?x=1" }).saidas.length, 2);
+  assert.deepEqual(saidasIndisponivel("https://exemplo.com/mapa", { rotulo: "Fora", href: "//exemplo.com" }), {
+    tentar: null,
+    saidas: [
+      { rotulo: "Procurar na busca", href: "/mapa/busca" },
+      { rotulo: "Voltar às janelas", href: "/mapa" },
+    ],
+  });
+  assert.equal(saidasIndisponivel("/mapageral").tentar, null, "prefixo parecido não vale");
 });
 
 test("E3: a aba das organizações é só da PB, sem tema nem grupo", () => {

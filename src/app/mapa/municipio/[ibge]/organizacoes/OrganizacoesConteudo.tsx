@@ -16,12 +16,12 @@ import {
 } from "@/lib/oportunidades/osc";
 import type { OscDoMunicipio } from "@/lib/oportunidades/osc.server";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
-import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
-import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
-import { urlUf } from "@/lib/oportunidades/pagina-uf";
+import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../../_componentes/Carregando";
 import { Termo } from "../../../_componentes/Termo";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { Trilha } from "../../../_componentes/Trilha";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 
@@ -58,18 +58,8 @@ export function OrganizacoesConteudo({
   return (
     <div className="pa-pagina mp-radar mp-mun">
       <div className="pa-pilha mp-radar-cabeca">
-        <nav aria-label="Onde você está" className="mp-mun-trilha">
-          <LinkMapa href={urlBrasil()}>
-            Brasil
-          </LinkMapa>
-          <LinkMapa href={urlUf("PB")}>
-            Paraíba
-          </LinkMapa>
-          <LinkMapa href={urlMunicipio(ibge, "dinheiro")}>
-            {municipio}
-          </LinkMapa>
-          <span aria-current="page">Organizações da sociedade civil</span>
-        </nav>
+        {/* O município volta à aba de onde a lista se abre ("Dinheiro federal", bloco "Quem recebe no município"). */}
+        <Trilha elos={trilha({ uf: "PB", municipio: { ibge, nome: municipio, aba: "dinheiro" } }, "Organizações da sociedade civil")} />
         <h1 className="pa-titulo">Organizações da sociedade civil em {municipio}</h1>
         <p className="pa-sub">
           {n(r.ativas)} <Termo slug="osc-ativa">{r.ativas === 1 ? "organização ativa" : "organizações ativas"}</Termo> ({n(r.matrizes)} matrizes e{" "}
@@ -115,8 +105,8 @@ export function OrganizacoesConteudo({
           {area ? ` · ${rotuloArea(area)}` : ""}
         </h2>
         {lista.grupos.length > 0 && (
-          <div className="mp-tabela-rolagem">
-            <table className="mp-tabela">
+          <TabelaRolagem rotuloId="osc-lista">
+            <table className="mp-tabela mp-tabela-empilha">
               <thead>
                 <tr>
                   <th scope="col">Organização</th>
@@ -147,15 +137,15 @@ export function OrganizacoesConteudo({
                       )}
                       {g.matrizFora && g.principal.matriz === false && <span className="pa-nota"> · filial (a matriz fica fora desta lista)</span>}
                     </td>
-                    <td>{rotuloNatureza(g.principal.natureza_juridica)}</td>
-                    <td>{g.principal.areas.length ? g.principal.areas.map(rotuloArea).join("; ") : "—"}</td>
-                    <td>{g.principal.dt_fundacao?.slice(0, 4) ?? "—"}</td>
-                    <td className="mp-rel-num">{g.instrumentos ? n(g.instrumentos) : "—"}</td>
+                    <td data-rotulo="Natureza">{rotuloNatureza(g.principal.natureza_juridica)}</td>
+                    <td data-rotulo="Área">{g.principal.areas.length ? g.principal.areas.map(rotuloArea).join("; ") : "—"}</td>
+                    <td data-rotulo="Fundação">{g.principal.dt_fundacao?.slice(0, 4) ?? "—"}</td>
+                    <td data-rotulo="Instrumentos federais" className="mp-rel-num">{g.instrumentos ? n(g.instrumentos) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
         {lista.paginas > 1 && (
           <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">

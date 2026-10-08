@@ -7,9 +7,16 @@
  * `_lib/fixtures` e cujo "sair" apenas limpava estado local em memória. Aqui o
  * que aparece vem do Supabase e o que sai, sai de verdade: `signOut` derruba o
  * cookie de sessão antes de navegar.
+ *
+ * B12 (onda 2 de UX, 08/10/2026; achado A13 da auditoria B1+B2): é um disclosure, não um menu. O botão dizia
+ * `aria-haspopup`, mas o painel é uma lista de links e botões que se percorre com Tab, sem setas: agora só
+ * `aria-expanded` e `aria-controls`, e o painel fica no DOM, escondido (`hidden`), para o `aria-controls` sempre
+ * apontar para algo. Esc fecha e devolve o foco ao botão (antes o painel desmontava com o foco dentro, que caía no
+ * <body>). A organização ativa é texto com "(ativa)", não um botão desabilitado, que saía da ordem do Tab e calava
+ * o `aria-current`.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
@@ -43,6 +50,8 @@ export function ContaMenu({
 
   const [saindo, setSaindo] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const botaoRef = useRef<HTMLButtonElement | null>(null);
+  const painelId = useId();
 
   useEffect(() => {
     if (!aberto) return;
@@ -50,7 +59,11 @@ export function ContaMenu({
       if (!wrapRef.current?.contains(e.target as Node)) setAbertoEm(null);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setAbertoEm(null);
+      if (e.key !== "Escape") return;
+      // O foco que estava no painel (ou no botão) volta ao botão; o que estava fora da conta fica onde está.
+      const dentro = wrapRef.current?.contains(document.activeElement) ?? false;
+      setAbertoEm(null);
+      if (dentro) botaoRef.current?.focus();
     };
     document.addEventListener("mousedown", onClique);
     document.addEventListener("keydown", onKey);
@@ -82,10 +95,11 @@ export function ContaMenu({
   return (
     <div className="pa-menu-wrap pa-perfil-wrap" ref={wrapRef}>
       <button
+        ref={botaoRef}
         type="button"
         className="pa-perfil-chip"
         aria-expanded={aberto}
-        aria-haspopup="true"
+        aria-controls={painelId}
         onClick={() => setAbertoEm(aberto ? null : pathname)}
         title={email}
         // Nome explícito, e não o conteúdo: no celular `pa-esconde-mobile` é
@@ -106,50 +120,56 @@ export function ContaMenu({
         </span>
       </button>
 
-      {aberto && (
-        <div className="pa-menu">
-          <p className="pa-mono pa-menu-grupo">Conta</p>
-          <p className="mp-conta-email">{email}</p>
+      {/* Sempre no DOM, escondido quando fechado: `.pa-menu` não declara `display`, e o `hidden` vale. */}
+      <div className="pa-menu" id={painelId} hidden={!aberto}>
+        <p className="pa-mono pa-menu-grupo">Conta</p>
+        <p className="mp-conta-email">{email}</p>
 
-          <div className="pa-menu-sep" />
-          <p className="pa-mono pa-menu-grupo">Organização</p>
+        <div className="pa-menu-sep" />
+        <p className="pa-mono pa-menu-grupo">Organização</p>
 
-          {organizacoes.length === 0 ? (
-            <LinkMapa href="/mapa/conta/organizacao">Declarar a entidade</LinkMapa>
-          ) : (
-            <>
-              {organizacoes.map((o) => (
+        {organizacoes.length === 0 ? (
+          <LinkMapa href="/mapa/conta/organizacao">Declarar a entidade</LinkMapa>
+        ) : (
+          <>
+            {organizacoes.map((o) =>
+              o.id === ativa?.id ? (
+                // A ativa é texto: não há o que trocar, e o "(ativa)" à vista diz o que o realce diz.
+                <p key={o.id} className="mp-org-botao" aria-current="true">
+                  <span>{o.nome} (ativa)</span>
+                  <span className="pa-espaco" />
+                  <span className="mp-org-tipo">{ROTULO_AGENTE[o.tipo]}</span>
+                </p>
+              ) : (
                 // Um formulário por entidade, e não um select: trocar é ação de
                 // servidor (grava cookie e revalida), e assim funciona antes de
                 // o JavaScript carregar.
                 <form key={o.id} action={trocarOrganizacao} className="mp-org-troca">
                   <input type="hidden" name="organizacao_id" value={o.id} />
-                  <button
-                    type="submit"
-                    className="mp-org-botao"
-                    aria-current={o.id === ativa?.id}
-                    disabled={o.id === ativa?.id}
-                  >
-                    <span>{o.nome}</span>
+                  <button type="submit" className="mp-org-botao">
+                    <span>
+                      {o.nome}
+                      <span className="pa-sr"> (trocar para esta)</span>
+                    </span>
                     <span className="pa-espaco" />
                     <span className="mp-org-tipo">{ROTULO_AGENTE[o.tipo]}</span>
                   </button>
                 </form>
-              ))}
-              <LinkMapa href="/mapa/conta/organizacao">Acrescentar outra</LinkMapa>
-            </>
-          )}
+              ),
+            )}
+            <LinkMapa href="/mapa/conta/organizacao">Acrescentar outra</LinkMapa>
+          </>
+        )}
 
-          <div className="pa-menu-sep" />
-          <Link prefetch={false} href="/privacidade">Aviso de privacidade</Link>
-          <Link prefetch={false} href="/termos">Termos de uso</Link>
+        <div className="pa-menu-sep" />
+        <Link prefetch={false} href="/privacidade">Aviso de privacidade</Link>
+        <Link prefetch={false} href="/termos">Termos de uso</Link>
 
-          <div className="pa-menu-sep" />
-          <button type="button" className="pa-menu-sair" onClick={sair} disabled={saindo}>
-            {saindo ? "Saindo…" : "Sair"}
-          </button>
-        </div>
-      )}
+        <div className="pa-menu-sep" />
+        <button type="button" className="pa-menu-sair" onClick={sair} disabled={saindo}>
+          {saindo ? "Saindo…" : "Sair"}
+        </button>
+      </div>
     </div>
   );
 }

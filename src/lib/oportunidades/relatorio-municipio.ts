@@ -678,9 +678,9 @@ function achadosControle(s: SecaoControle, e: EntradaRelatorio): Achado[] {
       fato:
         `${risco?.fato ?? ""} Convênios: ${lista(orgaos)}.` +
         (s.divergentes.length
-          ? ` O SICONV mostra ${lista(s.divergentes.map((d) => `${d.nr_convenio} como «${d.situacao}»`))}: a situação do arquivo aberto não acompanha a TCE.`
+          ? ` O SICONV mostra ${lista(s.divergentes.map((d) => `${d.nr_convenio} como «${d.situacao}»`))}: a situação nos dados abertos ainda não mostra a tomada de contas especial.`
           : ""),
-      acao: "Acompanhar cada TCE no TCU e reunir a defesa ou o recolhimento do débito; débito julgado vira inscrição no CADIN.",
+      acao: "Acompanhar cada tomada de contas especial no TCU e reunir a defesa ou o recolhimento do débito; débito julgado pode levar à inscrição no cadastro de devedores da União (CADIN).",
       peso: 1,
       numeros: porConvenio,
     });
@@ -688,7 +688,7 @@ function achadosControle(s: SecaoControle, e: EntradaRelatorio): Achado[] {
     a.push({
       nivel: "em_dia",
       dimensao: "controle",
-      titulo: "Nenhuma TCE no TCU",
+      titulo: "Nenhuma tomada de contas especial no TCU",
       fato:
         `${plural(s.consultados, "convênio consultado", "convênios consultados")} no e-TCE em ${data(s.referenciaTcu)}, sem tomada de contas especial. ` +
         "A consulta cobre os convênios assinados; os anulados, cancelados e os nunca assinados ficam fora.",
@@ -1159,7 +1159,7 @@ function cartoes(r: Pick<Relatorio, "fiscal" | "convenios" | "controle">, e: Ent
   const ct = r.controle;
   if (ct) {
     c.push({
-      rotulo: "TCE no TCU",
+      rotulo: "Tomadas de contas especiais (TCU)",
       valor: n(new Set(ct.tces.map((t) => t.nr_convenio)).size),
       nota: ct.tces.length ? `${moedaCurta(ct.debitoOriginal)} de débito original; ${moedaCurta(ct.debitoComJuros)} com juros.` : `Consulta de ${data(ct.referenciaTcu)}.`,
       nivel: ct.tces.length ? "critico" : "em_dia",

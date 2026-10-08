@@ -35,6 +35,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Cartao, Lista, n } from "../Pecas";
 import { CicloPix } from "./CicloPix";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPix, { estado: "ok" }>;
 
@@ -247,7 +248,7 @@ function Funil({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
   return (
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">O caminho do dinheiro</h3>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="O caminho do dinheiro">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -269,7 +270,7 @@ function Funil({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </div>
   );
 }
@@ -279,7 +280,7 @@ function PorAnoEspeciais({ recorte, leitura }: { recorte: string; leitura: Leitu
   return (
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">Por ano do plano</h3>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="Por ano do plano">
         <table className="mp-tabela mp-pix-anos">
           <thead>
             <tr>
@@ -306,7 +307,7 @@ function PorAnoEspeciais({ recorte, leitura }: { recorte: string; leitura: Leitu
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       <p className="pa-nota">Com relatório e com final: fração do valor pago.</p>
     </div>
   );
@@ -319,7 +320,7 @@ function Motivos({ recorte, leitura }: { recorte: string; leitura: LeituraOk }) 
   return (
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">Por que ficaram impedidos</h3>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="Por que ficaram impedidos">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -342,7 +343,7 @@ function Motivos({ recorte, leitura }: { recorte: string; leitura: LeituraOk }) 
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </div>
   );
 }
@@ -357,7 +358,7 @@ function Reapresentacao({ recorte, leitura }: { recorte: string; leitura: Leitur
         Impedido no 1º ciclo com um plano igual (mesma emenda, mesmo CNPJ, mesmos valores) num ciclo posterior do mesmo exercício, que
         ficou ciente. O pago é o do plano novo.
       </p>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="Impedidos que voltaram no mesmo ano">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -380,7 +381,7 @@ function Reapresentacao({ recorte, leitura }: { recorte: string; leitura: Leitur
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </div>
   );
 }
@@ -403,7 +404,7 @@ function ResumoLaudo({ laudo, uf }: { laudo: ResumoPainelLaudoPix | null; uf: st
         Cada item do roteiro da IN-TCU 93/2024, conferido plano a plano nos dados abertos. &quot;A conferir&quot; é ponto para olhar, não
         irregularidade. O laudo de cada plano está nas listas abaixo e na página do ente.
       </p>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo={`O laudo dos planos de ${uf}`}>
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -432,7 +433,7 @@ function ResumoLaudo({ laudo, uf }: { laudo: ResumoPainelLaudoPix | null; uf: st
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       <p className="pa-nota">Outros: informação, no prazo, legado e não verificável. Planos impedidos ficam de fora da contagem.</p>
     </div>
   );
@@ -550,7 +551,7 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
 
       <div className="mp-radar-recorte">
         <h3 className="mp-radar-h3">Por ano do programa</h3>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo="Por ano do programa">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -573,12 +574,12 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </div>
 
       <div className="mp-radar-recorte">
         <h3 className="mp-radar-h3">Por órgão repassador</h3>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo="Por órgão repassador">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -601,14 +602,14 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </div>
 
       {fila.length > 0 && (
         <div className="mp-radar-recorte">
           <h3 className="mp-radar-h3">Relatórios de gestão dos planos em execução</h3>
           <p className="pa-nota">Pela situação do último relatório de cada plano.</p>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Relatórios de gestão dos planos em execução">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -629,7 +630,7 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </div>
       )}
 

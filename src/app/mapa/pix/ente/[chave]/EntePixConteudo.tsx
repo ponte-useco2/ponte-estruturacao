@@ -11,6 +11,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { PixNoTce } from "../../PixNoTce";
 import { AVISO_PIX } from "../../plano/[id]/PlanoPixConteudo";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraLaudoEntePix, { estado: "ok" }>;
 
@@ -64,8 +65,8 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
             Plano impedido não recebe repasse. &quot;Voltou no mesmo ano&quot; é o plano reapresentado num ciclo seguinte que ficou ciente (ou a
             repetição do mesmo plano); a perda líquida é o resto. O porquê de cada um está no laudo do plano.
           </p>
-          <div className="mp-tabela-rolagem">
-            <table className="mp-tabela">
+          <TabelaRolagem rotuloId="ente-impedidos">
+            <table className="mp-tabela mp-tabela-empilha">
               <thead>
                 <tr>
                   <th scope="col">Ano</th>
@@ -81,17 +82,17 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
                 {impedidos.map((i) => (
                   <tr key={`${i.ano}-${i.grupo}`}>
                     <td>{i.ano}</td>
-                    <td>{i.rotulo}</td>
-                    <td>{ROTULO_LADO_MOTIVO[i.lado]}</td>
-                    <td className="mp-num">{n(i.planos)}</td>
-                    <td className="mp-num">{moedaCurta(i.valor)}</td>
-                    <td className="mp-num">{i.valorRecuperado > 0 ? moedaCurta(i.valorRecuperado) : "—"}</td>
-                    <td className="mp-num">{moedaCurta(i.valorPerdido)}</td>
+                    <td data-rotulo="Motivo">{i.rotulo}</td>
+                    <td data-rotulo="De quem era a vez">{ROTULO_LADO_MOTIVO[i.lado]}</td>
+                    <td data-rotulo="Planos" className="mp-num">{n(i.planos)}</td>
+                    <td data-rotulo="Valor" className="mp-num">{moedaCurta(i.valor)}</td>
+                    <td data-rotulo="Voltou no mesmo ano" className="mp-num">{i.valorRecuperado > 0 ? moedaCurta(i.valorRecuperado) : "—"}</td>
+                    <td data-rotulo="Perda líquida" className="mp-num">{moedaCurta(i.valorPerdido)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </section>
       )}
 
@@ -99,7 +100,7 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
         <h2 id="ente-planos" className="mp-radar-h2">
           Plano a plano
         </h2>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="ente-planos">
           <table className="mp-tabela mp-pix-laudo-ente">
             <thead>
               <tr>
@@ -143,7 +144,7 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
         <p className="pa-nota">O laudo de cada plano traz todos os itens, com o fato e o dispositivo de cada um.</p>
       </section>
 

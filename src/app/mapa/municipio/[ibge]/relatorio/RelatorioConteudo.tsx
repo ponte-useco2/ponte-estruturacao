@@ -13,7 +13,8 @@ import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
 import { EXPLICA_CLASSE, ROTULO_CLASSE, ROTULO_QUEM } from "@/lib/oportunidades/fila";
 import { rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraIndicadores } from "@/lib/oportunidades/indicadores-municipio";
-import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
+import { ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
+import type { SlugTermo } from "@/lib/oportunidades/glossario";
 import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
@@ -28,11 +29,15 @@ import {
   type NivelAchado,
   type Relatorio,
 } from "@/lib/oportunidades/relatorio-municipio";
+import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { GraficoPessoal } from "./GraficoPessoal";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { Termo } from "../../../_componentes/Termo";
+import { Trilha } from "../../../_componentes/Trilha";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 const AVISO_INTERNO =
   "Uso interno da PONTE. Leitura automática de fontes públicas, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, " +
@@ -60,6 +65,13 @@ const ROTULO_ESTADO: Record<string, string> = {
   desatualizado: "desatualizado",
 };
 const dimensao = (r: Relatorio, d: Achado["dimensao"]) => r.achados.filter((a) => a.dimensao === d && a.nivel !== "em_dia");
+
+/** Os cartões do topo cujo rótulo é sigla ou termo técnico: ligados ao verbete do glossário (B14, achado H05). */
+const TERMO_DO_CARTAO: Record<string, SlugTermo> = {
+  "Pessoal / RCL ajustada": "rcl",
+  CAUC: "cauc",
+  "Tomadas de contas especiais (TCU)": "tomada-de-contas-especial",
+};
 
 export function Secao({ id, titulo, nota, children }: { id: string; titulo: string; nota?: ReactNode; children: ReactNode }) {
   return (
@@ -147,8 +159,8 @@ export function ListaAchados({ achados, destino, fila, hoje = "" }: { achados: A
 function TabelaConvenios({ linhas, destino, nota = "Situação" }: { linhas: LinhaConvenio[]; destino: Destino; nota?: string }) {
   if (!linhas.length) return null;
   return (
-    <div className="mp-tabela-rolagem">
-      <table className="mp-tabela">
+    <TabelaRolagem rotulo="Convênios do município">
+      <table className="mp-tabela mp-tabela-empilha">
         <thead>
           <tr>
             <th scope="col">Convênio</th>
@@ -168,16 +180,16 @@ function TabelaConvenios({ linhas, destino, nota = "Situação" }: { linhas: Lin
                   <Carregando />
                 </Link>
               </td>
-              <td>{l.orgao ? tituloOrgao(l.orgao) : "—"}</td>
-              <td>{l.objeto ?? "—"}</td>
-              <td className="mp-rel-num">{moedaCurta(l.valor ?? 0)}</td>
-              <td className="mp-rel-num">{l.desembolsado ? moedaCurta(l.desembolsado) : "—"}</td>
-              <td>{l.nota}</td>
+              <td data-rotulo="Órgão">{l.orgao ? tituloOrgao(l.orgao) : "—"}</td>
+              <td data-rotulo="Objeto">{l.objeto ?? "—"}</td>
+              <td data-rotulo="Valor" className="mp-rel-num">{moedaCurta(l.valor ?? 0)}</td>
+              <td data-rotulo="Desembolsado" className="mp-rel-num">{l.desembolsado ? moedaCurta(l.desembolsado) : "—"}</td>
+              <td data-rotulo={nota}>{l.nota}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </TabelaRolagem>
   );
 }
 
@@ -186,8 +198,8 @@ const ROTULO_NIVEL_INDICADOR = { alto: "alto", moderado: "moderado", em_dia: "em
 function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
   if (!itens.length) return null;
   return (
-    <div className="mp-tabela-rolagem">
-      <table className="mp-tabela mp-rel-indicadores">
+    <TabelaRolagem rotulo="Indicadores do município">
+      <table className="mp-tabela mp-rel-indicadores mp-tabela-empilha">
         <thead>
           <tr>
             <th scope="col">Indicador</th>
@@ -195,8 +207,8 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
             <th scope="col">PB</th>
             <th scope="col">Brasil</th>
             <th scope="col">Mediana PB</th>
-            <th scope="col">Mediana porte · região</th>
-            <th scope="col">Posição PB</th>
+            <th scope="col">Mediana do porte · da região</th>
+            <th scope="col">Posição na PB</th>
             <th scope="col">Nível</th>
           </tr>
         </thead>
@@ -210,6 +222,7 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
                   {x.url ? (
                     <a href={x.url} rel="noreferrer" target="_blank">
                       {x.fonte}
+                      <span className="pa-sr"> (abre em nova aba)</span>
                     </a>
                   ) : (
                     x.fonte
@@ -217,26 +230,26 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
                   , {x.ano}.{x.nota ? ` ${x.nota}` : ""}
                 </span>
               </td>
-              <td className="mp-rel-num">{x.texto}</td>
-              <td className="mp-rel-num">{x.pb ?? "—"}</td>
-              <td className="mp-rel-num">{x.br ?? "—"}</td>
-              <td className="mp-rel-num">{x.mediana ?? "—"}</td>
-              <td className="mp-rel-num">{x.porte || x.regiao ? `${x.porte ?? "—"} · ${x.regiao ?? "—"}` : "—"}</td>
-              <td className="mp-rel-num">{x.posicao ?? "—"}</td>
-              <td>
+              <td data-rotulo="Valor" className="mp-rel-num">{x.texto}</td>
+              <td data-rotulo="PB" className="mp-rel-num">{x.pb ?? "—"}</td>
+              <td data-rotulo="Brasil" className="mp-rel-num">{x.br ?? "—"}</td>
+              <td data-rotulo="Mediana PB" className="mp-rel-num">{x.mediana ?? "—"}</td>
+              <td data-rotulo="Mediana do porte · da região" className="mp-rel-num">{x.porte || x.regiao ? `${x.porte ?? "—"} · ${x.regiao ?? "—"}` : "—"}</td>
+              <td data-rotulo="Posição na PB" className="mp-rel-num">{x.posicao ?? "—"}</td>
+              <td data-rotulo="Nível">
                 {x.nivel ? (
                   <span className={`pa-tag mp-laudo-nivel mp-laudo-${x.nivel === "em_dia" ? "atendido" : x.nivel}`} title={x.porque ?? undefined}>
                     {ROTULO_NIVEL_INDICADOR[x.nivel]}
                   </span>
                 ) : (
-                  <span className="mp-rel-contexto">{x.chave ? "? não verificado" : "contexto"}</span>
+                  <span className="mp-rel-contexto">{x.chave ? "não verificado" : "contexto"}</span>
                 )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </TabelaRolagem>
   );
 }
 
@@ -274,9 +287,15 @@ function OMunicipio({ l }: { l: LeituraIndicadores }) {
       </div>
       {g && (
         <p>
-          Comparado com os municípios de porte <strong>{g.porte ?? "—"}</strong> (tercil da população da PB) e com os da região imediata de{" "}
-          <strong>{g.regiao_imediata ?? "—"}</strong>
-          {g.regiao_intermediaria ? ` (região intermediária de ${g.regiao_intermediaria})` : ""}.{regic ? ` Na hierarquia urbana do IBGE (REGIC 2018): ${regic}.` : ""}
+          Comparado com os municípios de porte <strong>{g.porte ?? "—"}</strong> na PB (os 223 divididos em três faixas de população) e com os da{" "}
+          <Termo slug="regiao-imediata">região imediata</Termo> de <strong>{g.regiao_imediata ?? "—"}</strong>
+          {g.regiao_intermediaria ? ` (região intermediária de ${g.regiao_intermediaria})` : ""}.
+          {regic && (
+            <>
+              {" "}
+              Na <Termo slug="regic">hierarquia urbana do IBGE (REGIC 2018)</Termo>: {regic}.
+            </>
+          )}
         </p>
       )}
     </>
@@ -299,7 +318,7 @@ export function Cartoes({ r }: { r: Relatorio }) {
     <div className="pa-grade pa-grade-4 mp-painel-cartoes">
       {r.cartoes.map((k) => (
         <article key={k.rotulo} className={`pa-cartao mp-rel-cartao${k.nivel ? ` mp-laudo-risco mp-laudo-${classe(k.nivel)}` : ""}`}>
-          <h3 className="pa-mono">{k.rotulo}</h3>
+          <h3 className="pa-mono">{TERMO_DO_CARTAO[k.rotulo] ? <Termo slug={TERMO_DO_CARTAO[k.rotulo]}>{k.rotulo}</Termo> : k.rotulo}</h3>
           <p className="pa-numero">{k.valor}</p>
           <p className="pa-nota">{k.nota}</p>
         </article>
@@ -356,6 +375,12 @@ export function BlocoFila({ r, destino, linkIndicadores }: { r: Relatorio; desti
   const f = filaDoMunicipio(r);
   return (
     <>
+      {f.grupos.length > 0 && (
+        <p className="pa-nota">
+          Cada ponto traz o <Termo slug="nivel-do-ponto">nível</Termo>, quem resolve e o que fazer. É ponto <Termo slug="ponto-a-conferir">a conferir</Termo>: para
+          olhar, nunca irregularidade.
+        </p>
+      )}
       {!f.grupos.length && (
         <Secao id="mun-fila" titulo="Nada travando nas fontes lidas">
           <p>Nenhum ponto trava dinheiro novo, pode virar cobrança, tem prazo ou pede atenção. A aba «Resumo» diz o que foi conferido.</p>
@@ -368,7 +393,7 @@ export function BlocoFila({ r, destino, linkIndicadores }: { r: Relatorio; desti
       ))}
       {(f.informativos > 0 || f.indicadores > 0) && (
         <p className="pa-nota">
-          Fora desta fila:{" "}
+          Fora desta lista:{" "}
           {f.informativos > 0 && `${n(f.informativos)} ${f.informativos === 1 ? "ponto só de informação" : "pontos só de informação"}, nas abas de cada assunto`}
           {f.informativos > 0 && f.indicadores > 0 && "; "}
           {f.indicadores > 0 &&
@@ -401,8 +426,16 @@ export function BlocoFiscal({ r, destino }: { r: Relatorio; destino: Destino }) 
   const f = r.fiscal;
   if (!f) return null;
   return (
-    <Secao id="rel-fiscal" titulo="Capacidade fiscal" nota={`Painel fiscal da PONTE, execução de ${data(f.referencia)}.`}>
-      <div className="mp-tabela-rolagem">
+    <Secao
+      id="rel-fiscal"
+      titulo="Capacidade fiscal"
+      nota={
+        <>
+          As três <Termo slug="decisoes-fiscais">decisões do painel fiscal</Termo> da PONTE, com dados de {data(f.referencia)}.
+        </>
+      }
+    >
+      <TabelaRolagem rotulo="Capacidade fiscal">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -414,16 +447,14 @@ export function BlocoFiscal({ r, destino }: { r: Relatorio; destino: Destino }) 
           <tbody>
             {f.decisoes.map((d) => (
               <tr key={d.decisao}>
-                <td>
-                  {d.decisao} · {d.nome}
-                </td>
-                <td>{ROTULO_ESTADO[d.estado] ?? d.estado}</td>
+                <td>{d.nome}</td>
+                <td>{ROTULO_DECISAO[d.estado as keyof typeof ROTULO_DECISAO] ?? d.estado}</td>
                 <td>{d.bloqueantes.join(", ") || "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       {f.serie.length > 1 && (
         <Sub titulo={`A despesa com pessoal desde ${f.serie[0].exercicio}`}>
           <GraficoPessoal serie={f.serie} />
@@ -453,8 +484,8 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
   const c = r.convenios;
   if (!c) return null;
   return (
-    <Secao id="rel-convenios" titulo="Convênios e contratos de repasse" nota={`${r.escopo === "entidade" ? "Desta entidade" : "Da prefeitura e dos fundos municipais"}, no arquivo aberto do SICONV de ${data(c.referencia)}.`}>
-      <div className="mp-tabela-rolagem">
+    <Secao id="rel-convenios" titulo="Convênios e contratos de repasse" nota={`${r.escopo === "entidade" ? "Desta entidade" : "Da prefeitura e dos fundos municipais"}, nos dados abertos do Transferegov de ${data(c.referencia)}.`}>
+      <TabelaRolagem rotulo="Convênios e contratos de repasse">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -473,10 +504,10 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       {c.emExecucao.length > 0 && (
         <Sub titulo={`Os ${n(c.emExecucao.length)} em execução`}>
-          <TabelaConvenios linhas={c.emExecucao} destino={destino} nota="Vigência e físico" />
+          <TabelaConvenios linhas={c.emExecucao} destino={destino} nota="Vigência e execução física" />
         </Sub>
       )}
       {c.vigenciaVencida.length > 0 && (
@@ -521,10 +552,21 @@ export function BlocoControle({ r, destino }: { r: Relatorio; destino: Destino }
   if (!ct) return null;
   const achados = dimensao(r, "controle");
   return (
-    <Secao id="rel-controle" titulo="Controle e prestação de contas" nota={ct.referenciaTcu ? `e-TCE do TCU consultado em ${data(ct.referenciaTcu)}.` : undefined}>
+    <Secao
+      id="rel-controle"
+      titulo="Controle e prestação de contas"
+      nota={
+        ct.referenciaTcu ? (
+          <>
+            <Termo slug="tomada-de-contas-especial">Tomadas de contas especiais</Termo> consultadas no sistema e-TCE do Tribunal de Contas da União (TCU) em{" "}
+            {data(ct.referenciaTcu)}.
+          </>
+        ) : undefined
+      }
+    >
       {ct.tces.length > 0 && (
-        <div className="mp-tabela-rolagem">
-          <table className="mp-tabela">
+        <TabelaRolagem rotulo="Controle e prestação de contas">
+          <table className="mp-tabela mp-tabela-empilha">
             <thead>
               <tr>
                 <th scope="col">Convênio</th>
@@ -543,15 +585,15 @@ export function BlocoControle({ r, destino }: { r: Relatorio; destino: Destino }
                       <Carregando />
                     </Link>
                   </td>
-                  <td>{t.numero_processo ?? "—"}</td>
-                  <td>{t.situacao ?? "—"}</td>
-                  <td className="mp-rel-num">{t.debito_original !== null ? moedaCurta(t.debito_original) : "—"}</td>
-                  <td className="mp-rel-num">{t.debito_com_juros !== null ? moedaCurta(t.debito_com_juros) : "—"}</td>
+                  <td data-rotulo="Processo no TCU">{t.numero_processo ?? "—"}</td>
+                  <td data-rotulo="Situação">{t.situacao ?? "—"}</td>
+                  <td data-rotulo="Débito original" className="mp-rel-num">{t.debito_original !== null ? moedaCurta(t.debito_original) : "—"}</td>
+                  <td data-rotulo="Com juros" className="mp-rel-num">{t.debito_com_juros !== null ? moedaCurta(t.debito_com_juros) : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       )}
       <ListaAchados achados={achados} destino={destino} />
       {!ct.tces.length && !achados.length && <p>Nada a apontar nas fontes de controle lidas.</p>}
@@ -567,7 +609,7 @@ export function BlocoPropostas({ r, destino }: { r: Relatorio; destino: Destino 
       <p>
         {n(p.enviadas)} propostas: {n(p.assinadas)} assinadas, {n(p.reprovadas)} reprovadas e {n(p.abertas)} sem desfecho.
       </p>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo={`Propostas enviadas desde ${p.desde}`}>
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -586,7 +628,7 @@ export function BlocoPropostas({ r, destino }: { r: Relatorio; destino: Destino 
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       <ListaAchados achados={dimensao(r, "propostas")} destino={destino} />
     </Secao>
   );
@@ -596,7 +638,7 @@ export function BlocoEmendas({ r }: { r: Relatorio }) {
   if (!r.emendas || !r.emendas.length) return null;
   return (
     <Secao id="rel-emendas" titulo="De onde vieram as emendas dos convênios" nota={`Parlamentares como agentes públicos; valor indicado nas emendas ligadas aos convênios ${r.escopo === "entidade" ? "da entidade" : "do município"}.`}>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="De onde vieram as emendas dos convênios">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -618,7 +660,7 @@ export function BlocoEmendas({ r }: { r: Relatorio }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </Secao>
   );
 }
@@ -655,7 +697,7 @@ function ResumoImpedidos({ imp }: { imp: ImpedidosDoAno[] }) {
 export function BlocoTcePb({ r }: { r: Relatorio }) {
   if (!r.tcePb) return null;
   return (
-    <Secao id="rel-tce" titulo="O dinheiro federal nas despesas do TCE-PB" nota={`Anos ${r.tcePb.anos.join(", ")}.`}>
+    <Secao id="rel-tce" titulo="O dinheiro federal nas despesas registradas no Tribunal de Contas do Estado (TCE-PB)" nota={`Anos ${r.tcePb.anos.join(", ")}.`}>
       <p>
         Do pago a empresas no SICONV ({moedaCurta(r.tcePb.siconv)}), {moedaCurta(r.tcePb.casado)} aparecem nas despesas do município no TCE-PB
         {r.tcePb.taxa !== null ? ` (${Math.round(r.tcePb.taxa * 100)}% do verificado)` : ""}. Pago com fonte federal sem par no SICONV:{" "}
@@ -671,7 +713,7 @@ export function BlocoFornecedores({ r, destino }: { r: Relatorio; destino: Desti
   return (
     <Secao id="rel-fornecedores" titulo="Fornecedores">
       <ListaAchados achados={achados} destino={destino} />
-      {!achados.length && <p>Sem fornecedor inidôneo no TCU e sem concentração a apontar.</p>}
+      {!achados.length && <p>Nenhum fornecedor na lista de inidôneos do TCU e nenhuma concentração a apontar.</p>}
     </Secao>
   );
 }
@@ -682,7 +724,17 @@ export function BlocosIndicadoresMunicipio({ r, destino }: { r: Relatorio; desti
   return (
     <>
       {ind.social.length > 0 && (
-        <Secao id="rel-social" titulo="Social" nota="Saúde, educação, assistência social e segurança. PB e Brasil são os valores das fontes; «mediana PB» é a dos 223 municípios; porte e região comparam com os parecidos. Na posição, 1º é o melhor. «Contexto» não tem nível.">
+        <Secao
+          id="rel-social"
+          titulo="Social"
+          nota={
+            <>
+              Saúde, educação, assistência social e segurança. PB e Brasil são os valores das fontes; a <Termo slug="mediana">mediana</Termo> PB é a dos 223
+              municípios; porte e região comparam com os municípios do mesmo <Termo slug="tercil">porte</Termo> e da mesma região imediata. Na posição, 1º é
+              o melhor. «Contexto» não tem nível.
+            </>
+          }
+        >
           <BlocosIndicadores blocos={ind.social} />
           <ListaAchados achados={dimensao(r, "social")} destino={destino} />
         </Secao>
@@ -711,10 +763,10 @@ export function BlocosIndicadoresMunicipio({ r, destino }: { r: Relatorio; desti
 
 export function BlocoTramita() {
   return (
-    <Secao id="rel-tramita" titulo="Processos e sanções no TCE-PB">
+    <Secao id="rel-tramita" titulo="Processos e sanções no Tribunal de Contas do Estado (TCE-PB)">
       <p>
-        Entram quando a coleta do TRAMITA cobrir os 223 municípios (os processos de contas detalhados ainda não cobrem todos). Até lá, nenhuma
-        ausência de sanção aqui é afirmação.
+        Esta parte entra quando a leitura dos processos do <Termo slug="tce-pb">TCE-PB</Termo> (sistema TRAMITA) cobrir os 223 municípios. Até lá, não
+        ver sanção aqui não quer dizer que não haja.
       </p>
     </Secao>
   );
@@ -753,8 +805,8 @@ export function BlocoFontes({ r }: { r: Relatorio }) {
       </ul>
       {r.faltas.length > 0 && <p className="pa-nota">Não lido nesta página (a leitura falhou ou a fonte ainda não está publicada): {r.faltas.join(", ")}.</p>}
       <p className="pa-nota">
-        Regras do relatório na versão {r.versao}. Crítico só para bloqueio legal ou financeiro e para apontamento de órgão de controle. Relatório
-        preparado por PONTE Estruturação de Projetos de Impacto.
+        Regras do relatório na versão {r.versao}. O <Termo slug="nivel-do-ponto">nível crítico</Termo> fica só para bloqueio legal ou financeiro e para
+        apontamento de órgão de controle. Relatório preparado por PONTE Estruturação de Projetos de Impacto.
       </p>
     </Secao>
   );
@@ -768,36 +820,43 @@ export function RelatorioConteudo({ r, seguindo, nivel = 3 }: { r: Relatorio; se
   return (
     <div className="pa-pagina mp-radar mp-laudo mp-rel">
       <div className="pa-pilha mp-radar-cabeca">
-        <p className="pa-kicker">Município em análise · relatório crítico · PB · IBGE {r.ibge}</p>
+        {/* B11: o município volta à aba de onde o relatório se abre ("Relatório e dados"). */}
+        <Trilha
+          elos={trilha(
+            { uf: "PB", regiaoImediata: ind?.grupo?.regiao_imediata, municipio: { ibge: r.ibge, nome: r.nome, aba: "relatorio" } },
+            "Relatório completo",
+          )}
+        />
+        <p className="pa-kicker">Relatório completo do município · PB · IBGE {r.ibge}</p>
         <h1 className="pa-titulo">{r.nome}</h1>
         <p className="pa-sub">
-          Captação federal, contas, capacidade fiscal{ind ? ", social, economia, território e governança" : ""} · posição de {data(r.hoje)}
+          Captação federal, contas, capacidade fiscal{ind ? ", social, economia, território e governança" : ""} · dados lidos em {data(r.hoje)}
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           {seguindo !== undefined && <EstrelaSeguir tipo="municipio" chave={r.ibge} nome={`o município ${r.nome}`} seguindo={seguindo} />}
           <BotaoImprimir />
           <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">
-            Achados em CSV
+            Baixar os pontos do relatório (CSV)
           </a>
           <LinkMapa href={`/mapa/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-            Página do município
+            Abrir a página do município
           </LinkMapa>
           {PODE.interno(nivel) && (
             <>
               <LinkMapa href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
-                Painel fiscal
+                Abrir o painel fiscal
               </LinkMapa>
               <LinkMapa href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-                Ficha no painel
+                Abrir a ficha no painel
               </LinkMapa>
               <LinkMapa href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-                TCE-PB
+                Despesas no TCE-PB
               </LinkMapa>
             </>
           )}
           {PODE.laudo(nivel) && (
             <LinkMapa href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-              Laudo do Pix
+              Abrir o laudo do Pix
             </LinkMapa>
           )}
         </p>

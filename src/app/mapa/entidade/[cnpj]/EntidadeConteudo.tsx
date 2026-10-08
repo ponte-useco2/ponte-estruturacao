@@ -17,8 +17,6 @@ import {
   type AbaEntidade,
 } from "@/lib/oportunidades/pagina-entidade";
 import { PODE, destinoConvenio, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
-import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
-import { NOME_UF, siglaDaUrl, urlUf } from "@/lib/oportunidades/pagina-uf";
 import {
   ROTULO_CEBAS,
   idade,
@@ -34,8 +32,11 @@ import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { InstrumentoRelatorio, PropostaRelatorio, Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import type { IdentidadeEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
+import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
+import { Termo } from "../../_componentes/Termo";
+import { Trilha } from "../../_componentes/Trilha";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
   BlocoControle,
@@ -54,6 +55,7 @@ import {
   Secao,
 } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type Destino = (nr: string) => string;
 
@@ -65,20 +67,18 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
   const municipal = ehMunicipal(e.especie);
   return (
     <div className="pa-pilha mp-radar-cabeca">
-      <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <LinkMapa href={urlBrasil()}>
-          Brasil
-        </LinkMapa>
-        {e.uf && siglaDaUrl(e.uf) ? (
-          <LinkMapa href={urlUf(e.uf)}>
-            {NOME_UF[e.uf]}
-          </LinkMapa>
-        ) : (
-          <span>UF não informada</span>
-        )}
-        {e.municipio && (ehPb(e.cod_ibge) ? <LinkMapa href={urlMunicipio(e.cod_ibge as string)}>{e.municipio}</LinkMapa> : <span>{e.municipio}</span>)}
-        <span aria-current="page">{e.nome}</span>
-      </nav>
+      {/*
+        B11: a trilha da entidade passa pela região imediata, como a do município, quando a leitura traz a região. Hoje
+        o `lerRelatorioEntidade` não lê o `mun_grupo`, então o elo não aparece (nunca se inventa elo sem dado). O
+        município leva à página dele na PB e aos investimentos fora da PB; sem UF no dado, o elo da UF some.
+      */}
+      <Trilha
+        elos={trilha({
+          uf: e.uf,
+          municipio: e.municipio || e.cod_ibge ? { ibge: e.cod_ibge, nome: e.municipio } : null,
+          entidade: { cnpj: e.cnpj, nome: e.nome },
+        })}
+      />
       <h1 className="pa-titulo">{e.nome}</h1>
       <p className="pa-sub mp-mun-chips">
         <span>CNPJ {cnpjLegivel(e.cnpj)}</span>
@@ -89,19 +89,19 @@ function Cabeca({ e, r, nivel, seguindo }: { e: IdentidadeEntidade; r: Relatorio
           </span>
         )}
         {e.desde && <span>na base desde {e.desde}</span>}
-        <span>posição de {data(r.hoje)}</span>
+        <span>dados lidos em {data(r.hoje)}</span>
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <EstrelaSeguir tipo="entidade" chave={e.cnpj} nome={`a entidade ${e.nome}`} seguindo={seguindo} />
         <BotaoImprimir />
         {ehPb(e.cod_ibge) && (
           <LinkMapa href={urlMunicipio(e.cod_ibge as string)} className="pa-btn pa-btn-pequeno">
-            Página do município
+            Abrir a página do município
           </LinkMapa>
         )}
         {PODE.interno(nivel) && ehPb(e.cod_ibge) && municipal && (
           <LinkMapa href={`/mapa/painel/municipio/${e.cod_ibge}?quem=todos`} className="pa-btn pa-btn-pequeno">
-            Ficha no painel
+            Abrir a ficha no painel
           </LinkMapa>
         )}
       </p>
@@ -129,7 +129,8 @@ function AvisoFiscal({ e }: { e: IdentidadeEntidade }) {
   if (ehMunicipal(e.especie)) {
     return (
       <p className="pa-nota">
-        O CAUC e os limites da LRF são do município, não do CNPJ: os pontos fiscais desta fila são os de {e.municipio ?? "o município"}.
+        O <Termo slug="cauc">CAUC</Termo> e os limites da <Termo slug="lrf">LRF</Termo> são do município, não do CNPJ: os pontos fiscais desta lista
+        são os {e.municipio ? `de ${e.municipio}` : "do município"}.
         {ehPb(e.cod_ibge) && (
           <>
             {" "}
@@ -147,8 +148,8 @@ function AvisoFiscal({ e }: { e: IdentidadeEntidade }) {
   if (e.especie === "osc") {
     return (
       <p className="pa-nota">
-        Organização da sociedade civil: o CAUC e a LRF valem para entes federativos, não para ela. A regularidade da OSC (certidões federais, CEPIM)
-        não está na base.
+        Organização da sociedade civil: o <Termo slug="cauc">CAUC</Termo> e a <Termo slug="lrf">LRF</Termo> valem para estados e municípios, não para ela. A
+        regularidade da OSC (certidões federais e <Termo slug="cepim">CEPIM</Termo>) não está na base do Mapa.
       </p>
     );
   }
@@ -275,7 +276,9 @@ function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: s
             <dd className="pa-mono">{cnae(c.cnae_principal)}</dd>
           </>
         )}
-        <dt>CEBAS</dt>
+        <dt>
+          <Termo slug="cebas">CEBAS</Termo>
+        </dt>
         <dd>
           {!osc.fonte.cebasLido ? (
             "as planilhas de certificação não foram lidas nesta carga"
@@ -306,14 +309,14 @@ function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatori
   const grupos = carteiraPorSituacao(instrumentos);
   if (!grupos.length) return null;
   return (
-    <Secao id="ent-carteira" titulo={`A carteira (${n(instrumentos.length)})`} nota="Todos os instrumentos do CNPJ, por situação, do mais recente para o mais antigo.">
+    <Secao id="ent-carteira" titulo={`Os instrumentos (${n(instrumentos.length)})`} nota="Todos os instrumentos do CNPJ, por situação, do mais recente para o mais antigo.">
       {grupos.map((g) => (
         <details key={g.id} className="mp-ent-grupo" open={g.id === "execucao" || g.id === "contas"}>
           <summary>
             <strong>{g.rotulo}</strong> · {n(g.itens.length)} · {moedaCurta(g.valor)} de valor global
           </summary>
-          <div className="mp-tabela-rolagem">
-            <table className="mp-tabela">
+          <TabelaRolagem rotulo={`${g.rotulo} · ${n(g.itens.length)} · ${moedaCurta(g.valor)} de valor global`}>
+            <table className="mp-tabela mp-tabela-empilha">
               <thead>
                 <tr>
                   <th scope="col">Número</th>
@@ -334,17 +337,17 @@ function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatori
                         <Carregando />
                       </Link>
                     </td>
-                    <td>{i.orgao_sup ? tituloOrgao(i.orgao_sup) : "—"}</td>
-                    <td>{i.objeto ?? "—"}</td>
-                    <td className="mp-rel-num">{moedaCurta(i.vl_global ?? 0)}</td>
-                    <td className="mp-rel-num">{i.vl_desembolsado ? moedaCurta(i.vl_desembolsado) : "—"}</td>
-                    <td>{data(i.dt_assinatura)}</td>
-                    <td>{data(i.dt_fim_vigencia)}</td>
+                    <td data-rotulo="Órgão">{i.orgao_sup ? tituloOrgao(i.orgao_sup) : "—"}</td>
+                    <td data-rotulo="Objeto">{i.objeto ?? "—"}</td>
+                    <td data-rotulo="Valor" className="mp-rel-num">{moedaCurta(i.vl_global ?? 0)}</td>
+                    <td data-rotulo="Desembolsado" className="mp-rel-num">{i.vl_desembolsado ? moedaCurta(i.vl_desembolsado) : "—"}</td>
+                    <td data-rotulo="Assinatura">{data(i.dt_assinatura)}</td>
+                    <td data-rotulo="Vigência até">{data(i.dt_fim_vigencia)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </details>
       ))}
     </Secao>
@@ -357,9 +360,9 @@ function ListaPropostas({ propostas }: { propostas: PropostaRelatorio[] }) {
   return (
     <Secao id="ent-propostas-lista" titulo={`As propostas (${n(propostas.length)})`} nota="Enviadas desde 2019 (só proponentes da Paraíba), da mais recente para a mais antiga.">
       <details className="mp-ent-grupo">
-        <summary>Ver a lista</summary>
-        <div className="mp-tabela-rolagem">
-          <table className="mp-tabela">
+        <summary>Ver a lista das propostas</summary>
+        <TabelaRolagem rotulo={`As propostas (${n(propostas.length)})`}>
+          <table className="mp-tabela mp-tabela-empilha">
             <thead>
               <tr>
                 <th scope="col">Ano</th>
@@ -373,15 +376,15 @@ function ListaPropostas({ propostas }: { propostas: PropostaRelatorio[] }) {
               {xs.map((p) => (
                 <tr key={p.id_proposta}>
                   <td>{p.ano_envio ?? "—"}</td>
-                  <td>{p.programa ?? "—"}</td>
-                  <td>{p.orgao_sup ? tituloOrgao(p.orgao_sup) : "—"}</td>
-                  <td className="mp-rel-num">{moedaCurta(p.valor_repasse ?? 0)}</td>
-                  <td>{p.desfecho ? (ROTULO_DESFECHO[p.desfecho as keyof typeof ROTULO_DESFECHO] ?? p.desfecho) : "—"}</td>
+                  <td data-rotulo="Programa">{p.programa ?? "—"}</td>
+                  <td data-rotulo="Órgão">{p.orgao_sup ? tituloOrgao(p.orgao_sup) : "—"}</td>
+                  <td data-rotulo="Repasse" className="mp-rel-num">{moedaCurta(p.valor_repasse ?? 0)}</td>
+                  <td data-rotulo="Desfecho">{p.desfecho ? (ROTULO_DESFECHO[p.desfecho as keyof typeof ROTULO_DESFECHO] ?? p.desfecho) : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </details>
     </Secao>
   );
@@ -391,8 +394,8 @@ function PorOrgao({ instrumentos }: { instrumentos: InstrumentoRelatorio[] }) {
   const xs = dinheiroPorOrgao(instrumentos);
   if (!xs.length) return null;
   return (
-    <Secao id="ent-orgaos" titulo="De onde veio" nota="Por órgão concedente: valor global dos instrumentos e o que já foi desembolsado.">
-      <div className="mp-tabela-rolagem">
+    <Secao id="ent-orgaos" titulo="De onde vem o dinheiro" nota="Por órgão concedente: valor global dos instrumentos e o que já foi desembolsado.">
+      <TabelaRolagem rotulo="De onde vem o dinheiro">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -413,7 +416,7 @@ function PorOrgao({ instrumentos }: { instrumentos: InstrumentoRelatorio[] }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </Secao>
   );
 }
@@ -511,10 +514,10 @@ export function EntidadeConteudo({
             <Mais>
               <BotaoImprimir />
               <a href={csv} className="pa-btn pa-btn-pequeno">
-                Instrumentos em CSV
+                Baixar os instrumentos (CSV)
               </a>
               <a href={`${csv}?tipo=achados`} className="pa-btn pa-btn-pequeno">
-                Achados em CSV
+                Baixar os pontos do relatório (CSV)
               </a>
             </Mais>
           </Secao>

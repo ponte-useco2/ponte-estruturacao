@@ -13,6 +13,7 @@ import type { LeituraTceMunicipio } from "@/lib/oportunidades/tce.server";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AVISO_TCE } from "../TceConteudo";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraTceMunicipio, { estado: "ok" }>;
 
@@ -60,7 +61,7 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
           <p className="pa-cartao pa-cartao-plano">Nenhuma despesa paga na fonte do Pix nos arquivos lidos.</p>
         ) : (
           <>
-            <div className="mp-tabela-rolagem">
+            <TabelaRolagem rotuloId="tce-m-pix">
               <table className="mp-tabela">
                 <thead>
                   <tr>
@@ -105,7 +106,7 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TabelaRolagem>
             <ul className="mp-laudo-lista">
               {leitura.pix.flatMap((p) => marcasPix(p)).map((m, k) => (
                 <li key={k} className={`pa-cartao mp-laudo-risco mp-laudo-${m.nivel}`}>
@@ -119,7 +120,7 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
               ))}
             </ul>
             {leitura.credores.length > 0 && (
-              <div className="mp-tabela-rolagem">
+              <TabelaRolagem rotulo="Empresas pagas com a fonte do Pix">
                 <table className="mp-tabela">
                   <caption className="mp-laudo-legenda-tabela">Empresas pagas com a fonte do Pix</caption>
                   <thead>
@@ -150,7 +151,7 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
                       ))}
                   </tbody>
                 </table>
-              </div>
+              </TabelaRolagem>
             )}
           </>
         )}
@@ -168,7 +169,7 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
         {pares.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhum pagamento a conciliar.</p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="tce-m-conc">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -189,7 +190,7 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
       </section>
 

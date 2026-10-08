@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
-import { MACRORREGIAO, abaDoBrasil, gruposDeCor, janelasPorUf, ufsLadoALado, urlBrasil, type Malha } from "./pagina-brasil.ts";
+import { ABAS_BRASIL, MACRORREGIAO, abaDoBrasil, gruposDeCor, janelasPorUf, ufsLadoALado, urlBrasil, type Malha } from "./pagina-brasil.ts";
 import type { LinhaTerritorio } from "./pagina-uf.ts";
 import type { LinhaDesfecho } from "./painel.ts";
 import type { LinhaEspecialAno } from "./pix.ts";
@@ -16,6 +16,13 @@ test("U2: abas e endereço do Brasil", () => {
   assert.equal(urlBrasil(), "/mapa/brasil");
   assert.equal(urlBrasil("estados"), "/mapa/brasil?aba=estados");
   assert.equal(Object.keys(MACRORREGIAO).length, 27);
+});
+
+test("B11: o Brasil tem «Dinheiro federal» e «Relatório e dados», como os outros níveis", () => {
+  assert.deepEqual(ABAS_BRASIL.map((a) => a.nome), ["Resumo", "As 27 UFs", "Dinheiro federal", "Tempos e funil", "Relatório e dados"]);
+  assert.equal(abaDoBrasil("relatorio", 0), "resumo", "o relatório é do aprovado, como na UF");
+  assert.equal(abaDoBrasil("relatorio", 1), "relatorio");
+  assert.equal(urlBrasil("relatorio"), "/mapa/brasil?aba=relatorio");
 });
 
 test("U2: as 27 UFs em ordem alfabética, só com o comparável (os vivos)", () => {

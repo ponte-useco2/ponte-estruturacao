@@ -40,8 +40,11 @@
   --pa-r-lg: 1.1rem;
   --pa-top: 60px;
   /* Altura da linha de abas do Shell B. Zera no mobile, onde as abas dão
-     lugar à tab bar inferior — ver media query no fim deste arquivo. */
-  --pa-abas: 38px;
+     lugar à tab bar inferior — ver media query no fim deste arquivo.
+     2,75rem (44 px) desde 08/10/2026 (onda 2 de UX, B9; auditoria B1+B2, A22):
+     os 38px não batiam com a aba real (cerca de 42,6 px), e a linha de abas
+     agora tem altura fixa por `min-height` (ver `.pa-top .pa-abas`). */
+  --pa-abas: 2.75rem;
   /* Offset real do cabeçalho grudado: linha de identidade + linha de abas.
      É este o valor que sticky de conteúdo deve usar, não --pa-top. */
   --pa-top-total: calc(var(--pa-top) + var(--pa-abas));
@@ -278,8 +281,15 @@
 .pa-chip-contagem { font-family: var(--pa-mono); font-size: 0.66rem; opacity: 0.75; }
 
 /* ------------------------------------------------ abas */
-.pa-abas {
-  display: flex; gap: 0.3rem; flex-wrap: wrap;
+/* Abas DENTRO da página (Construir e a ficha do projeto, com role="tablist").
+   Até 08/10/2026 esta regra era `.pa-abas` pura, a mesma classe da linha de
+   abas do cabeçalho (Shell B, mais abaixo): o `flex-wrap: wrap`, a borda, o
+   respiro e a margem daqui vazavam para o cabeçalho grudado, que no celular
+   quebrava em 2 ou 3 linhas e, mesmo numa linha, ficava uns 32 px mais alto que `--pa-top-total`
+   (onda 2 de UX, B9; auditoria B1+B2, A22). Agora só vale para a lista de
+   abas da página; `display` e `gap` vêm da regra do Shell B, como já vinham. */
+.pa-abas[role="tablist"] {
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--pa-border);
   padding-bottom: 0.6rem; margin-bottom: 1rem;
 }
@@ -303,7 +313,10 @@
   border-radius: var(--pa-r); padding: 0.55rem 0.7rem; font-size: 0.9rem;
 }
 .pa-textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
-.pa-input::placeholder, .pa-textarea::placeholder { color: #93a29d; }
+/* O texto secundário, não um cinza próprio (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A06): o #93a29d dava
+   2,66:1 com o branco; `--pa-muted` dá 5,89:1 no Mapa e 6,11:1 aqui. `opacity: 1` porque o Firefox clareia o
+   placeholder por conta própria. */
+.pa-input::placeholder, .pa-textarea::placeholder { color: var(--pa-muted); opacity: 1; }
 .pa-check { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.84rem; color: var(--pa-text); cursor: pointer; }
 .pa-check input { margin-top: 0.24rem; accent-color: var(--pa-brand); flex: none; }
 
@@ -390,6 +403,26 @@
 }
 .pa-abas::-webkit-scrollbar { display: none; }
 
+/* A linha de abas dentro do cabeçalho grudado (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A22 e H10):
+   - uma linha só, com altura fixa (`--pa-abas`): é ela que `--pa-top-total` soma para os elementos grudados;
+     `stretch` leva o traço da aba ativa até o pé da linha;
+   - o contorno de foco vai para dentro da aba: a linha rola de lado, e o que passa da caixa é cortado;
+   - o degradê na borda direita diz que há mais abas. É um item grudado no fim da linha: enquanto falta aba à
+     direita, ele fica na borda e esmaece a que está por baixo; no fim da rolagem, ocupa o próprio espaço e não
+     cobre nada. Sem rolagem (desktop), fica depois da última aba e não aparece. */
+.pa-top .pa-abas { align-items: stretch; min-height: var(--pa-abas); }
+.pa-top .pa-aba:focus-visible { outline-offset: -3px; }
+.pa-top .pa-abas::after {
+  content: "";
+  flex: none;
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  width: 2rem;
+  background: linear-gradient(to right, transparent, var(--pa-bg) 80%);
+  pointer-events: none;
+}
+
 .pa-aba {
   flex: 0 0 auto;
   display: inline-flex;
@@ -435,4 +468,11 @@
      não duplicar o mesmo controle em duas alturas da tela. */
   .pa-abas { display: none; }
   .pa-root { --pa-abas: 0px; }
+}
+
+/* Rolagem suave só para quem não pediu menos movimento (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A16): o
+   `scroll-smooth` do `app/layout.tsx` vale para o site inteiro. Esta regra fica fora de @layer e vence o utilitário
+   do Tailwind, que mora em `@layer utilities`. Carrega com o design system (Mapa e protótipo). */
+@media (prefers-reduced-motion: reduce) {
+  :root { scroll-behavior: auto; }
 }

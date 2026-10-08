@@ -19,6 +19,14 @@ import {
   type ParametrosBusca,
   type PropostaBusca,
 } from "./busca";
+import {
+  CANDIDATOS_PB,
+  municipiosDaBusca,
+  ondeProcurarMunicipio,
+  regexMunicipio,
+  type MunicipioAchado,
+  type MunicipioNome,
+} from "./busca-municipio";
 import { ehEsquemaAusente } from "./esquema";
 import type { FonteOsc } from "./osc";
 import { buscarOsc, type OscBusca } from "./osc.server";
@@ -77,9 +85,44 @@ export type LeituraBusca =
       fonteOsc: FonteOsc | null;
       total: number;
       municipios: OpcaoMunicipioBusca[];
+      /**
+       * Os municípios cujo nome casa com o que se digitou (B12), para o grupo "Municípios" no topo, e se há mais
+       * além dos mostrados. Vazio quando o termo não parece nome de município.
+       */
+      municipiosAchados: MunicipioAchado[];
+      maisMunicipios: boolean;
       /** Convênios ou propostas sem termo nem filtro: nada foi consultado (`buscaSemFiltro`). */
       semFiltro?: boolean;
     };
+
+/** Quantos nomes de fora da PB a peneira do banco traz; `casarMunicipios` escolhe os melhores entre eles. */
+const LIMITE_NOMES_FORA_PB = 60;
+
+/**
+ * Os municípios de fora da PB cujo nome casa com o termo (B12), em `painel_municipio`: uma linha por município com
+ * sinal no painel, 3,7 mil no total; com a peneira de `regexMunicipio`, de 4 a 13 ms medidos com EXPLAIN ANALYZE em
+ * 08/10/2026 (no caso mais largo, "sao", 224 nomes casam e vêm os 60 primeiros). Se falhar, a busca segue sem eles.
+ */
+async function nomesForaDaPb(db: Banco, execucaoId: number, q: string): Promise<MunicipioNome[]> {
+  const re = regexMunicipio(q);
+  if (!re) return [];
+  const r = await db
+    .from("painel_municipio")
+    .select("cod_ibge,municipio")
+    .eq("execucao_id", execucaoId)
+    .neq("uf", "PB")
+    .regexIMatch("municipio", re)
+    .order("municipio")
+    .limit(LIMITE_NOMES_FORA_PB);
+  if (r.error) {
+    console.error("lerBusca (municípios pelo nome):", r.error.message);
+    return [];
+  }
+  return ((r.data ?? []) as OpcaoMunicipioBusca[]).flatMap((m) => (m.municipio ? [{ ibge: m.cod_ibge, nome: m.municipio }] : []));
+}
+
+const comoCandidatos = (lista: OpcaoMunicipioBusca[]): MunicipioNome[] =>
+  lista.flatMap((m) => (m.municipio ? [{ ibge: m.cod_ibge, nome: m.municipio }] : []));
 
 export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
@@ -88,9 +131,27 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
   if (ehFalha(ex)) return ex;
 
   const termos = termosDaBusca(p.q);
+  const nenhumMunicipio = { municipiosAchados: [], maisMunicipios: false };
   if (buscaSemFiltro(p)) {
-    return { estado: "ok", execucao: ex, instrumentos: [], propostas: [], organizacoes: [], fonteOsc: null, total: 0, municipios: [], semFiltro: true };
+    return { estado: "ok", execucao: ex, instrumentos: [], propostas: [], organizacoes: [], fonteOsc: null, total: 0, municipios: [], ...nenhumMunicipio, semFiltro: true };
   }
+  // B12: o nome do município. Na PB e com UF escolhida, das listas que já existem; sem UF, também a consulta pelo nome
+  // fora da PB, em paralelo com a busca (não soma tempo: ela leva milissegundos, a busca leva segundos).
+  const onde = ondeProcurarMunicipio(p);
+  const fora =
+    onde === "brasil"
+      ? nomesForaDaPb(db, ex.id, p.q).catch((e: unknown) => {
+          console.error("lerBusca (municípios pelo nome):", e instanceof Error ? e.message : e);
+          return [] as MunicipioNome[];
+        })
+      : Promise.resolve([] as MunicipioNome[]);
+  const grupoDeMunicipios = (daUf: OpcaoMunicipioBusca[], deFora: MunicipioNome[]) => {
+    if (!onde) return nenhumMunicipio;
+    const candidatos = onde === "uf" ? comoCandidatos(daUf) : [...CANDIDATOS_PB, ...deFora];
+    const r = municipiosDaBusca(p.q, candidatos);
+    return { municipiosAchados: r.achados, maisMunicipios: r.mais };
+  };
+
   if (p.aba === "organizacoes") {
     const [osc, municipios] = await Promise.all([
       buscarOsc(termos, p.municipio, LIMITE_POR_PAGINA, (p.pagina - 1) * LIMITE_POR_PAGINA),
@@ -106,6 +167,7 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
       fonteOsc: osc?.fonte ?? null,
       total: osc?.total ?? 0,
       municipios: ((municipios.data ?? []) as OpcaoMunicipioBusca[]).map((m) => ({ cod_ibge: m.cod_ibge, municipio: m.municipio })),
+      ...grupoDeMunicipios([], []),
     };
   }
   const comuns = {
@@ -116,17 +178,19 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
     p_limite: LIMITE_POR_PAGINA,
     p_offset: (p.pagina - 1) * LIMITE_POR_PAGINA,
   };
-  const [lista, municipios] = await Promise.all([
+  const [lista, municipios, deFora] = await Promise.all([
     p.aba === "instrumentos"
       ? db.rpc("painel_busca_instrumentos", { ...comuns, p_situacoes: situacoesDoGrupo(p.grupo) })
       : db.rpc("painel_busca_propostas", { ...comuns, p_desfechos: desfechosDoGrupo(p.grupo) }),
     p.uf ? db.rpc("painel_municipios", { p_uf: p.uf }) : Promise.resolve({ data: [], error: null }),
+    fora,
   ]);
   if (lista.error) return falhaDe("lerBusca", lista.error);
   // O seletor de município é conveniência: sem ele a busca continua.
   if (municipios.error) console.error("lerBusca (municípios):", municipios.error.message);
 
   const linhas = (lista.data ?? []) as (InstrumentoBusca | PropostaBusca)[];
+  const daUf = ((municipios.data ?? []) as OpcaoMunicipioBusca[]).map((m) => ({ cod_ibge: m.cod_ibge, municipio: m.municipio }));
   return {
     estado: "ok",
     execucao: ex,
@@ -135,7 +199,8 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
     organizacoes: [],
     fonteOsc: null,
     total: Number(linhas[0]?.total ?? 0),
-    municipios: ((municipios.data ?? []) as OpcaoMunicipioBusca[]).map((m) => ({ cod_ibge: m.cod_ibge, municipio: m.municipio })),
+    municipios: daUf,
+    ...grupoDeMunicipios(daUf, deFora),
   };
 }
 

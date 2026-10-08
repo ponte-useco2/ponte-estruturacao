@@ -38,23 +38,53 @@
   --mp-sobre-marca: #9cc8d8;
   --mp-borda-soft: #b0d0dc;
   --mp-tracejado: #b4c7ce;
-  /* Mapas 2D (U2): cinco tons para as regiões, nunca para problema. */
+  /* Borda do que se digita ou se toca (campo, chip desmarcado), desde 08/10/2026 (onda 2 de UX, B9; auditoria
+     B1+B2, A07): a `--pa-border` dava 1,36:1 e o tracejado 1,75:1. Esta dá 3,59:1 no branco, 3,36:1 no fundo da
+     página e 3,19:1 na superfície 2 (o #7a9098 testado na auditoria caía para 2,98:1 nela). */
+  --mp-borda-campo: #748b93;
+  /* Sombra que diz "há mais colunas" (tabelas no celular, H07). Decorativa: o conteúdo segue legível sem ela. */
+  --mp-sombra-borda: rgba(8, 28, 38, 0.18);
+  /* Mapas 2D (U2): cinco tons para as regiões, nunca para problema.
+     Escurecidos em 08/10/2026 (onda 2 de UX, B9; auditoria B1+B2, A04): a sigla branca dava 2,28 a 3,26:1 sobre
+     os quatro tons claros, e três deles nem chegavam a 3:1 contra o fundo. Mesmos matizes (azul-acinzentado,
+     verde, ocre, violeta), agora com o branco a 4,86 / 5,03 / 5,07 / 5,37:1 (o 0 segue com 7,04:1), e cada área
+     com 4,55:1 ou mais contra o fundo da página. Entre vizinhas, a diferença continua sendo de matiz (A23,
+     aceito: a tabela é o caminho completo). */
   --mp-mapa-0: #14607a;
-  --mp-mapa-1: #6b9fb3;
-  --mp-mapa-2: #8db59b;
-  --mp-mapa-3: #c8a46e;
-  --mp-mapa-4: #9f86a8;
+  --mp-mapa-1: #507786;
+  --mp-mapa-2: #5b7564;
+  --mp-mapa-3: #826b45;
+  --mp-mapa-4: #77647e;
+  /* Área sob o foco ou o mouse (A03): o quase preto da moldura. Troca o preenchimento, que os vizinhos não cobrem;
+     a sigla branca fica com 18,5:1, e a área se separa dos tons 1 a 4 por 3,45:1 ou mais (do 0, por 2,63:1, com
+     o traço claro mais grosso junto). */
+  --mp-mapa-foco: var(--pa-dark);
 }
 /* Os literais verdes do design system que aparecem dentro do Mapa. */
 .mp-root .pa-top { background: rgba(245, 248, 249, 0.94); }
 .mp-root .pa-menu { box-shadow: 0 24px 60px rgba(8, 28, 38, 0.16); }
 .mp-root .pa-aba[aria-selected="true"],
 .mp-root .pa-tag-aderente { border-color: var(--mp-borda-soft); }
-.mp-root :is(.pa-chip, .pa-tracejado, .pa-ressalva) { border-color: var(--mp-tracejado); }
+.mp-root :is(.pa-tracejado, .pa-ressalva) { border-color: var(--mp-tracejado); }
+/* Chip desmarcado e campo com borda que se vê (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A07; WCAG 1.4.11): a
+   borda é o que diz "isto se toca" ou "isto se digita". O chip deixa o tracejado claro (1,75:1) pela borda sólida de
+   3:1; o marcado continua cheio da marca, e a passagem do mouse continua clareando o fundo. Só no Mapa: o protótipo
+   em `/plataforma` fica como está. */
+.mp-root .pa-chip { border-style: solid; border-color: var(--mp-borda-campo); }
+.mp-root :is(.pa-input, .pa-select, .pa-textarea) { border-color: var(--mp-borda-campo); }
 .mp-root .pa-chip:is([aria-pressed="true"], .pa-ativo) { border-color: var(--pa-brand); }
 .mp-root .pa-chip[aria-pressed="true"] :is(.pa-mono, .pa-chip-contagem) { color: var(--mp-sobre-marca); opacity: 1; }
 .mp-root .pa-escuro { color: #e6eff2; }
 .mp-root .pa-escuro :is(p, .pa-mono) { color: #9db8c2; }
+
+/* Microtipografia (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A18): rótulos em versalete monoespaçado abaixo de
+   10 px (0,62 a 0,66rem) cansavam a leitura. Mínimo de 0,75rem nos rótulos e de 0,72rem nas etiquetas e contagens.
+   Só no Mapa. Fica no começo do arquivo de propósito: as regras de componente que vêm depois, com a mesma
+   especificidade, continuam mandando no próprio tamanho (a data da linha do tempo com 0,78rem, por exemplo). O
+   `:where` deixa a nota que também é `pa-mono` com os 0,78rem dela. */
+.mp-root .pa-mono:where(:not(.pa-nota)),
+.mp-root :is(.pa-campo > label, .pa-campo-rotulo) { font-size: 0.75rem; }
+.mp-root :is(.pa-tag, .pa-chip-contagem) { font-size: 0.72rem; }
 
 /* Até 12/09/2026 esta moldura tinha uma linha só no topo, e zerava `--pa-abas`
    para a barra de lote grudada (`.pa-mapa-lote`, posicionada por
@@ -427,7 +457,10 @@
    é importado por último) e devolve a altura à barra de lote grudada.
    -------------------------------------------------------------------------- */
 .mp-root .pa-abas { display: flex; }
-.mp-root { --pa-abas: 38px; }
+/* 2,75rem desde 08/10/2026 (onda 2 de UX, B9; auditoria B1+B2, A22): a linha de abas tem essa altura fixa
+   (`.pa-top .pa-abas` em estilos.css). O cabeçalho grudado mede 60px + 2,75rem + 1px de borda; os 38px de antes
+   deixavam a barra de lote grudar por baixo dele. O `scroll-padding` do fim deste arquivo repete a conta. */
+.mp-root { --pa-abas: 2.75rem; }
 
 /* A ação do cartão é o que se toca com o dedo. `pa-btn-pequeno` tem 32px —
    passa no mínimo do WCAG 2.2 AA (24px), mas fica abaixo dos 44px que o
@@ -472,21 +505,59 @@
 
 .pa-root .mp-radar-recorte { margin-top: 1.2rem; }
 
-/* Tabela larga rola dentro da própria caixa; a página nunca rola na horizontal. */
+/* Tabela larga rola dentro da própria caixa; a página nunca rola na horizontal.
+   Pista de "há mais à direita" (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, H07): uma sombra fixa na borda
+   direita da caixa, e por cima dela uma capa da cor da superfície presa ao FIM do conteúdo (`local`). Enquanto falta
+   coluna, a capa está fora da vista e a sombra aparece; no fim da rolagem, a capa chega à borda e a cobre. As
+   células são transparentes, então a sombra se vê por trás delas; o cabeçalho, opaco, a esconde na primeira linha. */
 .pa-root .mp-tabela-rolagem {
   overflow-x: auto; margin-top: 0.5rem;
-  border: 1px solid var(--pa-border); border-radius: var(--pa-r); background: var(--pa-surface);
+  border: 1px solid var(--pa-border); border-radius: var(--pa-r);
+  background:
+    linear-gradient(to left, var(--pa-surface) 40%, transparent) right center / 2.5rem 100% no-repeat local,
+    radial-gradient(farthest-side at 100% 50%, var(--mp-sombra-borda), transparent) right center / 0.9rem 100% no-repeat scroll,
+    var(--pa-surface);
+}
+/* A caixa entra no Tab (`TabelaRolagem`, A08): as setas rolam a tabela, e o foco aparece como no resto do Mapa. */
+.pa-root .mp-tabela-rolagem:focus-visible { outline: 3px solid var(--pa-brand-2); outline-offset: 2px; border-radius: var(--pa-r); }
+@media print {
+  .pa-root .mp-tabela-rolagem { background: none; }
 }
 .pa-root .mp-tabela { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 .pa-root .mp-tabela th, .pa-root .mp-tabela td {
   padding: 0.5rem 0.7rem; text-align: left; vertical-align: top;
   border-bottom: 1px solid var(--pa-border);
 }
+/* 0,72rem desde 08/10/2026 (B9, A18): eram 0,64rem (9,6 px). O espaçamento entre letras cai um pouco para a coluna
+   não alargar tanto. */
 .pa-root .mp-tabela thead th {
-  font-family: var(--pa-mono); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em;
+  font-family: var(--pa-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
   text-transform: uppercase; color: var(--pa-muted); background: var(--pa-surface-2); white-space: nowrap;
 }
 .pa-root .mp-tabela tbody th { font-weight: 600; color: var(--pa-text); min-width: 16rem; }
+
+/* Tabelas no celular (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, H07). A 375 px, a 1ª coluna de 16rem ocupava
+   cerca de 278 px, e ao rolar de lado o nome da linha sumia. Abaixo de 640 px:
+   - a 1ª célula de cada linha gruda à esquerda, com o fundo da superfície (a linha em foco do painel mantém o dela)
+     e uma sombra na borda direita, a pista de que há mais colunas; o cabeçalho de linha cai para 9rem;
+   - `separate` porque, com `collapse`, a borda da célula grudada é desenhada pela tabela e fica para trás;
+   - o cabeçalho quebra a linha em vez de alargar cada coluna até o tamanho do rótulo.
+   Ficam fora a carteira e as tabelas `mp-tabela-empilha`, que empilham as linhas, e a célula que ocupa várias colunas
+   (o total do simulador). Só na tela: o papel tem as suas regras. Estas regras vêm antes das larguras de cada tabela
+   de propósito: as que pedem `min-width: 0` (painel lado a lado, simulador, meses do fiscal) continuam valendo; as que
+   pedem 12 a 16rem são reduzidas no fim do arquivo. */
+@media screen and (max-width: 640px) {
+  .pa-root .mp-tabela:not(.mp-cart-tabela, .mp-tabela-empilha) { border-collapse: separate; border-spacing: 0; }
+  .pa-root .mp-tabela:not(.mp-cart-tabela, .mp-tabela-empilha) thead th { white-space: normal; }
+  .pa-root .mp-tabela:not(.mp-cart-tabela, .mp-tabela-empilha) tr > :first-child:not([colspan]) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    box-shadow: inset -1px 0 0 var(--pa-border), 6px 0 6px -6px var(--mp-sombra-borda);
+  }
+  .pa-root :where(.mp-tabela) :where(tbody, tfoot) :where(tr > :first-child) { background: var(--pa-surface); }
+  .pa-root .mp-tabela tbody th { min-width: 9rem; }
+}
 .pa-root .mp-tabela tbody tr:last-child th, .pa-root .mp-tabela tbody tr:last-child td { border-bottom: 0; }
 .pa-root .mp-tabela .mp-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pa-root .mp-tabela-principal { display: block; overflow-wrap: anywhere; }
@@ -910,13 +981,41 @@
 .pa-root .mp-ent-grupo > summary { cursor: pointer; }
 .pa-root .mp-ent-grupo[open] > summary { margin-bottom: 0.5rem; }
 /* U2: mapas 2D (malha do IBGE) */
-.pa-root .mp-mapa { margin: 0 0 1rem; max-width: 720px; }
+.pa-root .mp-mapa { position: relative; margin: 0 0 1rem; max-width: 720px; }
 .pa-root .mp-mapa svg { display: block; width: 100%; height: auto; }
 .pa-root .mp-mapa path { stroke: var(--pa-surface); stroke-width: 0.6; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.pa-root .mp-mapa a path { cursor: pointer; transition: opacity 0.15s ease; }
-.pa-root .mp-mapa a:hover path, .pa-root .mp-mapa a:focus-visible path { opacity: 0.72; stroke: var(--pa-text); stroke-width: 1.4; }
+/* Foco e mouse trocam o PREENCHIMENTO (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A03): o traço de 1,4 px com
+   opacidade 0,72 de antes ficava em parte por baixo das áreas vizinhas, que o SVG pinta depois, e sumia num município
+   pequeno. O preenchimento quase preto não é coberto por ninguém; o traço claro mais grosso fica de reforço. O
+   contorno do navegador sai porque desenharia um retângulo em volta da caixa da área, não da área. */
+.pa-root .mp-mapa a path { cursor: pointer; transition: fill 0.15s ease; }
+.pa-root .mp-mapa a:is(:hover, :focus-visible) path { fill: var(--mp-mapa-foco); stroke: var(--pa-surface); stroke-width: 1.4; }
 .pa-root .mp-mapa a:focus-visible { outline: none; }
-.pa-root .mp-mapa-rotulo { font-size: 15px; font-weight: 600; fill: var(--pa-surface); pointer-events: none; paint-order: stroke; stroke: rgba(8, 21, 27, 0.35); stroke-width: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .pa-root .mp-mapa a path { transition: none; }
+}
+/* Sigla branca sobre os tons escurecidos (A04), com halo opaco da marca (13,2:1 com o branco): a sigla de UF pequena
+   (DF, SE, AL, RN, PB) sai da própria área e cai na vizinha ou no fundo branco, e o halo de 35 % de antes só ajudava
+   no contorno. */
+.pa-root .mp-mapa-rotulo {
+  font-size: 15px; font-weight: 600; fill: var(--pa-surface); pointer-events: none;
+  paint-order: stroke; stroke: var(--pa-brand); stroke-width: 3px; stroke-linejoin: round;
+}
+/* "Pular o mapa" (A02/A15): só no mapa que entra no Tab (o das 27 UFs). Fica fora da vista até receber o foco, e
+   então aparece sobre o canto do mapa, sem empurrar nada. */
+.pa-root .mp-mapa-pular:not(:focus) {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.pa-root .mp-mapa-pular:focus {
+  position: absolute; top: 0.5rem; left: 0.5rem; z-index: 2;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.9rem;
+  border: 1px solid var(--pa-brand-2); border-radius: var(--pa-r); background: var(--pa-surface);
+  color: var(--pa-text); font-size: 0.86rem; font-weight: 600; text-decoration: underline;
+}
+@media print {
+  .pa-root .mp-mapa-pular { display: none; }
+}
 .pa-root .mp-mapa-g0 { fill: var(--mp-mapa-0); background: var(--mp-mapa-0); }
 .pa-root .mp-mapa-g1 { fill: var(--mp-mapa-1); background: var(--mp-mapa-1); }
 .pa-root .mp-mapa-g2 { fill: var(--mp-mapa-2); background: var(--mp-mapa-2); }
@@ -995,10 +1094,23 @@
 .pa-root .mp-cart-cartao { min-width: 0; }
 .pa-root .mp-cart-numeros { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.3rem 0 0.5rem; }
 .pa-root .mp-cart-numero { display: inline-flex; flex-direction: column; border: 1px solid var(--pa-border); border-left-width: 3px; border-radius: 6px; padding: 0.2rem 0.55rem; min-width: 0; }
-.pa-root .mp-cart-numero .pa-mono { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pa-muted); }
+/* 0,72rem desde 08/10/2026 (B9, A18): eram 0,62rem (9,9 px). */
+.pa-root .mp-cart-numero .pa-mono { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pa-muted); }
 .pa-root .mp-cart-numero b { font-size: 0.95rem; overflow-wrap: anywhere; }
-.pa-root .mp-cart-numero.mp-cart-alto { border-left-color: #b08a3e; }
+/* O nível do número não depende só da cor da borda (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A10; WCAG 1.3.1 e
+   1.4.1): ganha a marca e a palavra, como os selos de nível (`.mp-laudo-nivel`), numa linha acima do rótulo. O texto
+   gerado é lido pelo leitor de tela ("nível alto"). A borda do alto passa ao mesmo âmbar do texto e do selo
+   (#8a6a2a, 5,03:1); o #b08a3e dava 3,21:1. */
+.pa-root .mp-cart-numero.mp-cart-alto { border-left-color: #8a6a2a; }
 .pa-root .mp-cart-numero.mp-cart-moderado { border-left-color: var(--mp-moderado); }
+.pa-root .mp-cart-numero:is(.mp-cart-alto, .mp-cart-moderado)::before {
+  font-family: var(--pa-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.pa-root .mp-cart-numero.mp-cart-alto::before { content: "▲ alto"; content: "▲ alto" / "nível alto"; color: #8a6a2a; }
+.pa-root .mp-cart-numero.mp-cart-moderado::before { content: "● moderado"; content: "● moderado" / "nível moderado"; color: var(--mp-moderado); }
+@media print {
+  .pa-root .mp-cart-numero::before { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
 .pa-root .mp-cart-lista { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
 .pa-root .mp-cart-passos { list-style: disc; }
 .pa-root .mp-cart :is(.mp-cart-passos, .mp-cart-lista, .mp-cart-mudo) a { text-decoration: underline; text-underline-offset: 2px; }
@@ -1008,7 +1120,7 @@
   .pa-root .mp-cart-tabela, .pa-root .mp-cart-tabela tbody, .pa-root .mp-cart-tabela tr, .pa-root .mp-cart-tabela td { display: block; width: 100%; }
   .pa-root .mp-cart-tabela tr { border-bottom: 1px solid var(--pa-border); padding: 0.5rem 0; }
   .pa-root .mp-cart-tabela td { border: 0; padding: 0.2rem 0.75rem; text-align: left; }
-  .pa-root .mp-cart-tabela td[data-rotulo]::before { content: attr(data-rotulo); display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pa-muted); }
+  .pa-root .mp-cart-tabela td[data-rotulo]::before { content: attr(data-rotulo); display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pa-muted); }
   .pa-root .mp-cart-tabela td.mp-num[data-rotulo]::before { display: inline; margin-right: 0.4rem; }
 }
 @media print {
@@ -1028,6 +1140,22 @@
 .pa-root .mp-mun-abas a { flex: none; padding: 0.6rem 0.85rem; white-space: nowrap; color: var(--pa-muted); text-decoration: none; border-bottom: 3px solid transparent; font-size: 0.92rem; }
 .pa-root .mp-mun-abas a:hover { color: var(--pa-text); }
 .pa-root .mp-mun-abas a[aria-current="page"] { color: var(--pa-brand); border-bottom-color: var(--pa-brand); font-weight: 600; }
+/* O mesmo degradê das abas do topo (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, H10): a 375 px as sete abas do
+   município rolavam de lado sem nenhuma pista. Item grudado no fim da linha: esmaece a aba da borda enquanto falta
+   aba à direita e, no fim da rolagem, ocupa só o próprio espaço (ver `.pa-top .pa-abas::after` em estilos.css). */
+.pa-root .mp-mun-abas::after {
+  content: "";
+  flex: none;
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  width: 2rem;
+  background: linear-gradient(to right, transparent, var(--pa-bg) 80%);
+  pointer-events: none;
+}
+@media print {
+  .pa-root .mp-mun-abas::after { display: none; }
+}
 .pa-root .mp-so-imprimir { display: none; }
 @media print {
   .pa-root .mp-so-imprimir { display: block; }
@@ -1066,4 +1194,67 @@
 }
 @media print {
   .pa-root .pa-pagina > *, .pa-root .pa-main > * { opacity: 1 !important; }
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Onda 2 de UX — celular e acessibilidade (B9, 08/10/2026). As regras que precisam vir depois de todas as outras.
+   ------------------------------------------------------------------------------------------------ */
+
+/* Tabelas no celular, parte 2 (H07): as tabelas que pediam 12 a 16rem para a 1ª coluna (e a busca, 18rem para a 2ª)
+   ficam com 9rem na coluna grudada, para sobrar lugar para os números. Mesma especificidade das regras de origem,
+   por isso aqui no fim. */
+@media screen and (max-width: 640px) {
+  .pa-root :is(.mp-pix-planos, .mp-busca-tabela, .mp-barras, .mp-suspensivas-tabela, .mp-padroes-tabela, .mp-fiscal-tabela) th[scope="row"],
+  .pa-root .mp-rel-indicadores td:first-child { min-width: 9rem; }
+  .pa-root .mp-busca-tabela td:nth-child(2) { min-width: 12rem; }
+  .pa-root .mp-busca-tabela td:nth-child(3) { min-width: 7rem; }
+}
+
+/* Empilhar por linha (H07): o padrão da carteira, aberto às tabelas de registros (convênios, propostas, indicadores),
+   em que se lê uma linha de cada vez e não se compara a coluna inteira. Abaixo de 640 px cada linha vira um bloco: a
+   1ª célula é o título; cada outra mostra o próprio rótulo (`data-rotulo`, o texto do cabeçalho) acima do valor, e os
+   números ficam com o rótulo à esquerda e o valor à direita. A classe só entra JUNTO com os `data-rotulo`: sem eles a
+   célula aparece sem nome. Fora da tela de celular, e no papel, a tabela é a de sempre. */
+@media screen and (max-width: 640px) {
+  .pa-root .mp-tabela-empilha,
+  .pa-root .mp-tabela-empilha :is(tbody, tfoot, tr, th, td) { display: block; width: 100%; }
+  .pa-root .mp-tabela-empilha thead { display: none; }
+  .pa-root .mp-tabela-empilha tr { padding: 0.55rem 0; border-bottom: 1px solid var(--pa-border); }
+  .pa-root .mp-tabela-empilha tbody tr:last-child { border-bottom: 0; }
+  /* Duas classes na tabela: vence o `tbody th { min-width }` e a borda de baixo da regra geral. */
+  .pa-root .mp-tabela.mp-tabela-empilha :is(th, td) { min-width: 0; padding: 0.15rem 0.75rem; border: 0; text-align: left; }
+  .pa-root .mp-tabela.mp-tabela-empilha tr > :first-child { padding-bottom: 0.3rem; font-weight: 600; color: var(--pa-text); }
+  .pa-root .mp-tabela-empilha [data-rotulo]::before {
+    content: attr(data-rotulo); display: block; white-space: normal;
+    font-family: var(--pa-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--pa-muted);
+  }
+  .pa-root .mp-tabela-empilha :is(.mp-num, .mp-rel-num)[data-rotulo] {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; text-align: right;
+  }
+  .pa-root .mp-tabela-empilha :is(.mp-num, .mp-rel-num)[data-rotulo]::before { flex: 0 1 auto; text-align: left; }
+}
+
+/* Alvos de toque de 44 px no celular (A14), o mínimo que o Mapa adota nos alvos novos: os botões e chips das linhas de
+   ação (`pa-btn-pequeno` tem 32 px) e o resumo dos grupos que abrem e fecham (cerca de 23 px). No grupo, o resumo
+   ocupa o respiro da caixa em vez de alargá-la; aberto, a regra do grupo devolve a margem de baixo. */
+@media (max-width: 640px) {
+  .pa-root .mp-laudo-acoes :is(.pa-btn, .pa-chip) { min-height: 44px; }
+  .pa-root .mp-ent-grupo > summary { min-height: 44px; padding-block: 0.6rem; margin-block: -0.5rem; }
+  .pa-root .pa-mapa-prefs > summary { min-height: 44px; }
+}
+
+/* O destino de um link de âncora não para por baixo do cabeçalho grudado (A17): a trilha do município leva a
+   "#regiao-…" na página da UF, e o título do grupo ficava atrás das abas. `scroll-padding` vale no elemento que ROLA,
+   que é a página (a raiz), e não o `.pa-root`; a raiz não enxerga as variáveis do `.pa-root`, por isso a conta repete
+   os números: `--pa-top` (60px) + `--pa-abas` (2,75rem) + 1px da borda do cabeçalho + 1rem de folga. Mudou um deles,
+   muda aqui. Também vale para o foco por Tab, que rola a página até o elemento. */
+html:has(.pa-root.mp-root) { scroll-padding-top: calc(60px + 2.75rem + 1px + 1rem); }
+
+/* Integração da onda 2 (08/10/2026): a 320 px (a largura da regra de refluxo da WCAG, 1.4.10) o nome "PONTE Mapa de
+   Oportunidades" e o botão da conta não cabiam na mesma linha do topo, e a página rolava 12 px de lado. Abaixo de
+   22,5rem o nome encolhe com reticências; o selo "P" e o botão continuam inteiros. */
+@media (max-width: 22.5rem) {
+  .pa-root.mp-root .pa-marca { min-width: 0; flex: 1 1 auto; }
+  .pa-root.mp-root .pa-marca-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 }

@@ -19,14 +19,18 @@ import {
 } from "@/lib/oportunidades/laudo";
 import type { ContextoPainel } from "@/lib/oportunidades/laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { eloInstrumento, trilha } from "@/lib/oportunidades/trilha";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { Termo } from "../../../_componentes/Termo";
+import { Trilha } from "../../../_componentes/Trilha";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 const AVISO =
   "Leitura automática de registros públicos do Transferegov (Acesso Livre e dados abertos). Não substitui o termo assinado, " +
   "o parecer do concedente nem orientação jurídica: confira no termo o prazo da cláusula suspensiva e a regra de extinção aplicável.";
 
-const ROTULO_NIVEL: Record<Nivel, string> = { critico: "crítico", alto: "alto", moderado: "moderado", informativo: "informativo" };
+const ROTULO_NIVEL: Record<Nivel, string> = { critico: "crítico", alto: "alto", moderado: "moderado", informativo: "informação" };
 const NOME_LADO: Record<Lado, string> = { concedente: "concedente", proponente: "município" };
 
 const n = (x: number) => x.toLocaleString("pt-BR");
@@ -46,6 +50,7 @@ export function LaudoConteudo({
   complemento = null,
   fontesExtras = null,
   cliente = false,
+  cnpj = null,
 }: {
   laudo: Laudo;
   dossie: Dossie;
@@ -55,6 +60,8 @@ export function LaudoConteudo({
   fontesExtras?: ReactNode;
   /** A prefeitura vendo o próprio laudo: sem os atalhos para as páginas de administrador. */
   cliente?: boolean;
+  /** O CNPJ do proponente (da leitura do instrumento; o contexto do painel não o traz): o elo da entidade na trilha. */
+  cnpj?: string | null;
 }) {
   const numero = contexto.nr_convenio;
   const inst = dossie.instrumento;
@@ -65,6 +72,17 @@ export function LaudoConteudo({
   return (
     <div className="pa-pagina mp-radar mp-laudo">
       <div className="pa-pilha mp-radar-cabeca">
+        <Trilha
+          elos={trilha(
+            {
+              uf: contexto.uf,
+              municipio: contexto.cod_ibge || contexto.municipio ? { ibge: contexto.cod_ibge, nome: contexto.municipio } : null,
+              entidade: { cnpj, nome: contexto.proponente },
+            },
+            eloInstrumento(numero, contexto.modalidade),
+            "Laudo",
+          )}
+        />
         <p className="pa-kicker">
           Laudo da cláusula suspensiva · {rotuloModalidade(contexto.modalidade) ?? "convênio"} nº {numero}
         </p>
@@ -82,16 +100,16 @@ export function LaudoConteudo({
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
           <LinkMapa href={urlInstrumento(numero)} className="pa-btn pa-btn-pequeno">
-            Ver o convênio
+            Abrir a página do convênio
           </LinkMapa>
           {!cliente && (
             <LinkMapa href="/mapa/suspensivas" className="pa-btn pa-btn-pequeno">
-              Todas as suspensivas
+              Ver todas as suspensivas
             </LinkMapa>
           )}
           {!cliente && contexto.orgao_sup && (
             <LinkMapa href={`/mapa/suspensivas/checklist?orgao=${encodeURIComponent(contexto.orgao_sup)}`} className="pa-btn pa-btn-pequeno">
-              Checklist deste órgão
+              Abrir o checklist deste órgão
             </LinkMapa>
           )}
         </p>
@@ -127,7 +145,9 @@ export function LaudoConteudo({
           </p>
         </article>
         <article className="pa-cartao">
-          <h2 className="pa-mono">Prazo da suspensiva</h2>
+          <h2 className="pa-mono">
+            Prazo da <Termo slug="condicao-suspensiva">suspensiva</Termo>
+          </h2>
           <p className="pa-numero">{laudo.retirada ? "retirada" : data(laudo.prazo.data)}</p>
           <p className="pa-nota">
             {laudo.retirada
@@ -159,7 +179,7 @@ export function LaudoConteudo({
       {!laudo.retirada && (
         <section aria-labelledby="laudo-condicoes" className="mp-radar-secao">
           <h2 id="laudo-condicoes" className="mp-radar-h2">
-            O que o termo exige
+            O que o termo assinado exige
           </h2>
           {laudo.condicoes.length === 0 ? (
             <p className="pa-cartao pa-cartao-plano">Os dados abertos do Transferegov não informam o motivo da cláusula suspensiva deste convênio.</p>
@@ -171,7 +191,7 @@ export function LaudoConteudo({
                     <strong>{c.texto}</strong>
                     {c.livre && <span className="mp-laudo-miudo">texto livre do termo</span>}
                     <span className="mp-laudo-miudo">
-                      {c.mencionada ? "aparece nos textos do concedente" : "nenhum texto do concedente na aba de requisitos menciona"}
+                      {c.mencionada ? "aparece nos textos do concedente" : "nenhum texto do concedente na aba de requisitos menciona esta condição"}
                     </span>
                   </li>
                 ))}
@@ -296,8 +316,8 @@ export function LaudoConteudo({
           {to && (
             <li>
               Tempo no órgão: convênios da PB do mesmo órgão assinados desde {data(to.desde)} que tiveram cláusula suspensiva, nos dados
-              abertos. A metade e o “3 em cada 4” contam só os que saíram dela: quem segue
-              preso ou morreu nela não entra nessa conta, então a espera típica de verdade é maior.
+              abertos. A metade e o “3 em cada 4” contam só os que saíram dela: os que continuam nela ou foram extintos
+              sem sair não entram nessa conta, então a espera típica real é maior.
             </li>
           )}
           <li>
@@ -311,7 +331,9 @@ export function LaudoConteudo({
         </ul>
         {contexto.cod_ibge && (
           <p className="pa-nota mp-nao-imprimir">
-            <LinkMapa href={urlDoMunicipio(contexto.cod_ibge, "dinheiro")}>Outros investimentos em {contexto.municipio ?? "neste município"}</LinkMapa>
+            <LinkMapa href={urlDoMunicipio(contexto.cod_ibge, "dinheiro")}>
+              Ver os outros investimentos {contexto.municipio ? `em ${contexto.municipio}` : "neste município"}
+            </LinkMapa>
           </p>
         )}
       </section>
@@ -355,8 +377,8 @@ export function AnalistasSecao({ analistas }: { analistas: Laudo["analistas"] })
       <h2 id="laudo-analistas" className="mp-radar-h2">
         Quem analisou
       </h2>
-      <div className="mp-tabela-rolagem">
-        <table className="mp-tabela">
+      <TabelaRolagem rotuloId="laudo-analistas">
+        <table className="mp-tabela mp-tabela-empilha">
           <thead>
             <tr>
               <th scope="col">Pessoa</th>
@@ -377,16 +399,16 @@ export function AnalistasSecao({ analistas }: { analistas: Laudo["analistas"] })
             {analistas.map((a) => (
               <tr key={a.nome}>
                 <th scope="row">{a.nome}</th>
-                <td>{a.atribuicao ?? "—"}</td>
-                <td className="mp-num">{n(a.atos)}</td>
-                <td className="mp-num">{n(a.exigencias)}</td>
-                <td className="mp-num">{n(a.atendimentos)}</td>
-                <td>{a.primeiro === a.ultimo ? data(a.primeiro) : `${data(a.primeiro)} a ${data(a.ultimo)}`}</td>
+                <td data-rotulo="Atribuição">{a.atribuicao ?? "—"}</td>
+                <td data-rotulo="Atos" className="mp-num">{n(a.atos)}</td>
+                <td data-rotulo="Pediu complementação" className="mp-num">{n(a.exigencias)}</td>
+                <td data-rotulo="Deu por atendido" className="mp-num">{n(a.atendimentos)}</td>
+                <td data-rotulo="Período">{a.primeiro === a.ultimo ? data(a.primeiro) : `${data(a.primeiro)} a ${data(a.ultimo)}`}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       <p className="pa-nota">Nomes e atribuições como registrados no Transferegov. Contatos pessoais não são coletados.</p>
     </section>
   );
@@ -410,7 +432,7 @@ export function DocumentosSecao({ documentos, lista, hoje }: { documentos: Laudo
           </p>
           <details className="mp-fiscal-detalhe">
             <summary>Ver a lista, do envio mais recente ao mais antigo</summary>
-            <div className="mp-tabela-rolagem">
+            <TabelaRolagem rotuloId="laudo-documentos">
               <table className="mp-tabela">
                 <thead>
                   <tr>
@@ -437,7 +459,7 @@ export function DocumentosSecao({ documentos, lista, hoje }: { documentos: Laudo
                   })}
                 </tbody>
               </table>
-            </div>
+            </TabelaRolagem>
           </details>
         </>
       )}

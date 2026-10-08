@@ -28,6 +28,7 @@ import {
 } from "@/lib/oportunidades/radar";
 import type { LeituraRadar, LinhaRecorte } from "@/lib/oportunidades/radar.server";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraRadar, { estado: "ok" }>;
 
@@ -172,7 +173,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
         {leitura.disputa.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhuma janela aberta neste recorte.</p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="radar-disputa">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -204,7 +205,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
       </section>
 
@@ -216,7 +217,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
         {leitura.enviaramPB.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhuma proposta da Paraíba no período.</p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="radar-pb">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -253,7 +254,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
       </section>
 
@@ -372,7 +373,7 @@ function TabelaRecorte({
       {linhas.length === 0 ? (
         <p className="pa-cartao pa-cartao-plano">Nada no período.</p>
       ) : (
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo={titulo}>
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -403,7 +404,7 @@ function TabelaRecorte({
               })}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       )}
     </div>
   );
@@ -454,7 +455,7 @@ function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: Leitur
         Paraíba. Conta só proposta da própria prefeitura; OSC sediada no município não tira o município da lista.
       </p>
       {parados.length > 0 && (
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="radar-parados">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -477,7 +478,7 @@ function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: Leitur
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       )}
     </section>
   );

@@ -53,6 +53,11 @@ const MINIMOS = [
   "regic",
   "cepim",
   "convenente",
+  // microcopy da onda 2 (B14, 08/10/2026): instrumento, laudo, relatório e carteira
+  "empenho",
+  "vigencia",
+  "ponto-a-conferir",
+  "nivel-do-ponto",
 ];
 
 test("slugs únicos, no formato [a-z0-9-] e sem hífen nas pontas", () => {

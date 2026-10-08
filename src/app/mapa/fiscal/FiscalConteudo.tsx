@@ -21,6 +21,7 @@ import {
 import type { LeituraFiscal } from "@/lib/oportunidades/fiscal.server";
 import { Tag } from "../../_design/primitivos";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraFiscal, { estado: "ok" }>;
 
@@ -127,7 +128,7 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
         {visiveis.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhum município com esse filtro.</p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="fiscal-lista">
             <table className="mp-tabela mp-fiscal-tabela">
               <thead>
                 <tr>
@@ -178,7 +179,7 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
                 })}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
       </section>
     </div>

@@ -12,6 +12,8 @@ import { AvisoSeguir, EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../fiscal/[ibge]/simular/BotaoImprimir";
 import { MarcarLidas } from "./MarcarLidas";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { Termo } from "../_componentes/Termo";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 const ROTULO: Record<Consequencia, string> = { alto: "alto", moderado: "moderado", informativo: "informação" };
 
@@ -82,7 +84,7 @@ function quantasNaoLidas(i: ItemCarteira): string {
 }
 
 function Recomendacoes({ r }: { r: Recomendacao[] }) {
-  if (!r.length) return <p className="mp-cart-mudo">Nada a apontar no último retrato.</p>;
+  if (!r.length) return <p className="mp-cart-mudo">Nada a apontar na última atualização.</p>;
   return (
     <ul className="mp-cart-recs">
       {r.map((x) => (
@@ -112,7 +114,7 @@ function Cabeca({ i, estrela = true }: { i: ItemCarteira; estrela?: boolean }) {
   return (
     <p className="mp-cart-cabeca">
       <NomeComEstrela i={i} estrela={estrela} etiqueta={<span className="pa-tag">{ROTULO_TIPO_ITEM[i.tipo]}</span>} />
-      {i.ausente && <span className="mp-cart-mudo"> · saiu das fontes; mostra o último retrato</span>}
+      {i.ausente && <span className="mp-cart-mudo"> · não aparece mais nas fontes; mostra os últimos dados lidos</span>}
       {i.dadoDe && <span className="mp-cart-mudo"> · dado de {formatarData(i.dadoDe)}</span>}
     </p>
   );
@@ -134,13 +136,13 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
               {c.naoLidas === 0 ? "nenhuma mudança não lida" : c.naoLidas === 1 ? "1 mudança não lida" : `${c.naoLidas} mudanças não lidas`}
             </>
           )}{" "}
-          · posição de {formatarData(hoje)}
+          · dados lidos em {formatarData(hoje)}
         </p>
         <p className="mp-nao-imprimir mp-laudo-acoes">
           {!c.vazia && <BotaoImprimir />}
           <MarcarLidas ids={naoLidas} rotulo="Marcar tudo como lido" />
           <LinkMapa href="/mapa/avisos" className="pa-btn pa-btn-pequeno">
-            Todos os avisos
+            Ver todos os avisos
           </LinkMapa>
         </p>
       </div>
@@ -152,7 +154,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
         <Secao id="cart-vazia" titulo="Comece a sua carteira">
           <p>
             Siga com a estrela <strong>☆ Seguir</strong> os municípios, entidades, convênios, propostas e janelas que você acompanha. A carteira junta tudo
-            aqui, avisa o que mudou a cada rodada do painel e diz a próxima ação de cada um, com o fato que a sustenta.
+            aqui, avisa o que mudou a cada atualização diária e diz a próxima ação de cada um, com o fato que a sustenta.
           </p>
           <ul className="mp-cart-lista mp-cart-passos">
             <li>
@@ -193,7 +195,16 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
       )}
 
       {c.porTipo.municipio.length > 0 && (
-        <Secao id="cart-municipios" titulo="Municípios" nota="Do retrato que o painel comparou na última rodada: convênios, painel fiscal (só PB) e TCE no TCU.">
+        <Secao
+          id="cart-municipios"
+          titulo="Municípios"
+          nota={
+            <>
+              Da última atualização diária: convênios, painel fiscal (só PB) e{" "}
+              <Termo slug="tomada-de-contas-especial">tomadas de contas especiais</Termo> no TCU.
+            </>
+          }
+        >
           <div className="mp-cart-grade">
             {c.porTipo.municipio.map((i) => (
               <article key={i.chave} className="pa-cartao mp-cart-cartao">
@@ -219,7 +230,16 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
       )}
 
       {c.porTipo.entidade.length > 0 && (
-        <Secao id="cart-entidades" titulo="Entidades" nota="Do retrato por CNPJ que o painel comparou na última rodada: convênios, sinais e TCE no TCU. O fiscal é do município.">
+        <Secao
+          id="cart-entidades"
+          titulo="Entidades"
+          nota={
+            <>
+              Da última atualização diária, por CNPJ: convênios, pontos de atenção e{" "}
+              <Termo slug="tomada-de-contas-especial">tomadas de contas especiais</Termo> no TCU. A situação fiscal é a do município.
+            </>
+          }
+        >
           <div className="mp-cart-grade">
             {c.porTipo.entidade.map((i) => (
               <article key={i.chave} className="pa-cartao mp-cart-cartao">
@@ -246,7 +266,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
 
       {c.porTipo.instrumento.length > 0 && (
         <Secao id="cart-convenios" titulo="Convênios">
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Convênios">
             <table className="mp-tabela mp-cart-tabela">
               <thead>
                 <tr>
@@ -285,7 +305,7 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </Secao>
       )}
 
@@ -323,9 +343,10 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
 
       <Secao id="cart-metodo" titulo="De onde vem cada coisa">
         <p className="pa-nota">
-          Os números são do último retrato que o job do painel comparou para cada item (a data aparece ao lado do nome). As mudanças são os avisos
-          gerados a cada rodada; ficam aqui até serem lidas. As próximas ações são pontos para olhar, cada uma com o fato e a data que a sustentam;
-          a análise completa está no relatório do município e no laudo do convênio. «A conferir» nunca quer dizer irregularidade.
+          Os números são da última atualização diária de cada item (a data aparece ao lado do nome). As mudanças são os avisos de cada
+          atualização; ficam aqui até serem lidas. As próximas ações são pontos para olhar, cada uma com o fato e a data que a sustentam;
+          a análise completa está no relatório do município e no laudo do convênio. Ponto <Termo slug="ponto-a-conferir">a conferir</Termo> nunca quer dizer
+          irregularidade.
           {truncada ? " Há mais avisos do que a carteira mostra: os mais antigos estão em Avisos." : ""} Carteira preparada por PONTE Estruturação de
           Projetos de Impacto.
         </p>

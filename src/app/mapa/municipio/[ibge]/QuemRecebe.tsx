@@ -13,6 +13,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Carregando } from "../../_componentes/Carregando";
 import { Termo } from "../../_componentes/Termo";
 import { Secao } from "./relatorio/RelatorioConteudo";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 const plural = (x: number, um: string, varios: string) => `${n(x)} ${x === 1 ? um : varios}`;
@@ -47,7 +48,7 @@ function SociedadeCivil({ osc, ibge, municipio }: { osc: { resumo: ResumoOscMuni
           </>
         )}
       </p>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="Ativas por área de atuação (uma organização pode ter mais de uma área)">
         <table className="mp-tabela mp-ent-areas">
           <caption className="pa-nota">Ativas por área de atuação (uma organização pode ter mais de uma área)</caption>
           <tbody>
@@ -71,7 +72,7 @@ function SociedadeCivil({ osc, ibge, municipio }: { osc: { resumo: ResumoOscMuni
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
       <p className="pa-nota">
         Por <Termo slug="natureza-juridica">natureza jurídica</Termo>: {naturezas.map(([k, x]) => `${rotuloNatureza(k === "sem_natureza" ? null : k)} ${n(x)}`).join("; ")}.
       </p>
@@ -116,7 +117,7 @@ export function QuemRecebe({
             <strong>{ROTULO_LENTE[g.lente]}</strong> · {n(g.entidades.length)} {g.entidades.length === 1 ? "entidade" : "entidades"}
           </summary>
           <p className="pa-nota">{EXPLICA_LENTE[g.lente]}</p>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo={`${ROTULO_LENTE[g.lente]} · ${n(g.entidades.length)} ${g.entidades.length === 1 ? "entidade" : "entidades"}`}>
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -146,7 +147,7 @@ export function QuemRecebe({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           {g.lente === "sociedade" && osc && <SociedadeCivil osc={osc} ibge={ibge} municipio={municipio} />}
         </details>
       ))}

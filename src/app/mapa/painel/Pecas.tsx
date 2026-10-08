@@ -26,6 +26,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { Tag } from "../../_design/primitivos";
 import { CopiarNumero } from "./CopiarNumero";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 export const n = (x: number) => x.toLocaleString("pt-BR");
 
@@ -77,7 +78,7 @@ export function Lista({
         <h3 className="mp-radar-h3">{titulo}</h3>
         {csv && children ? <BotaoCsv href={csv} /> : null}
       </div>
-      {children ? <div className="mp-tabela-rolagem">{children}</div> : <p className="pa-cartao pa-cartao-plano">{vazio}</p>}
+      {children ? <TabelaRolagem rotulo={titulo}>{children}</TabelaRolagem> : <p className="pa-cartao pa-cartao-plano">{vazio}</p>}
     </div>
   );
 }

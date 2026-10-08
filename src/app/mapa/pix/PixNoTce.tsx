@@ -5,6 +5,7 @@
  */
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { marcasPix, pct, type TcePixMunicipio } from "@/lib/oportunidades/tce";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 export function PixNoTce({ tce, desde, id = "pix-tce" }: { tce: TcePixMunicipio[] | null; desde?: number; id?: string }) {
   const anos = (tce ?? []).filter((t) => desde === undefined || t.ano >= desde).sort((a, b) => b.ano - a.ano);
@@ -24,7 +25,7 @@ export function PixNoTce({ tce, desde, id = "pix-tce" }: { tce: TcePixMunicipio[
         <p className="pa-cartao pa-cartao-plano">Nenhuma despesa paga na fonte do Pix (706) nos arquivos lidos do TCE-PB (de 2024 em diante{desde && desde > 2024 ? `, a partir de ${desde}` : ""}).</p>
       ) : (
         <>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Pessoal, dívida e capital no TCE-PB">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -47,7 +48,7 @@ export function PixNoTce({ tce, desde, id = "pix-tce" }: { tce: TcePixMunicipio[
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           {marcas.length > 0 && (
             <ul className="mp-laudo-lista">
               {marcas.map((m, k) => (

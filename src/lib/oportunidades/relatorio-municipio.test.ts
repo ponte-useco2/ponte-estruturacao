@@ -174,7 +174,7 @@ test("Patos: o que está em ordem e os quatro números do topo", () => {
     ["Pessoal / RCL ajustada", "54,54%"],
     ["CAUC", "2 pendências"],
     ["Convênios em execução", "R$ 68,0 mi"],
-    ["TCE no TCU", "2"],
+    ["Tomadas de contas especiais (TCU)", "2"],
   ]);
   assert.match(r.cartoes[0].nota, /Acima dele desde o 1º quadrimestre de 2025\./);
 });
@@ -211,7 +211,7 @@ test("município sem problema: nenhum crítico, e o 'em dia' diz o que foi confe
   const r = montarRelatorio(limpo, HOJE);
   assert.ok(!r.achados.some((a) => a.nivel === "critico" || a.nivel === "alto"), JSON.stringify(r.achados.filter((a) => a.nivel === "critico" || a.nivel === "alto")));
   assert.ok(r.emDia.some((a) => a.titulo === "Apto a receber transferência voluntária"));
-  assert.ok(r.emDia.some((a) => a.titulo === "Nenhuma TCE no TCU"));
+  assert.ok(r.emDia.some((a) => a.titulo === "Nenhuma tomada de contas especial no TCU"));
   assert.ok(r.emDia.some((a) => a.titulo === "Despesa com pessoal abaixo do prudencial"));
   assert.equal(r.cartoes.find((c) => c.rotulo === "CAUC")?.valor, "sem pendência");
 });

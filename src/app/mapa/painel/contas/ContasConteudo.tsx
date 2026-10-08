@@ -11,6 +11,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { moedaExata, porMunicipio } from "@/lib/oportunidades/tce-tcu";
 import type { LeituraContas } from "@/lib/oportunidades/tce-tcu.server";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraContas, { estado: "ok" }>;
 
@@ -76,7 +77,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
         {municipios.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhuma TCE nos convênios consultados.</p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="contas-tce">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -107,7 +108,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
       </section>
 
@@ -116,7 +117,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
           <h2 id="contas-lista" className="mp-radar-h2">
             As TCE, uma a uma
           </h2>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="contas-lista">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -175,7 +176,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           <p className="pa-nota">
             Fonte: API pública do e-TCE do TCU (tce.apps.tcu.gov.br), uma consulta por convênio, toda semana. Entram os convênios assinados da PB
             na última execução do painel, menos os anulados e cancelados. TCE com situação &quot;Excluída&quot; não aparece.
@@ -198,7 +199,7 @@ function SecaoImpugnacoes({ linhas, referencia }: { linhas: PainelContasObras["i
         {referencia ? ` de ${formatarData(referencia)}` : ""}).
       </p>
       {linhas.length > 0 && (
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="contas-impugnacao">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -237,7 +238,7 @@ function SecaoImpugnacoes({ linhas, referencia }: { linhas: PainelContasObras["i
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       )}
     </section>
   );
@@ -255,7 +256,7 @@ function SecaoObras({ linhas, referencia }: { linhas: PainelContasObras["obras"]
         acompanhamento de obras do Transferegov (coleta{referencia ? ` de ${formatarData(referencia)}` : ""}).
       </p>
       {paradas.length > 0 && (
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="contas-obras">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -300,7 +301,7 @@ function SecaoObras({ linhas, referencia }: { linhas: PainelContasObras["obras"]
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       )}
     </section>
   );

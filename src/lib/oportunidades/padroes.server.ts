@@ -10,6 +10,7 @@
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
+import { lerPorChave } from "./paginacao";
 import type { AtualSuspensiva, DetalheComNumero, DocumentoComNumero, EventoComNumero, HistoricoSuspensiva } from "./padroes";
 
 type Falha = { estado: "nao_ativado" } | { estado: "sem_execucao" } | { estado: "erro" };
@@ -35,7 +36,10 @@ function falha(onde: string, erro: { message: string; code?: string }): Falha {
   return { estado: "erro" };
 }
 
-/** Todas as linhas de uma consulta, em páginas de mil (o limite da API). O laudo também usa. */
+/**
+ * Todas as linhas de uma consulta, em páginas de mil (o limite da API). O laudo também usa. Por faixa (OFFSET): em
+ * tabela grande, cada página refaz a consulta; quando há chave única para ordenar, prefira `todasPorChave`.
+ */
 export async function todas<T>(onde: string, consulta: (inicio: number, fim: number) => PromiseLike<Resposta>): Promise<T[] | Falha> {
   const saida: T[] = [];
   for (let inicio = 0; inicio < 50_000; inicio += 1000) {
@@ -46,6 +50,22 @@ export async function todas<T>(onde: string, consulta: (inicio: number, fim: num
     if (lote.length < 1000) return saida;
   }
   return saida;
+}
+
+/**
+ * Como `todas`, mas página a página pela chave em vez de por faixa (D35, 08/10/2026): a faixa vira OFFSET, e o
+ * banco refaz a consulta inteira a cada página (o histórico das suspensivas levava 3,8 s só na 1ª). `consulta`
+ * recebe a última chave lida (nula na 1ª página) e deve filtrar `chave > depois`, ordenar só pela chave — única e
+ * sem nulos — e limitar a `tamanho`. Mesmo teto de 50 mil linhas de `todas`.
+ */
+export async function todasPorChave<T>(
+  onde: string,
+  chave: keyof T & string,
+  consulta: (depois: string | null, tamanho: number) => PromiseLike<Resposta>,
+): Promise<T[] | Falha> {
+  const r = await lerPorChave<T>((linha) => String(linha[chave]), consulta, { teto: 50_000 });
+  if ("erro" in r) return falha(onde, r.erro);
+  return r.linhas;
 }
 
 function ehFalha<T>(x: T[] | Falha): x is Falha {
@@ -97,17 +117,19 @@ export async function lerPadroes(): Promise<LeituraPadroes> {
         .order("ordem")
         .range(i, f),
     ),
-    // Todo convênio da PB que já teve suspensiva: prazo (segue ou morreu nela) ou retirada (saiu).
-    todas<HistoricoSuspensiva & { motivo_suspensao?: string | null }>("lerPadroes (histórico)", (i, f) =>
-      db
+    // Todo convênio da PB que já teve suspensiva: prazo (segue ou morreu nela) ou retirada (saiu). Por chave
+    // (`nr_convenio` é único na execução): com o índice parcial da oport_35, cada página só vai à tabela buscar as
+    // linhas que ainda não vieram.
+    todasPorChave<HistoricoSuspensiva & { motivo_suspensao?: string | null }>("lerPadroes (histórico)", "nr_convenio", (depois, tamanho) => {
+      let q = db
         .from("painel_instrumento")
         .select(`${COLUNAS_HISTORICO},motivo_suspensao`)
         .eq("execucao_id", execPainel.id)
         .eq("uf", "PB")
-        .or("dt_suspensiva.not.is.null,dt_retirada_suspensiva.not.is.null")
-        .order("nr_convenio")
-        .range(i, f),
-    ),
+        .or("dt_suspensiva.not.is.null,dt_retirada_suspensiva.not.is.null");
+      if (depois !== null) q = q.gt("nr_convenio", depois);
+      return q.order("nr_convenio").limit(tamanho);
+    }),
   ]);
   if (ehFalha(instrumentos)) return instrumentos;
   if (ehFalha(eventos)) return eventos;

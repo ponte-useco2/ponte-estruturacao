@@ -29,6 +29,7 @@ import { urlFicha } from "@/lib/oportunidades/painel";
 import { Tag } from "../../../_design/primitivos";
 import { EstadoDecisao } from "../FiscalConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraMunicipioFiscal, { estado: "ok" }>;
 
@@ -217,7 +218,7 @@ function Verificacao({
           </dl>
         )}
         {meses.length > 0 && (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Pessoal do Executivo, mês a mês, no RGF e no TCE-PB">
             <table className="mp-tabela mp-fiscal-meses">
               <caption className="pa-sr">Pessoal do Executivo, mês a mês, no RGF e no TCE-PB</caption>
               <thead>
@@ -242,7 +243,7 @@ function Verificacao({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
         <p>
           <span className="pa-mono">Base legal</span> {v.base_legal}

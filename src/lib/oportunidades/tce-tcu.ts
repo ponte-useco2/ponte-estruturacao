@@ -109,7 +109,7 @@ export function secaoTceTcu(e: EntradaTceTcu | null | undefined): SecaoTceTcu | 
 /** Uma TCE numa linha: ano, número, motivo e o débito. */
 export function descreverTce(t: TceTcu): string {
   const partes = [
-    t.numero && t.ano ? `TCE nº ${t.numero}/${t.ano}` : t.ano ? `TCE de ${t.ano}` : "TCE",
+    t.numero && t.ano ? `Tomada de contas especial nº ${t.numero}/${t.ano}` : t.ano ? `Tomada de contas especial de ${t.ano}` : "Tomada de contas especial",
     t.dt_instauracao ? `instaurada em ${formatarData(t.dt_instauracao)}` : null,
     // Só a primeira letra desce: o motivo cita a União, que fica maiúscula.
     t.motivo ? `por "${t.motivo.charAt(0).toLowerCase()}${t.motivo.slice(1)}"` : null,
@@ -149,7 +149,7 @@ export function riscoTceTcu(e: EntradaTceTcu | null | undefined): Risco | null {
           ? `Débito de ${moedaExata(s.debitoComJuros)} com juros`
           : "Débito não informado") +
       (processos.length ? `; processo ${processos.join(", ")} no TCU` : "") +
-      ". TCE não é julgamento: o Tribunal ainda decide. O detalhe está na seção de contas.",
+      ". Tomada de contas especial não é julgamento: quem decide é o TCU.",
   };
 }
 

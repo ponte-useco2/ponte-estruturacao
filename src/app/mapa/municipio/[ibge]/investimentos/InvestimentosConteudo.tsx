@@ -21,7 +21,10 @@ import { UF_DETALHE } from "@/lib/oportunidades/instrumentos-escopo";
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { trilha } from "@/lib/oportunidades/trilha";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { Trilha } from "../../../_componentes/Trilha";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraInvestimentos, { estado: "ok" }>;
 
@@ -40,6 +43,11 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
   return (
     <div className="pa-pagina mp-radar">
       <div className="pa-pilha mp-radar-cabeca">
+        {/*
+          B11: na PB, o município volta à aba de onde esta página se abre ("Dinheiro federal"). Fora da PB, esta é a
+          única página do município: o elo dele fica sem link, para a trilha não levar à própria página.
+        */}
+        <Trilha elos={trilha({ uf, municipio: { ibge: ehMunicipioPb(ibge) ? ibge : null, nome, aba: "dinheiro" } }, "Investimentos federais")} />
         <p className="pa-kicker">Investimentos federais</p>
         <h1 className="pa-titulo">
           {nome}/{uf}
@@ -139,7 +147,7 @@ function Barras({
     <section className="mp-radar-recorte">
       <h2 className="mp-radar-h3">{titulo}</h2>
       {nota && <p className="pa-nota">{nota}</p>}
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo={titulo}>
         <table className="mp-tabela mp-barras">
           <thead>
             <tr>
@@ -169,7 +177,7 @@ function Barras({
             })}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </section>
   );
 }

@@ -8,6 +8,7 @@ import { somaNaoLidos } from "@/lib/oportunidades/favoritos";
 import { contarAvisosItensNaoLidos } from "@/lib/oportunidades/favoritos.server";
 import { ehAdministrador } from "@/lib/supabase-auth";
 import { LinkMapa } from "./LinkMapa";
+import "./pular.css";
 
 /**
  * Moldura do Mapa de Oportunidades — o produto, não o protótipo.
@@ -47,6 +48,11 @@ export async function MapaFrame({
     // `pa-root` é a raiz do design system: declara os alias de token e o reset.
     // `mp-root` ajusta o que é desta moldura — ver mapa.css.
     <div className="pa-root mp-root">
+      {/* B12 (08/10/2026; A15 da auditoria B1+B2): o primeiro Tab da página. São até 13 paradas no cabeçalho antes do
+          conteúdo (11 abas para o administrador). Âncora da própria página, não rota: <a> simples, sem LinkMapa. */}
+      <a href="#conteudo" className="mp-pular">
+        Pular para o conteúdo
+      </a>
       <header className="pa-top">
         <div className="pa-top-inner">
           <Link prefetch={false} href="/mapa" className="pa-marca">
@@ -73,7 +79,10 @@ export async function MapaFrame({
         />
       </header>
 
-      <main className="pa-main">{children}</main>
+      {/* `tabIndex={-1}`: o salto do "Pular para o conteúdo" leva também o foco, e o próximo Tab segue daqui. */}
+      <main id="conteudo" tabIndex={-1} className="pa-main">
+        {children}
+      </main>
 
       <footer className="mp-rodape">
         <div className="mp-rodape-inner">

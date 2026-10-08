@@ -8,7 +8,7 @@
  * (decisão D1), quem é cliente da entidade e o agrupamento do bloco "Quem recebe no município". Sem banco.
  */
 import { GRUPOS_SITUACAO, grupoDaSituacao } from "./busca.ts";
-import type { NivelAcesso } from "./pagina-municipio.ts";
+import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
 import type { ColunaCsv } from "./painel.ts";
 import type { AreaExcetuada, InstrumentoRelatorio } from "./relatorio-municipio.ts";
 
@@ -101,9 +101,9 @@ export const ROTULO_LENTE: Record<LenteEntidade, string> = {
 };
 
 export const EXPLICA_LENTE: Record<LenteEntidade, string> = {
-  municipal: "A prefeitura, os fundos e as autarquias e consórcios municipais. São eles que formam a fila do município.",
-  estado: "Órgãos estaduais com sede aqui. Não entram na fila do município.",
-  sociedade: "Organizações da sociedade civil com instrumento federal na base (convênio ou termo de fomento). Não entram na fila do município.",
+  municipal: "A prefeitura, os fundos e as autarquias e consórcios municipais. São eles que entram em «O que trava e o que destrava» do município.",
+  estado: "Órgãos estaduais com sede aqui. Não entram em «O que trava e o que destrava» do município.",
+  sociedade: "Organizações da sociedade civil com instrumento federal na base (convênio ou termo de fomento). Não entram em «O que trava e o que destrava» do município.",
   outros: "Empresas, o Sistema S e outros proponentes com sede aqui.",
 };
 
@@ -134,14 +134,17 @@ export const ehMunicipal = (e: EspecieEntidade) => e === "prefeitura" || e === "
 
 export type AbaEntidade = "trava" | "resumo" | "instrumentos" | "dinheiro" | "controle" | "relatorio";
 
-/** As abas e o nível mínimo de cada uma (D1): o público vê o resumo, a carteira e o dinheiro resumido. */
+/**
+ * As abas e o nível mínimo de cada uma (D1): o público vê o resumo, a carteira e o dinheiro resumido. Os nomes comuns
+ * aos 4 níveis vêm de `NOME_ABA` (B11, 08/10/2026: "Dinheiro" virou "Dinheiro federal", como no município).
+ */
 export const ABAS_ENTIDADE: readonly { id: AbaEntidade; nome: string; minimo: NivelAcesso }[] = [
-  { id: "trava", nome: "O que trava e o que destrava", minimo: 1 },
-  { id: "resumo", nome: "Resumo", minimo: 0 },
+  { id: "trava", nome: NOME_ABA.trava, minimo: 1 },
+  { id: "resumo", nome: NOME_ABA.resumo, minimo: 0 },
   { id: "instrumentos", nome: "Instrumentos", minimo: 0 },
-  { id: "dinheiro", nome: "Dinheiro", minimo: 0 },
-  { id: "controle", nome: "Controle", minimo: 1 },
-  { id: "relatorio", nome: "Relatório e dados", minimo: 1 },
+  { id: "dinheiro", nome: NOME_ABA.dinheiro, minimo: 0 },
+  { id: "controle", nome: NOME_ABA.controle, minimo: 1 },
+  { id: "relatorio", nome: NOME_ABA.relatorio, minimo: 1 },
 ];
 
 /** A aba que abre: a pedida, se existe e o nível alcança; senão a de entrada (o que trava, ou o resumo para o público). */

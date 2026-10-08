@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { COLUNAS_CSV_INSTRUMENTOS, abaDaEntidade, areaExcetuadaDe, carteiraPorSituacao, cnpjDaUrl, dinheiroPorOrgao, especieDe, lenteDe, nivelNaEntidade, quemRecebe, urlEntidade } from "./pagina-entidade.ts";
+import { ABAS_ENTIDADE, COLUNAS_CSV_INSTRUMENTOS, abaDaEntidade, areaExcetuadaDe, carteiraPorSituacao, cnpjDaUrl, dinheiroPorOrgao, especieDe, lenteDe, nivelNaEntidade, quemRecebe, urlEntidade } from "./pagina-entidade.ts";
 import { paraCsv } from "./painel.ts";
 import type { InstrumentoRelatorio } from "./relatorio-municipio.ts";
 
@@ -47,6 +47,10 @@ test("abas: o público vê resumo, instrumentos e dinheiro; a fila, o controle e
   assert.equal(abaDaEntidade("nao-existe", 3), "trava");
   assert.equal(urlEntidade("09084815000170"), "/mapa/entidade/09084815000170");
   assert.equal(urlEntidade("09084815000170", "instrumentos"), "/mapa/entidade/09084815000170?aba=instrumentos");
+});
+
+test("B11: as abas da entidade com os nomes comuns aos 4 níveis («Dinheiro federal», como no município)", () => {
+  assert.deepEqual(ABAS_ENTIDADE.map((a) => a.nome), ["O que trava e o que destrava", "Resumo", "Instrumentos", "Dinheiro federal", "Controle", "Relatório e dados"]);
 });
 
 test("nível: cliente é a organização de município confirmada diante de entidade municipal do mesmo IBGE; OSC fica como cadastrada até a E2", () => {

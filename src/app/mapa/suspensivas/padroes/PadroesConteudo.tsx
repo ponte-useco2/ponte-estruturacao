@@ -17,6 +17,7 @@ import {
 import type { LeituraPadroes } from "@/lib/oportunidades/padroes.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPadroes, { estado: "ok" }>;
 
@@ -84,7 +85,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
             <p className="pa-nota">{moedaCurta(t.destinos.segue.valor)} em execução, ainda em suspensiva</p>
           </article>
         </div>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="padroes-destino">
           <table className="mp-tabela mp-padroes-tabela">
             <thead>
               <tr>
@@ -115,7 +116,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
         <p className="pa-nota">
           “Morreram”: anulados, rescindidos ou cancelados com a suspensiva pendente, ou encerrados sem a retirada — nenhum real desembolsado. O SICONV
           apaga o prazo na retirada, e é assim que se sabe quem saiu. Com menos de {MINIMO_PADRAO} convênios, o órgão aparece, mas a mediana não diz
@@ -130,7 +131,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
         <p className="pa-nota">
           Entre os {n(leitura.atuais.length)} convênios em execução que seguem em suspensiva. Um convênio conta em cada condição do termo.
         </p>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="padroes-condicoes">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -161,7 +162,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </section>
 
       <section aria-labelledby="padroes-analistas" className="mp-radar-secao">
@@ -173,7 +174,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
           programa em que a pessoa mais atua, com a fatia dos convênios dela. “Última palavra” são os convênios em que o evento mais recente é dela, e há
           quanto tempo, até a coleta.
         </p>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="padroes-analistas">
           <table className="mp-tabela mp-padroes-tabela">
             <thead>
               <tr>
@@ -225,7 +226,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
         <p className="pa-nota">
           Quem só exige e quem só atende pode ser divisão de trabalho — uma pessoa faz a triagem, outra homologa —, e não um traço pessoal. A atribuição
           ao lado do nome ajuda a separar uma coisa da outra.
@@ -237,7 +238,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
           Os documentos que mais aparecem
         </h2>
         <p className="pa-nota">Os 20 requisitos anexados em mais convênios, e quantos dos que têm validade já estão vencidos em {formatarData(hoje)}.</p>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="padroes-documentos">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -264,7 +265,7 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </section>
 
       <p className="pa-nota">

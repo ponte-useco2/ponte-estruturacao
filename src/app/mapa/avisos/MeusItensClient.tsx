@@ -178,8 +178,8 @@ export function MeusItensClient({
       </div>
 
       <p className="pa-nota mp-itens-nota">
-        Convênios e propostas são comparados uma vez por dia, quando o dado novo do Transferegov chega. As janelas, na
-        sincronização diária do catálogo. Os avisos ficam só aqui no Mapa: nada vai por e-mail.
+        Municípios, entidades, convênios e propostas são comparados uma vez por dia, quando chega o dado novo do Transferegov; as
+        janelas, na atualização diária do catálogo. Os avisos ficam só aqui no Mapa: nada vai por e-mail.
       </p>
 
       {truncada && <p className="pa-nota">Mostrando os 500 avisos mais recentes.</p>}
@@ -195,8 +195,8 @@ export function MeusItensClient({
         <div className="pa-cartao pa-pilha">
           <h2 className="pa-mapa-vazio-titulo">Comece seguindo um item</h2>
           <p>
-            Clique em <strong>☆ Seguir</strong> numa janela do catálogo, num convênio ou numa proposta. Quando ele mudar de
-            situação, receber desembolso, ganhar aditivo ou tiver o prazo alterado, o aviso aparece aqui.
+            Use a estrela <strong>☆ Seguir</strong> num município, numa entidade, num convênio, numa proposta ou numa janela do catálogo.
+            Quando o item mudar (situação, desembolso, aditivo ou prazo), o aviso aparece aqui.
           </p>
           <div className="pa-linha">
             <LinkMapa href="/mapa" className="pa-btn pa-btn-pequeno">
@@ -347,7 +347,7 @@ export function MeusItensClient({
                 <Tag>{s.tipoRotulo}</Tag>
                 <span className="mp-seguido-titulo">
                   <NomeDoItem titulo={s.titulo} url={s.url} fechada={s.tipo === "janela" && fechadas.has(s.url)} />
-                  {s.ausente && <span className="pa-mono"> · saiu da busca</span>}
+                  {s.ausente && <span className="pa-mono"> · não aparece mais nas fontes</span>}
                 </span>
               </li>
             ))}

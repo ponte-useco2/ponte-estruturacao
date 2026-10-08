@@ -31,7 +31,8 @@ const ehFalha = (x: unknown): x is Falha => !!x && typeof x === "object" && !Arr
  * (a seção não aparece); `null`: a leitura falhou (a falta vai em `faltas`).
  */
 export async function lerTceTcuDoConvenio(db: Banco, numero: string, faltas: string[]): Promise<EntradaTceTcu | null | undefined> {
-  const nome = "TCE no TCU";
+  // O nome aparece no laudo quando a leitura falha: por extenso, sem a sigla de dois sentidos (B14, 08/10/2026).
+  const nome = "tomadas de contas especiais (TCU)";
   const ex = await execucaoTcu(db, `laudo do instrumento (${nome})`);
   if (ehFalha(ex)) {
     if (ex.estado === "erro") {

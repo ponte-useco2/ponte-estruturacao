@@ -6,6 +6,7 @@
  * dois sentidos no Mapa e por isso dois verbetes: a tomada de contas especial (julgada pelo TCU) e o TCE-PB. Cada termo tem
  * duas medidas: a `curta`, que cabe no balão aberto pelo `<Termo>` onde a palavra aparece, e a `explica`, que vai na
  * página `/mapa/glossario`. Toda entrada diz de onde vem (`fonte`): a norma, quando há, ou a base e o critério da PONTE.
+ * A revisão de microcopy da onda 2 (B14) acrescentou empenho, vigência, ponto a conferir e nível do ponto.
  *
  * Regras de redação: frase completa, neutra, sem acusação ("a conferir", nunca "irregular"); a definição normativa
  * segue a norma citada e, na dúvida, diz menos e remete à fonte. Recorte da PONTE (vivo, limbo, porte na PB) é dito
@@ -126,6 +127,15 @@ const ENTRADAS = [
     veja: ["instrumento-vivo", "desembolso", "prestacao-de-contas"],
   },
   {
+    slug: "empenho",
+    termo: "Empenho",
+    curta: "Ato que compromete parte do orçamento federal com o instrumento. Vem antes da liberação: empenhado não quer dizer desembolsado.",
+    explica:
+      "Pela Lei 4.320/1964, empenho é o ato da autoridade competente que cria para o Estado a obrigação de pagamento, pendente ou não de condição, e nenhuma despesa pode ser feita sem empenho prévio. Nos convênios e contratos de repasse, a União empenha o valor do repasse e depois libera o dinheiro para a conta do instrumento. O empenho pode ser reforçado ou anulado. No Mapa, \"empenhado\" é o valor registrado no Transferegov; o dinheiro já liberado aparece como desembolso.",
+    fonte: "Lei 4.320/1964, arts. 58 e 60; Transferegov/SICONV",
+    veja: ["desembolso", "valor-global"],
+  },
+  {
     slug: "emenda-parlamentar",
     termo: "Emenda parlamentar",
     curta: "Indicação de deputado, senador, bancada ou comissão que destina parte do orçamento federal a um ente ou entidade.",
@@ -218,6 +228,15 @@ const ENTRADAS = [
     veja: ["osc", "mapa-das-osc"],
   },
   {
+    slug: "nivel-do-ponto",
+    termo: "Nível do ponto (crítico, alto, moderado)",
+    curta: "Régua da PONTE para ordenar os pontos. Crítico fica só para bloqueio legal ou financeiro e para apontamento de órgão de controle.",
+    explica:
+      "Os pontos do relatório, da carteira e do laudo vêm em ordem de peso. Crítico: bloqueio legal ou financeiro, como pendência que impede nova transferência voluntária, ou apontamento de órgão de controle, como tomada de contas especial. Alto, moderado e informação: os demais pontos, do que pesa mais para o que pesa menos. Em dia: o que foi conferido e está em ordem. O nível ordena a leitura; não é juízo sobre a gestão.",
+    fonte: "Critério da PONTE",
+    veja: ["ponto-a-conferir", "tomada-de-contas-especial", "cauc"],
+  },
+  {
     slug: "osc",
     termo: "OSC (organização da sociedade civil)",
     curta: "Entidade privada sem fins lucrativos que não distribui resultados, certas cooperativas sociais e organizações religiosas com atividade de interesse público.",
@@ -261,6 +280,15 @@ const ENTRADAS = [
       "A Portaria Conjunta MGI/MF/CGU 33/2023 regulamenta o Decreto 11.531/2023 e ocupou o lugar da Portaria Interministerial 424/2016. Trata de proposta, plano de trabalho, condição suspensiva, execução, acompanhamento e prestação de contas. Instrumentos assinados antes dela seguem, em regra, a norma da época; por isso o laudo do Mapa diz qual regime vale para cada convênio.",
     fonte: "Portaria Conjunta MGI/MF/CGU 33/2023; Decreto 11.531/2023",
     veja: ["convenio", "condicao-suspensiva", "prestacao-de-contas"],
+  },
+  {
+    slug: "ponto-a-conferir",
+    termo: "Ponto a conferir",
+    curta: "Ponto que a leitura automática encontrou e que vale olhar no documento de origem. Não é acusação nem conclusão da PONTE.",
+    explica:
+      "O Mapa lê fontes públicas de forma automática e marca o que foge do esperado: prazo vencido, dado que não bate entre duas bases, regra da norma sem comprovação nos dados abertos. Cada ponto traz o fato e a fonte. A explicação pode estar fora dos dados abertos, num documento anexado, numa decisão do concedente ou numa exceção prevista na norma; por isso o ponto pede conferência, não conclusão. Não substitui certidão, parecer do concedente, decisão de Tribunal de Contas nem orientação jurídica.",
+    fonte: "Critério da PONTE",
+    veja: ["nivel-do-ponto", "pc-33"],
   },
   {
     slug: "prestacao-de-contas",
@@ -390,6 +418,15 @@ const ENTRADAS = [
     fonte: "Transferegov/SICONV",
     exemplo: "Repasse de R$ 950 mil + contrapartida de R$ 50 mil = valor global de R$ 1 milhão.",
     veja: ["contrapartida", "desembolso"],
+  },
+  {
+    slug: "vigencia",
+    termo: "Vigência",
+    curta: "Período em que o instrumento vale: o objeto deve ser executado até o fim dele. Depois, corre o prazo da prestação de contas.",
+    explica:
+      "Vai da assinatura, ou da data fixada no termo, até a data final registrada no instrumento. Pode ser prorrogada por termo aditivo, a pedido do convenente, ou de ofício pelo concedente, nos casos da norma, como atraso na liberação dos recursos. Terminada a vigência, o objeto deveria estar concluído, e corre o prazo da prestação de contas final. No Mapa, \"vigência vencida ainda em execução\" marca o instrumento cuja data final já passou e que segue \"em execução\" no Transferegov: um ponto a conferir.",
+    fonte: "Decreto 11.531/2023; Portaria Conjunta MGI/MF/CGU 33/2023",
+    veja: ["em-execucao", "prestacao-de-contas", "condicao-suspensiva"],
   },
 ] as const satisfies readonly EntradaGlossario[];
 

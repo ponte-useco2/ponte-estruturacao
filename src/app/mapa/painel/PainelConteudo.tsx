@@ -88,6 +88,7 @@ import {
   n,
 } from "./Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPainel, { estado: "ok" }>;
 
@@ -259,7 +260,7 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
       {contagens.length > 0 && (
         <div className="mp-radar-recorte">
           <h3 className="mp-radar-h3">Por tipo</h3>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Por tipo">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -288,7 +289,7 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
                 })}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           {p.tipo && (
             <p className="pa-nota">
               <LinkMapa href={urlPainel(p, { tipo: null })}>Ver todos os tipos</LinkMapa>
@@ -472,7 +473,7 @@ function MotivosAditivos({ p, leitura }: { p: ParametrosPainel; leitura: Leitura
       <div className="mp-radar-recorte">
         <h3 className="mp-radar-h3">Por que os convênios em risco se prorrogaram</h3>
         <p className="pa-nota">Motivo do aditivo de vigência mais recente de cada convênio da lista.</p>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo="Por que os convênios em risco se prorrogaram">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -491,14 +492,14 @@ function MotivosAditivos({ p, leitura }: { p: ParametrosPainel; leitura: Leitura
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </div>
       <div className="mp-radar-recorte">
         <h3 className="mp-radar-h3">
           Todos os aditivos de vigência · {p.uf ?? "Brasil"} · {anoMinimo} a {anoDado}
         </h3>
         <p className="pa-nota">Inclui convênios já concluídos: é o retrato de por que se pede mais prazo.</p>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo={`Todos os aditivos de vigência · ${p.uf ?? "Brasil"} · ${anoMinimo} a ${anoDado}`}>
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -517,7 +518,7 @@ function MotivosAditivos({ p, leitura }: { p: ParametrosPainel; leitura: Leitura
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </div>
       <p className="pa-nota mp-painel-nota-larga">
         <Tag tom="proto">classificação automática</Tag> O motivo é lido do texto da justificativa por expressões do estudo; cada
@@ -804,7 +805,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       {porAno ? null : <div className="mp-radar-recorte">
         <h3 className="mp-radar-h3">De quem é a vez, do envio à assinatura</h3>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo="De quem é a vez, do envio à assinatura">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -829,7 +830,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
               })}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
         <p className="pa-nota">
           Nas propostas assinadas na janela, o tempo somado em análise do concedente, em complementação pelo proponente e
           aprovada esperando a assinatura. As medianas não se somam: cada uma é o meio da sua própria distribuição.
@@ -1001,7 +1002,7 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
           <div className="pa-grade pa-grade-2 mp-painel-duas">
             <div className="mp-radar-recorte">
               <h3 className="mp-radar-h3">Onde está cada proposta hoje</h3>
-              <div className="mp-tabela-rolagem">
+              <TabelaRolagem rotulo="Onde está cada proposta hoje">
                 <table className="mp-tabela">
                   <thead>
                     <tr>
@@ -1036,11 +1037,11 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TabelaRolagem>
             </div>
             <div className="mp-radar-recorte">
               <h3 className="mp-radar-h3">Com e sem emenda parlamentar</h3>
-              <div className="mp-tabela-rolagem">
+              <TabelaRolagem rotulo="Com e sem emenda parlamentar">
                 <table className="mp-tabela">
                   <thead>
                     <tr>
@@ -1066,7 +1067,7 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TabelaRolagem>
             </div>
           </div>
           <p className="pa-nota">
@@ -1087,13 +1088,13 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
         <div className="mp-radar-recorte">
           <h3 className="mp-radar-h3">Por órgão concedente</h3>
           <p className="pa-nota">Os {Math.min(ORGAOS_NA_TABELA, orgaos.length)} com mais propostas enviadas. O nome filtra os programas.</p>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Por órgão concedente">
             <TabelaDesfechos
               linhas={orgaos.slice(0, ORGAOS_NA_TABELA)}
               cabeca="Órgão"
               linha={(d) => <LinkMapa href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</LinkMapa>}
             />
-          </div>
+          </TabelaRolagem>
         </div>
       )}
 
@@ -1307,7 +1308,7 @@ function TabelaContagem({
   return (
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">{titulo}</h3>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo={titulo}>
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -1328,7 +1329,7 @@ function TabelaContagem({
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </div>
   );
 }
@@ -1351,7 +1352,7 @@ function PorOrgao({
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">Por órgão concedente</h3>
       <p className="pa-nota">Os {Math.min(ORGAOS_NA_TABELA, linhas.length)} com mais convênios. O nome filtra a lista.</p>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="Por órgão concedente">
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -1374,7 +1375,7 @@ function PorOrgao({
             ))}
           </tbody>
         </table>
-      </div>
+      </TabelaRolagem>
     </div>
   );
 }

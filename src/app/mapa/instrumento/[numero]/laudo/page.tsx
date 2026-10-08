@@ -72,8 +72,8 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
         <LinkMapa href="/mapa/meu-municipio">Meu município</LinkMapa>.
       </SemLaudo>
     ) : (
-      <SemLaudo numero={numero} kicker={null} titulo="Este instrumento não está na busca">
-        O laudo cobre os instrumentos da busca: todos os de proponente da Paraíba e, no resto do país, os que estão em execução ou em prestação
+      <SemLaudo numero={numero} kicker={null} titulo="Este convênio não está na base do Mapa">
+        O laudo cobre os convênios da base do Mapa: todos os de proponente da Paraíba e, no resto do país, os que estão em execução ou em prestação
         de contas. Confira o número ou <LinkMapa href={`/mapa/busca?q=${encodeURIComponent(numero)}`}>procure por “{numero}”</LinkMapa>.
       </SemLaudo>
     );
@@ -108,6 +108,8 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
         contexto={suspensiva.contexto}
         hoje={hoje}
         cliente={cliente}
+        // B11: o CNPJ do proponente para o elo da entidade na trilha (o contexto do painel não o traz).
+        cnpj={entrada.instrumento.cnpj ?? null}
         complemento={<DiagnosticoComplemento d={d} i={entrada.instrumento} cliente={cliente} />}
         fontesExtras={<FontesDiagnostico d={d} referencia={referencia} hoje={hoje} />}
       />

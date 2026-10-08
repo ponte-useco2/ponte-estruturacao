@@ -9,13 +9,14 @@ import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { ABAS_MUNICIPIO, PODE, destinoConvenio, urlMunicipio, type AbaMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
-import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
-import { urlRegiao, urlUf } from "@/lib/oportunidades/pagina-uf";
 import type { FonteOsc, ResumoOscMunicipio } from "@/lib/oportunidades/osc";
 import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
+import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
+import { Termo } from "../../_componentes/Termo";
+import { Trilha } from "../../_componentes/Trilha";
 import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
@@ -46,20 +47,7 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
   const pop = r.indicadores?.municipio.find((x) => x.id === "populacao_estimada") ?? r.indicadores?.municipio.find((x) => x.id === "populacao_censo");
   return (
     <div className="pa-pilha mp-radar-cabeca">
-      <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <LinkMapa href={urlBrasil()}>
-          Brasil
-        </LinkMapa>
-        <LinkMapa href={urlUf("PB")}>
-          Paraíba
-        </LinkMapa>
-        {g?.regiao_imediata && (
-          <LinkMapa href={urlRegiao("PB", g.regiao_imediata)}>
-            Região imediata de {g.regiao_imediata}
-          </LinkMapa>
-        )}
-        <span aria-current="page">{r.nome}</span>
-      </nav>
+      <Trilha elos={trilha({ uf: "PB", regiaoImediata: g?.regiao_imediata, municipio: { ibge: r.ibge, nome: r.nome } })} />
       <h1 className="pa-titulo">{r.nome}</h1>
       <p className="pa-sub mp-mun-chips">
         <span>IBGE {r.ibge}</span>
@@ -68,16 +56,20 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
             {pop.texto} ({pop.ano})
           </span>
         )}
-        {g?.porte && <span>porte {g.porte} na PB</span>}
+        {g?.porte && (
+          <span>
+            <Termo slug="tercil">porte {g.porte} na PB</Termo>
+          </span>
+        )}
         {g?.regic && <span>{rotuloRegic(g.regic)}</span>}
-        <span>posição de {data(r.hoje)}</span>
+        <span>dados lidos em {data(r.hoje)}</span>
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <EstrelaSeguir tipo="municipio" chave={r.ibge} nome={`o município ${r.nome}`} seguindo={seguindo} />
         <BotaoImprimir />
         {PODE.interno(nivel) && (
           <LinkMapa href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-            Ficha no painel
+            Abrir a ficha no painel
           </LinkMapa>
         )}
       </p>
@@ -150,11 +142,11 @@ export function MunicipioConteudo({
           <BlocoConvenios r={r} destino={destino} />
           <Mais>
             <LinkMapa href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno">
-              Por tema, modalidade e tipo
+              Ver os investimentos por tema, modalidade e tipo
             </LinkMapa>
             {PODE.laudo(nivel) && (
               <LinkMapa href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-                Laudo do Pix
+                Abrir o laudo do Pix
               </LinkMapa>
             )}
           </Mais>
@@ -172,10 +164,10 @@ export function MunicipioConteudo({
           {PODE.interno(nivel) && (
             <Mais>
               <LinkMapa href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
-                Painel fiscal completo
+                Abrir o painel fiscal completo
               </LinkMapa>
               <LinkMapa href={`/mapa/fiscal/${r.ibge}/simular`} className="pa-btn pa-btn-pequeno">
-                Simulador de crédito
+                Abrir o simulador de crédito
               </LinkMapa>
             </Mais>
           )}
@@ -190,7 +182,7 @@ export function MunicipioConteudo({
           {PODE.interno(nivel) && (
             <Mais>
               <LinkMapa href={`/mapa/painel/tce/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-                Despesas no TCE-PB
+                Ver as despesas no TCE-PB
               </LinkMapa>
             </Mais>
           )}
@@ -208,7 +200,7 @@ export function MunicipioConteudo({
                 Abrir o relatório para imprimir
               </LinkMapa>
               <a href={`/mapa/municipio/${r.ibge}/relatorio/csv`} className="pa-btn pa-btn-pequeno">
-                Achados em CSV
+                Baixar os pontos do relatório (CSV)
               </a>
             </Mais>
           </Secao>

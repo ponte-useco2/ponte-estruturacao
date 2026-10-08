@@ -9,6 +9,7 @@ import type { LeituraSuspensivas, LinhaSuspensiva } from "@/lib/oportunidades/la
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraSuspensivas, { estado: "ok" }>;
 interface Filtro {
@@ -138,7 +139,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
             Nenhum convênio neste filtro. <LinkMapa href="/mapa/suspensivas">Ver todos</LinkMapa>
           </p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="suspensivas-lista">
             <table className="mp-tabela mp-suspensivas-tabela">
               <thead>
                 <tr>
@@ -160,7 +161,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
         <p className="pa-nota">
           Andamento: Acesso Livre do Transferegov, coleta de {leitura.coletadoEm ? formatarPublicacao(leitura.coletadoEm) : "data desconhecida"}. Valores e

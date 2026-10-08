@@ -16,8 +16,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LinkMapa } from "../_componentes/LinkMapa";
 import type { TipoMudanca } from "@/lib/oportunidades/diff";
 import {
   HORAS_DADO_VELHO,
@@ -173,14 +173,15 @@ function NaoAtivada() {
         <p className="pa-kicker">Mapa de Oportunidades</p>
         <h1 className="pa-titulo">A central de notificações ainda não foi ativada</h1>
         <p>
-          As tabelas que guardam o que mudou no catálogo ainda não existem no banco. Até lá nada é
-          registrado — e esta tela não vai fingir que está tudo em dia.
+          O registro do que muda no catálogo ainda não foi ligado. Até lá, nada é
+          registrado, e esta tela não finge que está tudo em dia.
         </p>
-        <p>As janelas abertas continuam disponíveis no painel de oportunidades.</p>
+        <p>As janelas abertas continuam disponíveis na aba Janelas.</p>
         <div className="pa-linha">
-          <Link prefetch={false} href="/oportunidades" className="pa-btn">
+          {/* B11 (08/10/2026): ia ao portal antigo (/oportunidades), que não volta ao Mapa (B0, beco 6). */}
+          <LinkMapa href="/mapa" className="pa-btn">
             Ver as janelas abertas
-          </Link>
+          </LinkMapa>
         </div>
       </div>
     </div>
@@ -478,7 +479,7 @@ function Central({
           </h1>
           <p className="pa-sub">
             {porAba.nao_lidas === 1 ? "1 notificação não lida" : `${porAba.nao_lidas} notificações não lidas`}
-            {ultimaProcessada ? ` · catálogo processado em ${formatarPublicacao(ultimaProcessada)}` : ""}
+            {ultimaProcessada ? ` · catálogo atualizado em ${formatarPublicacao(ultimaProcessada)}` : ""}
             {resumoCatalogo ? ` · ${resumoCatalogo.total} janelas abertas` : ""}
           </p>
         </div>
@@ -663,7 +664,7 @@ function Central({
               oferece as saídas que existem. */}
           {resumoCatalogo && (
             <p className="pa-mono">
-              As {resumoCatalogo.total} janelas abertas continuam no painel — o que acabou foi a fila de avisos.
+              As {resumoCatalogo.total} janelas abertas continuam na aba Janelas; o que acabou foi a fila de avisos.
             </p>
           )}
           <div className="pa-linha">
@@ -682,9 +683,10 @@ function Central({
                 Ver arquivadas
               </button>
             )}
-            <Link prefetch={false} href="/oportunidades" className="pa-btn pa-btn-pequeno">
+            {/* B11: as janelas do Mapa, não o portal antigo (/oportunidades), que não volta ao Mapa. */}
+            <LinkMapa href="/mapa" className="pa-btn pa-btn-pequeno">
               Ver as janelas abertas
-            </Link>
+            </LinkMapa>
           </div>
         </div>
       ) : (
@@ -703,7 +705,7 @@ function Central({
                   className="pa-btn pa-btn-pequeno"
                   onClick={() => setGruposAbertos((a) => new Set([...a, g.id]))}
                 >
-                  Mostrar grupo
+                  Mostrar os avisos deste grupo
                 </button>
               </div>
             );
@@ -802,7 +804,8 @@ function Central({
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
-                                  Abrir consulta no Transferegov
+                                  Abrir a consulta no Transferegov
+                                  <span className="pa-sr"> (abre em nova aba)</span>
                                 </a>
                               </div>
                               <span className="pa-mono">
@@ -823,7 +826,7 @@ function Central({
                               aria-expanded={aberto}
                               onClick={() => setDetalhe(aberto ? null : i.id)}
                             >
-                              {aberto ? "Fechar" : "Detalhes"}
+                              {aberto ? "Fechar o código" : "Ver o código do programa"}
                             </button>
                             <button
                               type="button"

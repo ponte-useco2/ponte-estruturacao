@@ -50,8 +50,8 @@ test("município: recomendações do que destrava mais, com o fato e a data", ()
   assert.match(r[1].fato, /54,54% da RCL ajustada/);
   assert.equal(r[0].acao, "Regularizar os itens 1.5, 3.2.3, 4.2 do CAUC");
   assert.match(r[0].fato, /pendências em 1\.5, 3\.2\.3, 4\.2 \(dado de 01\/10\/2026\).*LRF, art\. 25/);
-  assert.equal(r[2].acao, "Acompanhar as 2 TCE no TCU e reunir a defesa ou o recolhimento");
-  assert.match(r[2].fato, /TCE não é julgamento/);
+  assert.equal(r[2].acao, "Acompanhar as 2 tomadas de contas especiais no TCU e reunir a defesa ou o recolhimento");
+  assert.match(r[2].fato, /Tomada de contas especial não é julgamento: quem decide é o TCU/);
   assert.equal(r[3].acao, "Enviar a prestação de contas atrasada");
   // sem CAUC, a decisão B não atendida aponta o painel fiscal; sem nada, nada a fazer
   assert.equal(recomendacoesMunicipio({ fiscal_b: "nao_atendido", cauc: "" }, null)[0].acao, "Ver no painel fiscal o que bloqueia a transferência voluntária");
@@ -109,7 +109,7 @@ test("carteira: agrupa por item, põe o pior primeiro, ignora arquivado e abre o
   assert.equal(patos.url, "/mapa/municipio/2510808");
   assert.equal(patos.recomendacoes.length, 3, "a carteira mostra três");
   assert.equal(patos.restantes, 3, "e diz quantos pontos ficaram na página do município");
-  assert.deepEqual(patos.numeros.map((n) => `${n.rotulo}=${n.valor}`), ["Transferência voluntária=bloqueada", "CAUC=1.5, 3.2.3, 4.2", "Em execução=13", "TCE no TCU=2"]);
+  assert.deepEqual(patos.numeros.map((n) => `${n.rotulo}=${n.valor}`), ["Transferência voluntária=bloqueada", "CAUC=1.5, 3.2.3, 4.2", "Em execução=13", "Tomadas de contas especiais (TCU)=2"]);
   assert.equal(patos.dadoDe, "2026-10-01");
   const conv = k.porTipo.instrumento[0];
   assert.deepEqual(conv.mudancas.map((m) => [m.id, m.lida]), [["d", false], ["c", true]]);
@@ -162,7 +162,7 @@ test("oport_31: a entidade na carteira usa os números e as recomendações do m
   assert.equal(x.url, "/mapa/entidade/09112236000194");
   assert.deepEqual(x.numeros.slice(0, 2).map((n) => [n.rotulo, n.valor]), [["Instrumentos", "89"], ["Em execução", "10"]]);
   assert.ok(!x.numeros.some((n) => n.rotulo === "CAUC" || n.rotulo === "Transferência voluntária"), "sem fiscal");
-  const tce = x.recomendacoes.find((r) => /TCE/.test(r.acao));
+  const tce = x.recomendacoes.find((r) => /tomada de contas especial/.test(r.acao));
   assert.match(tce?.fato ?? "", /para convênios da entidade/);
   assert.ok(x.recomendacoes.some((r) => /prestações de contas atrasadas/.test(r.acao)));
 });

@@ -53,6 +53,7 @@ import {
   n,
 } from "./Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 /**
  * A ficha do município no painel, só do administrador. Desde a F1c (07/10/2026) a prefeitura vai para a página do
@@ -186,9 +187,9 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
                 Ver no painel, com a contagem por tipo
               </LinkMapa>
             </p>
-            <div className="mp-tabela-rolagem">
+            <TabelaRolagem rotuloId="ficha-mudancas">
               <TabelaMudancas linhas={ficha.mudancas} naFicha comData />
-            </div>
+            </TabelaRolagem>
           </>
         )}
       </section>
@@ -264,7 +265,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
           <p className="pa-cartao pa-cartao-plano">Nenhuma proposta recente {f.quem === "prefeitura" ? "da prefeitura" : "no município"}.</p>
         ) : (
           <>
-            <div className="mp-tabela-rolagem">
+            <TabelaRolagem rotuloId="ficha-propostas">
               <table className="mp-tabela mp-painel-anos-propostas">
                 <thead>
                   <tr>
@@ -299,7 +300,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TabelaRolagem>
 
             <Lista titulo="Sem desfecho, das mais paradas para as menos" vazio="Nenhuma proposta esperando desfecho.">
               {ficha.semDesfecho.length > 0 && <TabelaPropostas linhas={ficha.semDesfecho} quando="movimento" />}
@@ -399,7 +400,7 @@ function Bloco({
           <LinkMapa href={href}>Ver no painel, com os números por órgão</LinkMapa>
         </p>
       )}
-      <div className="mp-tabela-rolagem">{children}</div>
+      <TabelaRolagem rotulo={titulo}>{children}</TabelaRolagem>
     </div>
   );
 }

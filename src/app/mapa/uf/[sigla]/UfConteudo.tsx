@@ -9,7 +9,7 @@ import { ROTULO_DECISAO } from "@/lib/oportunidades/fiscal";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import { formatarValor } from "@/lib/oportunidades/indicadores-municipio";
 import malhaPb from "@/lib/oportunidades/malhas/pb-municipios.json";
-import { gruposDeCor, urlBrasil, type AreaMapa, type Malha } from "@/lib/oportunidades/pagina-brasil";
+import { gruposDeCor, type AreaMapa, type Malha } from "@/lib/oportunidades/pagina-brasil";
 import { versaoLegivel } from "@/lib/oportunidades/osc";
 import { ROTULO_ESPECIE, especieDe, lenteDe, urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -20,6 +20,7 @@ import {
   ROTULO_LENTE_UF,
   etapasComparadas,
   funil,
+  intermediariasDaUf,
   lentesDaUf,
   municipiosPorRegiao,
   naUf,
@@ -37,12 +38,15 @@ import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { CHAVE_TODOS, ROTULO_ETAPA } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../_componentes/Carregando";
 import { MapaTerritorio } from "../../_componentes/MapaTerritorio";
 import { Termo } from "../../_componentes/Termo";
+import { Trilha } from "../../_componentes/Trilha";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { Secao } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 const n = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("pt-BR"));
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
@@ -56,12 +60,7 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   const nome = NOME_UF[l.sigla];
   return (
     <div className="pa-pilha mp-radar-cabeca">
-      <nav aria-label="Onde você está" className="mp-mun-trilha">
-        <LinkMapa href={urlBrasil()}>
-          Brasil
-        </LinkMapa>
-        <span aria-current="page">{nome}</span>
-      </nav>
+      <Trilha elos={trilha({ uf: l.sigla })} />
       <h1 className="pa-titulo">{nome}</h1>
       <p className="pa-sub mp-mun-chips">
         <span>{l.sigla}</span>
@@ -73,10 +72,10 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         {nivel >= 3 && l.completa && (
           <>
             <LinkMapa href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
-              Fiscal dos 223
+              Capacidade fiscal dos 223
             </LinkMapa>
             <LinkMapa href={`/mapa/painel?uf=${l.sigla}`} className="pa-btn pa-btn-pequeno">
-              Painel
+              Painel de execução
             </LinkMapa>
             <LinkMapa href="/mapa/painel/tce" className="pa-btn pa-btn-pequeno">
               Tribunal de Contas (TCE-PB)
@@ -117,7 +116,7 @@ function Abas({ sigla, aba, nivel }: { sigla: string; aba: AbaUf; nivel: NivelAc
 function SemSomas() {
   return (
     <p className="pa-cartao pa-cartao-plano">
-      As somas do estado saem na próxima rodada diária do painel (a primeira depois da atualização de 08/10/2026).
+      As somas do estado aparecem depois da próxima atualização diária dos dados.
     </p>
   );
 }
@@ -193,12 +192,12 @@ function Resumo({ l }: { l: LeituraUfOk }) {
       </Secao>
 
       {lentes && (
-        <Secao id="uf-quem-recebe" titulo="Quem recebe no estado" nota="Os proponentes com instrumento na base, pelas lentes da página do município. Cada município e cada entidade têm a sua página.">
-          <div className="mp-tabela-rolagem">
+        <Secao id="uf-quem-recebe" titulo="Quem recebe no estado" nota="Quem tem instrumento na base, nos mesmos grupos da página do município. Cada município e cada entidade têm a sua página.">
+          <TabelaRolagem rotulo="Quem recebe no estado">
             <table className="mp-tabela">
               <thead>
                 <tr>
-                  <th scope="col">Lente</th>
+                  <th scope="col">Grupo</th>
                   <th scope="col">Entidades</th>
                   <th scope="col">Instrumentos</th>
                   <th scope="col">Em execução</th>
@@ -217,7 +216,7 @@ function Resumo({ l }: { l: LeituraUfOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           {l.osc && (
             <p className="pa-nota">
               Na sociedade civil, além das que têm instrumento: {n(l.osc.ativas)} organizações ativas no <Termo slug="mapa-das-osc">Mapa das OSC</Termo> (Ipea,
@@ -227,11 +226,11 @@ function Resumo({ l }: { l: LeituraUfOk }) {
           )}
           <p className="mp-nao-imprimir mp-laudo-acoes">
             <Link href={urlUf(l.sigla, "municipios")} className="pa-btn pa-btn-pequeno" prefetch={false}>
-              Os municípios
+              Ver os municípios
               <Carregando />
             </Link>
             <Link href={urlUf(l.sigla, "estado")} className="pa-btn pa-btn-pequeno" prefetch={false}>
-              O estado como proponente
+              Ver o estado como proponente
               <Carregando />
             </Link>
           </p>
@@ -240,7 +239,7 @@ function Resumo({ l }: { l: LeituraUfOk }) {
 
       {l.indicadores && l.indicadores.length > 0 && (
         <Secao id="uf-indicadores" titulo="O estado em indicadores" nota="O valor do estado e o do Brasil no mesmo ano, pelas mesmas fontes da página do município.">
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="O estado em indicadores">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -261,7 +260,7 @@ function Resumo({ l }: { l: LeituraUfOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </Secao>
       )}
       {l.faltas.length > 0 && <p className="pa-nota">Não puderam ser lidos agora: {l.faltas.join(", ")}.</p>}
@@ -271,12 +270,12 @@ function Resumo({ l }: { l: LeituraUfOk }) {
 
 function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa: boolean; admin: boolean }) {
   return (
-    <div className="mp-tabela-rolagem">
+    <TabelaRolagem rotulo="Municípios: instrumentos e valores">
       <table className="mp-tabela">
         <thead>
           <tr>
             <th scope="col">Município</th>
-            {completa && <th scope="col">Porte na PB (tercil)</th>}
+            {completa && <th scope="col">Porte na PB</th>}
             {completa && <th scope="col">População</th>}
             <th scope="col">Instrumentos</th>
             <th scope="col">Em execução</th>
@@ -307,13 +306,13 @@ function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa
           ))}
         </tbody>
       </table>
-    </div>
+    </TabelaRolagem>
   );
 }
 
 /** O mapa dos municípios da PB (a única UF com a malha municipal), cor pela região intermediária do IBGE. */
 function MapaDaUf({ municipios }: { municipios: MunicipioUf[] }) {
-  const intermediarias = [...new Set(municipios.map((m) => m.intermediaria).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const intermediarias = intermediariasDaUf(municipios);
   const cor = gruposDeCor(intermediarias);
   const areas = new Map<string, AreaMapa>(
     municipios.map((m) => [m.ibge, { nome: m.regiao ? `${m.nome} (região imediata de ${m.regiao})` : m.nome, href: urlMunicipio(m.ibge), grupo: cor.get(m.intermediaria ?? "") ?? 0 }]),
@@ -332,6 +331,8 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
   if (!l.municipios) return <p className="pa-nota">A lista dos municípios não pôde ser lida agora.</p>;
   // o fiscal e os sinais do painel só existem para a Paraíba
   const admin = nivel >= 3 && l.completa;
+  // A cor de cada região intermediária, a mesma do mapa: o título de cada grupo da tabela a repete (H12, B11).
+  const corDaIntermediaria = gruposDeCor(intermediariasDaUf(l.municipios));
   const ordem: React.ReactNode = ordenarPorSinais ? (
     "ordenados pelos sinais do painel (só o administrador vê esta ordem)"
   ) : l.completa ? (
@@ -343,18 +344,19 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
   );
   const nota = l.completa ? (
     <>
-      Os {n(l.municipios.length)} municípios, {ordem}. Instrumentos: todos os da base desde 2008; porte: o <Termo slug="tercil">tercil</Termo> da população
-      entre os 223; OSC: as <Termo slug="osc-ativa">ativas</Termo> no Mapa das OSC.
+      Os {n(l.municipios.length)} municípios, {ordem}. Instrumentos: todos os da base desde 2008; porte: pequeno, médio ou grande, pelo{" "}
+      <Termo slug="tercil">terço da população</Termo> entre os 223; OSC: as <Termo slug="osc-ativa">ativas</Termo> no Mapa das OSC.
       {!ordenarPorSinais && (
         <>
           {" "}
-          No mapa, a cor é a da <Termo slug="regiao-intermediaria">região intermediária</Termo>.
+          No mapa, a cor é a da <Termo slug="regiao-intermediaria">região intermediária</Termo>, que reúne várias imediatas: cada grupo da tabela diz a
+          sua e repete a cor, e os grupos da mesma cor vêm juntos.
         </>
       )}
       {admin && (
         <>
           {" "}
-          A coluna da transferência voluntária mostra a decisão B do <Termo slug="decisoes-fiscais">painel fiscal</Termo>.
+          A coluna da transferência voluntária diz se o município pode receber esse repasse, pelo <Termo slug="decisoes-fiscais">painel fiscal</Termo>.
         </>
       )}
     </>
@@ -383,7 +385,14 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
         municipiosPorRegiao(l.municipios).map((g) => (
           <details key={g.regiao} id={ancoraRegiao(g.regiao)} className="mp-ent-grupo" open>
             <summary>
-              <strong>{l.completa ? `Região imediata de ${g.regiao}` : g.regiao}</strong> · {n(g.municipios.length)}{" "}
+              {/* H12 (B11): o mapa pinta pela intermediária e a tabela agrupa pela imediata; o título casa os dois. */}
+              {l.completa && g.intermediaria && (
+                <>
+                  <span className={`mp-mapa-amostra mp-mapa-g${corDaIntermediaria.get(g.intermediaria) ?? 0}`} aria-hidden="true" />{" "}
+                </>
+              )}
+              <strong>{l.completa ? `Região imediata de ${g.regiao}` : g.regiao}</strong>
+              {l.completa && g.intermediaria && <> · região intermediária de {g.intermediaria}</>} · {n(g.municipios.length)}{" "}
               {g.municipios.length === 1 ? "município" : "municípios"}
             </summary>
             <TabelaMunicipios ms={g.municipios} completa={l.completa} admin={admin} />
@@ -392,7 +401,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
       )}
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <a href={`/mapa/uf/${l.sigla.toLowerCase()}/csv`} className="pa-btn pa-btn-pequeno">
-          Municípios em CSV
+          Baixar os municípios (CSV)
         </a>
       </p>
     </Secao>
@@ -423,7 +432,7 @@ function Estado({ l }: { l: LeituraUfOk }) {
       }
     >
       {estaduais.length ? (
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo="O estado como proponente">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -455,7 +464,7 @@ function Estado({ l }: { l: LeituraUfOk }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       ) : (
         <p>Nenhum órgão estadual com instrumento na base.</p>
       )}
@@ -502,7 +511,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
           </>
         }
       >
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo="Os instrumentos por situação">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -523,7 +532,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </Secao>
       <Secao
         id="uf-orgaos"
@@ -535,7 +544,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
           </>
         }
       >
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotulo="De onde vem o dinheiro">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -558,11 +567,11 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </Secao>
       {nivel >= 1 && temas.length > 0 && (
         <Secao id="uf-temas" titulo="Por tema" nota="Os instrumentos vivos por tema do programa (um instrumento pode ter mais de um tema).">
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Por tema">
             <table className="mp-tabela mp-ent-areas">
               <tbody>
                 {temas.map((x) => (
@@ -577,7 +586,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </Secao>
       )}
       {nivel >= 1 && pix.length > 0 && (
@@ -590,7 +599,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
             </>
           }
         >
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Pix (transferências especiais)">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -613,7 +622,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </Secao>
       )}
       {nivel >= 1 && fundoPorAno.size > 0 && (
@@ -626,7 +635,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
             </>
           }
         >
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="Fundo a fundo">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -645,7 +654,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </Secao>
       )}
     </>
@@ -671,7 +680,7 @@ function Tempos({ l }: { l: LeituraUfOk }) {
         }
       >
         {todos.some((e) => e.uf !== null) ? (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo={`Quanto leva cada etapa ${naUf(l.sigla)}`}>
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -690,7 +699,7 @@ function Tempos({ l }: { l: LeituraUfOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         ) : (
           <p className="pa-nota">Sem medições suficientes do tempo das etapas.</p>
         )}
@@ -699,7 +708,7 @@ function Tempos({ l }: { l: LeituraUfOk }) {
             <summary>
               <strong>Por órgão</strong> · {n(orgaos.length)} órgãos, os com mais etapas lentas primeiro
             </summary>
-            <div className="mp-tabela-rolagem">
+            <TabelaRolagem rotulo={`Por órgão · ${n(orgaos.length)} órgãos, os com mais etapas lentas primeiro`}>
               <table className="mp-tabela">
                 <thead>
                   <tr>
@@ -725,7 +734,7 @@ function Tempos({ l }: { l: LeituraUfOk }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TabelaRolagem>
           </details>
         )}
       </Secao>
@@ -740,7 +749,7 @@ function Tempos({ l }: { l: LeituraUfOk }) {
             </>
           }
         >
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotulo="O funil das propostas">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -770,7 +779,7 @@ function Tempos({ l }: { l: LeituraUfOk }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </Secao>
       )}
     </>
@@ -779,17 +788,22 @@ function Tempos({ l }: { l: LeituraUfOk }) {
 
 function Relatorio({ l }: { l: LeituraUfOk }) {
   return (
-    <Secao id="uf-relatorio" titulo="Relatório e dados" nota="Para imprimir ou anexar: o resumo, os municípios e o dinheiro do estado numa peça só.">
+    // A nota prometia "os municípios", que a aba nunca mostrou (B0, 4.6): a lista inteira sai no CSV (B11, 08/10/2026).
+    <Secao
+      id="uf-relatorio"
+      titulo="Relatório e dados"
+      nota="Para imprimir ou anexar: o resumo e o dinheiro federal do estado numa peça só. A lista dos municípios sai no CSV."
+    >
       <p className="mp-nao-imprimir mp-laudo-acoes">
         <BotaoImprimir />
         <a href={`/mapa/uf/${l.sigla.toLowerCase()}/csv`} className="pa-btn pa-btn-pequeno">
-          Municípios em CSV
+          Baixar os municípios (CSV)
         </a>
       </p>
       <p className="pa-nota">
         Fontes: Transferegov (instrumentos, propostas, tempos, Pix e fundo a fundo), arquivo de {data(l.execucao.dado_ate)}
         {l.completa && l.osc ? `; Mapa das OSC (Ipea), versão de ${versaoLegivel(l.osc.versao)}` : ""}
-        {l.completa ? "; IBGE e demais fontes da camada 2 nos indicadores" : ""}.
+        {l.completa ? "; nos indicadores, o IBGE e as demais fontes oficiais citadas na página do município" : ""}.
       </p>
     </Secao>
   );

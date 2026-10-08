@@ -1,0 +1,9 @@
+/* =====================================================================
+   B12 (onda 2 de UX, 08/10/2026) — "Marcar como lidas" com desfazer.
+   O aviso usa a caixa da estrela (estrela.css). Aqui só o caso em que
+   não sobra nada para marcar: o "Marcar tudo como lido" do topo fica na
+   página só com as regiões vivas e o aviso, que não ocupam lugar; sem
+   caixa própria, ele também não abre um vão a mais na linha dos botões.
+   ===================================================================== */
+
+.pa-root .mp-cart-marcar-vazio { display: contents; }

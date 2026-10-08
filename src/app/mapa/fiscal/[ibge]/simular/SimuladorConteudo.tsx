@@ -40,6 +40,7 @@ import { Tag } from "../../../../_design/primitivos";
 import { EstadoDecisao } from "../../FiscalConteudo";
 import { BotaoImprimir } from "./BotaoImprimir";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraMunicipioFiscal, { estado: "ok" }>;
 
@@ -405,7 +406,7 @@ function Limites({ simulacao: s }: { simulacao: Simulacao }) {
       </div>
 
       <h3 className="mp-simulador-h3">Ano a ano</h3>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="Liberações, serviço da dívida e dívida consolidada líquida, com a operação simulada, por ano">
         <table className="mp-tabela mp-simulador-tabela">
           <caption className="pa-sr">Liberações, serviço da dívida e dívida consolidada líquida, com a operação simulada, por ano</caption>
           <thead>
@@ -456,10 +457,10 @@ function Limites({ simulacao: s }: { simulacao: Simulacao }) {
             </tfoot>
           )}
         </table>
-      </div>
+      </TabelaRolagem>
 
       <h3 className="mp-simulador-h3">Cronograma da operação simulada</h3>
-      <div className="mp-tabela-rolagem">
+      <TabelaRolagem rotulo="Liberação, juros, amortização e saldo devedor da operação simulada, por ano">
         <table className="mp-tabela mp-simulador-tabela">
           <caption className="pa-sr">Liberação, juros, amortização e saldo devedor da operação simulada, por ano</caption>
           <thead>
@@ -495,7 +496,7 @@ function Limites({ simulacao: s }: { simulacao: Simulacao }) {
             </tr>
           </tfoot>
         </table>
-      </div>
+      </TabelaRolagem>
     </section>
   );
 }

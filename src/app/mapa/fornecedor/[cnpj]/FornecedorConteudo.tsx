@@ -14,6 +14,7 @@ import { ROTULO_SITUACAO, urlTce, type TceFederalPar, type TcePixCredor } from "
 import type { TceDoFornecedor } from "@/lib/oportunidades/tce.server";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraDossieFornecedor, { estado: "ok" }>;
 
@@ -127,7 +128,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
           <h2 id="forn-lidera" className="mp-radar-h2">
             Onde é o maior fornecedor da prefeitura
           </h2>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="forn-lidera">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -157,7 +158,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
           <p className="pa-nota">Só os convênios em que a prefeitura é a proponente. Indicador para olhar, não irregularidade.</p>
         </section>
       )}
@@ -167,7 +168,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
           <h2 id="forn-municipios" className="mp-radar-h2">
             Por município
           </h2>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="forn-municipios">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -190,7 +191,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </section>
       )}
 
@@ -198,7 +199,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
         <h2 id="forn-convenios" className="mp-radar-h2">
           Convênios
         </h2>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="forn-convenios">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -255,7 +256,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
               })}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </section>
 
       <NoTce tce={tce} nomes={new Map([...Object.entries(tce?.nomes ?? {}), ...convenios.map((c) => [c.cod_ibge ?? "", c.municipio ?? ""] as [string, string])])} />
@@ -265,7 +266,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
           <h2 id="forn-contratos" className="mp-radar-h2">
             Contratos
           </h2>
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="forn-contratos">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -297,7 +298,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         </section>
       )}
 
@@ -353,7 +354,7 @@ function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string,
           O TCE-PB não registra pagamento a esta empresa com dinheiro federal (convênio ou Pix) nos arquivos lidos, desde 2024.
         </p>
       ) : (
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="forn-tce">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -384,7 +385,7 @@ function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string,
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       )}
       <p className="pa-nota">
         Despesas abertas do TCE-PB desde 2024: fontes 700, 631 e 570 (convênios da União) e 706 (Pix). O TCE não traz o número do convênio; o

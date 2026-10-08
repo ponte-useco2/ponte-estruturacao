@@ -17,6 +17,7 @@ import {
 } from "@/lib/oportunidades/tce";
 import type { LeituraPainelTce } from "@/lib/oportunidades/tce.server";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPainelTce, { estado: "ok" }>;
 
@@ -88,7 +89,7 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
         {pix.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhum município com despesa paga na fonte do Pix neste ano, entre os arquivos lidos.</p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="tce-pix">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -110,7 +111,7 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
         <p className="pa-nota">
           Fonte 706 (transferência especial da União) nas despesas do município. Capital = investimentos e inversões financeiras; a amortização
@@ -127,7 +128,7 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
         {ms.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nada a conciliar neste ano.</p>
         ) : (
-          <div className="mp-tabela-rolagem">
+          <TabelaRolagem rotuloId="tce-conciliacao">
             <table className="mp-tabela">
               <thead>
                 <tr>
@@ -155,7 +156,7 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
                 ))}
               </tbody>
             </table>
-          </div>
+          </TabelaRolagem>
         )}
         <p className="pa-nota">
           “SICONV pagou”: pagamentos a empresas nos convênios da administração municipal (prefeitura, fundos, autarquias), sem a OBTV para o

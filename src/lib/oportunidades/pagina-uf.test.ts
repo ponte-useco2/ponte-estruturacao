@@ -6,6 +6,7 @@ import {
   etapasComparadas,
   funil,
   indicadoresDaUf,
+  intermediariasDaUf,
   lentesDaUf,
   municipiosPorRegiao,
   naUf,
@@ -83,6 +84,35 @@ test("U1: municípios em ordem alfabética dentro da região; os sinais só orde
     ["Região não informada", ["X"]],
   ]);
   assert.deepEqual(porSinais([m("A", null, 1), m("B", null, 5), m("C", null)]).map((x) => x.nome), ["B", "A", "C"]);
+});
+
+test("B11 (H12): cada grupo diz a região intermediária, e os grupos vêm na ordem da legenda do mapa", () => {
+  const m = (nome: string, regiao: string | null, intermediaria: string | null): MunicipioUf => ({
+    ibge: nome, nome, populacao: null, porte: null, regiao, intermediaria, instrumentos: 1, em_execucao: 0, valor_execucao: 0, osc_ativas: null,
+  });
+  const ms = [
+    m("Sousa", "Sousa", "Sousa - Cajazeiras"),
+    m("Cajazeiras", "Cajazeiras", "Sousa - Cajazeiras"),
+    m("Patos", "Patos", "Patos"),
+    m("Itaporanga", "Itaporanga", "Patos"),
+    m("Campina Grande", "Campina Grande", "Campina Grande"),
+    m("Cuité", "Cuité - Nova Floresta", "Campina Grande"),
+    m("Sem grupo", null, null),
+  ];
+  assert.deepEqual(intermediariasDaUf(ms), ["Campina Grande", "Patos", "Sousa - Cajazeiras"], "a legenda: sem repetir, em ordem alfabética");
+  assert.deepEqual(
+    municipiosPorRegiao(ms).map((g) => [g.intermediaria, g.regiao]),
+    [
+      ["Campina Grande", "Campina Grande"],
+      ["Campina Grande", "Cuité - Nova Floresta"],
+      ["Patos", "Itaporanga"],
+      ["Patos", "Patos"],
+      ["Sousa - Cajazeiras", "Cajazeiras"],
+      ["Sousa - Cajazeiras", "Sousa"],
+      [null, "Região não informada"],
+    ],
+    "as imediatas da mesma intermediária (a mesma cor no mapa) ficam juntas, em ordem alfabética",
+  );
 });
 
 test("U1: tempos da UF contra o Brasil e o funil das propostas", () => {

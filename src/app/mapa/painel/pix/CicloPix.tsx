@@ -8,6 +8,7 @@ import type { LeituraCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import { urlLaudoPix } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 const VEZ: Record<string, string> = { ente: "município", orgao: "órgão federal", a_conferir: "a conferir" };
 
@@ -41,7 +42,7 @@ function Conteudo({ leitura, hoje }: { leitura: LeituraCicloPix | null; hoje: st
           : `${String(c.ciclo_prazos_cadastrados)} prazos de comunicado cadastrados.`}
       </p>
       {planos.length > 0 && (
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="pix-ciclo">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -85,7 +86,7 @@ function Conteudo({ leitura, hoje }: { leitura: LeituraCicloPix | null; hoje: st
               })}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       )}
     </>
   );

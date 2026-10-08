@@ -1,6 +1,7 @@
 /**
  * A página de um convênio: valores, prazos e, na PB, a linha do tempo. Recebe os dados já lidos.
  */
+import type { ReactNode } from "react";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import {
   ROTULO_TIPO_EVENTO,
@@ -20,9 +21,12 @@ import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { ROTULO_MOTIVO_ADITIVO, percentual } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { eloInstrumento, trilha } from "@/lib/oportunidades/trilha";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { CopiarNumero } from "../../painel/CopiarNumero";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { Termo } from "../../_componentes/Termo";
+import { Trilha } from "../../_componentes/Trilha";
 
 type LeituraOk = Extract<LeituraInstrumento, { estado: "ok" }>;
 
@@ -50,6 +54,16 @@ export function InstrumentoConteudo({
   return (
     <div className="pa-pagina mp-radar mp-instrumento">
       <div className="pa-pilha mp-radar-cabeca">
+        <Trilha
+          elos={trilha(
+            {
+              uf: i.uf,
+              municipio: i.cod_ibge || i.municipio ? { ibge: i.cod_ibge, nome: i.municipio } : null,
+              entidade: { cnpj: i.cnpj, nome: i.proponente },
+            },
+            eloInstrumento(i.nr_convenio, i.modalidade),
+          )}
+        />
         <p className="pa-kicker">
           {rotuloModalidade(i.modalidade) ?? "convênio"} nº {i.nr_convenio} <CopiarNumero numero={i.nr_convenio} de="convênio" />
           {seguindo !== null && (
@@ -90,7 +104,7 @@ export function InstrumentoConteudo({
         {laudo && (
           <p className="mp-nao-imprimir mp-laudo-acoes">
             <LinkMapa href={`/mapa/instrumento/${encodeURIComponent(i.nr_convenio)}/laudo`} className="pa-btn pa-btn-pequeno">
-              Laudo do instrumento
+              Abrir o laudo do convênio
             </LinkMapa>
             <span className="pa-nota">onde está, quanto tempo contra o típico, riscos e o que fazer</span>
           </p>
@@ -102,7 +116,8 @@ export function InstrumentoConteudo({
           <h2 className="pa-mono">Repasse federal</h2>
           <p className="pa-numero">{moedaCurta(i.vl_repasse)}</p>
           <p className="pa-nota">
-            Valor global {moedaCurta(i.vl_global)} · contrapartida {moedaCurta(i.vl_contrapartida)}
+            <Termo slug="valor-global">Valor global</Termo> {moedaCurta(i.vl_global)} · <Termo slug="contrapartida">contrapartida</Termo>{" "}
+            {moedaCurta(i.vl_contrapartida)}
           </p>
         </article>
         <article className="pa-cartao">
@@ -110,11 +125,14 @@ export function InstrumentoConteudo({
           <p className="pa-numero">{moedaCurta(i.vl_desembolsado)}</p>
           <p className="pa-nota">
             {/* Calculado aqui: até a onda 12 o job gravava 999% em `pct_desembolsado` quando não havia desembolso. */}
-            {percentual(i.vl_repasse ? (i.vl_desembolsado ?? 0) / i.vl_repasse : null)} do repasse · empenhado {moedaCurta(i.vl_empenhado)}
+            {percentual(i.vl_repasse ? (i.vl_desembolsado ?? 0) / i.vl_repasse : null)} do repasse · <Termo slug="empenho">empenhado</Termo>{" "}
+            {moedaCurta(i.vl_empenhado)}
           </p>
         </article>
         <article className="pa-cartao">
-          <h2 className="pa-mono">Pago pelo convenente</h2>
+          <h2 className="pa-mono">
+            Pago pelo <Termo slug="convenente">convenente</Termo>
+          </h2>
           <p className="pa-numero">{moedaCurta(i.vl_pago)}</p>
           <p className="pa-nota">
             Saldo em conta {moedaCurta(i.vl_saldo_conta)}
@@ -129,16 +147,16 @@ export function InstrumentoConteudo({
         </h2>
         <dl className="mp-instrumento-prazos">
           <Prazo rotulo="Assinatura" valor={data(i.dt_assinatura)} />
-          <Prazo rotulo="Vigência" valor={`${data(i.dt_inicio_vigencia)} a ${data(i.dt_fim_vigencia)}`} />
+          <Prazo rotulo={<Termo slug="vigencia">Vigência</Termo>} valor={`${data(i.dt_inicio_vigencia)} a ${data(i.dt_fim_vigencia)}`} />
           <Prazo rotulo="Limite para prestar contas" valor={data(i.dt_limite_contas)} />
           {(i.dt_suspensiva || i.dt_retirada_suspensiva) && (
             <Prazo
-              rotulo="Cláusula suspensiva"
+              rotulo={<Termo slug="condicao-suspensiva">Condição suspensiva</Termo>}
               valor={i.dt_retirada_suspensiva ? `retirada em ${data(i.dt_retirada_suspensiva)}` : `prazo até ${data(i.dt_suspensiva)}`}
             />
           )}
-          {i.motivo_suspensao && <Prazo rotulo="O termo exige, para retirar a suspensiva" valor={i.motivo_suspensao} />}
-          <Prazo rotulo="Termos aditivos e prorrogações de ofício" valor={`${n(i.n_aditivos)} e ${n(i.n_prorrogas)}`} />
+          {i.motivo_suspensao && <Prazo rotulo="Motivo da suspensiva, como registrado no termo" valor={i.motivo_suspensao} />}
+          <Prazo rotulo="Termos aditivos e prorrogações feitas pelo concedente" valor={`${n(i.n_aditivos)} e ${n(i.n_prorrogas)}`} />
           <Prazo rotulo="Desembolsos" valor={i.dt_primeiro_desembolso ? `${data(i.dt_primeiro_desembolso)} a ${data(i.dt_ultimo_desembolso)}` : "nenhum"} />
           <Prazo rotulo="Último pagamento" valor={data(i.dt_ultimo_pagamento)} />
         </dl>
@@ -198,7 +216,7 @@ export function InstrumentoConteudo({
   );
 }
 
-function Prazo({ rotulo, valor }: { rotulo: string; valor: string }) {
+function Prazo({ rotulo, valor }: { rotulo: ReactNode; valor: string }) {
   return (
     <div>
       <dt className="pa-mono">{rotulo}</dt>

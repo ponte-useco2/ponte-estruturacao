@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 /**
  * Clientes Supabase para a área autenticada da /oportunidades.
@@ -72,8 +73,14 @@ export interface Visitante {
  * status atual. Nunca promove ninguém: a função do banco usa
  * `on conflict do update` sem tocar em `status`, então uma decisão sua não é
  * desfeita por um novo login.
+ *
+ * Uma vez por pedido (D35, 08/10/2026): o layout do /mapa e a página chamam os
+ * dois, e cada chamada custava `auth.getUser()` + a gravação no banco — duas
+ * idas e voltas a mais por página. O `cache` do React guarda o resultado só
+ * durante a renderização de um pedido; fora dela (rotas de API e ações do
+ * servidor) a função roda como antes, a cada chamada.
  */
-export async function visitanteAtual(): Promise<Visitante | null> {
+export const visitanteAtual = cache(async (): Promise<Visitante | null> => {
   if (!authConfigurada()) return null;
 
   const supabase = await clienteSessao();
@@ -110,7 +117,7 @@ export async function visitanteAtual(): Promise<Visitante | null> {
     avatar,
     status: (data as StatusAcesso) || "pendente",
   };
-}
+});
 
 /** E-mails que administram as aprovações. Lista curta, em env var. */
 export function administradores(): string[] {

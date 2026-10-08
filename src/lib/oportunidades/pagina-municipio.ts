@@ -11,14 +11,50 @@ export type NivelAcesso = 0 | 1 | 2 | 3;
 
 export type AbaMunicipio = "trava" | "resumo" | "dinheiro" | "contas" | "controle" | "indicadores" | "relatorio";
 
+/**
+ * O nome das abas que se repetem nos 4 níveis do território — Brasil, UF, município e entidade (B11, 08/10/2026;
+ * achado H08 da auditoria B1+B2). A mesma coisa tinha dois nomes: "Dinheiro federal" no município e "Dinheiro" nos
+ * outros três. Fica "Dinheiro federal" em todos: é o que a aba mostra em qualquer nível (convênios, emendas, Pix,
+ * fundo a fundo e o dinheiro federal nas despesas do TCE-PB), e no município ela fica ao lado de "Contas públicas",
+ * que é o dinheiro do próprio município. As listas dos outros níveis (`ABAS_UF`, `ABAS_BRASIL`, `ABAS_ENTIDADE`) leem
+ * o nome daqui, para não voltarem a divergir.
+ */
+export const NOME_ABA = {
+  trava: "O que trava e o que destrava",
+  resumo: "Resumo",
+  dinheiro: "Dinheiro federal",
+  controle: "Controle",
+  relatorio: "Relatório e dados",
+} as const;
+
+/**
+ * A ordem das abas em qualquer nível (B11): as comuns sempre na mesma posição relativa — a fila, o resumo, o dinheiro,
+ * o controle e, por último, o relatório — e as próprias de cada nível entre elas (as unidades de baixo logo depois do
+ * resumo; contas, indicadores e tempos depois do dinheiro). O teste confere as quatro listas contra esta.
+ */
+export const ORDEM_DAS_ABAS: readonly string[] = [
+  "trava",
+  "resumo",
+  "estados",
+  "municipios",
+  "estado",
+  "instrumentos",
+  "dinheiro",
+  "contas",
+  "controle",
+  "indicadores",
+  "tempos",
+  "relatorio",
+];
+
 export const ABAS_MUNICIPIO: readonly { id: AbaMunicipio; nome: string; minimo: NivelAcesso }[] = [
-  { id: "trava", nome: "O que trava e o que destrava", minimo: 1 },
-  { id: "resumo", nome: "Resumo", minimo: 0 },
-  { id: "dinheiro", nome: "Dinheiro federal", minimo: 0 },
+  { id: "trava", nome: NOME_ABA.trava, minimo: 1 },
+  { id: "resumo", nome: NOME_ABA.resumo, minimo: 0 },
+  { id: "dinheiro", nome: NOME_ABA.dinheiro, minimo: 0 },
   { id: "contas", nome: "Contas públicas", minimo: 1 },
-  { id: "controle", nome: "Controle", minimo: 1 },
+  { id: "controle", nome: NOME_ABA.controle, minimo: 1 },
   { id: "indicadores", nome: "Indicadores", minimo: 0 },
-  { id: "relatorio", nome: "Relatório e dados", minimo: 1 },
+  { id: "relatorio", nome: NOME_ABA.relatorio, minimo: 1 },
 ];
 
 export function nivelDeAcesso(v: { aprovado: boolean; administrador: boolean; clienteDoMunicipio: boolean }): NivelAcesso {

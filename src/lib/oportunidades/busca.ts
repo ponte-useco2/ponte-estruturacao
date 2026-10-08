@@ -283,6 +283,40 @@ export interface LinhaInvestimento {
   executado: number | null;
 }
 
+// ============================ INDISPONÍVEL ============================
+
+export interface SaidaIndisponivel {
+  rotulo: string;
+  href: string;
+}
+
+/**
+ * As saídas da tela de indisponível (`DadoIndisponivel`; B12, onda 2 de UX, 08/10/2026, achado H14 da auditoria B1+B2).
+ * Antes era só "Voltar às janelas". Agora: "Tentar de novo" quando a página passa o próprio endereço; a volta que ela
+ * pedir (a página do município, a carteira); e a busca e as janelas, menos a que for a própria página. Endereço que não
+ * é do Mapa não vira link.
+ */
+export function saidasIndisponivel(
+  endereco?: string | null,
+  voltarPara?: SaidaIndisponivel | null,
+): { tentar: string | null; saidas: SaidaIndisponivel[] } {
+  const doMapa = (href: string | null | undefined): href is string => typeof href === "string" && /^\/mapa(?:[/?#]|$)/.test(href);
+  const caminho = (href: string) => href.split(/[?#]/)[0];
+  const aqui = doMapa(endereco) ? caminho(endereco) : null;
+  const vistas = new Set<string>();
+  const saidas = [
+    ...(voltarPara && doMapa(voltarPara.href) ? [voltarPara] : []),
+    { rotulo: "Procurar na busca", href: "/mapa/busca" },
+    { rotulo: "Voltar às janelas", href: "/mapa" },
+  ].filter((s) => {
+    const c = caminho(s.href);
+    if (c === aqui || vistas.has(c)) return false;
+    vistas.add(c);
+    return true;
+  });
+  return { tentar: doMapa(endereco) ? endereco : null, saidas };
+}
+
 /** "1 plano", "2 planos", "1.234 convênios": o número no formato brasileiro com a palavra concordando. */
 export function contagem(quantidade: number, um: string, varios: string): string {
   return `${quantidade.toLocaleString("pt-BR")} ${Math.abs(quantidade) === 1 ? um : varios}`;

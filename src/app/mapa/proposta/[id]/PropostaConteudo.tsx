@@ -14,9 +14,12 @@ import {
 } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
+import { eloProposta, trilha } from "@/lib/oportunidades/trilha";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { CopiarNumero } from "../../painel/CopiarNumero";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { Trilha } from "../../_componentes/Trilha";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraProposta, { estado: "ok" }>;
 
@@ -41,10 +44,24 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
   const temas = (p.temas ?? []).filter((t) => ROTULO_TEMA[t]);
   const ateAssinatura = diasEntre(p.dt_envio, p.dt_assinatura);
   const emAberto = vez !== null ? diasEntre(p.dt_envio, leitura.execucao.referencia) : null;
+  // B11: o CNPJ do proponente, para o elo da entidade na trilha. A leitura traz a linha inteira de `painel_proposta`
+  // (select "*"), que tem o CNPJ desde a oport_31, mas o tipo `PropostaCompleta` ainda não o declara; sem o campo,
+  // o proponente aparece na trilha sem link.
+  const cnpj = "cnpj" in p && typeof p.cnpj === "string" ? p.cnpj : null;
 
   return (
     <div className="pa-pagina mp-radar">
       <div className="pa-pilha mp-radar-cabeca">
+        <Trilha
+          elos={trilha(
+            {
+              uf: p.uf,
+              municipio: p.cod_ibge || p.municipio ? { ibge: p.cod_ibge, nome: p.municipio } : null,
+              entidade: { cnpj, nome: p.proponente },
+            },
+            eloProposta(p.id_proposta, p.nr_proposta),
+          )}
+        />
         <p className="pa-kicker">
           Proposta nº {p.nr_proposta ?? p.id_proposta} <CopiarNumero numero={p.nr_proposta ?? p.id_proposta} de="proposta" />
           {seguindo !== null && (
@@ -114,7 +131,7 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           Medianas do {p.orgao_sup ?? "órgão"} nas etapas que terminaram nos últimos três anos. Com menos de {MINIMO_MEDICOES}{" "}
           medições, a mediana não aparece.
         </p>
-        <div className="mp-tabela-rolagem">
+        <TabelaRolagem rotuloId="proposta-tempos">
           <table className="mp-tabela">
             <thead>
               <tr>
@@ -143,7 +160,7 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
               ))}
             </tbody>
           </table>
-        </div>
+        </TabelaRolagem>
       </section>
 
       {p.nr_convenio && (

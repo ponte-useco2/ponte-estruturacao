@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { parametrosBusca } from "@/lib/oportunidades/busca";
+import { parametrosBusca, urlBusca } from "@/lib/oportunidades/busca";
 import { lerBusca } from "@/lib/oportunidades/busca.server";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
@@ -27,6 +27,9 @@ export default async function BuscaPage({
 
   const p = parametrosBusca(await searchParams);
   const [leitura, seguidas] = await Promise.all([lerBusca(p), lerSeguidas()]);
-  if (leitura.estado !== "ok") return <DadoIndisponivel kicker="Busca" titulo="A busca está indisponível agora" />;
+  // "Tentar de novo" refaz a mesma busca, na mesma página (B12).
+  if (leitura.estado !== "ok") {
+    return <DadoIndisponivel kicker="Busca" titulo="A busca está indisponível agora" endereco={urlBusca(p, { pagina: p.pagina })} />;
+  }
   return <BuscaConteudo p={p} leitura={leitura} seguidas={seguidas} />;
 }

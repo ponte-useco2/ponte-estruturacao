@@ -1,0 +1,39 @@
+/* =====================================================================
+   B12 (onda 2 de UX, 08/10/2026) — a busca diz o que procura e por onde
+   sair. Completa as regras da busca em mapa.css (onda 6): o rótulo à
+   vista no lugar do placeholder (A06 da auditoria B1+B2), o grupo
+   "Municípios" no topo e o cartão do vazio com as saídas.
+   Só tokens do Mapa. Seletores com duas classes onde mexem no que
+   mapa.css ou estilos.css já definem: a ordem de carga não é fixa.
+   ===================================================================== */
+
+/* O rótulo do campo em texto de gente, não no rótulo miúdo em caixa alta dos filtros: é a instrução da tela. */
+.pa-root .mp-busca-termo .mp-busca-rotulo { font-size: 0.95rem; font-weight: 600; color: var(--pa-text); }
+.pa-root .mp-busca-ajuda { margin: 0; font-size: 0.82rem; color: var(--pa-muted); line-height: 1.45; }
+/* O exemplo no campo com 5,89:1 (era #93a29d, 2,66:1). */
+.pa-root .mp-busca-termo .pa-input::placeholder { color: var(--pa-muted); opacity: 1; }
+
+/* O grupo "Municípios": uma linha por município, o nome primeiro e grande o bastante para o toque. */
+.pa-root .mp-busca-municipios { display: grid; gap: 0.4rem; margin: 0 0 1rem; }
+.pa-root .mp-busca-municipios .mp-radar-h2 { margin: 0; }
+.pa-root .mp-busca-municipios ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
+.pa-root .mp-busca-municipios li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.6rem; min-width: 0; }
+.pa-root .mp-busca-municipios .mp-busca-municipio-nome {
+  display: inline-flex; align-items: center; min-height: 44px;
+  font-weight: 700; font-size: 1rem; color: var(--pa-brand-2);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.pa-root .mp-busca-municipios .mp-busca-municipio-nome:hover { text-decoration-thickness: 2px; }
+.pa-root .mp-busca-municipio-uf { font-size: 0.82rem; color: var(--pa-muted); }
+.pa-root .mp-busca-municipio-filtro { font-size: 0.82rem; color: var(--pa-muted); }
+.pa-root .mp-busca-municipio-filtro a { color: var(--pa-brand-2); text-decoration: underline; text-underline-offset: 2px; }
+
+/* O vazio: a frase e a lista do que tentar. */
+.pa-root .mp-busca-vazio { display: grid; gap: 0.5rem; }
+.pa-root .mp-busca-vazio ul { margin: 0; display: grid; gap: 0.45rem; }
+.pa-root .mp-busca-vazio li { color: var(--pa-muted); }
+
+@media print {
+  .mp-busca-municipio-filtro { display: none !important; }
+}

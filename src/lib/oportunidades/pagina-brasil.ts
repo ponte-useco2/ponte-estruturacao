@@ -5,7 +5,7 @@
  * 2D pela malha do IBGE, com cor só por região (macrorregião no Brasil, região intermediária na Paraíba), nunca por
  * problema. Aqui fica o que é puro. Sem banco.
  */
-import type { NivelAcesso } from "./pagina-municipio.ts";
+import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
 import { NOME_UF, totalTerritorio, porSituacao, type LinhaTerritorio } from "./pagina-uf.ts";
 import type { ColunaCsv, LinhaDesfecho } from "./painel.ts";
 import type { LinhaEspecialAno } from "./pix.ts";
@@ -48,13 +48,19 @@ export function gruposDeCor(regioes: string[]): Map<string, number> {
 
 // ================================================================ abas
 
-export type AbaBrasil = "resumo" | "estados" | "dinheiro" | "tempos";
+export type AbaBrasil = "resumo" | "estados" | "dinheiro" | "tempos" | "relatorio";
 
+/**
+ * Os nomes comuns aos 4 níveis vêm de `NOME_ABA` (B11, 08/10/2026): "Dinheiro" virou "Dinheiro federal", e o Brasil
+ * ganhou "Relatório e dados", a última aba nos outros três níveis — com o mesmo papel da UF (a página numa peça só para
+ * imprimir e o CSV das 27 UFs, que antes só morava na aba das UFs).
+ */
 export const ABAS_BRASIL: readonly { id: AbaBrasil; nome: string; minimo: NivelAcesso }[] = [
-  { id: "resumo", nome: "Resumo", minimo: 0 },
+  { id: "resumo", nome: NOME_ABA.resumo, minimo: 0 },
   { id: "estados", nome: "As 27 UFs", minimo: 0 },
-  { id: "dinheiro", nome: "Dinheiro", minimo: 0 },
+  { id: "dinheiro", nome: NOME_ABA.dinheiro, minimo: 0 },
   { id: "tempos", nome: "Tempos e funil", minimo: 1 },
+  { id: "relatorio", nome: NOME_ABA.relatorio, minimo: 1 },
 ];
 
 export function abaDoBrasil(pedida: string | string[] | undefined, nivel: NivelAcesso): AbaBrasil {

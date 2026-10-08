@@ -233,8 +233,8 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
     r.push({
       classe: "cobranca",
       nivel: "alto",
-      acao: `Acompanhar ${tce === 1 ? "a TCE" : `as ${tce} TCE`} no TCU e reunir a defesa ou o recolhimento`,
-      fato: `${plural(tce, "Tomada de Contas Especial", "Tomadas de Contas Especiais")} no e-TCE do TCU para convênios ${escopo === "entidade" ? "da entidade" : "do município"}${em}. TCE não é julgamento: o Tribunal ainda decide.`,
+      acao: `Acompanhar ${tce === 1 ? "a tomada de contas especial" : `as ${tce} tomadas de contas especiais`} no TCU e reunir a defesa ou o recolhimento`,
+      fato: `${plural(tce, "Tomada de Contas Especial", "Tomadas de Contas Especiais")} no e-TCE do TCU para convênios ${escopo === "entidade" ? "da entidade" : "do município"}${em}. Tomada de contas especial não é julgamento: quem decide é o TCU.`,
     });
   }
   const atrasadas = num(e.contas_atrasadas) ?? 0;
@@ -348,7 +348,7 @@ function numerosDoMunicipio(e: Record<string, unknown>): ItemCarteira["numeros"]
   if ("cauc" in e) n.push({ rotulo: "CAUC", valor: txt(e.cauc) ?? "sem pendência", nivel: txt(e.cauc) ? "alto" : null });
   n.push({ rotulo: "Em execução", valor: String(num(e.em_execucao) ?? 0), nivel: null });
   const tce = num(e.tce_tcu) ?? 0;
-  n.push({ rotulo: "TCE no TCU", valor: String(tce), nivel: tce > 0 ? "alto" : null });
+  n.push({ rotulo: "Tomadas de contas especiais (TCU)", valor: String(tce), nivel: tce > 0 ? "alto" : null });
   const pixEnte = num(e.pix_vez_ente) ?? 0;
   if (pixEnte > 0) n.push({ rotulo: "Pix à espera do município", valor: String(pixEnte), nivel: "alto" });
   return n;

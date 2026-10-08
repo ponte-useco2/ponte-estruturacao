@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { OportunidadesClient, type Payload } from "./OportunidadesClient";
@@ -45,8 +46,49 @@ export default async function OportunidadesPage() {
   await registrarEvento("entrada", { versao: payloadInicial?.versao ?? null });
 
   return (
-    <Suspense fallback={null}>
-      <OportunidadesClient payloadInicial={payloadInicial} />
-    </Suspense>
+    <>
+      {/*
+        A porta para o Mapa (B11, 08/10/2026; inventário B0, item 2.1): o login sem `next` cai aqui, e nenhum link do
+        site levava ao /mapa. Só quem passou pelo portão acima (aprovado) vê esta faixa. Fica fora do
+        `OportunidadesClient` para aparecer já no primeiro HTML, antes do painel carregar.
+      */}
+      <nav className="op-mapa-faixa" aria-label="Mapa de Oportunidades">
+        <div className="op-mapa-faixa-wrap">
+          <p>O Mapa de Oportunidades reúne as janelas de várias fontes, os avisos do que mudou e as páginas do Brasil, dos estados e dos municípios.</p>
+          <Link href="/mapa" prefetch={false} className="op-mapa-faixa-btn">
+            Abrir o Mapa de Oportunidades
+          </Link>
+        </div>
+      </nav>
+      <Suspense fallback={null}>
+        <OportunidadesClient payloadInicial={payloadInicial} />
+      </Suspense>
+      <style>{ESTILO_FAIXA}</style>
+    </>
   );
 }
+
+/** A faixa com a porta do Mapa. Tokens da plataforma (--color-pl-*), com literais de reserva, como `estilos-entrada.ts`. */
+const ESTILO_FAIXA = `
+  .op-mapa-faixa {
+    background: var(--color-pl-brand-soft, #dbe8e2);
+    border-bottom: 1px solid var(--color-pl-border, #d4ded9);
+    color: var(--color-pl-text, #13201d);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  .op-mapa-faixa-wrap {
+    max-width: 1080px; margin: 0 auto; padding: 12px 30px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px;
+  }
+  .op-mapa-faixa p { margin: 0; flex: 1 1 320px; font-size: 14px; line-height: 1.5; }
+  .op-mapa-faixa-btn {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px;
+    background: var(--color-pl-brand-2, #1e5446); color: #fff; border-radius: 8px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+  }
+  .op-mapa-faixa-btn:hover { background: var(--color-pl-brand, #0f2d26); }
+  .op-mapa-faixa-btn:focus-visible { outline: 2px solid var(--color-pl-brand, #0f2d26); outline-offset: 2px; }
+  @media (max-width: 640px) {
+    .op-mapa-faixa-wrap { padding: 12px 16px; }
+  }
+`;
