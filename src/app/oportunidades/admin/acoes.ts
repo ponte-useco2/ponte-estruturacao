@@ -18,9 +18,14 @@ export interface Resultado {
   erro?: string;
 }
 
+/**
+ * Aprovado e na lista, como a página (C6, onda 7, 09/10/2026). A identidade do
+ * Google com o e-mail confirmado já foi conferida em `visitanteAtual`: sem ela,
+ * o e-mail de administrador volta como sem sessão.
+ */
 async function exigirAdmin(): Promise<{ email: string } | null> {
   const v = await visitanteAtual();
-  if (!v || !ehAdministrador(v.email)) return null;
+  if (!v || v.status !== "aprovado" || !ehAdministrador(v.email)) return null;
   return { email: v.email };
 }
 

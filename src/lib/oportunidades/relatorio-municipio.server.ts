@@ -19,8 +19,20 @@
  * Acesso Livre e fornecedores vão pelos números dos convênios da entidade; Pix, fundo a fundo e o ciclo, pelo CNPJ;
  * o fiscal entra só para entidade municipal (o CAUC e a LRF são do ente federativo), o TCE-PB só para a
  * prefeitura; janelas e indicadores são do território e ficam fora.
+ *
+ * Onda 7, A (09/10/2026; R2 de 09/10, §5.1): duas mudanças para a abertura ao público.
+ *   - **Leitura leve para o nível 0** (`{ publico: true }`): lê só as fontes de `fontesDoNivel(0)` — convênios,
+ *     propostas, emendas, indicadores e janelas —, e passa a entrada por `entradaDasFontes`, a mesma regra que o teste
+ *     usa para provar que o relatório do público sai igual ao recortado da leitura completa. O município cai de ~50
+ *     pedidos ao banco para 8 ou 9; a entidade, de 25–40 para 5–7. Do nível 1 em diante, a leitura de sempre.
+ *   - **Cache compartilhado** (`cache-dados.server.ts`): a memória de cada leitor ganha uma segunda camada, comum a
+ *     todas as instâncias, com a mesma validade de 10 minutos e a mesma regra do que se guarda (`leituraGuardavel`).
+ *     A leitura pública tem memória e chave próprias. O que se guarda não depende de quem visita: o recorte por nível
+ *     continua na página, a cada pedido, sobre o objeto que voltou (que ninguém pode alterar).
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
+import { VALIDADE_DADOS_MS } from "./cache-dados";
+import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { montarCatalogo } from "./catalogo-v2";
 import { lerCatalogo, lerCatalogoV2 } from "./catalogo.server";
 import { codigosPorJanela } from "./codigos-transferegov";
@@ -35,15 +47,20 @@ import { lerCadastroOsc, type LeituraCadastroOsc } from "./osc.server";
 import catalogoIndicadores from "./indicadores-municipio.json";
 import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio";
 import { lerPainelFornecedores } from "./fornecedores.server";
+import { MUNICIPIOS_PB } from "./municipios-pb";
 import { todas } from "./padroes.server";
 import type { PlanoFundo } from "./pix";
 import type { PlanoCicloPix } from "./pix-ciclo";
 import { lerLaudoEntePix } from "./pix-laudo.server";
 import {
+  VERSAO_RELATORIO,
+  entradaDasFontes,
+  fontesDoNivel,
   leituraGuardavel,
   montarRelatorio,
   type EmendaRelatorio,
   type EntradaRelatorio,
+  type FonteRelatorio,
   type InstrumentoRelatorio,
   type PropostaRelatorio,
   type Relatorio,
@@ -206,22 +223,50 @@ async function lerJanelas(nome: string, hoje: string, faltas: string[]): Promise
   }
 }
 
-const memoria = criarMemoria<LeituraRelatorio>({
-  validadeMs: 10 * 60 * 1000,
-  maximo: 30,
-  guardar: leituraGuardavel,
-});
-
-/** O relatório do município, da memória quando há (ver o cabeçalho). Não altere o objeto devolvido. */
-export function lerRelatorioMunicipio(ibge: string, hoje: string): Promise<LeituraRelatorio> {
-  return memoria.obter(`${ibge}|${hoje}`, () => lerDoBanco(ibge, hoje));
+/** Como ler: `publico` é a leitura leve do nível 0 (onda 7, A); sem ele, a completa de sempre. */
+export interface OpcoesLeitura {
+  publico?: boolean;
 }
 
-/** Tudo o que o relatório de um município cruza. */
-async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio> {
+/** As fontes da leitura: as do nível 0 para o público; do nível 1 em diante, todas (`fontesDoNivel`). */
+const fontesDaLeitura = (o: OpcoesLeitura) => fontesDoNivel(o.publico ? 0 : 1);
+
+/** Nada a ler: a fonte fora da lista da leitura. */
+const NADA = Promise.resolve(null);
+
+// Onda 7, A: cada memória ganha a camada comum às instâncias; a leitura pública tem memória e chave próprias.
+const memoria = criarMemoria<LeituraRelatorio>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 30,
+  guardar: leituraGuardavel,
+  compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio", guardavel: leituraGuardavel }),
+});
+const memoriaPublica = criarMemoria<LeituraRelatorio>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 30,
+  guardar: leituraGuardavel,
+  compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio-publico", guardavel: leituraGuardavel }),
+});
+
+/**
+ * O relatório do município, da memória ou do cache quando há (ver o cabeçalho). Não altere o objeto devolvido. A
+ * chave leva a versão das regras do relatório: publicação com regra nova não lê o relatório montado pela antiga.
+ */
+export function lerRelatorioMunicipio(ibge: string, hoje: string, opcoes: OpcoesLeitura = {}): Promise<LeituraRelatorio> {
+  const chave = `${ibge}|${hoje}|${VERSAO_RELATORIO}`;
+  const fontes = fontesDaLeitura(opcoes);
+  return (opcoes.publico ? memoriaPublica : memoria).obter(chave, () => lerDoBanco(ibge, hoje, fontes));
+}
+
+/** O nome da lista fixa dos 223 (`municipios-pb.ts`): a mesma semente do job fiscal, 223 de 223 iguais em 09/10/2026. */
+const nomeDaListaPb = (ibge: string) => MUNICIPIOS_PB.find(([i]) => i === ibge)?.[1] ?? null;
+
+/** Tudo o que o relatório de um município cruza, das fontes da leitura. */
+async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRelatorio[]): Promise<LeituraRelatorio> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const faltas: string[] = [];
+  const le = (f: FonteRelatorio) => fontes.includes(f);
 
   const painel = await db.rpc("painel_ultima_execucao");
   if (painel.error) {
@@ -233,48 +278,57 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
   if (!ex) return { estado: "sem_execucao" };
 
   const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo, indicadores, pixCiclo] = await Promise.all([
-    lerFiscalMunicipio(ibge),
-    paginas<InstrumentoRelatorio & { municipio: string | null }>(faltas, "convênios", (a, b) =>
-      db.from("painel_instrumento").select(COLUNAS_INSTRUMENTO).eq("execucao_id", ex.id).eq("cod_ibge", ibge).eq("tipo_agente", "municipio").order("nr_convenio").range(a, b),
-    ),
-    paginas<PropostaRelatorio>(faltas, "propostas", (a, b) =>
-      db.from("painel_proposta").select(COLUNAS_PROPOSTA).eq("execucao_id", ex.id).eq("cod_ibge", ibge).eq("tipo_agente", "municipio").order("id_proposta").range(a, b),
-    ),
-    lerTcu(db, { ibge }, faltas),
-    lerLaudoEntePix({ tipo: "ibge", valor: ibge }),
-    lerTceMunicipio(ibge),
-    lerPainelFornecedores({ q: null, municipio: ibge, ordem: "valor", marca: "inidoneos" }),
-    lerFundo(db, { campo: "cod_ibge", valor: ibge }, faltas),
-    lerIndicadores(db, ibge, faltas),
-    lerCiclo(db, { campo: "cod_ibge", valor: ibge }, faltas),
+    le("fiscal") ? lerFiscalMunicipio(ibge) : NADA,
+    le("convenios")
+      ? paginas<InstrumentoRelatorio & { municipio: string | null }>(faltas, "convênios", (a, b) =>
+          db.from("painel_instrumento").select(COLUNAS_INSTRUMENTO).eq("execucao_id", ex.id).eq("cod_ibge", ibge).eq("tipo_agente", "municipio").order("nr_convenio").range(a, b),
+        )
+      : NADA,
+    le("propostas")
+      ? paginas<PropostaRelatorio>(faltas, "propostas", (a, b) =>
+          db.from("painel_proposta").select(COLUNAS_PROPOSTA).eq("execucao_id", ex.id).eq("cod_ibge", ibge).eq("tipo_agente", "municipio").order("id_proposta").range(a, b),
+        )
+      : NADA,
+    le("tcu") ? lerTcu(db, { ibge }, faltas) : NADA,
+    le("pix") ? lerLaudoEntePix({ tipo: "ibge", valor: ibge }) : NADA,
+    le("tce_pb") ? lerTceMunicipio(ibge) : NADA,
+    le("fornecedores") ? lerPainelFornecedores({ q: null, municipio: ibge, ordem: "valor", marca: "inidoneos" }) : NADA,
+    le("fundo") ? lerFundo(db, { campo: "cod_ibge", valor: ibge }, faltas) : NADA,
+    le("indicadores") ? lerIndicadores(db, ibge, faltas) : NADA,
+    le("pix_ciclo") ? lerCiclo(db, { campo: "cod_ibge", valor: ibge }, faltas) : NADA,
   ]);
 
-  const nome = (fiscal.estado === "ok" ? fiscal.municipio.nome : null) ?? instrumentos?.[0]?.municipio ?? null;
+  // O nome com acento vem do fiscal. A leitura pública não lê o fiscal: vai à lista fixa dos 223, que dá o mesmo nome.
+  // A completa segue como sempre (sem o fiscal, o nome do SICONV).
+  const nome =
+    (fiscal?.estado === "ok" ? fiscal.municipio.nome : null) ?? (le("fiscal") ? null : nomeDaListaPb(ibge)) ?? instrumentos?.[0]?.municipio ?? null;
   if (!nome) return { estado: "nao_encontrado" };
-  if (fiscal.estado !== "ok" && fiscal.estado !== "nao_encontrado") faltas.push("painel fiscal");
+  if (fiscal && fiscal.estado !== "ok" && fiscal.estado !== "nao_encontrado") faltas.push("painel fiscal");
 
   const numeros = (instrumentos ?? []).map((i) => i.nr_convenio);
   const [emendas, contasObras, janelas] = await Promise.all([
-    numeros.length
-      ? emLotes<EmendaRelatorio>(faltas, "emendas", numeros, (lote) =>
-          db.from("painel_instrumento_emenda").select("nr_convenio,parlamentar,tipo_parlamentar,valor").eq("execucao_id", ex.id).in("nr_convenio", lote).limit(5000),
-        )
-      : Promise.resolve([] as EmendaRelatorio[]),
-    numeros.length ? lerContasObrasDosConvenios(db, numeros, faltas) : Promise.resolve(undefined),
-    lerJanelas(nome, hoje, faltas),
+    !le("emendas")
+      ? NADA
+      : numeros.length
+        ? emLotes<EmendaRelatorio>(faltas, "emendas", numeros, (lote) =>
+            db.from("painel_instrumento_emenda").select("nr_convenio,parlamentar,tipo_parlamentar,valor").eq("execucao_id", ex.id).in("nr_convenio", lote).limit(5000),
+          )
+        : Promise.resolve([] as EmendaRelatorio[]),
+    le("contas_obras") && numeros.length ? lerContasObrasDosConvenios(db, numeros, faltas) : Promise.resolve(undefined),
+    le("janelas") ? lerJanelas(nome, hoje, faltas) : NADA,
   ]);
 
-  if (pix.estado === "erro") faltas.push("Pix");
-  if (tce.estado === "erro") faltas.push("TCE-PB");
-  if (fornecedores.estado === "erro") faltas.push("fornecedores");
+  if (pix?.estado === "erro") faltas.push("Pix");
+  if (tce?.estado === "erro") faltas.push("TCE-PB");
+  if (fornecedores?.estado === "erro") faltas.push("fornecedores");
 
-  const g2 = fiscal.estado === "ok" ? fiscal.verificacoes.find((v) => v.codigo === "G2") : undefined;
+  const g2 = fiscal?.estado === "ok" ? fiscal.verificacoes.find((v) => v.codigo === "G2") : undefined;
   const serie = (g2?.evidencia as { serie?: SeriePessoal } | undefined)?.serie ?? null;
 
   const entrada: EntradaRelatorio = {
     ibge,
     nome,
-    fiscal: fiscal.estado === "ok" ? { municipio: fiscal.municipio, verificacoes: fiscal.verificacoes, referencia: fiscal.execucao.referencia ?? null } : null,
+    fiscal: fiscal?.estado === "ok" ? { municipio: fiscal.municipio, verificacoes: fiscal.verificacoes, referencia: fiscal.execucao.referencia ?? null } : null,
     serie,
     instrumentos,
     referenciaPainel: ex.referencia ?? ex.dado_ate ?? null,
@@ -282,13 +336,13 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
     propostas,
     tcu,
     contasObras: contasObras === undefined ? null : contasObras,
-    pix: pix.estado === "ok" ? pix.planos : pix.estado === "nao_encontrado" ? [] : null,
+    pix: pix?.estado === "ok" ? pix.planos : pix?.estado === "nao_encontrado" ? [] : null,
     pixCiclo,
-    pixTce: tce.estado === "ok" ? tce.pix : pix.estado === "ok" ? pix.tce : null,
+    pixTce: tce?.estado === "ok" ? tce.pix : pix?.estado === "ok" ? pix.tce : null,
     fundo,
-    conciliacao: tce.estado === "ok" ? tce.municipios : null,
+    conciliacao: tce?.estado === "ok" ? tce.municipios : null,
     fornecedores:
-      fornecedores.estado === "ok"
+      fornecedores?.estado === "ok"
         ? {
             concentracao: fornecedores.municipios.find((m) => m.cod_ibge === ibge) ?? null,
             inidoneos: fornecedores.linhas.map((f) => ({ cnpj: f.cnpj, nome: f.nome, pago: f.noMunicipio?.pago ?? 0 })).filter((f) => f.pago > 0),
@@ -298,7 +352,8 @@ async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio>
     indicadores,
     faltas,
   };
-  return { estado: "ok", relatorio: montarRelatorio(entrada, hoje) };
+  // Com todas as fontes, `entradaDasFontes` devolve a entrada como está; com as do público, zera o que não foi lido.
+  return { estado: "ok", relatorio: montarRelatorio(entradaDasFontes(entrada, fontes), hoje) };
 }
 
 // ================================================================ entidade (E1, 07/10/2026)
@@ -395,22 +450,33 @@ async function lerInidoneosDosConvenios(db: Banco, execucaoId: number, numeros: 
   };
 }
 
-// Como a do município: leitura com fonte faltando não fica guardada (B12b, 08/10/2026).
+// Como a do município: leitura com fonte faltando não fica guardada (B12b, 08/10/2026). Onda 7, A: com a camada
+// comum às instâncias, e a leitura pública com memória e chave próprias.
 const memoriaEntidade = criarMemoria<LeituraEntidade>({
-  validadeMs: 10 * 60 * 1000,
+  validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
+  compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade", guardavel: leituraGuardavel }),
+});
+const memoriaEntidadePublica = criarMemoria<LeituraEntidade>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 30,
+  guardar: leituraGuardavel,
+  compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade-publica", guardavel: leituraGuardavel }),
 });
 
-/** O relatório de uma entidade (um CNPJ), da memória quando há. Não altere o objeto devolvido. */
-export function lerRelatorioEntidade(cnpj: string, hoje: string): Promise<LeituraEntidade> {
-  return memoriaEntidade.obter(`${cnpj}|${hoje}`, () => lerEntidadeDoBanco(cnpj, hoje));
+/** O relatório de uma entidade (um CNPJ), da memória ou do cache quando há. Não altere o objeto devolvido. */
+export function lerRelatorioEntidade(cnpj: string, hoje: string, opcoes: OpcoesLeitura = {}): Promise<LeituraEntidade> {
+  const chave = `${cnpj}|${hoje}|${VERSAO_RELATORIO}`;
+  const fontes = fontesDaLeitura(opcoes);
+  return (opcoes.publico ? memoriaEntidadePublica : memoriaEntidade).obter(chave, () => lerEntidadeDoBanco(cnpj, hoje, fontes));
 }
 
-async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEntidade> {
+async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly FonteRelatorio[]): Promise<LeituraEntidade> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const faltas: string[] = [];
+  const le = (f: FonteRelatorio) => fontes.includes(f);
 
   const painel = await db.rpc("painel_ultima_execucao");
   if (painel.error) {
@@ -421,12 +487,21 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEn
   const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
+  // Os instrumentos, as propostas e o cadastro do Mapa das OSC dizem quem é a entidade e se a página existe: toda
+  // leitura os lê, a pública também (D1: a entidade e a lista dos instrumentos dela).
   const [instrumentos, propostas, osc] = await Promise.all([
     paginas<InstrumentoRelatorio & ComIdentidade>(faltas, "convênios", (a, b) =>
       db.from("painel_instrumento").select(`${COLUNAS_INSTRUMENTO},${IDENTIDADE_INSTRUMENTO}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("nr_convenio").range(a, b),
     ),
-    paginas<PropostaRelatorio & ComIdentidade>(faltas, "propostas", (a, b) =>
-      db.from("painel_proposta").select(`${COLUNAS_PROPOSTA},${IDENTIDADE_PROPOSTA}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("id_proposta").range(a, b),
+    // `nr_proposta` (onda 7, 09/10/2026; N07 da R1): a lista da entidade mostra o número que a pessoa conhece.
+    paginas<PropostaRelatorio & ComIdentidade & { nr_proposta: string | null }>(faltas, "propostas", (a, b) =>
+      db
+        .from("painel_proposta")
+        .select(`${COLUNAS_PROPOSTA},nr_proposta,${IDENTIDADE_PROPOSTA}`)
+        .eq("execucao_id", ex.id)
+        .eq("cnpj", cnpj)
+        .order("id_proposta")
+        .range(a, b),
     ),
     lerCadastroOsc(cnpj, cnpjDaMatriz(cnpj)),
   ]);
@@ -445,23 +520,25 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEn
   const numeros = (instrumentos ?? []).map((i) => i.nr_convenio);
 
   const [fiscal, tcu, pix, tce, fundo, pixCiclo, emendas, contasObras, fornecedores] = await Promise.all([
-    municipal ? lerFiscalMunicipio(ibge as string) : Promise.resolve(null),
-    numeros.length ? lerTcu(db, { numeros }, faltas) : Promise.resolve(null),
-    lerLaudoEntePix({ tipo: "cnpj", valor: cnpj }),
-    prefeitura ? lerTceMunicipio(ibge as string) : Promise.resolve(null),
-    lerFundo(db, { campo: "cnpj", valor: cnpj }, faltas),
-    lerCiclo(db, { campo: "cnpj", valor: cnpj }, faltas),
-    numeros.length
-      ? emLotes<EmendaRelatorio>(faltas, "emendas", numeros, (lote) =>
-          db.from("painel_instrumento_emenda").select("nr_convenio,parlamentar,tipo_parlamentar,valor").eq("execucao_id", ex.id).in("nr_convenio", lote).limit(5000),
-        )
-      : Promise.resolve([] as EmendaRelatorio[]),
-    numeros.length ? lerContasObrasDosConvenios(db, numeros, faltas) : Promise.resolve(undefined),
-    lerInidoneosDosConvenios(db, ex.id, numeros, faltas),
+    municipal && le("fiscal") ? lerFiscalMunicipio(ibge as string) : NADA,
+    numeros.length && le("tcu") ? lerTcu(db, { numeros }, faltas) : NADA,
+    le("pix") ? lerLaudoEntePix({ tipo: "cnpj", valor: cnpj }) : NADA,
+    prefeitura && le("tce_pb") ? lerTceMunicipio(ibge as string) : NADA,
+    le("fundo") ? lerFundo(db, { campo: "cnpj", valor: cnpj }, faltas) : NADA,
+    le("pix_ciclo") ? lerCiclo(db, { campo: "cnpj", valor: cnpj }, faltas) : NADA,
+    !le("emendas")
+      ? NADA
+      : numeros.length
+        ? emLotes<EmendaRelatorio>(faltas, "emendas", numeros, (lote) =>
+            db.from("painel_instrumento_emenda").select("nr_convenio,parlamentar,tipo_parlamentar,valor").eq("execucao_id", ex.id).in("nr_convenio", lote).limit(5000),
+          )
+        : Promise.resolve([] as EmendaRelatorio[]),
+    numeros.length && le("contas_obras") ? lerContasObrasDosConvenios(db, numeros, faltas) : Promise.resolve(undefined),
+    le("fornecedores") ? lerInidoneosDosConvenios(db, ex.id, numeros, faltas) : NADA,
   ]);
 
   if (fiscal && fiscal.estado !== "ok" && fiscal.estado !== "nao_encontrado") faltas.push("painel fiscal");
-  if (pix.estado === "erro") faltas.push("Pix");
+  if (pix?.estado === "erro") faltas.push("Pix");
   if (tce && tce.estado === "erro") faltas.push("TCE-PB");
   const g2 = fiscal?.estado === "ok" ? fiscal.verificacoes.find((v) => v.codigo === "G2") : undefined;
 
@@ -476,9 +553,9 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEn
     propostas,
     tcu,
     contasObras: contasObras === undefined ? null : contasObras,
-    pix: pix.estado === "ok" ? pix.planos : pix.estado === "nao_encontrado" ? [] : null,
+    pix: pix?.estado === "ok" ? pix.planos : pix?.estado === "nao_encontrado" ? [] : null,
     pixCiclo,
-    pixTce: prefeitura ? (tce?.estado === "ok" ? tce.pix : pix.estado === "ok" ? pix.tce : null) : null,
+    pixTce: prefeitura ? (tce?.estado === "ok" ? tce.pix : pix?.estado === "ok" ? pix.tce : null) : null,
     fundo,
     conciliacao: prefeitura && tce?.estado === "ok" ? tce.municipios : null,
     fornecedores,
@@ -488,10 +565,16 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string): Promise<LeituraEn
     areaExcetuada: areaExcetuadaDe(ent.nome, ent.especie),
     faltas,
   };
-  return { estado: "ok", entidade: ent, relatorio: montarRelatorio(entrada, hoje), instrumentos: instrumentos ?? [], propostas: propostas ?? [], osc };
+  const relatorio = montarRelatorio(entradaDasFontes(entrada, fontes), hoje);
+  return { estado: "ok", entidade: ent, relatorio, instrumentos: instrumentos ?? [], propostas: propostas ?? [], osc };
 }
 
-const memoriaEntidades = criarMemoria<LinhaEntidadeMunicipio[] | null>({ validadeMs: 10 * 60 * 1000, maximo: 30, guardar: (l) => l !== null });
+const memoriaEntidades = criarMemoria<LinhaEntidadeMunicipio[] | null>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 30,
+  guardar: (l) => l !== null,
+  compartilhada: camadaDoCacheDeDados({ leitor: "entidades-do-municipio", guardavel: (l) => l !== null }),
+});
 
 /** Os instrumentos de um município, de todos os proponentes, para o bloco "Quem recebe no município". */
 export function lerEntidadesDoMunicipio(ibge: string): Promise<LinhaEntidadeMunicipio[] | null> {

@@ -68,6 +68,12 @@ type LeituraOk = Extract<LeituraUnificada, { estado: "ok" }>;
 const n = (x: number) => x.toLocaleString("pt-BR");
 const data = (iso: string | null) => (iso ? formatarData(iso) : "—");
 const grupo = (id: IdGrupo) => GRUPOS_UNIFICADOS.find((g) => g.id === id) as (typeof GRUPOS_UNIFICADOS)[number];
+/**
+ * O resumo do resto que abre no lugar (onda 7, C, 09/10/2026; N02 da auditoria R1). Era "Ver todos os municípios (N)",
+ * sublinhado como link, e nada dizia que abria ali mesmo: agora diz quantos aparecem a mais, e o marcador ▸/▾ do CSS
+ * mostra que abre e se está aberto. O estado aberto/fechado o leitor de tela já ouve do próprio `<details>`.
+ */
+const mostrarMais = (id: IdGrupo, quantos: number) => `Mostrar mais ${contagem(quantos, grupo(id).um, grupo(id).varios)}`;
 /** As outras UFs em ordem de nome, para o seletor. */
 const OUTRAS_UFS = UFS.filter((u) => u !== "PB").sort((a, b) => (NOME_UF[a] ?? a).localeCompare(NOME_UF[b] ?? b, "pt-BR"));
 
@@ -345,7 +351,7 @@ async function GrupoMunicipios({ p, entrada, escopo, promessa }: PropsGrupo<Muni
           <ul className="mp-unif-lista">{primeiros.map(item)}</ul>
           {resto.length > 0 && (
             <details className="mp-unif-mais">
-              <summary>{rotuloVerTodos("municipios", ok.total)}</summary>
+              <summary>{mostrarMais("municipios", resto.length)}</summary>
               <ul className="mp-unif-lista">{resto.map(item)}</ul>
             </details>
           )}
@@ -385,7 +391,7 @@ async function GrupoEntidades({ p, entrada, escopo, promessa }: PropsGrupo<Entid
           <ul className="mp-unif-lista">{primeiros.map(item)}</ul>
           {resto.length > 0 && (
             <details className="mp-unif-mais">
-              <summary>{rotuloVerTodos("entidades", ok.total)}</summary>
+              <summary>{mostrarMais("entidades", resto.length)}</summary>
               <ul className="mp-unif-lista">{resto.map(item)}</ul>
               {ok.total > abertas.length && (
                 <p className="mp-busca-ajuda">

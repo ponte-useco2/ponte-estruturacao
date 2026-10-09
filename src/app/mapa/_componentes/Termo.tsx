@@ -16,9 +16,9 @@
  *
  * Slug desconhecido não quebra a página: mostra só o texto. Mas o tipo `SlugTermo` já barra o erro na compilação.
  */
-import Link from "next/link";
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { termoPorSlug, urlTermo, type SlugTermo } from "@/lib/oportunidades/glossario";
+import { LinkMapa } from "./LinkMapa";
 import "./termo.css";
 
 export function Termo({ slug, children }: { slug: SlugTermo; children?: ReactNode }) {
@@ -41,9 +41,11 @@ export function Termo({ slug, children }: { slug: SlugTermo; children?: ReactNod
           </button>
         </span>
         <span className="mp-termo-curta">{t.curta}</span>
-        <Link href={urlTermo(t.slug)} className="mp-termo-link" prefetch={false}>
+        {/* Onda 7, C (09/10/2026; N14 da auditoria R1): `LinkMapa`, como os outros links do Mapa. O `Link` solto saía sem o
+            `Carregando`: depois do clique, nenhum ponto nem aviso ao leitor de tela até o glossário chegar. */}
+        <LinkMapa href={urlTermo(t.slug)} className="mp-termo-link">
           Ver no glossário
-        </Link>
+        </LinkMapa>
       </span>
     </span>
   );

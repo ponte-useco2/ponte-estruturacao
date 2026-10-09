@@ -40,7 +40,8 @@ import { ROTULO_DESFECHO } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA, TEMAS_RAIZ } from "@/lib/oportunidades/temas";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
-import { EstrelaSeguir } from "../_componentes/EstrelaSeguir";
+import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
+import { AvisoSeguir, EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import "./busca.css";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
@@ -181,13 +182,16 @@ export function BuscaConteudo({
               : org
                 ? contagem(leitura.total, "organização", "organizações")
                 : contagem(leitura.total, "proposta", "propostas")}
-          {p.municipio ? (
-            <>
-              {" "}
-              · <LinkMapa href={urlDoMunicipio(p.municipio, "dinheiro")}>{ehMunicipioPb(p.municipio) ? "ver a página do município" : "ver os investimentos do município"}</LinkMapa>
-            </>
-          ) : null}
         </h2>
+        {/* Onda 7, C (09/10/2026; N03 da auditoria R1, WCAG 1.4.1): o link ficava dentro do h2, com a cor e o peso do
+            título e sem sublinhado, e entrava na região viva da contagem. Fora do título, é link de parágrafo (A01). */}
+        {p.municipio ? (
+          <p className="mp-busca-ajuda">
+            <LinkMapa href={urlDoMunicipio(p.municipio, "dinheiro")}>
+              {ehMunicipioPb(p.municipio) ? "Ver a página do município" : "Ver os investimentos do município"}
+            </LinkMapa>
+          </p>
+        ) : null}
         {leitura.semFiltro ? (
           <p className="pa-cartao pa-cartao-plano">
             A busca procura em toda a base do Mapa: digite um número, uma palavra do programa ou do objeto, o nome do proponente ou o CNPJ, ou
@@ -220,6 +224,10 @@ export function BuscaConteudo({
           </nav>
         )}
       </section>
+      {/* Onda 7, C (09/10/2026; N06 da auditoria R1): o aviso da estrela, com o "Desfazer", fica fora da tabela, como na
+          carteira. Dentro da estrela, ele nascia na 1ª célula da linha, que no celular gruda (`position: sticky`) e cria
+          um contexto de empilhamento: as células grudadas das linhas de baixo podiam cobri-lo. */}
+      {seguidas && <AvisoSeguir />}
     </div>
   );
 }
@@ -320,6 +328,44 @@ function Temas({ temas }: { temas: string[] }) {
   return <span className="mp-tabela-secundario">{conhecidos.map((t) => ROTULO_TEMA[t]).join(" · ")}</span>;
 }
 
+/**
+ * Onda 7, C (09/10/2026; N23 da auditoria R1): o cabeçalho de linha (`th`) é só o número. Juntava o número, a estrela
+ * ("Seguir o convênio nº …") e o proponente, e o leitor de tela repetia tudo isso a cada célula na navegação por tabela.
+ * A estrela vem na coluna logo depois do número, ainda colada a ele (B8: a estrela longe do nome do item foi
+ * confundida com a do vizinho), e o proponente ganha coluna própria.
+ */
+function CabecaDaLinha({ href, numero }: { href: string; numero: string }) {
+  return (
+    <th scope="row" className="mp-busca-numero-celula">
+      <LinkMapa href={href} className="mp-tabela-principal">
+        nº {numero}
+      </LinkMapa>
+    </th>
+  );
+}
+
+/** O proponente com link para a entidade quando há CNPJ, e o município. */
+function CelulaProponente({
+  cnpj,
+  proponente,
+  municipio,
+  uf,
+}: {
+  cnpj?: string | null;
+  proponente?: string | null;
+  municipio?: string | null;
+  uf?: string | null;
+}) {
+  return (
+    <td className="mp-busca-proponente">
+      <span className="mp-tabela-principal">{cnpj ? <LinkMapa href={urlEntidade(cnpj)}>{proponente ?? "—"}</LinkMapa> : (proponente ?? "—")}</span>
+      <span className="mp-tabela-secundario">
+        {municipio ?? "—"}/{uf ?? "—"}
+      </span>
+    </td>
+  );
+}
+
 function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; seguidas: ReadonlySet<string> | null }) {
   return (
     <TabelaRolagem rotulo="Convênios encontrados">
@@ -327,6 +373,12 @@ function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; 
         <thead>
           <tr>
             <th scope="col">Convênio</th>
+            {seguidas && (
+              <th scope="col">
+                <span className="pa-sr">Seguir</span>
+              </th>
+            )}
+            <th scope="col">Proponente</th>
             <th scope="col">Programa e objeto</th>
             <th scope="col">Situação</th>
             <th scope="col" className="mp-num">Repasse</th>
@@ -335,36 +387,25 @@ function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; 
         <tbody>
           {linhas.map((l) => (
             <tr key={l.nr_convenio}>
-              <th scope="row">
-                <span className="mp-busca-numero">
-                  <LinkMapa href={urlInstrumento(l.nr_convenio)} className="mp-tabela-principal">
-                    nº {l.nr_convenio}
-                  </LinkMapa>
-                  {/* Com texto ("☆ Seguir"), não a compacta: o que a ★ faz não pode depender do title, que o toque não mostra (B12). */}
-                  {seguidas && (
-                    <EstrelaSeguir
-                      tipo="instrumento"
-                      chave={l.nr_convenio}
-                      nome={`o convênio nº ${l.nr_convenio}`}
-                      seguindo={seguidas.has(chaveSeguida("instrumento", l.nr_convenio))}
-                    />
-                  )}
-                </span>
-                <span className="mp-tabela-secundario">
-                  {l.cnpj ? (
-                    <LinkMapa href={urlEntidade(l.cnpj)}>{l.proponente ?? "—"}</LinkMapa>
-                  ) : (
-                    (l.proponente ?? "—")
-                  )}{" "}
-                  · {l.municipio ?? "—"}/{l.uf ?? "—"}
-                </span>
-              </th>
-              <td>
+              <CabecaDaLinha href={urlInstrumento(l.nr_convenio)} numero={l.nr_convenio} />
+              {/* Com texto ("☆ Seguir"), não a compacta: o que a ★ faz não pode depender do title, que o toque não mostra (B12). */}
+              {seguidas && (
+                <td className="mp-busca-seguir">
+                  <EstrelaSeguir
+                    tipo="instrumento"
+                    chave={l.nr_convenio}
+                    nome={`o convênio nº ${l.nr_convenio}`}
+                    seguindo={seguidas.has(chaveSeguida("instrumento", l.nr_convenio))}
+                  />
+                </td>
+              )}
+              <CelulaProponente cnpj={l.cnpj} proponente={l.proponente} municipio={l.municipio} uf={l.uf} />
+              <td className="mp-busca-programa">
                 <span className="mp-tabela-principal">{l.programa ?? "—"}</span>
                 {l.objeto && <span className="mp-tabela-secundario">{l.objeto}</span>}
                 <Temas temas={l.temas} />
               </td>
-              <td>
+              <td className="mp-busca-situacao">
                 {l.situacao ?? "—"}
                 <span className="mp-tabela-secundario">assinado em {data(l.dt_assinatura)}</span>
               </td>
@@ -389,6 +430,12 @@ function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguid
         <thead>
           <tr>
             <th scope="col">Proposta</th>
+            {seguidas && (
+              <th scope="col">
+                <span className="pa-sr">Seguir</span>
+              </th>
+            )}
+            <th scope="col">Proponente</th>
             <th scope="col">Programa e objeto</th>
             <th scope="col">Desfecho</th>
             <th scope="col" className="mp-num">Repasse pedido</th>
@@ -397,35 +444,24 @@ function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguid
         <tbody>
           {linhas.map((l) => (
             <tr key={l.id_proposta}>
-              <th scope="row">
-                <span className="mp-busca-numero">
-                  <LinkMapa href={urlProposta(l.id_proposta)} className="mp-tabela-principal">
-                    nº {l.nr_proposta ?? l.id_proposta}
-                  </LinkMapa>
-                  {seguidas && (
-                    <EstrelaSeguir
-                      tipo="proposta"
-                      chave={l.id_proposta}
-                      nome={`a proposta nº ${l.nr_proposta ?? l.id_proposta}`}
-                      seguindo={seguidas.has(chaveSeguida("proposta", l.id_proposta))}
-                    />
-                  )}
-                </span>
-                <span className="mp-tabela-secundario">
-                  {l.cnpj ? (
-                    <LinkMapa href={urlEntidade(l.cnpj)}>{l.proponente ?? "—"}</LinkMapa>
-                  ) : (
-                    (l.proponente ?? "—")
-                  )}{" "}
-                  · {l.municipio ?? "—"}/{l.uf ?? "—"}
-                </span>
-              </th>
-              <td>
+              <CabecaDaLinha href={urlProposta(l.id_proposta)} numero={l.nr_proposta ?? l.id_proposta} />
+              {seguidas && (
+                <td className="mp-busca-seguir">
+                  <EstrelaSeguir
+                    tipo="proposta"
+                    chave={l.id_proposta}
+                    nome={`a proposta nº ${l.nr_proposta ?? l.id_proposta}`}
+                    seguindo={seguidas.has(chaveSeguida("proposta", l.id_proposta))}
+                  />
+                </td>
+              )}
+              <CelulaProponente cnpj={l.cnpj} proponente={l.proponente} municipio={l.municipio} uf={l.uf} />
+              <td className="mp-busca-programa">
                 <span className="mp-tabela-principal">{l.programa ?? "—"}</span>
                 {l.objeto && <span className="mp-tabela-secundario">{l.objeto}</span>}
                 <Temas temas={l.temas} />
               </td>
-              <td>
+              <td className="mp-busca-situacao">
                 {l.desfecho ? (ROTULO_DESFECHO[l.desfecho] ?? l.desfecho) : "—"}
                 <span className="mp-tabela-secundario">enviada em {data(l.dt_envio)}</span>
               </td>
@@ -462,11 +498,11 @@ function TabelaOrganizacoes({ linhas }: { linhas: OscBusca[] }) {
                     {cnpjLegivel(l.cnpj)} · {l.municipio ?? "—"}/PB{l.matriz === false ? " · filial" : ""}
                   </span>
                 </th>
-                <td>
+                <td className="mp-busca-programa">
                   <span className="mp-tabela-principal">{rotuloNatureza(l.natureza_juridica)}</span>
                   <span className="mp-tabela-secundario">{l.areas.length ? l.areas.map(rotuloArea).join(" · ") : "área não informada"}</span>
                 </td>
-                <td>{s.atencao ? <strong>{s.texto}</strong> : s.texto}</td>
+                <td className="mp-busca-situacao">{s.atencao ? <strong>{s.texto}</strong> : s.texto}</td>
               </tr>
             );
           })}
@@ -489,16 +525,28 @@ export function DadoIndisponivel({
   kicker,
   endereco,
   voltarPara,
+  publico = false,
 }: {
   titulo: string;
   kicker: string;
   endereco?: string;
   voltarPara?: SaidaIndisponivel;
+  /**
+   * Onda 7, C (09/10/2026; N2 da revisão R3): a página aberta ao público passa `publico` no nível 0. A saída para rota
+   * fechada (a busca) leva a marca "(pede cadastro)" e vai à entrada (`linkNoPublico`), como os outros links das
+   * páginas abertas; sem a prop, o de sempre.
+   */
+  publico?: boolean;
 }) {
   const { tentar, saidas } = saidasIndisponivel(endereco, voltarPara);
   // A volta pedida vira botão ao lado do "Tentar de novo"; a busca e as janelas ficam na nota.
-  const primeira = voltarPara ? (saidas.find((s) => s.href === voltarPara.href) ?? null) : null;
-  const outras = saidas.filter((s) => s !== primeira);
+  const volta = voltarPara ? (saidas.find((s) => s.href === voltarPara.href) ?? null) : null;
+  const marcadas = saidas.map((s) => {
+    const l = linkNoPublico(s.href, publico);
+    return { href: l.href, rotulo: l.pedeCadastro ? `${s.rotulo} ${MARCA_PEDE_CADASTRO}` : s.rotulo, ehVolta: s === volta };
+  });
+  const primeira = marcadas.find((s) => s.ehVolta) ?? null;
+  const outras = marcadas.filter((s) => !s.ehVolta);
   return (
     <div className="pa-pagina pa-pagina-estreita">
       <div className="pa-pilha">

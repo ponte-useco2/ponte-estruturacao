@@ -6,8 +6,15 @@
  * prontas do job (`painel_territorio`, oport_34); as da UF por município e por proponente, de duas funções que
  * usam o índice por UF. A Paraíba ganha ainda o fiscal (nome e população dos 223), as regiões imediatas e o porte
  * (camada 2), os indicadores do estado e as OSC ativas. Memória de 10 minutos por UF: as fontes mudam uma vez por dia.
+ *
+ * Onda 7, A (09/10/2026): a leitura de quem não é administrador ganha a camada comum às instâncias
+ * (`cache-dados.server.ts`), também de 10 minutos, e só com a leitura inteira (sem faltas). A do administrador traz a
+ * decisão B do fiscal e os sinais do painel, que só ele vê: fica fora do cache comum, só na memória da instância, como
+ * antes (R2 de 09/10, §5.1 item 3). São poucos administradores; o ganho seria pequeno e o risco, de dado interno.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
+import { VALIDADE_DADOS_MS } from "./cache-dados";
+import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { ehEsquemaAusente } from "./esquema";
 import { conclusaoDe, type MunicipioFiscal } from "./fiscal";
 import catalogoIndicadores from "./indicadores-municipio.json";
@@ -63,11 +70,19 @@ async function ultimaId(db: Banco, rpc: string): Promise<number | null> {
   return ((r.data as { id: number }[] | null) ?? [])[0]?.id ?? null;
 }
 
-const memoria = criarMemoria<LeituraUf>({ validadeMs: 10 * 60 * 1000, maximo: 30, guardar: (l) => l.estado === "ok" });
+const memoria = criarMemoria<LeituraUf>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 30,
+  guardar: (l) => l.estado === "ok",
+  compartilhada: camadaDoCacheDeDados<LeituraUf>({ leitor: "uf", guardavel: (l) => l.estado === "ok" && l.faltas.length === 0 }),
+});
+const memoriaAdministrador = criarMemoria<LeituraUf>({ validadeMs: VALIDADE_DADOS_MS, maximo: 30, guardar: (l) => l.estado === "ok" });
 
-/** A página de uma UF, da memória quando há. Não altere o objeto devolvido. */
+/** A página de uma UF, da memória ou do cache quando há. Não altere o objeto devolvido. */
 export function lerUf(sigla: string, administrador: boolean): Promise<LeituraUf> {
-  return memoria.obter(`${sigla}|${administrador ? "adm" : ""}`, () => lerDoBanco(sigla, administrador));
+  return administrador
+    ? memoriaAdministrador.obter(`${sigla}|adm`, () => lerDoBanco(sigla, true))
+    : memoria.obter(`${sigla}|`, () => lerDoBanco(sigla, false));
 }
 
 async function lerDoBanco(sigla: string, administrador: boolean): Promise<LeituraUf> {

@@ -7,15 +7,48 @@ import { lerUf } from "@/lib/oportunidades/pagina-uf.server";
 import { nivelSemCliente } from "@/lib/oportunidades/pagina-municipio";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
+import { tituloUf } from "@/lib/oportunidades/titulo-pagina";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { ConvitePublico } from "../../_componentes/MapaFrame";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { UfConteudo } from "./UfConteudo";
 
-export const metadata: Metadata = {
-  title: "Estado · Mapa de Oportunidades · PONTE",
-  robots: { index: false, follow: false },
+type Parametros = {
+  params: Promise<{ sigla: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+/**
+ * Quem a página atende e com que nível: a mesma conta da página e do título. `visitanteAtual` é `cache()` do React (uma
+ * leitura da sessão por pedido); nada aqui vai ao banco do Mapa.
+ */
+async function acessoDaUf(bruto: string) {
+  const acesso = quemAPaginaAtende(await visitanteAtual(), chaveDoAmbiente(), `/mapa/uf/${encodeURIComponent(bruto)}`);
+  if (!acesso) return null;
+  const administrador = ehAdministrador(acesso.aprovado?.email);
+  // C4a (B1 da R3): era `administrador ? 3 : 1`; a regra única dá 0 a quem não é aprovado (`aprovado` null).
+  return { ...acesso, administrador, nivel: nivelSemCliente({ aprovado: acesso.aprovado !== null, administrador }) };
+}
+
+/**
+ * Onda 7, C (09/10/2026; N01 da auditoria R1, WCAG 2.4.2): o título diz a UF e a aba ("Paraíba (PB) · Municípios"). Era
+ * "Estado" para as 27, e o leitor de tela não anunciava a troca de uma UF para outra nem de uma aba para outra. A aba é
+ * a que a página abre para este nível (`abaDaUf`); sem acesso ou com sigla que não existe, o título genérico.
+ */
+export async function generateMetadata({ params, searchParams }: Parametros): Promise<Metadata> {
+  const [{ sigla: bruto }, sp] = await Promise.all([params, searchParams]);
+  const acesso = await acessoDaUf(bruto);
+  let sigla: string | null = null;
+  try {
+    sigla = acesso ? siglaDaUrl(decodeURIComponent(bruto)) : null;
+  } catch {
+    sigla = null; // "%E0" e afins: a página cai no erro; o título fica o genérico
+  }
+  return {
+    title: tituloUf(sigla, sigla && acesso ? abaDaUf(sp.aba, acesso.nivel) : null),
+    robots: { index: false, follow: false },
+  };
+}
 
 /**
  * A página da UF (U1, desenho aprovado em 08/10/2026): o território acima do município, em abas. Atrás do portão de
@@ -27,15 +60,9 @@ export const metadata: Metadata = {
  * nível 1 somem pelo `minimo` de `ABAS_UF`, e o "Dinheiro federal" já mostra ao nível 0 só os 10 maiores órgãos. A
  * leitura é a de quem não é administrador: sem a decisão B do fiscal e sem os sinais do painel.
  */
-export default async function UfPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ sigla: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const [visitanteOuNao, { sigla: bruto }, sp] = await Promise.all([visitanteAtual(), params, searchParams]);
-  const acesso = quemAPaginaAtende(visitanteOuNao, chaveDoAmbiente(), `/mapa/uf/${encodeURIComponent(bruto)}`);
+export default async function UfPage({ params, searchParams }: Parametros) {
+  const [{ sigla: bruto }, sp] = await Promise.all([params, searchParams]);
+  const acesso = await acessoDaUf(bruto);
   if (!acesso) return null;
   const visitante = acesso.aprovado;
 
@@ -46,9 +73,7 @@ export default async function UfPage({
     redirect(urlUf(sigla, pedida));
   }
 
-  const administrador = ehAdministrador(visitante?.email);
-  // C4a (B1 da R3): era `administrador ? 3 : 1`; a regra única dá 0 a quem não é aprovado (`visitante` null).
-  const nivel = nivelSemCliente({ aprovado: visitante !== null, administrador });
+  const { administrador, nivel } = acesso;
   const aba = abaDaUf(sp.aba, nivel);
   const porSinais = administrador && sp.ordem === "sinais";
   const leitura = await lerUf(sigla, administrador);
@@ -60,6 +85,7 @@ export default async function UfPage({
         titulo="A página do estado está indisponível agora"
         endereco={urlUf(sigla, aba)}
         voltarPara={{ rotulo: "Abrir a página do Brasil", href: urlBrasil() }}
+        publico={!visitante}
       />
     );
   }

@@ -9,10 +9,15 @@
  * município…", vindo de cada `loading.tsx`) fica visível e numa região de status (WCAG 4.1.3: quem usa leitor de
  * tela também fica sabendo que a página está a caminho); os blocos ficam fora do leitor de tela.
  *
+ * Onda 7, C (09/10/2026; N13 da auditoria R1): a região de status nascia já com o texto e podia não ser lida. Agora é o
+ * `AvisoDeEspera` (`Carregando.tsx`, de cliente), que nasce vazio e escreve o texto logo depois; o texto à vista fica
+ * fora do leitor de tela, para não ser dito duas vezes.
+ *
  * Não aparece quando só muda o `?aba=`: a página do mesmo endereço continua montada e o roteador segura a tela
  * velha até a nova chegar. Ali o retorno é o `Carregando` dentro da aba clicada.
  */
 import type { ReactNode } from "react";
+import { AvisoDeEspera } from "./Carregando";
 import "./esqueleto.css";
 
 /** Larguras que se revezam, para as linhas não saírem todas iguais. */
@@ -63,9 +68,10 @@ export function Esqueleto({
 }) {
   return (
     <div className="pa-pagina mp-radar mp-esq">
-      <p role="status" aria-live="polite" className="pa-mono mp-esq-status">
+      <p aria-hidden="true" className="pa-mono mp-esq-status">
         {texto}
       </p>
+      <AvisoDeEspera texto={texto} />
       <div aria-hidden="true">
         <div className="pa-pilha mp-radar-cabeca">
           {trilha > 0 ? (

@@ -152,12 +152,13 @@ export function QuemRecebe({
               <tbody>
                 {g.entidades.map((e) => (
                   <tr key={e.cnpj}>
-                    <td>
+                    {/* A09 (onda 7, C, 09/10/2026): a entidade é o cabeçalho da linha, com a cara da célula comum. */}
+                    <th scope="row" className="mp-th-celula">
                       <Link href={urlEntidade(e.cnpj)} prefetch={false}>
                         {e.nome}
                         <Carregando />
                       </Link>
-                    </td>
+                    </th>
                     <td>{ROTULO_ESPECIE[e.especie]}</td>
                     <td className="mp-rel-num">{n(e.instrumentos)}</td>
                     <td className="mp-rel-num">{e.emExecucao ? n(e.emExecucao) : "—"}</td>

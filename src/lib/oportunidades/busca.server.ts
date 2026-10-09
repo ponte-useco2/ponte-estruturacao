@@ -41,6 +41,8 @@ import {
   type GrupoLido,
   type ProponenteBusca,
 } from "./busca-unificada";
+import { VALIDADE_DADOS_MS } from "./cache-dados";
+import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { ehEsquemaAusente } from "./esquema";
 import { criarMemoria } from "./memoria";
 import { nomeOsc, type FonteOsc } from "./osc";
@@ -231,8 +233,16 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
  * (`painel_territorio_proponente`, pelo índice da UF): 498 linhas e 36 ms medidos com EXPLAIN ANALYZE na execução 42
  * (a primeira chamada, com a instância parada, levou 1,9 s com tudo no cache). A lista muda uma vez por dia: fica 10
  * minutos na memória da instância, e o casamento pelo nome (`casarEntidades`) é feito aqui, sem banco.
+ *
+ * Onda 7, A (09/10/2026): também no cache comum às instâncias (`cache-dados.server.ts`), 10 minutos, pela mesma chave
+ * — a execução do painel, que a busca já leu: rodada nova, chave nova.
  */
-const memoriaProponentesPb = criarMemoria<ProponenteBusca[] | null>({ validadeMs: 10 * 60 * 1000, maximo: 3, guardar: (l) => l !== null });
+const memoriaProponentesPb = criarMemoria<ProponenteBusca[] | null>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 3,
+  guardar: (l) => l !== null,
+  compartilhada: camadaDoCacheDeDados<ProponenteBusca[] | null>({ leitor: "proponentes-pb", guardavel: (l) => l !== null }),
+});
 
 function proponentesDaPb(db: Banco, execucaoId: number): Promise<ProponenteBusca[] | null> {
   return memoriaProponentesPb.obter(String(execucaoId), async () => {

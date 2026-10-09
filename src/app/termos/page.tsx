@@ -20,8 +20,13 @@ export const metadata: Metadata = {
  * A seção sobre os dados do Transferegov existe porque o painel de
  * oportunidades exibe dado público reprocessado, e quem decide com base nele
  * precisa saber o que é fonte e o que é leitura nossa.
+ *
+ * 09/10/2026 (onda 7, lote 1 da C4b): "a conferir" não é irregularidade, com a
+ * mesma definição do verbete "Ponto a conferir" do glossário do Mapa
+ * (`lib/oportunidades/glossario.ts`). Os ajustes da seção 5 da C4b (título com
+ * o Mapa e a parte pública) são do lote 2 e só entram com `MAPA_PUBLICO`.
  */
-const ATUALIZADO = "2 de setembro de 2026";
+const ATUALIZADO = "9 de outubro de 2026";
 
 export default function TermosPage() {
   return (
@@ -101,6 +106,15 @@ export default function TermosPage() {
             <strong>A leitura editorial é nossa.</strong> Classificações de
             aderência, agrupamentos e destaques são interpretação da Ponte, não
             informação oficial.
+          </li>
+          <li>
+            <strong>“A conferir” não é irregularidade.</strong> O Mapa de
+            Oportunidades lê as fontes públicas de forma automática e marca
+            como “a conferir” o que foge do esperado — um prazo vencido, um
+            dado que não bate entre duas bases. O ponto pede conferência no
+            documento de origem: não é acusação, nem conclusão da Ponte, nem
+            prova de irregularidade, e não substitui certidão, parecer do
+            concedente, decisão de tribunal de contas ou orientação jurídica.
           </li>
           <li>
             <strong>Nada ali é aconselhamento.</strong> Decisões de submissão,

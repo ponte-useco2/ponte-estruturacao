@@ -77,12 +77,16 @@
 .pa-root .mp-unif-brasil { font-size: 0.82rem; color: var(--pa-muted); }
 .pa-root .mp-unif-brasil a { display: inline-flex; align-items: center; min-height: 44px; color: var(--pa-brand-2); text-decoration: underline; text-underline-offset: 2px; }
 
-/* Municípios e entidades abrem o resto no lugar (não têm aba): o resumo do <details> é o alvo de toque. */
+/* Municípios e entidades abrem o resto no lugar (não têm aba): o resumo do <details> é o alvo de toque.
+   Sem sublinhado desde a onda 7, C (09/10/2026; N02 da auditoria R1): sublinhado, parecia link para outra página, e
+   abre no lugar. O que diz "abre" é o marcador ▸/▾ (mapa.css) e o texto "Mostrar mais N"; a cor da marca dá 6,59:1
+   no fundo da página. */
 .pa-root .mp-unif-mais { display: grid; gap: 0.5rem; }
 .pa-root .mp-unif-mais > summary {
-  display: inline-flex; align-items: center; min-height: 44px; cursor: pointer;
-  color: var(--pa-brand-2); font-weight: 600; text-decoration: underline; text-underline-offset: 3px;
+  display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; justify-self: start;
+  color: var(--pa-brand-2); font-weight: 600;
 }
+.pa-root .mp-unif-mais > summary:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Sem termo: o que cada grupo acha. */
 .pa-root .mp-unif-inicio { margin: 0; display: grid; gap: 0.4rem; color: var(--pa-muted); }

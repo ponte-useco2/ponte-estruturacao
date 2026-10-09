@@ -203,6 +203,24 @@ test("CSV: texto com sinal na frente ganha espaço (o Excel não lê fórmula e 
   ]);
 });
 
+test("CSV: tabulação e \\r no começo da célula também ganham espaço (lista da OWASP, M7)", () => {
+  const csv = paraCsv(
+    [
+      { titulo: "Objeto", valor: (x: { t: string }) => x.t },
+      { titulo: "Dias", valor: () => -12 },
+    ],
+    [{ t: "\t=SOMA(1;2)" }, { t: "\r=1+1" }, { t: "\tObra" }, { t: "Obra\tno meio" }, { t: "Obra\rno meio" }],
+  );
+  assert.deepEqual(csv.split("\r\n").slice(1, 6), [
+    `" \t=SOMA(1;2)";-12`,
+    `" \r=1+1";-12`,
+    `" \tObra";-12`,
+    // No meio da célula não é começo de fórmula: a tabulação fica como está, e o \r só pede aspas.
+    `Obra\tno meio;-12`,
+    `"Obra\rno meio";-12`,
+  ]);
+});
+
 test("CSV: identificador marcado como texto sai como =\"…\" (proposta N/AAAA e código de 13 dígitos)", () => {
   const colunas = [
     { titulo: "Proposta", valor: (x: { p: string | null; c: string }) => x.p, texto: true },

@@ -1,3 +1,5 @@
+import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
+import { visitanteAtual } from "@/lib/supabase-auth";
 import { LinkMapa } from "./_componentes/LinkMapa";
 
 /**
@@ -7,8 +9,16 @@ import { LinkMapa } from "./_componentes/LinkMapa";
  *
  * B12 (onda 2 de UX, 08/10/2026): diz o que pode ter acontecido, caso a caso, e oferece a busca e as janelas como
  * botões. O texto não acusa ninguém: o item pode ter saído da fonte sem erro de quem digitou.
+ *
+ * Onda 7, C (09/10/2026; N2 da revisão R3): o `notFound()` também vem das páginas abertas ao público (UF, município,
+ * entidade, convênio), e a busca pede cadastro. Esta tela não recebe o nível da página, então lê a sessão (a mesma
+ * `visitanteAtual`, em `cache()`, que o layout já leu neste pedido): sem cadastro aprovado, "Procurar na busca" leva a
+ * marca "(pede cadastro)" e vai à entrada, como os outros links das páginas abertas (`linkNoPublico`). Com a chave
+ * `MAPA_PUBLICO` desligada, só o aprovado chega aqui, e o link é o de sempre.
  */
-export default function NaoEncontradoNoMapa() {
+export default async function NaoEncontradoNoMapa() {
+  const visitante = await visitanteAtual();
+  const busca = linkNoPublico("/mapa/busca", visitante?.status !== "aprovado");
   return (
     <div className="pa-pagina pa-pagina-estreita">
       <div className="pa-pilha">
@@ -24,8 +34,8 @@ export default function NaoEncontradoNoMapa() {
           </li>
         </ul>
         <p className="pa-linha">
-          <LinkMapa href="/mapa/busca" className="pa-btn pa-btn-pequeno">
-            Procurar na busca
+          <LinkMapa href={busca.href} className="pa-btn pa-btn-pequeno">
+            Procurar na busca{busca.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
           </LinkMapa>
           <LinkMapa href="/mapa" className="pa-btn pa-btn-pequeno">
             Ver as janelas

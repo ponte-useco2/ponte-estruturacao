@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { recusaDeAdministrador } from "@/lib/oportunidades/administrador";
 
 /**
  * Clientes Supabase para a área autenticada da /oportunidades.
@@ -79,6 +80,14 @@ export interface Visitante {
  * idas e voltas a mais por página. O `cache` do React guarda o resultado só
  * durante a renderização de um pedido; fora dela (rotas de API e ações do
  * servidor) a função roda como antes, a cada chamada.
+ *
+ * Administrador pela identidade, não só pelo e-mail (C6, onda 7, 09/10/2026):
+ * `ehAdministrador` recebe só o e-mail, e todo e-mail que chega a ela sai
+ * daqui. Por isso a identidade é conferida AQUI: sessão com e-mail da lista
+ * de administradores que não seja a conta do Google com o e-mail confirmado
+ * (`recusaDeAdministrador`) volta como sem sessão — antes de registrar pedido
+ * no nome do administrador, e antes de qualquer página perguntar se é.
+ * Quem não está na lista segue como antes: a aprovação continua decidindo.
  */
 export const visitanteAtual = cache(async (): Promise<Visitante | null> => {
   if (!authConfigurada()) return null;
@@ -88,6 +97,15 @@ export const visitanteAtual = cache(async (): Promise<Visitante | null> => {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.email) return null;
+
+  if (ehAdministrador(user.email)) {
+    const recusa = recusaDeAdministrador(user);
+    if (recusa) {
+      // Sem o e-mail no log: o motivo basta para achar a conta no painel do Supabase.
+      console.warn("visitanteAtual: e-mail de administrador recusado:", recusa);
+      return null;
+    }
+  }
 
   const nome =
     (user.user_metadata?.full_name as string) ||
@@ -127,6 +145,11 @@ export function administradores(): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Só compara o e-mail com a lista. Vale porque o e-mail vem de `visitanteAtual`,
+ * que já recusou a sessão com e-mail de administrador sem a identidade do Google
+ * (C6, onda 7). E-mail tirado de outro lugar (formulário, banco) não serve aqui.
+ */
 export function ehAdministrador(email: string | null | undefined): boolean {
   if (!email) return false;
   return administradores().includes(email.toLowerCase());

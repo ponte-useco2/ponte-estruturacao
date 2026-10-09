@@ -31,6 +31,7 @@ import {
 } from "./indicadores-municipio.ts";
 import { diasEntre, type Nivel } from "./laudo.ts";
 import { GRUPOS_SITUACAO } from "./busca.ts";
+import type { NivelAcesso } from "./pagina-municipio.ts";
 import { ROTULO_DESFECHO, type ColunaCsv } from "./painel.ts";
 import type { PlanoFundo } from "./pix.ts";
 import { compararFila, grupos, type ClasseFila, type QuemResolve } from "./fila.ts";
@@ -1355,6 +1356,115 @@ export function relatorioSemNomes(r: Relatorio): Relatorio {
  */
 export function leituraGuardavel(l: { estado: string; relatorio?: Pick<Relatorio, "faltas"> }): boolean {
   return l.estado === "nao_encontrado" || (l.estado === "ok" && l.relatorio?.faltas.length === 0);
+}
+
+// ================================================================ as fontes que cada nível lê (onda 7, A)
+
+/** Cada leitura do servidor que alimenta o relatório (`relatorio-municipio.server.ts`), uma por fonte. */
+export type FonteRelatorio =
+  | "convenios"
+  | "propostas"
+  | "emendas"
+  | "indicadores"
+  | "janelas"
+  | "fiscal"
+  | "tcu"
+  | "contas_obras"
+  | "pix"
+  | "pix_ciclo"
+  | "fundo"
+  | "tce_pb"
+  | "fornecedores";
+
+export const FONTES_RELATORIO: readonly FonteRelatorio[] = [
+  "convenios",
+  "propostas",
+  "emendas",
+  "indicadores",
+  "janelas",
+  "fiscal",
+  "tcu",
+  "contas_obras",
+  "pix",
+  "pix_ciclo",
+  "fundo",
+  "tce_pb",
+  "fornecedores",
+];
+
+/**
+ * As fontes da leitura do nível 0 (onda 7, A, 09/10/2026; R2 de 09/10, §5.1 item 2). A página pública lia o relatório
+ * inteiro (~50 pedidos ao banco no município) e só escondia na tela o fiscal, o TCE-PB, os fornecedores, o TCU, as
+ * contas e obras e o Pix (`relatorioDoPublico`). Agora o servidor lê só o que o nível 0 desenha: a situação dos
+ * convênios, as propostas por desfecho, as emendas (parlamentar como agente público), os indicadores e as janelas.
+ * Lista branca: fonte nova nasce fora do público até alguém pô-la aqui, junto com a decisão de mostrá-la.
+ */
+export const FONTES_DO_PUBLICO: readonly FonteRelatorio[] = ["convenios", "propostas", "emendas", "indicadores", "janelas"];
+
+/** O que a leitura do nível lê: do 1 em diante, tudo, como sempre; o 0, só a lista branca. */
+export function fontesDoNivel(nivel: NivelAcesso): readonly FonteRelatorio[] {
+  return nivel >= 1 ? FONTES_RELATORIO : FONTES_DO_PUBLICO;
+}
+
+/** Os campos da entrada que não são de fonte nenhuma: quem é, a data do painel (lida em toda leitura) e as faltas. */
+type CampoFixo = "ibge" | "nome" | "referenciaPainel" | "escopo" | "areaExcetuada" | "faltas";
+
+/**
+ * De que fonte vem cada campo da entrada. É `Record` de todos os campos que não são fixos: campo novo na
+ * `EntradaRelatorio` não compila até ganhar a sua fonte (e, com ela, o seu lugar na lista branca ou fora dela).
+ * O Pix do município no TCE-PB (`pixTce`) vem do TCE-PB ou do laudo do Pix: fica com o TCE-PB, e as duas fontes estão
+ * fora do público.
+ */
+const FONTE_DO_CAMPO: Record<Exclude<keyof EntradaRelatorio, CampoFixo>, FonteRelatorio> = {
+  fiscal: "fiscal",
+  serie: "fiscal",
+  instrumentos: "convenios",
+  emendas: "emendas",
+  propostas: "propostas",
+  tcu: "tcu",
+  contasObras: "contas_obras",
+  pix: "pix",
+  pixCiclo: "pix_ciclo",
+  pixTce: "tce_pb",
+  fundo: "fundo",
+  conciliacao: "tce_pb",
+  fornecedores: "fornecedores",
+  janelas: "janelas",
+  indicadores: "indicadores",
+};
+
+/** O nome que cada fonte põe em `faltas` quando a leitura cai (os do servidor e os de `contas-obras.server.ts`). */
+export const FALTAS_DA_FONTE: Record<FonteRelatorio, readonly string[]> = {
+  convenios: ["convênios"],
+  propostas: ["propostas"],
+  emendas: ["emendas"],
+  indicadores: ["indicadores do município"],
+  janelas: ["janelas abertas"],
+  fiscal: ["painel fiscal"],
+  tcu: ["e-TCE do TCU"],
+  contas_obras: ["prestação de contas e obra"],
+  pix: ["Pix"],
+  pix_ciclo: ["Pix em curso"],
+  fundo: ["fundo a fundo"],
+  tce_pb: ["TCE-PB"],
+  fornecedores: ["fornecedores"],
+};
+
+/**
+ * A entrada como a leitura de um nível a vê: o campo de fonte fora da lista vale null (não foi lido), e a falta de
+ * fonte fora da lista sai (não houve leitura para faltar). O servidor passa a leitura pública por aqui antes de montar
+ * o relatório, e o teste prova com ela que a leitura leve não esconde a menos nem a mais (`cache-dados.test.ts`).
+ * Não altera a entrada recebida.
+ */
+export function entradaDasFontes(e: EntradaRelatorio, fontes: readonly FonteRelatorio[]): EntradaRelatorio {
+  const lidas = new Set(fontes);
+  const saida = { ...e };
+  for (const [campo, fonte] of Object.entries(FONTE_DO_CAMPO) as [keyof typeof FONTE_DO_CAMPO, FonteRelatorio][]) {
+    if (!lidas.has(fonte)) saida[campo] = null;
+  }
+  const naoLidas = new Set(FONTES_RELATORIO.filter((f) => !lidas.has(f)).flatMap((f) => FALTAS_DA_FONTE[f]));
+  saida.faltas = e.faltas.filter((f) => !naoLidas.has(f));
+  return saida;
 }
 
 /** O CSV do relatório: um achado por linha (pelo `paraCsv` do painel). */

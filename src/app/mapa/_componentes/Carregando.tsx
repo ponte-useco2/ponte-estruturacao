@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useLinkStatus } from "next/link";
 
 /**
@@ -23,5 +24,27 @@ export function Carregando() {
         {pending ? "carregando a página" : ""}
       </span>
     </>
+  );
+}
+
+/** Quanto o aviso do esqueleto espera, já com a região na tela, para escrever o texto. */
+const ESPERA_DO_AVISO = 100;
+
+/**
+ * O aviso do esqueleto ao leitor de tela (onda 7, C, 09/10/2026; N13 da auditoria R1, WCAG 4.1.3). A região de status
+ * do `Esqueleto` nascia já com o texto ("Carregando a página do município…"), e região que entra na tela com o texto
+ * pronto pode não ser lida: é a regra do `Carregando` acima e do A20. Aqui a região nasce vazia e o texto entra logo
+ * depois. O texto à vista continua no `Esqueleto`, fora do leitor de tela, para não ser lido duas vezes.
+ */
+export function AvisoDeEspera({ texto }: { texto: string }) {
+  const [dito, setDito] = useState("");
+  useEffect(() => {
+    const espera = setTimeout(() => setDito(texto), ESPERA_DO_AVISO);
+    return () => clearTimeout(espera);
+  }, [texto]);
+  return (
+    <span role="status" className="pa-sr">
+      {dito}
+    </span>
   );
 }

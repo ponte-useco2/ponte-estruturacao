@@ -157,10 +157,14 @@ export function ListaAchados({ achados, destino, fila, hoje = "" }: { achados: A
   );
 }
 
-function TabelaConvenios({ linhas, destino, nota = "Situação" }: { linhas: LinhaConvenio[]; destino: Destino; nota?: string }) {
+/**
+ * `rotuloId` (onda 7, C, 09/10/2026; N04 da auditoria R1): o id do subtítulo do grupo ("Os 12 em execução", "Vigência
+ * vencida…"). Sem ele, as tabelas da seção tinham todas o nome "Convênios do município".
+ */
+function TabelaConvenios({ linhas, destino, nota = "Situação", rotuloId }: { linhas: LinhaConvenio[]; destino: Destino; nota?: string; rotuloId?: string }) {
   if (!linhas.length) return null;
   return (
-    <TabelaRolagem rotulo="Convênios do município">
+    <TabelaRolagem {...(rotuloId ? { rotuloId } : { rotulo: "Convênios do município" })}>
       <table className="mp-tabela mp-tabela-empilha">
         <thead>
           <tr>
@@ -175,12 +179,13 @@ function TabelaConvenios({ linhas, destino, nota = "Situação" }: { linhas: Lin
         <tbody>
           {linhas.map((l) => (
             <tr key={l.nr_convenio}>
-              <td>
+              {/* A09 (onda 7, C, 09/10/2026): o número é o cabeçalho da linha, com a cara da célula comum. */}
+              <th scope="row" className="mp-th-celula">
                 <Link href={destino(l.nr_convenio)} prefetch={false}>
                   {l.nr_convenio}
                   <Carregando />
                 </Link>
-              </td>
+              </th>
               <td data-rotulo="Órgão">{l.orgao ? tituloOrgao(l.orgao) : "—"}</td>
               <td data-rotulo="Objeto">{l.objeto ?? "—"}</td>
               <td data-rotulo="Valor" className="mp-rel-num">{moedaCurta(l.valor ?? 0)}</td>
@@ -196,10 +201,11 @@ function TabelaConvenios({ linhas, destino, nota = "Situação" }: { linhas: Lin
 
 const ROTULO_NIVEL_INDICADOR = { alto: "alto", moderado: "moderado", em_dia: "em dia" } as const;
 
-function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
+/** `rotuloId` (onda 7, C; N04): o id do título do bloco ou da seção; sem ele, todas se chamavam "Indicadores do município". */
+function TabelaIndicadores({ itens, rotuloId }: { itens: IndicadorLido[]; rotuloId?: string }) {
   if (!itens.length) return null;
   return (
-    <TabelaRolagem rotulo="Indicadores do município">
+    <TabelaRolagem {...(rotuloId ? { rotuloId } : { rotulo: "Indicadores do município" })}>
       <table className="mp-tabela mp-rel-indicadores mp-tabela-empilha">
         <thead>
           <tr>
@@ -216,7 +222,7 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
         <tbody>
           {itens.map((x) => (
             <tr key={x.id}>
-              <td>
+              <th scope="row" className="mp-th-celula">
                 {x.nome}
                 <span className="mp-rel-fonte">
                   {" "}
@@ -230,7 +236,7 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
                   )}
                   , {x.ano}.{x.nota ? ` ${x.nota}` : ""}
                 </span>
-              </td>
+              </th>
               <td data-rotulo="Valor" className="mp-rel-num">{x.texto}</td>
               <td data-rotulo="PB" className="mp-rel-num">{x.pb ?? "—"}</td>
               <td data-rotulo="Brasil" className="mp-rel-num">{x.br ?? "—"}</td>
@@ -238,10 +244,15 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
               <td data-rotulo="Mediana do porte · da região" className="mp-rel-num">{x.porte || x.regiao ? `${x.porte ?? "—"} · ${x.regiao ?? "—"}` : "—"}</td>
               <td data-rotulo="Posição na PB" className="mp-rel-num">{x.posicao ?? "—"}</td>
               <td data-rotulo="Nível">
+                {/* H11 (onda 7, C, 09/10/2026; auditoria R1): o porquê do nível estava só no `title`, que o toque, o teclado e
+                    a impressão não mostram. Agora vem à vista, logo abaixo do selo; a aba Indicadores é aberta ao público. */}
                 {x.nivel ? (
-                  <span className={`pa-tag mp-laudo-nivel mp-laudo-${x.nivel === "em_dia" ? "atendido" : x.nivel}`} title={x.porque ?? undefined}>
-                    {ROTULO_NIVEL_INDICADOR[x.nivel]}
-                  </span>
+                  <>
+                    <span className={`pa-tag mp-laudo-nivel mp-laudo-${x.nivel === "em_dia" ? "atendido" : x.nivel}`}>
+                      {ROTULO_NIVEL_INDICADOR[x.nivel]}
+                    </span>
+                    {x.porque && <span className="mp-rel-porque">{x.porque}</span>}
+                  </>
                 ) : (
                   <span className="mp-rel-contexto">{x.chave ? "não verificado" : "contexto"}</span>
                 )}
@@ -254,15 +265,16 @@ function TabelaIndicadores({ itens }: { itens: IndicadorLido[] }) {
   );
 }
 
-function BlocosIndicadores({ blocos }: { blocos: (BlocoIndicadores | null)[] }) {
+/** `secao`: o id do título da seção, que nomeia a tabela quando ela é a única; com vários blocos, cada subtítulo nomeia a sua. */
+function BlocosIndicadores({ blocos, secao }: { blocos: (BlocoIndicadores | null)[]; secao: string }) {
   const validos = blocos.filter((b): b is BlocoIndicadores => b !== null);
   // Seção de um bloco só (economia, território, governança): o título da seção já diz o que é.
-  if (validos.length === 1) return <TabelaIndicadores itens={validos[0].itens} />;
+  if (validos.length === 1) return <TabelaIndicadores itens={validos[0].itens} rotuloId={secao} />;
   return (
     <>
       {validos.map((b) => (
-        <Sub key={b.dimensao} titulo={b.titulo}>
-          <TabelaIndicadores itens={b.itens} />
+        <Sub key={b.dimensao} titulo={b.titulo} id={`${secao}-${b.dimensao}`}>
+          <TabelaIndicadores itens={b.itens} rotuloId={`${secao}-${b.dimensao}`} />
         </Sub>
       ))}
     </>
@@ -303,10 +315,13 @@ function OMunicipio({ l }: { l: LeituraIndicadores }) {
   );
 }
 
-function Sub({ titulo, children }: { titulo: string; children: ReactNode }) {
+/** `id` (onda 7, C; N04): o do subtítulo, para a tabela do grupo levar o nome dele. */
+function Sub({ titulo, id, children }: { titulo: string; id?: string; children: ReactNode }) {
   return (
     <div className="mp-rel-sub">
-      <h3 className="mp-rel-h3">{titulo}</h3>
+      <h3 id={id} className="mp-rel-h3">
+        {titulo}
+      </h3>
       {children}
     </div>
   );
@@ -449,7 +464,9 @@ export function BlocoFiscal({ r, destino }: { r: Relatorio; destino: Destino }) 
           <tbody>
             {f.decisoes.map((d) => (
               <tr key={d.decisao}>
-                <td>{d.nome}</td>
+                <th scope="row" className="mp-th-celula">
+                  {d.nome}
+                </th>
                 <td>{ROTULO_DECISAO[d.estado as keyof typeof ROTULO_DECISAO] ?? d.estado}</td>
                 <td>{d.bloqueantes.join(", ") || "—"}</td>
               </tr>
@@ -499,7 +516,9 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
           <tbody>
             {c.porGrupo.map((g) => (
               <tr key={g.id}>
-                <td>{g.rotulo}</td>
+                <th scope="row" className="mp-th-celula">
+                  {g.rotulo}
+                </th>
                 <td className="mp-rel-num">{n(g.n)}</td>
                 <td className="mp-rel-num">{moedaCurta(g.valor)}</td>
               </tr>
@@ -508,28 +527,28 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
         </table>
       </TabelaRolagem>
       {c.emExecucao.length > 0 && (
-        <Sub titulo={`Os ${n(c.emExecucao.length)} em execução`}>
-          <TabelaConvenios linhas={c.emExecucao} destino={destino} nota="Vigência e execução física" />
+        <Sub titulo={`Os ${n(c.emExecucao.length)} em execução`} id="rel-convenios-execucao">
+          <TabelaConvenios rotuloId="rel-convenios-execucao" linhas={c.emExecucao} destino={destino} nota="Vigência e execução física" />
         </Sub>
       )}
       {c.vigenciaVencida.length > 0 && (
-        <Sub titulo="Vigência vencida ainda em execução">
-          <TabelaConvenios linhas={c.vigenciaVencida} destino={destino} />
+        <Sub titulo="Vigência vencida ainda em execução" id="rel-convenios-vencida">
+          <TabelaConvenios rotuloId="rel-convenios-vencida" linhas={c.vigenciaVencida} destino={destino} />
         </Sub>
       )}
       {c.contasAtrasadas.length + c.contasNegativas.length > 0 && (
-        <Sub titulo="Prestação de contas pendente">
-          <TabelaConvenios linhas={[...c.contasAtrasadas, ...c.contasNegativas]} destino={destino} />
+        <Sub titulo="Prestação de contas pendente" id="rel-convenios-contas">
+          <TabelaConvenios rotuloId="rel-convenios-contas" linhas={[...c.contasAtrasadas, ...c.contasNegativas]} destino={destino} />
         </Sub>
       )}
       {c.liminar.length > 0 && (
-        <Sub titulo="Assinados por liminar">
-          <TabelaConvenios linhas={c.liminar} destino={destino} />
+        <Sub titulo="Assinados por liminar" id="rel-convenios-liminar">
+          <TabelaConvenios rotuloId="rel-convenios-liminar" linhas={c.liminar} destino={destino} />
         </Sub>
       )}
       {c.nuncaAssinados.length + c.nuncaAssinadosVencidos > 0 && (
-        <Sub titulo="Aprovados e nunca assinados">
-          <TabelaConvenios linhas={c.nuncaAssinados} destino={destino} nota="Vigência" />
+        <Sub titulo="Aprovados e nunca assinados" id="rel-convenios-nunca">
+          <TabelaConvenios rotuloId="rel-convenios-nunca" linhas={c.nuncaAssinados} destino={destino} nota="Vigência" />
           {c.nuncaAssinadosVencidos > 0 && (
             <p className="pa-nota">
               {c.nuncaAssinados.length ? "Fora da lista, " : ""}
@@ -540,8 +559,8 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
         </Sub>
       )}
       {c.pc33.length > 0 && (
-        <Sub titulo="Pontos a conferir na norma de convênios (PC 33/2023 e anteriores)">
-          <TabelaConvenios linhas={c.pc33} destino={destino} nota="Pontos" />
+        <Sub titulo="Pontos a conferir na norma de convênios (PC 33/2023 e anteriores)" id="rel-convenios-pc33">
+          <TabelaConvenios rotuloId="rel-convenios-pc33" linhas={c.pc33} destino={destino} nota="Pontos" />
         </Sub>
       )}
       <ListaAchados achados={dimensao(r, "convenios")} destino={destino} />
@@ -581,12 +600,12 @@ export function BlocoControle({ r, destino }: { r: Relatorio; destino: Destino }
             <tbody>
               {ct.tces.map((t) => (
                 <tr key={`${t.nr_convenio}-${t.numero_processo}`}>
-                  <td>
+                  <th scope="row" className="mp-th-celula">
                     <Link href={destino(t.nr_convenio)} prefetch={false}>
                       {t.nr_convenio}
                       <Carregando />
                     </Link>
-                  </td>
+                  </th>
                   <td data-rotulo="Processo no TCU">{t.numero_processo ?? "—"}</td>
                   <td data-rotulo="Situação">{t.situacao ?? "—"}</td>
                   <td data-rotulo="Débito original" className="mp-rel-num">{t.debito_original !== null ? moedaCurta(t.debito_original) : "—"}</td>
@@ -623,7 +642,9 @@ export function BlocoPropostas({ r, destino }: { r: Relatorio; destino: Destino 
           <tbody>
             {p.porDesfecho.map((d) => (
               <tr key={d.desfecho}>
-                <td>{d.rotulo}</td>
+                <th scope="row" className="mp-th-celula">
+                  {d.rotulo}
+                </th>
                 <td className="mp-rel-num">{n(d.n)}</td>
                 <td className="mp-rel-num">{moedaCurta(d.valor)}</td>
               </tr>
@@ -652,10 +673,10 @@ export function BlocoEmendas({ r }: { r: Relatorio }) {
           <tbody>
             {r.emendas.slice(0, 15).map((e) => (
               <tr key={e.parlamentar}>
-                <td>
+                <th scope="row" className="mp-th-celula">
                   {e.parlamentar}
                   {e.tipo ? ` (${e.tipo})` : ""}
-                </td>
+                </th>
                 <td className="mp-rel-num">{n(e.convenios)}</td>
                 <td className="mp-rel-num">{moedaCurta(e.valor)}</td>
               </tr>
@@ -737,25 +758,25 @@ export function BlocosIndicadoresMunicipio({ r, destino }: { r: Relatorio; desti
             </>
           }
         >
-          <BlocosIndicadores blocos={ind.social} />
+          <BlocosIndicadores blocos={ind.social} secao="rel-social" />
           <ListaAchados achados={dimensao(r, "social")} destino={destino} />
         </Secao>
       )}
       {ind.economia && (
         <Secao id="rel-economia" titulo="Economia">
-          <BlocosIndicadores blocos={[ind.economia]} />
+          <BlocosIndicadores blocos={[ind.economia]} secao="rel-economia" />
           <ListaAchados achados={dimensao(r, "economia")} destino={destino} />
         </Secao>
       )}
       {ind.territorio && (
         <Secao id="rel-territorio" titulo="Território" nota="Saneamento, água, desastres, conectividade e frota.">
-          <BlocosIndicadores blocos={[ind.territorio]} />
+          <BlocosIndicadores blocos={[ind.territorio]} secao="rel-territorio" />
           <ListaAchados achados={dimensao(r, "territorio")} destino={destino} />
         </Secao>
       )}
       {ind.governanca && (
         <Secao id="rel-governanca" titulo="Governança" nota="Transparência e contratações. Contratação direta é ponto para olhar, não irregularidade.">
-          <BlocosIndicadores blocos={[ind.governanca]} />
+          <BlocosIndicadores blocos={[ind.governanca]} secao="rel-governanca" />
           <ListaAchados achados={dimensao(r, "governanca")} destino={destino} />
         </Secao>
       )}

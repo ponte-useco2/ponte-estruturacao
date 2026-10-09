@@ -14,6 +14,7 @@
  * saídas para a busca dizem "(pede cadastro)". Do nível 1 em diante, nada muda.
  */
 import type { ReactNode } from "react";
+import { urlProposta } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
@@ -357,9 +358,10 @@ export function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoR
               <tbody>
                 {g.itens.map((i) => (
                   <tr key={i.nr_convenio}>
-                    <td>
+                    {/* A09 (onda 7, C, 09/10/2026): cabeçalho de linha, para o leitor de tela dizer o número em cada célula. */}
+                    <th scope="row" className="mp-th-celula">
                       <LinkMapa href={destino(i.nr_convenio)}>{i.nr_convenio}</LinkMapa>
-                    </td>
+                    </th>
                     <td data-rotulo="Órgão">{i.orgao_sup ? tituloOrgao(i.orgao_sup) : "—"}</td>
                     <td data-rotulo="Objeto">{i.objeto ?? "—"}</td>
                     <td data-rotulo="Valor" className="mp-rel-num">{moedaCurta(i.vl_global ?? 0)}</td>
@@ -378,10 +380,24 @@ export function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoR
 }
 
 /**
+ * O número que a pessoa conhece (`nr_proposta`) quando a leitura o traz; senão o id do SICONV, como a trilha e a busca
+ * fazem (`eloProposta`). A leitura da entidade (`COLUNAS_PROPOSTA`, em `relatorio-municipio.server.ts`) ainda não pede
+ * o `nr_proposta`: até pedir, a lista mostra o id, que é o que o endereço da página da proposta usa.
+ */
+function numeroDaProposta(p: PropostaRelatorio): string {
+  const nr = "nr_proposta" in p && typeof p.nr_proposta === "string" ? p.nr_proposta.trim() : "";
+  return nr || p.id_proposta;
+}
+
+/**
  * A lista das propostas. Na página, recolhida; no relatório para imprimir (`aberta`, C1c), a tabela vem direto: no
  * papel o resumo «Ver a lista das propostas» sairia como título, e ele é um convite ao clique, não um nome.
+ *
+ * Onda 7, C (09/10/2026; N07 da auditoria R1, o beco "propostas da entidade sem link" do B0): cada proposta abre a
+ * página dela pelo número, que é também o cabeçalho da linha (A09). A página da proposta pede cadastro: no nível 0
+ * (`publico`), o link diz "(pede cadastro)" e leva à entrada (`linkNoPublico`).
  */
-export function ListaPropostas({ propostas, aberta = false }: { propostas: PropostaRelatorio[]; aberta?: boolean }) {
+export function ListaPropostas({ propostas, aberta = false, publico = false }: { propostas: PropostaRelatorio[]; aberta?: boolean; publico?: boolean }) {
   if (!propostas.length) return null;
   const xs = [...propostas].sort((a, b) => (b.ano_envio ?? 0) - (a.ano_envio ?? 0));
   const tabela = (
@@ -389,6 +405,7 @@ export function ListaPropostas({ propostas, aberta = false }: { propostas: Propo
       <table className="mp-tabela mp-tabela-empilha">
         <thead>
           <tr>
+            <th scope="col">Proposta</th>
             <th scope="col">Ano</th>
             <th scope="col">Programa</th>
             <th scope="col">Órgão</th>
@@ -397,15 +414,24 @@ export function ListaPropostas({ propostas, aberta = false }: { propostas: Propo
           </tr>
         </thead>
         <tbody>
-          {xs.map((p) => (
-            <tr key={p.id_proposta}>
-              <td>{p.ano_envio ?? "—"}</td>
-              <td data-rotulo="Programa">{p.programa ?? "—"}</td>
-              <td data-rotulo="Órgão">{p.orgao_sup ? tituloOrgao(p.orgao_sup) : "—"}</td>
-              <td data-rotulo="Repasse" className="mp-rel-num">{moedaCurta(p.valor_repasse ?? 0)}</td>
-              <td data-rotulo="Desfecho">{p.desfecho ? (ROTULO_DESFECHO[p.desfecho as keyof typeof ROTULO_DESFECHO] ?? p.desfecho) : "—"}</td>
-            </tr>
-          ))}
+          {xs.map((p) => {
+            const link = linkNoPublico(urlProposta(p.id_proposta), publico);
+            return (
+              <tr key={p.id_proposta}>
+                <th scope="row" className="mp-th-celula">
+                  <LinkMapa href={link.href}>
+                    nº {numeroDaProposta(p)}
+                    {link.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
+                  </LinkMapa>
+                </th>
+                <td data-rotulo="Ano">{p.ano_envio ?? "—"}</td>
+                <td data-rotulo="Programa">{p.programa ?? "—"}</td>
+                <td data-rotulo="Órgão">{p.orgao_sup ? tituloOrgao(p.orgao_sup) : "—"}</td>
+                <td data-rotulo="Repasse" className="mp-rel-num">{moedaCurta(p.valor_repasse ?? 0)}</td>
+                <td data-rotulo="Desfecho">{p.desfecho ? (ROTULO_DESFECHO[p.desfecho as keyof typeof ROTULO_DESFECHO] ?? p.desfecho) : "—"}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </TabelaRolagem>
@@ -503,7 +529,9 @@ export function PorOrgao({ instrumentos }: { instrumentos: InstrumentoRelatorio[
           <tbody>
             {xs.map((o) => (
               <tr key={o.orgao}>
-                <td>{tituloOrgao(o.orgao)}</td>
+                <th scope="row" className="mp-th-celula">
+                  {tituloOrgao(o.orgao)}
+                </th>
                 <td className="mp-rel-num">{n(o.n)}</td>
                 <td className="mp-rel-num">{moedaCurta(o.valor)}</td>
                 <td className="mp-rel-num">{o.desembolsado ? moedaCurta(o.desembolsado) : "—"}</td>
@@ -581,7 +609,7 @@ export function EntidadeConteudo({
           {nivel >= 1 && <BlocoConvenios r={r} destino={destino} />}
           <Carteira instrumentos={instrumentos} destino={destino} />
           {nivel >= 1 && <BlocoPropostas r={r} destino={destino} />}
-          <ListaPropostas propostas={propostas} />
+          <ListaPropostas propostas={propostas} publico={publico} />
           {soCadastro && <EntidadeVazia e={e} publico={publico} />}
         </>
       )}

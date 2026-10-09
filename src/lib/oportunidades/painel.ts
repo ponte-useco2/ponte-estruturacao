@@ -968,8 +968,10 @@ export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[]): string {
     else s = /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : v;
     // Texto começando com sinal ganha um espaço na frente: o Excel deixa de ler fórmula
     // ("- Aquisição…" dava #NOME?) e, ao contrário do apóstrofo, o espaço não aparece.
+    // Tabulação e \r no começo também (a lista da OWASP; M7 da R3, onda 7, 09/10/2026): há
+    // programa que apara esses caracteres e lê a fórmula que vem depois.
     // Número negativo não é texto: segue sem espaço e sem aspas.
-    const sinal = typeof v === "string" && /^[=+\-@]/.test(s);
+    const sinal = typeof v === "string" && /^[=+\-@\t\r]/.test(s);
     if (sinal) s = ` ${s}`;
     // Aspas quando o texto tem separador, aspas ou quebra de linha, e no texto com sinal.
     const precisaAspas = sinal || /[;"\r\n]/.test(s);

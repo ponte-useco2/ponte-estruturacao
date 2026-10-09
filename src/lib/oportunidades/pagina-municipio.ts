@@ -10,7 +10,7 @@
  * padrão; ver `publico.ts`). Aqui moram as regras dele que valem para mais de uma página: o nível onde não há cliente
  * (Brasil e UF), quem abre o relatório do município e o recorte do relatório para o público (`relatorioDoPublico`).
  */
-import type { Achado, Dimensao, Relatorio } from "./relatorio-municipio.ts";
+import { FALTAS_DA_FONTE, FONTES_DO_PUBLICO, FONTES_RELATORIO, type Achado, type Dimensao, type Relatorio } from "./relatorio-municipio.ts";
 
 export type NivelAcesso = 0 | 1 | 2 | 3;
 
@@ -135,6 +135,17 @@ export const CARTOES_DO_PUBLICO: readonly string[] = ["Convênios em execução"
 export const DIMENSOES_DO_PUBLICO: readonly Dimensao[] = ["social", "economia", "territorio", "governanca"];
 
 /**
+ * Os nomes de falta das fontes que a leitura do nível 0 não lê: não chegam ao público. Calculado na primeira chamada,
+ * e não no carregamento: `relatorio-municipio` → `busca` → este módulo → `relatorio-municipio` é um ciclo, e no
+ * carregamento as listas de lá ainda não existem.
+ */
+let faltasForaDoPublico: Set<string> | null = null;
+function faltaForaDoPublico(f: string): boolean {
+  faltasForaDoPublico ??= new Set(FONTES_RELATORIO.filter((x) => !FONTES_DO_PUBLICO.includes(x)).flatMap((x) => FALTAS_DA_FONTE[x]));
+  return faltasForaDoPublico.has(f);
+}
+
+/**
  * O relatório do município (ou da entidade) recortado para o nível 0 (C4a, 09/10/2026; achados B2 e B3 da R3). Recorta
  * o dado, e não só a tela: o que sai daqui nenhum bloco desenha, nem um bloco novo que alguém ponha numa aba aberta.
  *   - os cartões e os achados (inclusive o "O que está em ordem", os destaques e os passos) ficam nas listas brancas;
@@ -142,8 +153,12 @@ export const DIMENSOES_DO_PUBLICO: readonly Dimensao[] = ["social", "economia", 
  *   - dos convênios, ficam a tabela por situação e a lista dos em execução (a situação dos instrumentos, que a D1
  *     abre); saem as listas de análise (vigência vencida, sem movimento, prestação de contas pendente, liminar, nunca
  *     assinados e os pontos da PC 33).
- * O resto (indicadores, emendas, propostas por desfecho, janelas, fontes) segue como está para o cadastrado. Aplicar
+ * O resto (indicadores, emendas, propostas por desfecho, janelas) segue como está para o cadastrado. Aplicar
  * depois de `relatorioSemNomes`: o recorte não devolve nome nenhum, mas também não tira.
+ *
+ * Onda 7 (09/10/2026, sugestão do A): saem também os destaques ("Em uma página") e as fontes (aba "Relatório e dados"),
+ * que o nível 0 não desenha, e as faltas das fontes que a leitura pública nem lê (`FONTES_DO_PUBLICO`). Com isso o
+ * recorte da leitura completa é idêntico ao da leitura leve, e "o painel fiscal falhou" não chega ao público no objeto.
  */
 export function relatorioDoPublico(r: Relatorio): Relatorio {
   const aberto = (a: Achado) => DIMENSOES_DO_PUBLICO.includes(a.dimensao);
@@ -151,9 +166,11 @@ export function relatorioDoPublico(r: Relatorio): Relatorio {
     ...r,
     cartoes: r.cartoes.filter((c) => CARTOES_DO_PUBLICO.includes(c.rotulo)),
     achados: r.achados.filter(aberto),
-    destaques: r.destaques.filter(aberto),
+    destaques: [],
     emDia: r.emDia.filter(aberto),
     passos: [],
+    fontes: [],
+    faltas: r.faltas.filter((f) => !faltaForaDoPublico(f)),
     fiscal: null,
     controle: null,
     pix: null,

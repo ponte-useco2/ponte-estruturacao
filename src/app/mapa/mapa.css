@@ -648,8 +648,11 @@
 .pa-root .mp-busca-campo { display: inline-flex; flex-direction: column; gap: 0.2rem; }
 .pa-root .mp-busca-form .pa-btn { min-height: 44px; align-self: flex-end; }
 .pa-root .mp-busca-tabela th[scope="row"] { min-width: 13rem; }
-.pa-root .mp-busca-tabela td:nth-child(2) { min-width: 18rem; }
-.pa-root .mp-busca-tabela td:nth-child(3) { min-width: 10rem; }
+/* Por classe, e não por `nth-child`, desde a onda 7, C (09/10/2026; N23): a estrela e o proponente ganharam coluna
+   própria nos convênios e nas propostas, e a posição de cada coluna passou a depender de haver estrela. */
+.pa-root .mp-busca-tabela .mp-busca-programa { min-width: 18rem; }
+.pa-root .mp-busca-tabela .mp-busca-situacao { min-width: 10rem; }
+.pa-root .mp-busca-tabela .mp-busca-proponente { min-width: 13rem; }
 .pa-root .mp-busca-paginas { margin-top: 1rem; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 .pa-root .mp-busca-paginas .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
 
@@ -723,8 +726,9 @@
 .pa-root .mp-estrela-compacta { min-width: 44px; justify-content: center; padding: 0; margin-left: 0.1rem; }
 .pa-root .mp-estrela[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
 .pa-root .mp-estrela-erro { font-size: 0.78rem; color: var(--pa-danger); white-space: normal; }
-.pa-root .mp-busca-numero { display: inline-flex; align-items: center; gap: 0.2rem; flex-wrap: wrap; }
-.pa-root .mp-busca-numero .mp-tabela-principal { white-space: nowrap; }
+/* Onda 7, C (09/10/2026; N23): o cabeçalho de linha da busca é só o número, numa linha; a estrela tem célula própria. */
+.pa-root .mp-busca-numero-celula .mp-tabela-principal { white-space: nowrap; }
+.pa-root .mp-busca-seguir .mp-estrela { margin-left: 0; }
 .pa-root .mp-janela-lado .mp-estrela { margin-left: 0; }
 .pa-root .mp-mural { padding-bottom: 0; }
 .pa-root .mp-mural + .pa-pagina { padding-top: 0.6rem; }
@@ -1182,10 +1186,14 @@
 
 /* Enquanto um link espera o servidor, o resto da página esmaece (proposta da B10). Na troca de aba (?aba=) o esqueleto
    do loading.tsx não aparece, porque a página é a mesma: sem isto, o único sinal era o ponto na aba. O bloco com o link
-   clicado e o cabeçalho da página ficam inteiros; o atraso curto evita piscar quando a resposta vem logo. */
+   clicado e o cabeçalho da página ficam inteiros; o atraso curto evita piscar quando a resposta vem logo.
+   Opacidade 0,7 desde a onda 7, C (09/10/2026; N12 da auditoria R1): com 0,4, o texto caía a 2,42:1 e o secundário a
+   1,77:1 durante os 5 a 15 s da espera, e a página seguia clicável. Com 0,7, sobre o fundo da página: texto 5,84:1,
+   link 3,41:1, secundário 2,98:1 e nota 3,07:1. É estado de passagem; o texto principal passa dos 4,5:1, e o
+   esmaecimento ainda se vê ao lado do ponto e do cursor de progresso. */
 .pa-root .pa-pagina:has(.mp-carregando-ativo) > :not(:has(.mp-carregando-ativo), .mp-radar-cabeca),
 .pa-root:has(.pa-top .mp-carregando-ativo) .pa-main > * {
-  opacity: 0.4;
+  opacity: 0.7;
   transition: opacity 0.2s ease 0.15s;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1206,8 +1214,9 @@
 @media screen and (max-width: 640px) {
   .pa-root :is(.mp-pix-planos, .mp-busca-tabela, .mp-barras, .mp-suspensivas-tabela, .mp-padroes-tabela, .mp-fiscal-tabela) th[scope="row"],
   .pa-root .mp-rel-indicadores td:first-child { min-width: 9rem; }
-  .pa-root .mp-busca-tabela td:nth-child(2) { min-width: 12rem; }
-  .pa-root .mp-busca-tabela td:nth-child(3) { min-width: 7rem; }
+  .pa-root .mp-busca-tabela .mp-busca-programa { min-width: 12rem; }
+  .pa-root .mp-busca-tabela .mp-busca-situacao { min-width: 7rem; }
+  .pa-root .mp-busca-tabela .mp-busca-proponente { min-width: 10rem; }
 }
 
 /* Empilhar por linha (H07): o padrão da carteira, aberto às tabelas de registros (convênios, propostas, indicadores),
@@ -1275,3 +1284,82 @@ html:has(.pa-root.mp-root) { scroll-padding-top: calc(60px + 2.75rem + 1px + 1re
   .pa-root .mp-rel :is(h2, h3), .pa-root .mp-rel :is(h2, h3) + .pa-nota { break-after: avoid; }
   .pa-root .mp-rel .pa-nota { break-inside: avoid; }
 }
+
+/* ------------------------------------------------------------------------------------------------
+   Onda 7, C (09/10/2026): usabilidade e acessibilidade das telas públicas (auditoria R1, achados N e resíduos H11 e
+   A09). No fim do arquivo porque algumas regras precisam vencer outras de mesma especificidade que vêm acima.
+   ------------------------------------------------------------------------------------------------ */
+
+/* N02: marcador próprio nos resumos que abrem e fecham. Com `display: flex` ou `inline-flex`, o `summary` perde o
+   triângulo do navegador no Chrome e no Firefox: os anos da linha do tempo do convênio, "Janelas abertas por tema" e o
+   "Mostrar mais" da busca não mostravam que abrem nem se estavam abertos. No Safari o triângulo é outro
+   pseudo-elemento, escondido aqui para não sair dobrado. ▸ fechado, ▾ aberto, na cor do texto do resumo (5,89:1 ou mais
+   no fundo de cada um); o "/ ''" tira o desenho da leitura em voz alta, porque o leitor de tela já diz "recolhido" ou
+   "expandido" pelo próprio `details`. */
+.pa-root :is(.mp-linha-ano, .mp-temas-grafico, .mp-unif-mais, .mp-fiscal-detalhe) > summary { list-style: none; }
+.pa-root :is(.mp-linha-ano, .mp-temas-grafico, .mp-unif-mais, .mp-fiscal-detalhe) > summary::-webkit-details-marker { display: none; }
+.pa-root :is(.mp-linha-ano, .mp-temas-grafico, .mp-unif-mais, .mp-fiscal-detalhe) > summary::before {
+  content: "▸";
+  content: "▸" / "";
+  flex: none; display: inline-block; width: 1em; margin-right: 0.35em; text-align: center;
+  font-family: var(--pa-font); font-size: 1rem; font-weight: 400; letter-spacing: 0; text-transform: none;
+}
+.pa-root :is(.mp-linha-ano, .mp-temas-grafico, .mp-unif-mais, .mp-fiscal-detalhe)[open] > summary::before {
+  content: "▾";
+  content: "▾" / "";
+}
+
+/* N05: "copiar nº" com alvo de 44 px no alto do convênio e da proposta (era 28 px). No painel do administrador, entre
+   as linhas das tabelas, fica com os 28 px de antes, acima do mínimo de 24 px da WCAG 2.2 (2.5.8). */
+.pa-root .pa-kicker .mp-painel-copiar { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.7rem; vertical-align: middle; }
+
+/* N11: a borda dos botões do Mapa passa à do campo (#748b93): 3,59:1 no branco do botão, 3,36:1 no fundo da página,
+   3,19:1 na superfície 2 e 4,57:1 no aviso escuro da estrela. Era a `--pa-border` (1,36:1), e, com o fundo branco quase
+   igual ao da página (1,07:1), "Tentar de novo" e "Imprimir" pareciam texto solto. O primário e o de perigo já têm a
+   borda cheia da própria cor. O "copiar nº" segue a mesma regra. */
+.mp-root .pa-btn:not(.pa-btn-primario, .pa-btn-perigo),
+.pa-root .mp-painel-copiar { border-color: var(--mp-borda-campo); }
+
+/* N15: o contorno de foco das abas da página fica por dentro da aba. Por fora (2 px), a caixa das abas, que rola de
+   lado, o cortava em cima e embaixo; o topo já fazia assim (`.pa-top .pa-aba`). #14607a no fundo: 6,59:1. */
+.pa-root .mp-mun-abas a:focus-visible { outline-offset: -3px; }
+
+/* N16: abaixo de 640 px, as siglas do mapa do Brasil saem: com 15 unidades num desenho de 1000 de largura, davam cerca
+   de 5 px a 375 px. O nome de cada UF continua no título da área e na tabela das 27, logo abaixo. No papel ficam. */
+@media screen and (max-width: 640px) {
+  .pa-root .mp-mapa-rotulo { display: none; }
+}
+
+/* N18: as etiquetas da janela (fonte, canal, "Combina…") vêm depois do título no DOM e continuam acima dele na tela.
+   Não são focáveis, então a ordem do Tab não muda. */
+.pa-root .mp-janela-etiquetas { order: -1; }
+
+/* N23: o cabeçalho de linha da busca é só o número; a largura de 13rem era para o número, a estrela e o proponente
+   juntos. Vem depois da regra do celular (9rem), de mesma especificidade. */
+.pa-root .mp-busca-tabela th.mp-busca-numero-celula { min-width: 0; }
+
+/* A09: a 1ª coluna que virou cabeçalho de linha (`th`) guarda a cara da célula comum: o peso 600 e a largura mínima de
+   16rem do cabeçalho de linha mudariam a tabela. Na tabela empilhada do celular, a regra dela continua pondo o título
+   do bloco em 600. Os indicadores guardam os 14rem que a 1ª coluna já tinha na tela (e 0 no celular e no papel). */
+.pa-root .mp-tabela tbody th.mp-th-celula { font-weight: inherit; min-width: 0; }
+.pa-root .mp-rel-indicadores tbody th.mp-th-celula { min-width: 14rem; font-size: inherit; }
+@media screen and (max-width: 640px) {
+  .pa-root .mp-rel-indicadores tbody th.mp-th-celula { min-width: 0; }
+}
+@media print {
+  .pa-root .mp-rel-indicadores tbody th.mp-th-celula { min-width: 0; }
+}
+
+/* H11: o porquê do nível do indicador, à vista sob o selo (era só o `title`, que o toque, o teclado e o papel não
+   mostram). --pa-muted dá 5,89:1 no branco da célula e 5,25:1 na superfície 2. */
+.pa-root .mp-rel-porque { display: block; margin-top: 0.25rem; font-size: 0.9em; line-height: 1.35; color: var(--pa-muted); white-space: normal; }
+
+/* N08: o formulário da entidade. A ajuda do campo em texto comum (#516870: 5,52:1 no fundo da página). O erro em texto
+   comum, em 600, com a barra à esquerda (#8a4b42: 6,63:1 no branco da caixa), e o campo de que ele fala com a borda
+   dobrada na mesma cor (6,63:1 no branco): a cor nunca é o único sinal, há a barra, o texto e a borda mais grossa. */
+.pa-root .mp-form-ajuda { margin: 0.1rem 0 0; font-size: 0.82rem; line-height: 1.45; color: var(--pa-muted); }
+.pa-root .mp-form-erro {
+  margin: 0; padding: 0.55rem 0.8rem; border-left: 3px solid var(--pa-danger); border-radius: 0 var(--pa-r) var(--pa-r) 0;
+  background: var(--pa-surface); color: var(--pa-danger); font-size: 0.9rem; font-weight: 600; line-height: 1.5;
+}
+.pa-root :is(.pa-input, .pa-select)[aria-invalid="true"] { border-color: var(--pa-danger); box-shadow: inset 0 0 0 1px var(--pa-danger); }

@@ -8,6 +8,7 @@ import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { MARCA_PEDE_CADASTRO, chaveDoAmbiente, linkNoPublico, quemAPaginaAtende } from "@/lib/oportunidades/publico";
+import { tituloInstrumento } from "@/lib/oportunidades/titulo-pagina";
 import { recorteDaBase } from "@/lib/oportunidades/vazios";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
@@ -15,10 +16,15 @@ import { InstrumentoConteudo } from "./InstrumentoConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { ConvitePublico } from "../../_componentes/MapaFrame";
 
-export const metadata: Metadata = {
-  title: "Convênio · Mapa de Oportunidades · PONTE",
-  robots: { index: false, follow: false },
-};
+/**
+ * Onda 7, C (09/10/2026; N01 da auditoria R1, WCAG 2.4.2): o título diz o número ("Convênio nº 912345"). Era o mesmo
+ * para todo convênio, e o leitor de tela não anunciava a troca de um para outro. Só o número do endereço, já validado:
+ * nada do banco, nada que a página não mostre.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ numero: string }> }): Promise<Metadata> {
+  const { numero } = await params;
+  return { title: tituloInstrumento(numero), robots: { index: false, follow: false } };
+}
 
 /**
  * Um convênio pelo número — para qualquer usuário aprovado.
@@ -65,6 +71,7 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
         titulo="O convênio está indisponível agora"
         endereco={urlInstrumento(numero)}
         voltarPara={visitante ? { rotulo: `Buscar “${numero}”`, href: buscaDoNumero } : { rotulo: "Abrir a página do Brasil", href: urlBrasil() }}
+        publico={!visitante}
       />
     );
   }

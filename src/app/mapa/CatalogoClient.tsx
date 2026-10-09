@@ -11,7 +11,7 @@
  * avisos pedem cadastro: no nível 0, os links dizem "(pede cadastro)" e levam à entrada (`linkNoPublico`).
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   SEM_FILTRO,
   contarPorAssunto,
@@ -37,6 +37,9 @@ interface Entidade {
   tipo: string;
   uf: string | null;
 }
+
+/** Quanto a contagem falada espera depois da última mudança dos filtros (N19). */
+const ESPERA_DO_ANUNCIO = 500;
 
 function prazoPorExtenso(j: JanelaVista): string {
   if (j.prazo === null || j.diasRestantes === null) return "Sem prazo informado pela fonte";
@@ -94,6 +97,18 @@ export function CatalogoClient({
 
   const outrosFiltros = filtros.fontes.length > 0 || filtros.canais.length > 0 || filtros.assuntos.length > 0;
   const filtrando = outrosFiltros || filtros.busca.trim() !== "";
+
+  /**
+   * Onda 7, C (09/10/2026; N19 da auditoria R1): a busca filtra a cada tecla, e a região viva anunciava "N janelas" a
+   * cada letra, atropelando o eco do que se digita. A contagem à vista muda na hora; a falada, cerca de meio segundo
+   * depois da última mudança (tecla ou chip).
+   */
+  const contagemAgora = `${visiveis.length} ${visiveis.length === 1 ? "janela" : "janelas"}${filtrando ? ` de ${vista.janelas.length}` : ""}`;
+  const [contagemDita, setContagemDita] = useState(contagemAgora);
+  useEffect(() => {
+    const espera = setTimeout(() => setContagemDita(contagemAgora), ESPERA_DO_ANUNCIO);
+    return () => clearTimeout(espera);
+  }, [contagemAgora]);
 
   /**
    * Os botões do vazio somem com o vazio (a lista volta no lugar deles): sem levar o foco a algum lugar, ele cairia no
@@ -325,10 +340,13 @@ export function CatalogoClient({
       </p>
 
       <div className="pa-linha mp-resultado">
+        {/* A contagem à vista muda na hora; o leitor de tela ouve a região logo abaixo, que espera a digitação parar. */}
+        <p aria-hidden="true" className="pa-mono">
+          {contagemAgora}
+        </p>
         {/* Região viva sempre presente: só o texto muda, para ser lida. */}
-        <p role="status" aria-atomic="true" className="pa-mono">
-          {visiveis.length} {visiveis.length === 1 ? "janela" : "janelas"}
-          {filtrando && ` de ${vista.janelas.length}`}
+        <p role="status" aria-atomic="true" className="pa-sr">
+          {contagemDita}
         </p>
         <span className="pa-espaco" />
         {filtrando && (
@@ -531,13 +549,15 @@ function JanelaCartao({
   return (
     <article className="pa-cartao mp-janela">
       <div className="mp-janela-corpo">
+        <h2 className="pa-oportunidade-titulo mp-janela-titulo">{j.titulo}</h2>
+        {/* Onda 7, C (09/10/2026; N18 da auditoria R1): as etiquetas vêm depois do título no DOM, e quem navega pelos
+            títulos chega ao cartão pelo nome e ouve fonte e canal em seguida. Na tela continuam acima do título
+            (`order` em mapa.css): não são focáveis, então a ordem do Tab não muda. */}
         <div className="pa-linha mp-janela-etiquetas">
           <Tag>{j.fonteNome}</Tag>
           {j.canal !== null ? <Tag tom="forte">{ROTULO_CANAL[j.canal]}</Tag> : <Tag>{j.instrumento}</Tag>}
           {combinaTema && <Tag tom="aderente">Combina com o que você acompanha</Tag>}
         </div>
-
-        <h2 className="pa-oportunidade-titulo mp-janela-titulo">{j.titulo}</h2>
         <p className="mp-janela-financiador">{j.financiador}</p>
         {j.canal !== null && <p className="mp-janela-condicao">{CONDICAO_CANAL[j.canal]}</p>}
 

@@ -4,6 +4,7 @@ import { urlProposta } from "@/lib/oportunidades/busca";
 import { lerProposta } from "@/lib/oportunidades/busca.server";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
+import { tituloProposta } from "@/lib/oportunidades/titulo-pagina";
 import { recorteDaBase } from "@/lib/oportunidades/vazios";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
@@ -12,10 +13,15 @@ import { LinkMapa } from "../../_componentes/LinkMapa";
 
 const BUSCA_PROPOSTAS = "/mapa/busca?aba=propostas";
 
-export const metadata: Metadata = {
-  title: "Proposta · Mapa de Oportunidades · PONTE",
-  robots: { index: false, follow: false },
-};
+/**
+ * Onda 7, C (09/10/2026; N01 da auditoria R1, WCAG 2.4.2): o título diz o id da proposta ("Proposta 1234567"). Era o
+ * mesmo para toda proposta, e o leitor de tela não anunciava a troca de uma para outra. Só o id do endereço, já
+ * validado: nada do banco (o número que a pessoa conhece pediria a leitura), nada que a página não mostre.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  return { title: tituloProposta(id), robots: { index: false, follow: false } };
+}
 
 /** Uma proposta pelo id do SICONV — para qualquer usuário aprovado. */
 export default async function PropostaPage({ params }: { params: Promise<{ id: string }> }) {

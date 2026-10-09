@@ -5,8 +5,14 @@
  * (`painel_territorio`, do job), o funil das propostas por UF (`painel_programa_desfecho`), o tempo das etapas
  * (`painel_etapa_tempo`), o Pix e o fundo a fundo por ano e as janelas abertas por UF (`radar_programa_aberto`).
  * Cada fonte falha sozinha; memória de 10 minutos.
+ *
+ * Onda 7, A (09/10/2026): a memória ganha a camada comum às instâncias (`cache-dados.server.ts`), também de 10 minutos.
+ * Lá só entra a leitura inteira (sem faltas); a com falta fica só nesta instância, como antes. As janelas por UF são
+ * um `Map`, que o JSON do cache não guarda: vão como lista de pares e voltam `Map`.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
+import { VALIDADE_DADOS_MS } from "./cache-dados";
+import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { ehEsquemaAusente } from "./esquema";
 import { criarMemoria } from "./memoria";
 import { janelasPorUf } from "./pagina-brasil";
@@ -53,7 +59,25 @@ async function ler<T>(faltas: string[], nome: string, consulta: PromiseLike<Resp
   return r.data as T;
 }
 
-const memoria = criarMemoria<LeituraBrasil>({ validadeMs: 10 * 60 * 1000, maximo: 2, guardar: (l) => l.estado === "ok" });
+/** O `Map` das janelas por UF vai ao cache como lista de pares (o JSON não guarda `Map`) e volta `Map`. */
+const paraGuardar = (l: LeituraBrasil): unknown => (l.estado === "ok" && l.janelas ? { ...l, janelas: [...l.janelas] } : l);
+const doGuardado = (x: unknown): LeituraBrasil => {
+  const l = x as LeituraBrasil;
+  const janelas = (x as { janelas?: unknown }).janelas;
+  return l.estado === "ok" && Array.isArray(janelas) ? { ...l, janelas: new Map(janelas as [string, number][]) } : l;
+};
+
+const memoria = criarMemoria<LeituraBrasil>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 2,
+  guardar: (l) => l.estado === "ok",
+  compartilhada: camadaDoCacheDeDados<LeituraBrasil>({
+    leitor: "brasil",
+    guardavel: (l) => l.estado === "ok" && l.faltas.length === 0,
+    paraGuardar,
+    doGuardado,
+  }),
+});
 
 /** A página do Brasil, da memória quando há. Não altere o objeto devolvido. */
 export function lerBrasil(): Promise<LeituraBrasil> {

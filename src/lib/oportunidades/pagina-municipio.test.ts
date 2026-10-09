@@ -214,9 +214,14 @@ test("C4a: o recorte do público tira do dado o fiscal, o controle, o TCE-PB, os
   }
   assert.equal(p.convenios?.nuncaAssinadosVencidos, 0);
   // o que o cadastrado vê de resumo segue igual
-  for (const k of ["ibge", "nome", "hoje", "escopo", "propostas", "emendas", "indicadores", "janelas", "fontes", "faltas"] as const) {
+  for (const k of ["ibge", "nome", "hoje", "escopo", "propostas", "emendas", "indicadores", "janelas"] as const) {
     assert.deepEqual(p[k], inteiro[k], k);
   }
+  // onda 7: os destaques e as fontes (só do cadastro) saem; das faltas, só as das fontes que o público lê
+  assert.deepEqual(p.destaques, []);
+  assert.deepEqual(p.fontes, []);
+  const comFaltas = relatorioDoPublico({ ...inteiro, faltas: ["painel fiscal", "indicadores do município", "TCE-PB", "convênios"] });
+  assert.deepEqual(comFaltas.faltas, ["indicadores do município", "convênios"]);
   // nenhum nome de empresa sobra em lugar nenhum do recorte
   assert.ok(!JSON.stringify(p).includes("EMPRESA X"));
   assert.ok(!JSON.stringify(p).includes("05476456000146"));

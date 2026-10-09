@@ -11,9 +11,24 @@
  *
  * "Tentar de novo" usa o `retry()` do Next 16 (lê de novo do servidor e redesenha); o `reset()` sozinho só redesenha,
  * e o erro de leitura voltaria igual. Sem o `retry`, cai no `reset()`.
+ *
+ * Onda 7, C (09/10/2026; N2 da revisão R3): o erro também vem das páginas abertas ao público, e a busca pede cadastro.
+ * Esta tela é de cliente (o Next exige) e não recebe o nível nem lê a sessão. A forma mais simples de saber se quem olha
+ * tem cadastro aprovado é a que a moldura já mostra: só a versão pública põe no topo a porta do público ("Entrar" ou
+ * "Situação do cadastro", de `portaDoPublico`); o aprovado tem o menu da conta. Com a porta no topo, "Procurar na
+ * busca" leva a marca "(pede cadastro)" e vai à entrada (`linkNoPublico`). Sem ela, ou antes de a tela montar, o link
+ * é o de sempre: com a chave `MAPA_PUBLICO` desligada, nada muda.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { MARCA_PEDE_CADASTRO, URL_AGUARDANDO, linkNoPublico, urlEntrar } from "@/lib/oportunidades/publico";
 import { LinkMapa } from "./_componentes/LinkMapa";
+
+/** Os endereços da porta do público, sem a query (a entrada leva o `next`). */
+const PORTAS_DO_PUBLICO = [urlEntrar(null).split("?")[0], URL_AGUARDANDO];
+const SELETOR_DA_PORTA = PORTAS_DO_PUBLICO.map((h) => `.pa-top a[href^="${h}"]`).join(", ");
+const semAssinatura = () => () => {};
+const portaNoTopo = () => document.querySelector(SELETOR_DA_PORTA) !== null;
+const antesDeMontar = () => false;
 
 export default function ErroNoMapa({
   error,
@@ -25,6 +40,8 @@ export default function ErroNoMapa({
   retry?: () => void;
 }) {
   const titulo = useRef<HTMLHeadingElement>(null);
+  const publico = useSyncExternalStore(semAssinatura, portaNoTopo, antesDeMontar);
+  const busca = linkNoPublico("/mapa/busca", publico);
 
   // O conteúdo trocou sem navegação: o foco vai para o título, e o leitor de tela lê o que aconteceu.
   useEffect(() => {
@@ -46,8 +63,8 @@ export default function ErroNoMapa({
           <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => (retry ?? reset)()}>
             Tentar de novo
           </button>
-          <LinkMapa href="/mapa/busca" className="pa-btn pa-btn-pequeno">
-            Procurar na busca
+          <LinkMapa href={busca.href} className="pa-btn pa-btn-pequeno">
+            Procurar na busca{busca.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
           </LinkMapa>
           <LinkMapa href="/mapa" className="pa-btn pa-btn-pequeno">
             Ver as janelas

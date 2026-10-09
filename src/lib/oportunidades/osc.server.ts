@@ -4,8 +4,14 @@
  * Quem decide se a pessoa pode ver é a página (o portão de aprovados do `/mapa`). O cadastro muda uma vez por mês;
  * a lista de um município (até ~2.400 linhas em João Pessoa) fica 10 minutos na memória da instância. Sem a
  * migração, ou sem carga, tudo volta null e as páginas seguem sem o bloco.
+ *
+ * Onda 7, A (09/10/2026): as duas memórias (o resumo e a lista do município) ganham a camada comum às instâncias
+ * (`cache-dados.server.ts`), também de 10 minutos, com a mesma regra: null (sem carga, sem linha ou erro) não fica. A
+ * lista não tem endereço, dirigentes nem contato (o job não grava), e não depende de quem visita.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
+import { VALIDADE_DADOS_MS } from "./cache-dados";
+import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { ehEsquemaAusente } from "./esquema";
 import { criarMemoria } from "./memoria";
 import type { CadastroOsc, FonteOsc, OscNaLista, ResumoOscMunicipio } from "./osc";
@@ -75,11 +81,23 @@ export interface OscDoMunicipio {
   fonte: FonteOsc;
 }
 
-const memoriaMunicipio = criarMemoria<OscDoMunicipio | null>({ validadeMs: 10 * 60 * 1000, maximo: 40, guardar: (x) => x !== null });
-const memoriaResumo = criarMemoria<{ resumo: ResumoOscMunicipio; fonte: FonteOsc } | null>({ validadeMs: 10 * 60 * 1000, maximo: 230, guardar: (x) => x !== null });
+type ResumoComFonte = { resumo: ResumoOscMunicipio; fonte: FonteOsc };
+
+const memoriaMunicipio = criarMemoria<OscDoMunicipio | null>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 40,
+  guardar: (x) => x !== null,
+  compartilhada: camadaDoCacheDeDados<OscDoMunicipio | null>({ leitor: "osc-municipio", guardavel: (x) => x !== null }),
+});
+const memoriaResumo = criarMemoria<ResumoComFonte | null>({
+  validadeMs: VALIDADE_DADOS_MS,
+  maximo: 230,
+  guardar: (x) => x !== null,
+  compartilhada: camadaDoCacheDeDados<ResumoComFonte | null>({ leitor: "osc-resumo", guardavel: (x) => x !== null }),
+});
 
 /** Só o resumo (a aba do dinheiro do município): uma linha. */
-export function lerResumoOscMunicipio(ibge: string): Promise<{ resumo: ResumoOscMunicipio; fonte: FonteOsc } | null> {
+export function lerResumoOscMunicipio(ibge: string): Promise<ResumoComFonte | null> {
   return memoriaResumo.obter(ibge, async () => {
     if (!authConfigurada()) return null;
     const db = clienteServidor();

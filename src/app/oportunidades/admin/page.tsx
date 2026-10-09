@@ -60,7 +60,10 @@ export default async function AdminPage() {
   const v = await visitanteAtual();
   if (!v) redirect("/oportunidades/entrar?next=/oportunidades/admin");
   // Não-administrador não vê que esta página existe: vai para o painel comum.
-  if (!ehAdministrador(v.email)) redirect("/oportunidades");
+  // Administrador também precisa estar aprovado (C6, onda 7, 09/10/2026), como
+  // nas páginas de administrador do /mapa: quem foi bloqueado não decide acesso.
+  // A identidade do Google já foi conferida em `visitanteAtual`.
+  if (v.status !== "aprovado" || !ehAdministrador(v.email)) redirect("/oportunidades");
 
   const db = clienteServidor();
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
+import { cache } from "react";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
@@ -11,6 +12,7 @@ import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/opo
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerResumoOscMunicipio } from "@/lib/oportunidades/osc.server";
 import { lerEntidadesDoMunicipio, lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
+import { tituloDaPagina } from "@/lib/oportunidades/titulo-pagina";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { voltarParaUf } from "@/lib/oportunidades/vazios";
 import { visitanteAtual } from "@/lib/supabase-auth";
@@ -18,10 +20,44 @@ import { ConvitePublico } from "../../_componentes/MapaFrame";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { MunicipioConteudo } from "./MunicipioConteudo";
 
-export const metadata: Metadata = {
-  title: "Município · Mapa de Oportunidades · PONTE",
-  robots: { index: false, follow: false },
-};
+const NAO_INDEXAR: Metadata["robots"] = { index: false, follow: false };
+
+/**
+ * Quem a página atende, a leitura e o nível, uma vez por pedido (onda 7, A, 09/10/2026): o `cache` do React divide o
+ * resultado entre o título (`generateMetadata`) e a página, sem leitura a mais. A leitura é a leve quando a página
+ * atende o público (`acesso.aprovado === null`, nível 0): só as fontes que o nível 0 desenha, com chave própria no
+ * cache (`relatorio-municipio.server.ts`). O aprovado, de qualquer nível, recebe a leitura completa de sempre.
+ */
+const lerPagina = cache(async (ibge: string) => {
+  const visitante = await visitanteAtual();
+  const acesso = quemAPaginaAtende(visitante, chaveDoAmbiente(), `/mapa/municipio/${encodeURIComponent(ibge)}`);
+  if (!acesso || !/^25\d{5}$/.test(ibge)) return { acesso, leitura: null, nivel: null };
+  const [leitura, nivel] = await Promise.all([
+    lerRelatorioMunicipio(ibge, diaBrasilia(new Date().toISOString()), { publico: acesso.aprovado === null }),
+    nivelNoMunicipio(acesso.aprovado, ibge),
+  ]);
+  return { acesso, leitura, nivel };
+});
+
+/**
+ * O título com o nome e a aba (onda 7, A; achado N01 da auditoria R1, WCAG 2.4.2): "Patos (PB) · Dinheiro federal ·
+ * Mapa de Oportunidades · PONTE". A aba é a que a página abre para o nível (`abaEscolhida`). Quando a página não mostra
+ * o município — sem acesso (a página devolve null), IBGE que não vale, leitura que falhou ou município que não existe —,
+ * o título genérico de antes, sem nada do endereço.
+ */
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ ibge: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const [{ ibge }, sp] = await Promise.all([params, searchParams]);
+  const { leitura, nivel } = await lerPagina(ibge);
+  if (leitura?.estado !== "ok" || nivel === null) return { title: tituloDaPagina("Município"), robots: NAO_INDEXAR };
+  const aba = ABAS_MUNICIPIO.find((a) => a.id === abaEscolhida(sp.aba, nivel))?.nome;
+  return { title: tituloDaPagina(`${leitura.relatorio.nome} (PB)`, aba), robots: NAO_INDEXAR };
+}
 
 /**
  * A página do município em abas (F1a, 06/10/2026). Por enquanto atrás do portão de aprovados do `/mapa`; o
@@ -34,6 +70,9 @@ export const metadata: Metadata = {
  * como para o cadastrado, e o resto do recorte (fiscal e controle no resumo, Pix, TCE-PB, fornecedores e análise no
  * dinheiro) é do `MunicipioConteudo` (`relatorioDoNivel`). Sem conta, não há o que seguir: a leitura das seguidas não
  * é feita.
+ *
+ * Onda 7, A (09/10/2026): o público recebe a leitura leve (ver `lerPagina`), e o recorte continua aqui e no
+ * `MunicipioConteudo`, a cada pedido, sobre o objeto que veio da memória ou do cache.
  */
 export default async function MunicipioPage({
   params,
@@ -42,17 +81,12 @@ export default async function MunicipioPage({
   params: Promise<{ ibge: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [visitanteOuNao, { ibge }] = await Promise.all([visitanteAtual(), params]);
-  const acesso = quemAPaginaAtende(visitanteOuNao, chaveDoAmbiente(), `/mapa/municipio/${encodeURIComponent(ibge)}`);
+  const { ibge } = await params;
+  const [{ acesso, leitura, nivel }, sp] = await Promise.all([lerPagina(ibge), searchParams]);
   if (!acesso) return null;
   const visitante = acesso.aprovado;
 
-  if (!/^25\d{5}$/.test(ibge)) notFound();
-  const [leitura, nivel, sp] = await Promise.all([
-    lerRelatorioMunicipio(ibge, diaBrasilia(new Date().toISOString())),
-    nivelNoMunicipio(visitante, ibge),
-    searchParams,
-  ]);
+  if (!leitura || nivel === null) notFound();
   if (leitura.estado === "nao_encontrado") notFound();
   const aba = abaEscolhida(sp.aba, nivel);
   if (leitura.estado !== "ok") {
@@ -63,6 +97,7 @@ export default async function MunicipioPage({
         titulo="A página do município está indisponível agora"
         endereco={urlMunicipio(ibge, aba)}
         voltarPara={voltarParaUf("PB") ?? undefined}
+        publico={!visitante}
       />
     );
   }

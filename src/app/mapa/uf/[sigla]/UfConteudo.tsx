@@ -307,9 +307,13 @@ export function Resumo({ l, peca = false }: { l: LeituraUfOk; peca?: boolean }) 
   );
 }
 
-function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa: boolean; admin: boolean }) {
+/**
+ * `rotuloId` (onda 7, C, 09/10/2026; N04 da auditoria R1): o id do resumo do grupo. Sem ele, as 15 tabelas da PB tinham
+ * o mesmo nome ("Municípios: instrumentos e valores"), e a lista de regiões do leitor de tela não dizia qual era qual.
+ */
+function TabelaMunicipios({ ms, completa, admin, rotuloId }: { ms: MunicipioUf[]; completa: boolean; admin: boolean; rotuloId?: string }) {
   return (
-    <TabelaRolagem rotulo="Municípios: instrumentos e valores">
+    <TabelaRolagem {...(rotuloId ? { rotuloId } : { rotulo: "Municípios: instrumentos e valores" })}>
       <table className="mp-tabela">
         <thead>
           <tr>
@@ -327,12 +331,13 @@ function TabelaMunicipios({ ms, completa, admin }: { ms: MunicipioUf[]; completa
         <tbody>
           {ms.map((m) => (
             <tr key={m.ibge}>
-              <td>
+              {/* A09 (onda 7, C, 09/10/2026): cabeçalho de linha, para o leitor de tela dizer o município em cada célula. */}
+              <th scope="row" className="mp-th-celula">
                 <Link href={urlDoMunicipioNaUf(m.ibge, completa)} prefetch={false}>
                   {m.nome}
                   <Carregando />
                 </Link>
-              </td>
+              </th>
               {completa && <td>{m.porte ?? "—"}</td>}
               {completa && <td className="mp-rel-num">{n(m.populacao)}</td>}
               <td className="mp-rel-num">{n(m.instrumentos)}</td>
@@ -427,7 +432,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
       ) : (
         municipiosPorRegiao(l.municipios).map((g) => (
           <details key={g.regiao} id={ancoraRegiao(g.regiao)} className="mp-ent-grupo" open>
-            <summary>
+            <summary id={`${ancoraRegiao(g.regiao)}-resumo`}>
               {/* H12 (B11): o mapa pinta pela intermediária e a tabela agrupa pela imediata; o título casa os dois. */}
               {l.completa && g.intermediaria && (
                 <>
@@ -438,7 +443,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
               {l.completa && g.intermediaria && <> · região intermediária de {g.intermediaria}</>} · {n(g.municipios.length)}{" "}
               {g.municipios.length === 1 ? "município" : "municípios"}
             </summary>
-            <TabelaMunicipios ms={g.municipios} completa={l.completa} admin={admin} />
+            <TabelaMunicipios ms={g.municipios} completa={l.completa} admin={admin} rotuloId={`${ancoraRegiao(g.regiao)}-resumo`} />
           </details>
         ))
       )}
@@ -494,12 +499,12 @@ export function Estado({ l }: { l: LeituraUfOk }) {
             <tbody>
               {estaduais.map((p) => (
                 <tr key={p.cnpj}>
-                  <td>
+                  <th scope="row" className="mp-th-celula">
                     <Link href={urlEntidade(p.cnpj)} prefetch={false}>
                       {p.proponente ?? cnpjLegivel(p.cnpj)}
                       <Carregando />
                     </Link>
-                  </td>
+                  </th>
                   <td>{ROTULO_ESPECIE[p.especie]}</td>
                   <td>{p.municipio ? tituloOrgao(p.municipio) : "—"}</td>
                   <td className="mp-rel-num">{n(p.instrumentos)}</td>
@@ -630,6 +635,15 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         <Secao id="uf-temas" titulo="Por tema" nota="Os instrumentos vivos por tema do programa (um instrumento pode ter mais de um tema).">
           <TabelaRolagem rotulo="Por tema">
             <table className="mp-tabela mp-ent-areas">
+              {/* A09 (onda 7, C, 09/10/2026): sem `thead`, os dois números da linha não tinham nome para o leitor de tela. */}
+              <thead>
+                <tr>
+                  <th scope="col">Tema</th>
+                  <th scope="col">Instrumentos vivos</th>
+                  <th scope="col">Valor global</th>
+                  <th aria-hidden="true" />
+                </tr>
+              </thead>
               <tbody>
                 {temas.map((x) => (
                   <tr key={x.chave}>
