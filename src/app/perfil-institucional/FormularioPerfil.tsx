@@ -11,8 +11,11 @@
  * `enviar.ts`) grava as respostas no Supabase, na tabela `perfil_institucional`.
  *
  * Comentário corrigido em 09/10/2026 (onda 8, sobra da revisão da política de
- * privacidade): o envio direto EXISTE, e com ele CPF, RG e conta bancária da
- * diretoria, quando preenchidos, chegam ao banco. A declaração LGPD do Bloco 10
+ * privacidade; precisado na onda 9 pelo pacote jurídico): o envio direto EXISTE,
+ * e com ele, quando preenchidos, chegam ao banco o CPF, o RG e o endereço
+ * residencial do representante legal, a lista da diretoria com nome, cargo e
+ * CPF (`campos.ts`) e a conta bancária da instituição (em nome do CNPJ, não de
+ * pessoa). A declaração LGPD do Bloco 10
  * (`campos.ts`, `dec_lgpd`) e a política de privacidade ainda não tratam disso
  * por inteiro: a finalidade, a base e o prazo de guarda desse dossiê são
  * decisão do titular, pendente.

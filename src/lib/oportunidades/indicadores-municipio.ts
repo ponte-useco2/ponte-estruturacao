@@ -99,6 +99,8 @@ export interface IndicadorLido {
   url: string | null;
   /** A nota da linha (por que falta, ou o recorte) e a do catálogo, juntas. */
   nota: string | null;
+  /** A citação que a fonte exige como condição de uso (a do MapBiomas), fora da nota: vai no rodapé do bloco. */
+  citacao: string | null;
   pb: string | null;
   br: string | null;
   mediana: string | null;
@@ -177,6 +179,20 @@ function numero(v: number | null | undefined, item: Pick<ItemCatalogo, "unidade"
 const comPonto = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
 
 /**
+ * A citação que o job grava no começo da nota da linha quando a fonte a exige como condição de uso: a do MapBiomas,
+ * com a coleção e a data do download (`municipios/mapbiomas.py`, CITACAO). Onda 9, D (09/10/2026): ela saía em letra
+ * miúda sob o nome da vegetação nativa, mais longa que a própria linha; agora vai uma vez, no rodapé do bloco
+ * (`citacoesDosBlocos`). O que vem depois de "; " (a nota de herança, "repetido da rodada anterior: …") fica na linha.
+ */
+const CITACAO_DA_FONTE = /^Projeto MapBiomas\b/;
+
+function separarCitacao(nota: string | null): { citacao: string | null; nota: string | null } {
+  if (!nota || !CITACAO_DA_FONTE.test(nota)) return { citacao: null, nota };
+  const [citacao, ...resto] = nota.split("; ");
+  return { citacao: citacao.trim(), nota: resto.length ? resto.join("; ") : null };
+}
+
+/**
  * O nível de um indicador-chave contra os quartis da PB e o Brasil. Devolve null quando não há como julgar
  * (sem direção, sem valor ou sem a mediana da PB no mesmo ano).
  */
@@ -208,8 +224,9 @@ function ler(item: ItemCatalogo, linha: LinhaIndicador, refs: ReferenciaIndicado
   const pb = ref("PB");
   const br = ref("BR");
   const julgado = item.chave ? nivelIndicador(linha.valor, item.direcao, { q1, mediana, q3, br }) : null;
-  const classe = item.unidade.startsWith("classe") && linha.nota?.startsWith("classe ") ? linha.nota.slice(7) : null;
-  const notas = ([classe ? null : linha.nota, item.nota].filter(Boolean) as string[]).map(comPonto);
+  const { citacao, nota: notaLinha } = separarCitacao(linha.nota);
+  const classe = item.unidade.startsWith("classe") && notaLinha?.startsWith("classe ") ? notaLinha.slice(7) : null;
+  const notas = ([classe ? null : notaLinha, item.nota].filter(Boolean) as string[]).map(comPonto);
   return {
     id: item.id,
     dimensao: item.dimensao,
@@ -223,6 +240,7 @@ function ler(item: ItemCatalogo, linha: LinhaIndicador, refs: ReferenciaIndicado
     fonte: linha.fonte,
     url: linha.url,
     nota: notas.length ? notas.join(" ") : null,
+    citacao,
     pb: numero(pb, item),
     br: numero(br, item),
     mediana: numero(mediana, item),
@@ -253,6 +271,11 @@ export function lerIndicadores(e: EntradaIndicadores): LeituraIndicadores {
     coletadoEm: e.coletadoEm,
     contagem,
   };
+}
+
+/** As citações das fontes dos blocos, uma vez cada, na ordem das linhas: o rodapé da tabela (onda 9, D, 09/10/2026). */
+export function citacoesDosBlocos(blocos: BlocoIndicadores[]): string[] {
+  return [...new Set(blocos.flatMap((b) => b.itens.map((x) => x.citacao)).filter((c): c is string => c !== null))];
 }
 
 /** Os indicadores com nível, em ordem: alto antes de moderado, e na ordem do catálogo dentro do nível. */

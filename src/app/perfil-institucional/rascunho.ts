@@ -13,7 +13,9 @@
  * onda 7, seção 4.3, item 1). O botão "Enviar para a Ponte" (`BotaoEnviar`)
  * manda as respostas à ação `enviarPerfil` (`enviar.ts`), que guarda no
  * Supabase, na tabela `perfil_institucional`, as respostas dos campos do
- * formulário (com CPF, RG e conta bancária da diretoria, se preenchidos), o
+ * formulário (se preenchidos: CPF, RG e endereço residencial do representante
+ * legal, a diretoria com nome, cargo e CPF, e a conta bancária da instituição,
+ * em nome do CNPJ; precisado na onda 9 pelo pacote jurídico), o
  * texto montado, a razão social, o CNPJ e o e-mail de contato; e avisa a
  * diretoria por e-mail só com a razão social, o CNPJ, o e-mail de contato e a
  * contagem de campos, sem o dossiê. Depois do envio o rascunho continua aqui,

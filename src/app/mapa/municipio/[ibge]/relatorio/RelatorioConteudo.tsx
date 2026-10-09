@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { EXPLICA_CLASSE, ROTULO_CLASSE, ROTULO_QUEM } from "@/lib/oportunidades/fila";
-import { rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraIndicadores } from "@/lib/oportunidades/indicadores-municipio";
+import { citacoesDosBlocos, rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraIndicadores } from "@/lib/oportunidades/indicadores-municipio";
 import { ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import type { SlugTermo } from "@/lib/oportunidades/glossario";
 import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -265,11 +265,27 @@ function TabelaIndicadores({ itens, rotuloId }: { itens: IndicadorLido[]; rotulo
   );
 }
 
-/** `secao`: o id do título da seção, que nomeia a tabela quando ela é a única; com vários blocos, cada subtítulo nomeia a sua. */
+/**
+ * `secao`: o id do título da seção, que nomeia a tabela quando ela é a única; com vários blocos, cada subtítulo nomeia a sua.
+ * Onda 9, D (09/10/2026): a citação que a fonte exige (a do MapBiomas, no Território) fecha a tabela uma vez, como nota
+ * de fonte, em vez de se repetir em letra miúda sob o nome da linha. Vale na aba "Indicadores", que não tem o bloco
+ * "Fontes, datas e limites", e no relatório para imprimir.
+ */
 function BlocosIndicadores({ blocos, secao }: { blocos: (BlocoIndicadores | null)[]; secao: string }) {
   const validos = blocos.filter((b): b is BlocoIndicadores => b !== null);
+  const rodape = citacoesDosBlocos(validos).map((c) => (
+    <p key={c} className="pa-nota">
+      Fonte: {c}
+    </p>
+  ));
   // Seção de um bloco só (economia, território, governança): o título da seção já diz o que é.
-  if (validos.length === 1) return <TabelaIndicadores itens={validos[0].itens} rotuloId={secao} />;
+  if (validos.length === 1)
+    return (
+      <>
+        <TabelaIndicadores itens={validos[0].itens} rotuloId={secao} />
+        {rodape}
+      </>
+    );
   return (
     <>
       {validos.map((b) => (
@@ -277,6 +293,7 @@ function BlocosIndicadores({ blocos, secao }: { blocos: (BlocoIndicadores | null
           <TabelaIndicadores itens={b.itens} rotuloId={`${secao}-${b.dimensao}`} />
         </Sub>
       ))}
+      {rodape}
     </>
   );
 }
@@ -769,7 +786,12 @@ export function BlocosIndicadoresMunicipio({ r, destino }: { r: Relatorio; desti
         </Secao>
       )}
       {ind.territorio && (
-        <Secao id="rel-territorio" titulo="Território" nota="Saneamento, água, desastres, conectividade e frota.">
+        <Secao
+          id="rel-territorio"
+          titulo="Território"
+          nota="Saneamento, água, desastres, conectividade, frota e cobertura da terra (MapBiomas). «Contexto» não tem nível."
+        >
+          {/* Onda 9, D (09/10/2026): a nota cita a cobertura da terra, que entrou na onda 8; a citação do MapBiomas fecha a tabela. */}
           <BlocosIndicadores blocos={[ind.territorio]} secao="rel-territorio" />
           <ListaAchados achados={dimensao(r, "territorio")} destino={destino} />
         </Secao>

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  citacoesDosBlocos,
   formatarValor,
   frasesReferencia,
   indicadoresComNivel,
@@ -207,4 +208,36 @@ test("onda 8: a creche ganha nível pela regra de sempre; pré-escola e MapBioma
   const sousa = lerIndicadores(onda8("sousa")).social.flatMap((b) => b.itens).find((i) => i.id === "creche_0a3");
   assert.equal(sousa?.nivel, "alto");
   assert.equal(sousa?.porque, "entre os 25% piores da PB e pior que o Brasil");
+});
+
+// Onda 9, D (09/10/2026): a citação do MapBiomas (a que o job grava na nota da vegetação nativa, `mapbiomas.CITACAO`)
+// sai da nota da linha e fecha a tabela do bloco uma vez.
+const CITACAO_MAPBIOMAS =
+  "Projeto MapBiomas – Coleção 11 da Série Anual de Mapas de Cobertura e Uso da Terra do Brasil, acessado em 09/10/2026 através do link: https://brasil.mapbiomas.org/estatisticas/";
+
+function comNotaNaNativa(nota: string): EntradaIndicadores {
+  const e = onda8("patos");
+  return { ...e, linhas: e.linhas.map((l) => (l.indicador === "vegetacao_nativa_pct" ? { ...l, fonte: "MapBiomas (Coleção 11)", nota } : l)) };
+}
+
+test("onda 9: a citação do MapBiomas sai da nota da linha e vai uma vez ao rodapé do bloco", () => {
+  const l = lerIndicadores(comNotaNaNativa(CITACAO_MAPBIOMAS));
+  const x = (id: string) => l.territorio?.itens.find((i) => i.id === id);
+  assert.equal(x("vegetacao_nativa_pct")?.citacao, CITACAO_MAPBIOMAS);
+  // na linha fica só a nota de método do catálogo
+  assert.match(x("vegetacao_nativa_pct")?.nota ?? "", /^MapBiomas: mapas anuais por satélite/);
+  assert.ok(!x("vegetacao_nativa_pct")?.nota?.includes("Projeto MapBiomas"));
+  // nota que não é citação não muda
+  assert.equal(x("area_urbanizada_pct")?.citacao, null);
+  assert.match(x("area_urbanizada_pct")?.nota ?? "", /^2\.203 ha em 2025\. /);
+  assert.deepEqual(citacoesDosBlocos([l.territorio!]), [CITACAO_MAPBIOMAS]);
+  assert.deepEqual(citacoesDosBlocos([l.territorio!, l.territorio!]), [CITACAO_MAPBIOMAS]);   // uma vez só
+  assert.deepEqual(citacoesDosBlocos(l.social), []);
+});
+
+test("onda 9: linha do MapBiomas herdada da rodada anterior leva a citação ao rodapé e guarda a nota de herança", () => {
+  const l = lerIndicadores(comNotaNaNativa(`${CITACAO_MAPBIOMAS}; repetido da rodada anterior: a fonte falhou nesta`));
+  const v = l.territorio?.itens.find((i) => i.id === "vegetacao_nativa_pct");
+  assert.equal(v?.citacao, CITACAO_MAPBIOMAS);
+  assert.match(v?.nota ?? "", /^repetido da rodada anterior: a fonte falhou nesta\. MapBiomas: mapas anuais/);
 });

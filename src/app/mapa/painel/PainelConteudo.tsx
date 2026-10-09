@@ -235,6 +235,10 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
         <LinkMapa href="/mapa/painel/contas" className="pa-chip">
           Contas e obras (PB) →
         </LinkMapa>
+        {/* Onda 9, C (09/10/2026): a saúde das rodadas dos jobs, que o supervisor conferia à mão pelo MCP e pelo `gh`. */}
+        <LinkMapa href="/mapa/painel/rodadas" className="pa-chip">
+          Saúde das rodadas →
+        </LinkMapa>
       </nav>
 
       <Filtros p={p} orgaos={orgaos} municipios={leitura.opcoesMunicipio} referencia={execucao.referencia} />
@@ -1545,20 +1549,22 @@ export function PainelIndisponivel({
         <p className="pa-kicker">Painel da PONTE · uso interno</p>
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
-        {((estado === "erro" && endereco) || voltarPara) && (
-          <p className="pa-linha">
-            {estado === "erro" && endereco && (
-              <LinkMapa href={endereco} className="pa-btn pa-btn-pequeno">
-                Tentar de novo
-              </LinkMapa>
-            )}
-            {voltarPara && (
-              <LinkMapa href={voltarPara.href} className="pa-btn pa-btn-pequeno">
-                {voltarPara.rotulo}
-              </LinkMapa>
-            )}
-          </p>
-        )}
+        {/* Onda 9, C (09/10/2026): com o painel fora, a saúde das rodadas diz se o job rodou, parou ou falhou. */}
+        <p className="pa-linha">
+          {estado === "erro" && endereco && (
+            <LinkMapa href={endereco} className="pa-btn pa-btn-pequeno">
+              Tentar de novo
+            </LinkMapa>
+          )}
+          {voltarPara && (
+            <LinkMapa href={voltarPara.href} className="pa-btn pa-btn-pequeno">
+              {voltarPara.rotulo}
+            </LinkMapa>
+          )}
+          <LinkMapa href="/mapa/painel/rodadas" className="pa-btn pa-btn-pequeno">
+            Ver a saúde das rodadas
+          </LinkMapa>
+        </p>
       </div>
     </div>
   );

@@ -269,6 +269,8 @@ test("camada 2: indicador-chave alto ou moderado vira achado da dimensão, sem p
   assert.ok(r.passos.every((p) => !p.porque.includes("homicídios")));
   assert.equal(r.indicadores?.contagem.alto, 1);
   assert.ok(r.fontes.some((f) => f.fonte.startsWith("Indicadores do município") && f.data === "2026-10-05T12:00:00Z"));
+  // onda 9, D (09/10/2026): o MapBiomas da cobertura da terra está na lista de fontes dos indicadores
+  assert.match(r.fontes.find((f) => f.fonte.startsWith("Indicadores do município"))?.fonte ?? "", /, TCE-PB e MapBiomas\)$/);
 });
 
 test("camada 2 ausente: o relatório da camada 1 sai igual, sem seção de indicadores", () => {

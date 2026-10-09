@@ -1275,7 +1275,8 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
       { fonte: "API das transferências especiais e do fundo a fundo", data: null, nota: "Laudo do Pix pelo roteiro da IN-TCU 93/2024." },
       { fonte: "TCE-PB (despesas abertas)", data: null, nota: "Pix na despesa do município e conciliação com o SICONV." },
       {
-        fonte: "Indicadores do município (IBGE, Ministério da Saúde, INEP, MDS, MJSP, MTE, Ministério das Cidades, MIDR, ANA, Anatel, Senatran, Atricon e TCE-PB)",
+        // Onda 9, D (09/10/2026): o MapBiomas (cobertura da terra, onda 8) faltava na lista; a citação dele fecha a tabela do Território.
+        fonte: "Indicadores do município (IBGE, Ministério da Saúde, INEP, MDS, MJSP, MTE, Ministério das Cidades, MIDR, ANA, Anatel, Senatran, Atricon, TCE-PB e MapBiomas)",
         data: e.indicadores?.coletadoEm ?? null,
         nota: `Arquivos e APIs abertos, lidos em lote pela PONTE; cada indicador traz o seu ano e a sua fonte. Nível pela regra ${VERSAO_REGRA_INDICADOR}: alto no pior quartil da PB e pior que o Brasil; moderado pior que a mediana da PB ou que o Brasil; diferença de até 5% conta como empate.`,
       },
