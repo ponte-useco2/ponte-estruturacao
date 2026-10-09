@@ -36,10 +36,14 @@ export const CAMINHO_CATALOGO = path.join("src", "dados", "oportunidades.json");
 /**
  * A versão do arquivo no disco: a data de modificação e o tamanho. Null quando o `stat` falha (arquivo ausente): aí a
  * leitura vai ao disco como antes, e é ela que diz "ausente" ou "indisponível" e deixa o rastro.
+ *
+ * O `stat` vem pronto de quem chama, com o caminho escrito ali como no `readFile` (09/10/2026, depois da onda 8): com o
+ * caminho num parâmetro, o Turbopack não sabia que arquivo era e rastreava o projeto inteiro para dentro da função do
+ * servidor ("Dynamic filesystem access causes tracing of the whole project", no build da Vercel).
  */
-async function versaoDoArquivo(caminho: string): Promise<string | null> {
+async function versaoDoArquivo(stat: () => Promise<{ mtimeMs: number; size: number }>): Promise<string | null> {
   try {
-    const s = await fs.stat(path.join(process.cwd(), caminho));
+    const s = await stat();
     return `${s.mtimeMs}|${s.size}`;
   } catch {
     return null;
@@ -50,7 +54,7 @@ const catalogoPorVersao = criarPorVersao<Payload | null>((p) => p !== null);
 
 /** O catálogo v1.1, interpretado uma vez por versão do arquivo. Não altere o objeto devolvido. */
 export async function lerCatalogo(): Promise<Payload | null> {
-  const versao = await versaoDoArquivo(CAMINHO_CATALOGO);
+  const versao = await versaoDoArquivo(() => fs.stat(path.join(process.cwd(), CAMINHO_CATALOGO)));
   return versao === null ? lerCatalogoDoDisco() : catalogoPorVersao.obter(versao, lerCatalogoDoDisco);
 }
 
@@ -101,7 +105,7 @@ const catalogoV2PorVersao = criarPorVersao<LeituraCatalogoV2>((l) => l.estado ==
 
 /** O catálogo v2, interpretado uma vez por versão do arquivo. Não altere o objeto devolvido. */
 export async function lerCatalogoV2(): Promise<LeituraCatalogoV2> {
-  const versao = await versaoDoArquivo(CAMINHO_CATALOGO_V2);
+  const versao = await versaoDoArquivo(() => fs.stat(path.join(process.cwd(), CAMINHO_CATALOGO_V2)));
   return versao === null ? lerCatalogoV2DoDisco() : catalogoV2PorVersao.obter(versao, lerCatalogoV2DoDisco);
 }
 
