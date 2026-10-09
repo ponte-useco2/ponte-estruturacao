@@ -13,6 +13,7 @@
  */
 import type { AcessoFicha } from "./cliente.ts";
 import { ROTULO_NIVEL, rotuloItem, type EstadoItem, type ItemLaudo, type NivelItem } from "./itens-laudo.ts";
+import { semDadoPessoal } from "./mascara.ts";
 import type { ColunaCsv } from "./painel.ts";
 import { MOTIVOS_ESPECIAIS, type LadoMotivo } from "./pix.ts";
 import { moedaCurta } from "./radar.ts";
@@ -84,6 +85,20 @@ export interface AnalisePlanoPix {
   analises: AnalisePtPix[];
   total_analises: number;
   impedimento: ImpedimentoPix | null;
+}
+
+/** Segunda trava (R3, 09/10/2026): o trecho do parecer e o motivo do impedimento sem CPF nem contato de servidor. */
+export function planoSemContato(p: PlanoLaudoPix): PlanoLaudoPix {
+  const a = p.analise_pt;
+  if (!a) return p;
+  return {
+    ...p,
+    analise_pt: {
+      ...a,
+      analises: a.analises.map((x) => ({ ...x, trecho: semDadoPessoal(x.trecho) })),
+      impedimento: a.impedimento ? { ...a.impedimento, motivo: semDadoPessoal(a.impedimento.motivo) } : null,
+    },
+  };
 }
 
 export const impedido = (p: Pick<PlanoLaudoPix, "situacao">) => (p.situacao ?? "").toUpperCase().startsWith("IMPEDIDO");

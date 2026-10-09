@@ -11,7 +11,7 @@
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import type { ExecucaoPix } from "./pix";
-import type { AutorLaudoPix, PlanoLaudoPix, ResumoLaudoPix } from "./pix-laudo";
+import { planoSemContato, type AutorLaudoPix, type PlanoLaudoPix, type ResumoLaudoPix } from "./pix-laudo";
 import type { TceExecucao, TcePixMunicipio } from "./tce";
 
 type Banco = ReturnType<typeof clienteServidor>;
@@ -67,8 +67,9 @@ export async function lerLaudoPlanoPix(id: number, podeVer?: (p: PlanoLaudoPix) 
   if (ehFalha(execucao)) return execucao;
   const r = await db.from("pix_laudo_plano").select("*").eq("execucao_id", execucao.id).eq("id_plano_acao", id).limit(1);
   if (r.error) return falha("laudo do Pix (plano)", r.error);
-  const plano = (r.data as PlanoLaudoPix[] | null)?.[0];
-  if (!plano || (podeVer && !podeVer(plano))) return { estado: "nao_encontrado" };
+  const lido = (r.data as PlanoLaudoPix[] | null)?.[0];
+  if (!lido || (podeVer && !podeVer(lido))) return { estado: "nao_encontrado" };
+  const plano = planoSemContato(lido);
 
   const [autores, tce] = await Promise.all([
     plano.autor
@@ -112,7 +113,7 @@ export async function lerLaudoEntePix(
     .order("pago", { ascending: false })
     .limit(1000);
   if (r.error) return falha("laudo do Pix (ente)", r.error);
-  const planos = (r.data ?? []) as PlanoLaudoPix[];
+  const planos = ((r.data ?? []) as PlanoLaudoPix[]).map(planoSemContato);
   if (!planos.length || (podeVer && !planos.every(podeVer))) return { estado: "nao_encontrado" };
   return { estado: "ok", execucao, planos, tce: await tceDoMunicipio(db, planos[0].cod_ibge) };
 }

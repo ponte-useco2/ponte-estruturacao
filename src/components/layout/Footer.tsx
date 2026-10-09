@@ -55,8 +55,8 @@ export function Footer() {
                 <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between text-xs">
                     <p>© {new Date().getFullYear()} Ponte Estruturação de Projetos. Todos os direitos reservados.</p>
                     <div className="flex gap-4 mt-4 md:mt-0">
-                        <Link href="#" className="hover:text-white transition-colors">Política de Privacidade</Link>
-                        <Link href="#" className="hover:text-white transition-colors">Termos de Uso</Link>
+                        <Link href="/privacidade" className="hover:text-white transition-colors">Política de Privacidade</Link>
+                        <Link href="/termos" className="hover:text-white transition-colors">Termos de Uso</Link>
                     </div>
                 </div>
             </div>

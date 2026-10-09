@@ -9,6 +9,7 @@ import {
   impedidosPorAno,
   itensDoGrupo,
   podeVerPlanoPix,
+  planoSemContato,
   pontosAConferir,
   porQueImpedido,
   resumoPorItem,
@@ -165,4 +166,20 @@ test("impedidos por ano: do ano mais recente para o mais antigo, por valor, com 
   assert.ok(q?.recuperado, "repetição não é perda");
   assert.match(q?.depois[0] ?? "", /^Repetição do mesmo dinheiro num ciclo seguinte do mesmo ano: o valor está no plano 0903-2-1/);
   assert.equal(impedidosPorAno([repetido], 2025)[0].valorPerdido, 0);
+});
+
+test("R3: o trecho do parecer e o motivo chegam à tela sem contato de servidor", () => {
+  const p = impedidoPor("falta_analise", {
+    analise_pt: {
+      analises: [{ orgao: "MCID", situacao: "Concluída", parecer: "Desfavorável", data: "2025-08-07", valor_reprovado: null,
+        trecho: "Dúvidas: fulano@cidades.gov.br ou (61) 2108-1234.", fora_da_area: false }],
+      total_analises: 1,
+      impedimento: { motivo: "Ver com 61 99876-5432", grupo: "falta_analise", gemeo: null, reindicacao: null },
+    },
+  });
+  const limpo = planoSemContato(p);
+  assert.equal(limpo.analise_pt?.analises[0].trecho, "Dúvidas: [e-mail] ou [telefone].");
+  assert.equal(limpo.analise_pt?.impedimento?.motivo, "Ver com [telefone]");
+  assert.equal(p.analise_pt?.analises[0].trecho, "Dúvidas: fulano@cidades.gov.br ou (61) 2108-1234.", "não muda o original");
+  assert.equal(planoSemContato(plano()).analise_pt, plano().analise_pt, "sem análise, nada a fazer");
 });

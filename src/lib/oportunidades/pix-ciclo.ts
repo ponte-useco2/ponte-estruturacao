@@ -9,6 +9,7 @@
  */
 import { formatarData } from "./central.ts";
 import type { ClasseFila, QuemResolve } from "./fila.ts";
+import { semDadoPessoal } from "./mascara.ts";
 import type { AnalisePtPix } from "./pix-laudo.ts";
 import { moedaCurta } from "./radar.ts";
 
@@ -65,7 +66,8 @@ function textoAnalise(a: AnalisePtPix | null): string {
   const quem = a.orgao ?? "o órgão";
   const quando = a.data ? ` em ${formatarData(a.data)}` : "";
   const parecer = a.parecer && a.parecer !== "Não se aplica" ? ` (${a.parecer.toLowerCase()})` : "";
-  const trecho = a.trecho ? `: «${a.trecho.length > 280 ? `${a.trecho.slice(0, 279)}…` : a.trecho}»` : ".";
+  const limpo = semDadoPessoal(a.trecho);
+  const trecho = limpo ? `: «${limpo.length > 280 ? `${limpo.slice(0, 279)}…` : limpo}»` : ".";
   return ` Última análise, ${quem}${quando}${parecer}${trecho}`;
 }
 

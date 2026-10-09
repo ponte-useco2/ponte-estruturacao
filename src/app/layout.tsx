@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
+import { Medicao } from "@/components/Medicao";
 import "./globals.css";
 
 const inter = Inter({
@@ -60,7 +60,7 @@ export default function RootLayout({
         className={`${inter.variable} ${plusJakartaSans.variable} antialiased text-slate-900 bg-white font-sans`}
       >
         {children}
-        <Analytics />
+        <Medicao />
       </body>
     </html>
   );
