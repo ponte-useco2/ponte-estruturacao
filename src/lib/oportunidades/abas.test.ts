@@ -12,6 +12,7 @@ import {
   type PerfilMenu,
   type RegraAba,
 } from "./abas.ts";
+import { rotaPublica } from "./publico.ts";
 
 const JANELAS: RegraAba = { href: "/mapa", exata: true };
 const BUSCA: RegraAba = { href: "/mapa/busca", exata: false, tambem: ["/mapa/instrumento/", "/mapa/proposta/"], exceto: [LAUDO_PELAS_SUSPENSIVAS] };
@@ -150,4 +151,40 @@ test("B11: uma aba acesa por vez — o laudo do Pix do administrador com prefeit
       assert.ok(href === null || abasDoMenu(PERFIS[perfil].perfil).some((a) => a.href === href), `${perfil} em ${caminho}: a acesa é uma das visíveis`);
     }
   }
+});
+
+// ================================================================ C4a: o menu da versão pública
+
+test("C4a: sem `publico` (ou com false), o menu de cada perfil é o de antes", () => {
+  for (const { perfil } of Object.values(PERFIS)) {
+    assert.deepEqual(abasDoMenu({ ...perfil, publico: false }), abasDoMenu(perfil));
+  }
+});
+
+test("C4a: a versão pública mostra só Janelas e Território — as abas cujo destino abre para o público", () => {
+  const publico: PerfilMenu = { admin: false, municipio: false, organizacao: false, publico: true };
+  // A busca fica fora da lista branca (decisão do titular em aberto, R3 seção 6): a aba some junto.
+  assert.deepEqual(
+    abasDoMenu(publico).map((a) => a.nome),
+    ["Janelas", "Território"],
+  );
+  for (const a of abasDoMenu(publico)) assert.equal(rotaPublica(a.href), true, `${a.nome} leva a rota pública`);
+  for (const a of ABAS_MENU.filter((x) => !abasDoMenu(publico).includes(x))) assert.equal(rotaPublica(a.href), false, `${a.nome} pede cadastro`);
+  // Avisos, Carteira e as abas de administrador ficam de fora mesmo se o perfil viesse com elas ligadas.
+  assert.deepEqual(
+    abasDoMenu({ admin: true, municipio: true, organizacao: true, publico: true }).map((a) => a.nome),
+    ["Janelas", "Território"],
+  );
+});
+
+test("C4a: na versão pública, o Território acende no Brasil, na UF, no município (e nos investimentos) e na entidade", () => {
+  const abas = abasDoMenu({ admin: false, municipio: false, organizacao: false, publico: true });
+  const nome = (caminho: string) => ABAS_MENU.find((a) => a.href === abaAcesa(abas, caminho))?.nome ?? null;
+  for (const c of ["/mapa/brasil", "/mapa/uf/pb", `/mapa/municipio/${OUTRO_IBGE}`, `/mapa/municipio/${OUTRO_IBGE}/investimentos`, `/mapa/entidade/${OUTRA}`]) {
+    assert.equal(nome(c), "Território", c);
+  }
+  assert.equal(nome("/mapa"), "Janelas");
+  // Sem a aba da Busca, o convênio e o glossário não acendem nenhuma: uma por vez, ou nenhuma.
+  assert.equal(nome("/mapa/instrumento/942082"), null);
+  assert.equal(nome("/mapa/glossario"), null);
 });

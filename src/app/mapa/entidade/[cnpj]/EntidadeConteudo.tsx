@@ -7,6 +7,11 @@
  * Desde a C1c (08/10/2026) a aba "Relatório e dados" é curta, como a do município: o relatório inteiro mora em
  * `/mapa/entidade/[cnpj]/relatorio`, a peça única para imprimir, que usa os blocos exportados daqui. Os links internos
  * passaram a `LinkMapa` (o mesmo `Link` sem pré-carga e com o `Carregando`).
+ *
+ * C4a (09/10/2026; achados B2 e C5 da revisão R3, 4.1 da auditoria R1): no nível 0 (a versão pública, atrás da chave
+ * `MAPA_PUBLICO`), o relatório chega recortado (`relatorioDoNivel`: os cartões e o "em ordem" sem o fiscal do
+ * município, que a prefeitura e os fundos leem), somem a estrela, o botão de imprimir e a porta do relatório, e as
+ * saídas para a busca dizem "(pede cadastro)". Do nível 1 em diante, nada muda.
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
@@ -24,7 +29,8 @@ import {
   urlRelatorioEntidade,
   type AbaEntidade,
 } from "@/lib/oportunidades/pagina-entidade";
-import { PODE, destinoConvenio, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, destinoConvenio, relatorioDoNivel, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import {
   ROTULO_CEBAS,
   idade,
@@ -106,15 +112,17 @@ function Cabeca({ e, r, nivel, seguindo, soCadastro }: { e: IdentidadeEntidade; 
         <span>dados lidos em {data(r.hoje)}</span>
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
-        <EstrelaSeguir tipo="entidade" chave={e.cnpj} nome={`a entidade ${e.nome}`} seguindo={seguindo} />
+        {/* C4a (C5 da R3): seguir, imprimir e o relatório são do cadastro; no nível 0 fica só a página do município. */}
+        {PODE.cadastro(nivel) && <EstrelaSeguir tipo="entidade" chave={e.cnpj} nome={`a entidade ${e.nome}`} seguindo={seguindo} />}
         {/* C1c: a OSC só do cadastro não tem abas, nem a do relatório; a porta da peça para imprimir fica aqui. */}
-        {soCadastro ? (
-          <LinkMapa href={urlRelatorioEntidade(e.cnpj)} className="pa-btn">
-            Abrir o relatório para imprimir
-          </LinkMapa>
-        ) : (
-          <BotaoImprimir />
-        )}
+        {PODE.cadastro(nivel) &&
+          (soCadastro ? (
+            <LinkMapa href={urlRelatorioEntidade(e.cnpj)} className="pa-btn">
+              Abrir o relatório para imprimir
+            </LinkMapa>
+          ) : (
+            <BotaoImprimir />
+          ))}
         {ehPb(e.cod_ibge) && (
           <LinkMapa href={urlMunicipio(e.cod_ibge as string)} className="pa-btn pa-btn-pequeno">
             Abrir a página do município
@@ -421,9 +429,24 @@ export function ListaPropostas({ propostas, aberta = false }: { propostas: Propo
  * CNPJ na base."; agora diz o recorte da base e o que tentar: o nome na busca (o convênio pode estar noutro CNPJ da
  * mesma organização) e o Transferegov, que é a fonte. `cadastro`: a OSC só do Mapa das OSC (E3), cuja página é o
  * cadastro. As saídas não vão para o papel.
+ *
+ * C4a (09/10/2026): `publico`, o nível 0. A busca pede cadastro: as saídas para ela dizem "(pede cadastro)" e levam à
+ * entrada (`linkNoPublico`); a do Transferegov, externa, segue igual.
  */
-export function EntidadeVazia({ e, cadastro = false }: { e: Pick<IdentidadeEntidade, "cnpj" | "nome">; cadastro?: boolean }) {
-  const saidas = saidasEntidadeVazia(e);
+export function EntidadeVazia({
+  e,
+  cadastro = false,
+  publico = false,
+}: {
+  e: Pick<IdentidadeEntidade, "cnpj" | "nome">;
+  cadastro?: boolean;
+  publico?: boolean;
+}) {
+  const saidas = saidasEntidadeVazia(e).map((s) => {
+    if (s.externo) return { ...s, pedeCadastro: false };
+    const l = linkNoPublico(s.href, publico);
+    return { ...s, href: l.href, pedeCadastro: l.pedeCadastro };
+  });
   return (
     <div className="pa-cartao pa-cartao-plano">
       <p>
@@ -449,7 +472,10 @@ export function EntidadeVazia({ e, cadastro = false }: { e: Pick<IdentidadeEntid
                   <span className="pa-sr"> (abre em nova aba)</span>
                 </a>
               ) : (
-                <LinkMapa href={s.href}>{s.rotulo}</LinkMapa>
+                <LinkMapa href={s.href}>
+                  {s.rotulo}
+                  {s.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
+                </LinkMapa>
               )}
             </li>
           ))}
@@ -496,7 +522,7 @@ function Mais({ children }: { children: ReactNode }) {
 
 export function EntidadeConteudo({
   e: entidade,
-  r,
+  r: relatorio,
   instrumentos,
   propostas,
   osc = { estado: "indisponivel" },
@@ -516,6 +542,9 @@ export function EntidadeConteudo({
 }) {
   const soCadastro = !instrumentos.length && !propostas.length;
   const e = entidadeLegivel(entidade);
+  // C4a: o recorte do público mora no dado (ver `relatorioDoPublico`); do nível 1 em diante, o relatório inteiro.
+  const r = relatorioDoNivel(relatorio, nivel);
+  const publico = !PODE.cadastro(nivel);
   const destino = destinoConvenio(nivel);
   const nomeAba = ABAS_ENTIDADE.find((a) => a.id === aba)?.nome ?? "";
   const csv = `/mapa/entidade/${e.cnpj}/csv`;
@@ -535,7 +564,7 @@ export function EntidadeConteudo({
       {aba === "resumo" && (
         <>
           {soCadastro ? (
-            <EntidadeVazia e={e} cadastro />
+            <EntidadeVazia e={e} cadastro publico={publico} />
           ) : (
             <Secao id="ent-resumo" titulo="Em números">
               <Cartoes r={r} />
@@ -553,7 +582,7 @@ export function EntidadeConteudo({
           <Carteira instrumentos={instrumentos} destino={destino} />
           {nivel >= 1 && <BlocoPropostas r={r} destino={destino} />}
           <ListaPropostas propostas={propostas} />
-          {soCadastro && <EntidadeVazia e={e} />}
+          {soCadastro && <EntidadeVazia e={e} publico={publico} />}
         </>
       )}
 

@@ -5,6 +5,9 @@
  *
  * Desde a C1a (08/10/2026) as seções são exportadas: o relatório para imprimir (`./relatorio`) junta todas numa peça
  * só, como o do município, e a aba "Relatório e dados" ficou curta (o link para ele, o CSV e as fontes).
+ *
+ * C4a (09/10/2026; achados B1 e C5 da revisão R3): no nível 0 (a versão pública, atrás da chave `MAPA_PUBLICO`) somem o
+ * botão de imprimir e o CSV dos municípios, que a D1 põe atrás do cadastro. Do nível 1 em diante, nada muda.
  */
 import Link from "next/link";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
@@ -15,7 +18,7 @@ import malhaPb from "@/lib/oportunidades/malhas/pb-municipios.json";
 import { anoDeReferencia, gruposDeCor, type AreaMapa, type Malha } from "@/lib/oportunidades/pagina-brasil";
 import { versaoLegivel } from "@/lib/oportunidades/osc";
 import { ROTULO_ESPECIE, especieDe, lenteDe, urlEntidade } from "@/lib/oportunidades/pagina-entidade";
-import { urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import {
   ABAS_UF,
   NOME_UF,
@@ -113,10 +116,13 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         <span>{l.completa ? "dado completo: todos os instrumentos desde 2008" : "cobertura parcial: instrumentos vivos e propostas desde 2019"}</span>
         <span>Transferegov até {data(l.execucao.dado_ate)}</span>
       </p>
-      <p className="mp-nao-imprimir mp-laudo-acoes">
-        <BotaoImprimir />
-        <AtalhosAdmin l={l} nivel={nivel} />
-      </p>
+      {/* C4a (C5 da R3): imprimir é do cadastro; no nível 0 a linha inteira sai (os atalhos são do administrador). */}
+      {PODE.cadastro(nivel) && (
+        <p className="mp-nao-imprimir mp-laudo-acoes">
+          <BotaoImprimir />
+          <AtalhosAdmin l={l} nivel={nivel} />
+        </p>
+      )}
       <AvisoCobertura l={l} />
     </div>
   );
@@ -436,11 +442,14 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
           </details>
         ))
       )}
-      <p className="mp-nao-imprimir mp-laudo-acoes">
-        <a href={`/mapa/uf/${l.sigla.toLowerCase()}/csv`} className="pa-btn pa-btn-pequeno">
-          Baixar os municípios (CSV)
-        </a>
-      </p>
+      {/* C4a: o CSV é do cadastro (D1; a rota responde 404 a quem não é aprovado); no nível 0 o botão não aparece. */}
+      {PODE.cadastro(nivel) && (
+        <p className="mp-nao-imprimir mp-laudo-acoes">
+          <a href={`/mapa/uf/${l.sigla.toLowerCase()}/csv`} className="pa-btn pa-btn-pequeno">
+            Baixar os municípios (CSV)
+          </a>
+        </p>
+      )}
     </Secao>
   );
 }

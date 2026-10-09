@@ -1,8 +1,12 @@
 /**
  * A página de um convênio: valores, prazos e, na PB, a linha do tempo. Recebe os dados já lidos.
+ *
+ * C4a (09/10/2026; achado 4.1 da auditoria R1): `publico`, o nível 0 da versão aberta. A página da proposta e a busca
+ * pedem cadastro: o link da proposta diz "(pede cadastro)" e leva à entrada; as etiquetas de tema ficam sem link.
  */
 import type { ReactNode } from "react";
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
+import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import {
   ROTULO_TIPO_EVENTO,
   contagem,
@@ -41,12 +45,16 @@ export function InstrumentoConteudo({
   leitura,
   seguindo = null,
   laudo = false,
+  publico = false,
 }: {
   leitura: LeituraOk;
   seguindo?: boolean | null;
   laudo?: boolean;
+  /** C4a: o nível 0 (versão pública). */
+  publico?: boolean;
 }) {
   const i = leitura.instrumento;
+  const proposta = i.id_proposta ? linkNoPublico(urlProposta(i.id_proposta), publico) : null;
   const r = resumoEventos(leitura.eventos);
   const anos = porAno(leitura.eventos);
   const temas = i.temas.filter((t) => ROTULO_TEMA[t]);
@@ -95,11 +103,18 @@ export function InstrumentoConteudo({
           <span className="pa-tag">{i.situacao ?? "Situação não informada"}</span>
           {i.subsituacao && <span className="pa-tag">{i.subsituacao}</span>}
           {i.com_emenda && <span className="pa-tag">com emenda parlamentar</span>}
-          {temas.map((t) => (
-            <LinkMapa key={t} href={urlBusca(parametrosBusca({}), { tema: t, uf: i.uf })} className="pa-tag">
-              {ROTULO_TEMA[t]}
-            </LinkMapa>
-          ))}
+          {/* C4a: a etiqueta do tema leva à busca, que pede cadastro; no nível 0 ela fica sem link (só a etiqueta). */}
+          {temas.map((t) =>
+            publico ? (
+              <span key={t} className="pa-tag">
+                {ROTULO_TEMA[t]}
+              </span>
+            ) : (
+              <LinkMapa key={t} href={urlBusca(parametrosBusca({}), { tema: t, uf: i.uf })} className="pa-tag">
+                {ROTULO_TEMA[t]}
+              </LinkMapa>
+            ),
+          )}
         </p>
         {laudo && (
           <p className="mp-nao-imprimir mp-laudo-acoes">
@@ -160,9 +175,11 @@ export function InstrumentoConteudo({
           <Prazo rotulo="Desembolsos" valor={i.dt_primeiro_desembolso ? `${data(i.dt_primeiro_desembolso)} a ${data(i.dt_ultimo_desembolso)}` : "nenhum"} />
           <Prazo rotulo="Último pagamento" valor={data(i.dt_ultimo_pagamento)} />
         </dl>
-        {i.id_proposta && (
+        {proposta && (
           <p className="pa-nota">
-            <LinkMapa href={urlProposta(i.id_proposta)}>Ver a proposta que originou o convênio</LinkMapa>
+            <LinkMapa href={proposta.href}>
+              Ver a proposta que originou o convênio{proposta.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
+            </LinkMapa>
           </p>
         )}
       </section>

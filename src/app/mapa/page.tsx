@@ -7,9 +7,11 @@ import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { lerPreferencias } from "@/lib/oportunidades/notificacoes.server";
 import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
+import { chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { CatalogoClient } from "./CatalogoClient";
 import { LinkMapa } from "./_componentes/LinkMapa";
+import { ConvitePublico } from "./_componentes/MapaFrame";
 
 export const metadata: Metadata = {
   title: "Janelas · Mapa de Oportunidades · PONTE",
@@ -31,17 +33,20 @@ export const metadata: Metadata = {
 export default async function JanelasPage() {
   // Layout e página renderizam em paralelo: o redirect do layout decide a
   // resposta, mas não impede esta função de rodar. Mesmo guarda da central.
-  const visitante = await visitanteAtual();
-  if (!visitante || visitante.status !== "aprovado") return null;
+  // C4a (09/10/2026): a guarda é a de `publico.ts`. Com a chave desligada, só o aprovado, como antes; ligada, também o
+  // público (nível 0), sem nada que dependa de conta: sem entidade declarada, sem assuntos, sem estrela de seguir.
+  const acesso = quemAPaginaAtende(await visitanteAtual(), chaveDoAmbiente(), "/mapa");
+  if (!acesso) return null;
+  const visitante = acesso.aprovado;
 
   const [leitura, catalogoV1, contexto, preferencias, seguidas] = await Promise.all([
     lerCatalogoV2(),
     // Só pelos códigos do Transferegov, que o v2 não traz. Sem o v1, o cartão
     // perde o código e continua com o botão da consulta.
     lerCatalogo(),
-    lerContexto(),
-    lerPreferencias(),
-    lerSeguidas(),
+    visitante ? lerContexto() : null,
+    visitante ? lerPreferencias() : null,
+    visitante ? lerSeguidas() : null,
   ]);
 
   // O instante vem do servidor: calcular "hoje" no navegador faria servidor e
@@ -52,19 +57,32 @@ export default async function JanelasPage() {
     return <CatalogoIndisponivel estado={leitura.estado} />;
   }
 
-  const ativa = contexto.ativa;
+  const ativa = contexto?.ativa ?? null;
+  const temas = preferencias?.temas ?? [];
   // A geografia é da entidade; os temas, da pessoa — o corte da oport_6.
-  const quem = ativa ? { tipo: ativa.tipo, uf: ativa.uf, temas: preferencias.temas } : null;
+  const quem = ativa ? { tipo: ativa.tipo, uf: ativa.uf, temas } : null;
   const codigos = catalogoV1 ? codigosPorJanela(leitura.payload, catalogoV1) : new Map<string, string[]>();
   const vista = montarCatalogo(leitura.payload, quem, hoje, codigos);
 
-  return (
+  const catalogo = (
     <CatalogoClient
       vista={vista}
       entidade={ativa ? { nome: ativa.nome, tipo: ROTULO_AGENTE[ativa.tipo], uf: ativa.uf } : null}
-      seguindoTemas={preferencias.temas.length > 0}
+      seguindoTemas={temas.length > 0}
       janelasSeguidas={seguidas ? [...seguidas].filter((k) => k.startsWith("janela:")).map((k) => k.slice("janela:".length)) : null}
+      publico={!visitante}
     />
+  );
+  if (!acesso.sessao) return catalogo;
+  return (
+    <>
+      <ConvitePublico
+        sessao={acesso.sessao}
+        caminho="/mapa"
+        acao="seguir janelas, ser avisado quando elas mudam e ver só as que a sua entidade pode pleitear"
+      />
+      {catalogo}
+    </>
   );
 }
 

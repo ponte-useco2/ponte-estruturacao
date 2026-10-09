@@ -6,6 +6,9 @@
  * A tela só DESENHA. O que é aberto, o que a entidade pode pleitear, a ordem e o
  * alcance dos filtros vêm prontos de `catalogo-v2.ts`, que tem teste. Aqui não
  * se recalcula prazo, elegibilidade nem contagem.
+ *
+ * C4a (09/10/2026; achado 4.1 da auditoria R1): `publico`, o nível 0 da versão aberta. Declarar a entidade e os
+ * avisos pedem cadastro: no nível 0, os links dizem "(pede cadastro)" e levam à entrada (`linkNoPublico`).
  */
 
 import { useMemo, useRef, useState } from "react";
@@ -22,6 +25,7 @@ import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { CONDICAO_CANAL, ORDEM_CANAL, ROTULO_CANAL, type CanalV2 } from "@/lib/oportunidades/contrato-v2";
 import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe, type Tema } from "@/lib/oportunidades/temas";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
+import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import { vazioCatalogo } from "@/lib/oportunidades/vazios";
 import { copiarTexto } from "@/lib/area-de-transferencia";
 import { Tag } from "../_design/primitivos";
@@ -61,13 +65,17 @@ export function CatalogoClient({
   entidade,
   seguindoTemas,
   janelasSeguidas = null,
+  publico = false,
 }: {
   vista: CatalogoVista;
   entidade: Entidade | null;
   seguindoTemas: boolean;
   /** Ids das janelas que a pessoa segue. Null sem a oport_15: os cartões ficam sem estrela. */
   janelasSeguidas?: string[] | null;
+  /** C4a: o nível 0 (versão pública). */
+  publico?: boolean;
 }) {
+  const declarar = linkNoPublico("/mapa/conta/organizacao", publico);
   const [filtros, setFiltros] = useState<FiltrosCatalogo>(SEM_FILTRO);
   const [anuncio, setAnuncio] = useState("");
   const buscaRef = useRef<HTMLInputElement>(null);
@@ -175,8 +183,8 @@ export function CatalogoClient({
             mostra só as que ela pode pleitear.
           </p>
           <span className="pa-espaco" />
-          <LinkMapa href="/mapa/conta/organizacao" className="pa-btn pa-btn-pequeno">
-            Declarar a entidade
+          <LinkMapa href={declarar.href} className="pa-btn pa-btn-pequeno">
+            Declarar a entidade{declarar.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
           </LinkMapa>
         </aside>
       )}
@@ -337,6 +345,7 @@ export function CatalogoClient({
           outrosFiltros={outrosFiltros}
           tipo={entidade ? tipoNaFrase(entidade.tipo) : null}
           mudarFiltros={mudarFiltrosDoVazio}
+          publico={publico}
         />
       ) : (
         <ul className="pa-pilha mp-janelas">
@@ -374,13 +383,16 @@ function VazioCatalogo({
   outrosFiltros,
   tipo,
   mudarFiltros,
+  publico,
 }: {
   vista: CatalogoVista;
   filtros: FiltrosCatalogo;
   outrosFiltros: boolean;
   tipo: string | null;
   mudarFiltros: (novos: FiltrosCatalogo) => void;
+  publico: boolean;
 }) {
+  const avisos = linkNoPublico("/mapa/avisos", publico);
   const termo = filtros.busca.trim();
   const filtrando = outrosFiltros || termo !== "";
   const { frase, motivo } = vazioCatalogo({
@@ -417,7 +429,11 @@ function VazioCatalogo({
       )}
       <p className="pa-nota">
         A lista vem do catálogo gerado em {formatarPublicacao(vista.geradoEm)}, que é atualizado todo dia. Quando uma janela nova entra nele,
-        ela aparece em <LinkMapa href="/mapa/avisos">Avisos</LinkMapa>, em “O que mudou no catálogo”.
+        ela aparece em{" "}
+        <LinkMapa href={avisos.href}>
+          Avisos{avisos.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
+        </LinkMapa>
+        , em “O que mudou no catálogo”.
       </p>
     </div>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
+import { nivelSemCliente } from "@/lib/oportunidades/pagina-municipio";
 import { podeRelatorioUf, siglaDaUrl, urlRelatorioUf, urlUf } from "@/lib/oportunidades/pagina-uf";
 import { lerUf } from "@/lib/oportunidades/pagina-uf.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
@@ -30,7 +31,8 @@ export default async function RelatorioUfPage({ params }: { params: Promise<{ si
   if (bruto !== sigla.toLowerCase()) redirect(urlRelatorioUf(sigla));
 
   const administrador = ehAdministrador(visitante.email);
-  const nivel = administrador ? 3 : 1;
+  // C4a (B1 da R3): era `administrador ? 3 : 1`; a regra única (a da página da UF) dá 0 a quem não é aprovado.
+  const nivel = nivelSemCliente({ aprovado: visitante.status === "aprovado", administrador });
   if (!podeRelatorioUf(nivel)) redirect(urlUf(sigla));
 
   const leitura = await lerUf(sigla, administrador);

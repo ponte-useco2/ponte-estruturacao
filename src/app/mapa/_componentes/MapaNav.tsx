@@ -21,6 +21,7 @@ export function MapaNav({
   meuIbge = null,
   organizacao = false,
   minhaEntidade = null,
+  publico = false,
 }: {
   naoLidas: number | null;
   admin: boolean;
@@ -32,11 +33,13 @@ export function MapaNav({
   organizacao?: boolean;
   /** O CNPJ dela: na página dessa entidade, a aba acesa é "Minha organização". */
   minhaEntidade?: string | null;
+  /** C4a (09/10/2026): a versão pública, só as abas cujo destino é público (hoje, Janelas e Território). Ver `abas.ts`. */
+  publico?: boolean;
 }) {
   const pathname = usePathname() ?? "/mapa";
   // De onde se chegou (`?de=suspensivas`): decide a aba acesa no laudo.
   const de = useSearchParams()?.get("de") ?? null;
-  const abas = abasDoMenu({ admin, municipio, organizacao });
+  const abas = abasDoMenu({ admin, municipio, organizacao, publico });
   const acesa = abaAcesa(abas, pathname, de, { meuIbge: municipio ? meuIbge : null, minhaEntidade: organizacao ? minhaEntidade : null });
 
   return (

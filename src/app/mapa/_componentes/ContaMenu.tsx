@@ -18,15 +18,46 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { ROTULO_AGENTE, type Organizacao } from "@/lib/oportunidades/organizacao";
+import { destinoDoPublico, portaDoPublico, type SessaoPublica } from "@/lib/oportunidades/publico";
 import { trocarOrganizacao } from "../conta/organizacao/acoes";
 import { LinkMapa } from "./LinkMapa";
 
 function inicial(nome: string | null, email: string): string {
   const base = (nome ?? email).trim();
   return (base[0] ?? "?").toUpperCase();
+}
+
+/**
+ * A conta de quem olha a versão pública (C4a, 09/10/2026; só existe com a chave `MAPA_PUBLICO` ligada): no lugar do
+ * menu da conta, a porta — "Entrar" para o anônimo, com a volta para a página em que ele está; "Situação do cadastro"
+ * para quem entrou e ainda não foi aprovado. As regras moram em `publico.ts`, com teste.
+ *
+ * É também a guarda da navegação dentro do Mapa. Trocar de página por link não roda o layout de novo, só a página
+ * nova; se ela está fora da lista branca, a própria página (que confere o aprovado) não mostra nada, e esta guarda leva
+ * à entrada ou à sala de espera, o mesmo destino que o layout daria num acesso direto. `replace`: o "voltar" do
+ * navegador leva à página pública de antes, e não à que pede login.
+ */
+export function ContaPublica({ sessao }: { sessao: SessaoPublica }) {
+  const pathname = usePathname() ?? "/mapa";
+  const query = useSearchParams()?.toString() ?? "";
+  const caminho = query ? `${pathname}?${query}` : pathname;
+  const router = useRouter();
+  const fora = destinoDoPublico(sessao, caminho);
+
+  useEffect(() => {
+    if (fora) router.replace(fora);
+  }, [fora, router]);
+
+  const porta = portaDoPublico(sessao, caminho);
+  // 44 px de alvo, o mínimo do Mapa no celular (auditoria R1, 4.1; `pa-btn-pequeno` tinha 32).
+  return (
+    <LinkMapa href={porta.href} className="pa-btn pa-btn-primario" style={{ minHeight: 44 }}>
+      {porta.rotulo}
+    </LinkMapa>
+  );
 }
 
 export function ContaMenu({

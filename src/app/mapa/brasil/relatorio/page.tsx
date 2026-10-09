@@ -22,7 +22,8 @@ export const metadata: Metadata = {
 export default async function RelatorioBrasilPage() {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
-  const nivel = nivelNoBrasil(ehAdministrador(visitante.email));
+  // C4a (B1 da R3): o nível sai da regra única, com o status de verdade; sem aprovação seria 0, e o relatório pede 1.
+  const nivel = nivelNoBrasil({ aprovado: visitante.status === "aprovado", administrador: ehAdministrador(visitante.email) });
   if (!podeAbaBrasil("relatorio", nivel)) redirect(urlBrasil());
   const leitura = await lerBrasil();
   if (leitura.estado !== "ok")

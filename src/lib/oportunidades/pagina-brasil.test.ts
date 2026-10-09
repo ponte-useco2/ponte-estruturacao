@@ -90,11 +90,26 @@ test("C1b: o relatório do Brasil abre com o mesmo nível da aba «Relatório e 
   // Coerente com a escolha da aba: o nível que abre a aba é o que abre a rota.
   for (const nivel of [0, 1, 2, 3] as const) assert.equal(podeAbaBrasil("relatorio", nivel), abaDoBrasil("relatorio", nivel) === "relatorio");
   // A página e a rota tiram o nível da mesma regra: todo aprovado abre o relatório; o administrador também.
-  assert.equal(nivelNoBrasil(false), 1);
-  assert.equal(nivelNoBrasil(true), 3);
-  assert.ok(podeAbaBrasil("relatorio", nivelNoBrasil(false)));
+  assert.equal(nivelNoBrasil({ aprovado: true, administrador: false }), 1);
+  assert.equal(nivelNoBrasil({ aprovado: true, administrador: true }), 3);
+  assert.ok(podeAbaBrasil("relatorio", nivelNoBrasil({ aprovado: true, administrador: false })));
   assert.equal(URL_RELATORIO_BRASIL, "/mapa/brasil/relatorio");
   assert.equal(URL_CSV_BRASIL, "/mapa/brasil/csv");
+});
+
+test("C4a: no Brasil, quem não tem cadastro aprovado é 0 — Tempos e funil, relatório e CSV pedem 1", () => {
+  // Achado B1 da R3: antes, todo não administrador era 1, e o público herdaria Tempos e funil e o relatório.
+  assert.equal(nivelNoBrasil({ aprovado: false, administrador: false }), 0);
+  assert.equal(nivelNoBrasil({ aprovado: false, administrador: true }), 0, "sem aprovação não há nível, nem de administrador");
+  const publico = nivelNoBrasil({ aprovado: false, administrador: false });
+  assert.equal(podeAbaBrasil("tempos", publico), false);
+  assert.equal(podeAbaBrasil("relatorio", publico), false);
+  assert.equal(abaDoBrasil("tempos", publico), "resumo");
+  assert.deepEqual(partesDoRelatorioBrasil(publico), ["resumo", "estados", "dinheiro"]);
+  assert.deepEqual(
+    ABAS_BRASIL.filter((a) => a.minimo <= publico).map((a) => a.id),
+    ["resumo", "estados", "dinheiro"],
+  );
 });
 
 test("C1b: as partes do relatório seguem a ordem das abas e nunca mostram o que o nível não vê", () => {

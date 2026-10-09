@@ -11,6 +11,7 @@
  * "Território" leva ao Brasil e acende nas quatro. A página do próprio município (ou da própria entidade) continua
  * sendo do "Meu município" (ou da "Minha organização"), e só dela.
  */
+import { rotaPublica } from "./publico.ts";
 
 /** Uma rota que só conta quando se chega a ela vindo de uma origem (`?de=<origem>`). */
 export interface PelaOrigem {
@@ -127,11 +128,19 @@ export interface PerfilMenu {
   admin: boolean;
   municipio: boolean;
   organizacao: boolean;
+  /**
+   * A versão pública (C4a, 09/10/2026; só com a chave `MAPA_PUBLICO` ligada): quem não tem cadastro aprovado vê só as
+   * abas cujo destino está na lista branca de `publico.ts` (hoje, Janelas e Território). A lista é a mesma do layout:
+   * aba nova só aparece para o público quando a rota dela abre para ele. Ausente ou false, o menu é o de antes.
+   */
+  publico?: boolean;
 }
 
 /** As abas que o perfil vê, na ordem do menu. */
 export function abasDoMenu(p: PerfilMenu, abas: readonly AbaMenu[] = ABAS_MENU): AbaMenu[] {
-  return abas.filter((a) => (p.admin || !a.admin) && (p.municipio || !a.municipio) && (p.organizacao || !a.organizacao));
+  return abas.filter(
+    (a) => (p.admin || !a.admin) && (p.municipio || !a.municipio) && (p.organizacao || !a.organizacao) && (!p.publico || rotaPublica(a.href)),
+  );
 }
 
 /**

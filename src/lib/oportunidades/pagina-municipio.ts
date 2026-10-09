@@ -5,7 +5,12 @@
  *   0 público · 1 cadastrado (aprovado) · 2 cliente (o próprio município) · 3 administrador.
  * Na F1a a página continua atrás do portão de aprovados, então o nível mínimo de quem chega é 1; o público
  * entra na F1d. Função pura, sem banco.
+ *
+ * C4a (09/10/2026): o nível 0 passou a existir como caminho de código, atrás da chave `MAPA_PUBLICO` (desligada por
+ * padrão; ver `publico.ts`). Aqui moram as regras dele que valem para mais de uma página: o nível onde não há cliente
+ * (Brasil e UF), quem abre o relatório do município e o recorte do relatório para o público (`relatorioDoPublico`).
  */
+import type { Achado, Dimensao, Relatorio } from "./relatorio-municipio.ts";
 
 export type NivelAcesso = 0 | 1 | 2 | 3;
 
@@ -63,6 +68,25 @@ export function nivelDeAcesso(v: { aprovado: boolean; administrador: boolean; cl
   return v.clienteDoMunicipio ? 2 : 1;
 }
 
+/**
+ * O nível onde não existe cliente, o Brasil e a UF (C4a, 09/10/2026; achado B1 da revisão R3): a mesma regra de
+ * `nivelDeAcesso`, sem o 2. Antes, Brasil e UF davam 1 a todo não administrador (`administrador ? 3 : 1`), o que só
+ * estava certo porque o portão de aprovados vinha antes; sem cadastro aprovado, agora é 0.
+ */
+export function nivelSemCliente(v: { aprovado: boolean; administrador: boolean }): NivelAcesso {
+  return nivelDeAcesso({ ...v, clienteDoMunicipio: false });
+}
+
+/**
+ * Se o nível abre a aba (D1). O relatório para imprimir (`/mapa/municipio/[ibge]/relatorio`) segue a aba "Relatório e
+ * dados", como o da entidade (`podeAbaEntidade`) e o da UF (`podeRelatorioUf`): C4a, achado B1 da R3 — a rota do
+ * relatório do município não conferia nível nenhum, só o portão de aprovados.
+ */
+export function podeAbaMunicipio(aba: AbaMunicipio, nivel: NivelAcesso): boolean {
+  const a = ABAS_MUNICIPIO.find((x) => x.id === aba);
+  return a !== undefined && nivel >= a.minimo;
+}
+
 /** A aba que abre: a pedida, se existe e o nível alcança; senão a de entrada (o que trava, ou o resumo para o público). */
 export function abaEscolhida(pedida: string | string[] | undefined, nivel: NivelAcesso): AbaMunicipio {
   const p = Array.isArray(pedida) ? pedida[0] : pedida;
@@ -77,6 +101,12 @@ export function urlMunicipio(ibge: string, aba?: AbaMunicipio): string {
 
 /** O que cada nível alcança dentro das abas. */
 export const PODE = {
+  /**
+   * O que a D1 põe atrás do cadastro, dentro das abas abertas ao público (C4a, 09/10/2026; achados B2, B3 e C5 da R3):
+   * o fiscal, o controle, o TCE-PB, os fornecedores (mesmo somados), o Pix, os pontos "a conferir", o botão de imprimir
+   * e a estrela de seguir.
+   */
+  cadastro: (n: NivelAcesso) => n >= 1,
   /** O laudo do convênio: o cliente vê o dos instrumentos do próprio município; o cadastrado vai à página do instrumento. */
   laudo: (n: NivelAcesso) => n >= 2,
   simulador: (n: NivelAcesso) => n >= 2,
@@ -87,4 +117,63 @@ export const PODE = {
 /** "/mapa/instrumento/942082/laudo" para quem pode o laudo; "/mapa/instrumento/942082" para os outros. */
 export function destinoConvenio(nivel: NivelAcesso): (nr: string) => string {
   return PODE.laudo(nivel) ? (nr) => `/mapa/instrumento/${nr}/laudo` : (nr) => `/mapa/instrumento/${nr}`;
+}
+
+// ================================================================ o recorte do público (C4a)
+
+/**
+ * Os cartões do "Em números" que o público vê: só o dinheiro em execução. Pessoal/RCL e CAUC são o fiscal; as tomadas
+ * de contas especiais do TCU, o controle (achado B2 da R3). Lista branca: cartão novo nasce fora do nível 0.
+ */
+export const CARTOES_DO_PUBLICO: readonly string[] = ["Convênios em execução"];
+
+/**
+ * As dimensões de achado que o público vê: só as da camada 2, os indicadores comparados com a PB, que moram na aba
+ * "Indicadores" (aberta pela D1). Fiscal, controle, TCE-PB, fornecedores, Pix, convênios e propostas são análise — o
+ * que trava, o que está "a conferir", o que está em ordem —, e a análise é do cadastro. Lista branca, como os cartões.
+ */
+export const DIMENSOES_DO_PUBLICO: readonly Dimensao[] = ["social", "economia", "territorio", "governanca"];
+
+/**
+ * O relatório do município (ou da entidade) recortado para o nível 0 (C4a, 09/10/2026; achados B2 e B3 da R3). Recorta
+ * o dado, e não só a tela: o que sai daqui nenhum bloco desenha, nem um bloco novo que alguém ponha numa aba aberta.
+ *   - os cartões e os achados (inclusive o "O que está em ordem", os destaques e os passos) ficam nas listas brancas;
+ *   - saem as seções do fiscal, do controle, do Pix, do TCE-PB e dos fornecedores;
+ *   - dos convênios, ficam a tabela por situação e a lista dos em execução (a situação dos instrumentos, que a D1
+ *     abre); saem as listas de análise (vigência vencida, sem movimento, prestação de contas pendente, liminar, nunca
+ *     assinados e os pontos da PC 33).
+ * O resto (indicadores, emendas, propostas por desfecho, janelas, fontes) segue como está para o cadastrado. Aplicar
+ * depois de `relatorioSemNomes`: o recorte não devolve nome nenhum, mas também não tira.
+ */
+export function relatorioDoPublico(r: Relatorio): Relatorio {
+  const aberto = (a: Achado) => DIMENSOES_DO_PUBLICO.includes(a.dimensao);
+  return {
+    ...r,
+    cartoes: r.cartoes.filter((c) => CARTOES_DO_PUBLICO.includes(c.rotulo)),
+    achados: r.achados.filter(aberto),
+    destaques: r.destaques.filter(aberto),
+    emDia: r.emDia.filter(aberto),
+    passos: [],
+    fiscal: null,
+    controle: null,
+    pix: null,
+    tcePb: null,
+    fornecedores: null,
+    convenios: r.convenios && {
+      ...r.convenios,
+      vigenciaVencida: [],
+      semMovimento: [],
+      contasAtrasadas: [],
+      contasNegativas: [],
+      nuncaAssinados: [],
+      nuncaAssinadosVencidos: 0,
+      liminar: [],
+      pc33: [],
+    },
+  };
+}
+
+/** O relatório que o nível vê: o inteiro só no 1 em diante; o 0 recebe o recorte do público. */
+export function relatorioDoNivel(r: Relatorio, nivel: NivelAcesso): Relatorio {
+  return PODE.cadastro(nivel) ? r : relatorioDoPublico(r);
 }

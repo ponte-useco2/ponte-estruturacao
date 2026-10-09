@@ -3,13 +3,27 @@
  * aba junta os blocos do relatório que já existem (RelatorioConteudo); aqui só se escolhe o que entra em cada
  * uma e o que o nível de acesso alcança. A aba "o que trava" é a fila do município (F1b, `fila.ts`): a mesma ordem
  * do "Em uma página" do relatório e da carteira.
+ *
+ * C4a (09/10/2026; achados B2, B3 e C5 da revisão R3): no nível 0 (a versão pública, atrás da chave `MAPA_PUBLICO`),
+ * o relatório chega recortado (`relatorioDoNivel`: sem fiscal, controle, TCE-PB, fornecedores, Pix nem análise), a
+ * aba do dinheiro mostra só o que a entidade mostra ao público, e somem a estrela de seguir e o botão de imprimir.
+ * Do nível 1 em diante, nada muda.
  */
 import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
-import { ABAS_MUNICIPIO, PODE, destinoConvenio, urlMunicipio, type AbaMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import {
+  ABAS_MUNICIPIO,
+  PODE,
+  destinoConvenio,
+  relatorioDoNivel,
+  urlMunicipio,
+  type AbaMunicipio,
+  type NivelAcesso,
+} from "@/lib/oportunidades/pagina-municipio";
 import type { FonteOsc, ResumoOscMunicipio } from "@/lib/oportunidades/osc";
+import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import { trilha } from "@/lib/oportunidades/trilha";
@@ -65,15 +79,18 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
         {g?.regic && <span>{rotuloRegic(g.regic)}</span>}
         <span>dados lidos em {data(r.hoje)}</span>
       </p>
-      <p className="mp-nao-imprimir mp-laudo-acoes">
-        <EstrelaSeguir tipo="municipio" chave={r.ibge} nome={`o município ${r.nome}`} seguindo={seguindo} />
-        <BotaoImprimir />
-        {PODE.interno(nivel) && (
-          <LinkMapa href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
-            Abrir a ficha no painel
-          </LinkMapa>
-        )}
-      </p>
+      {/* C4a (C5 da R3): seguir e imprimir são do cadastro; no nível 0 a linha inteira sai. */}
+      {PODE.cadastro(nivel) && (
+        <p className="mp-nao-imprimir mp-laudo-acoes">
+          <EstrelaSeguir tipo="municipio" chave={r.ibge} nome={`o município ${r.nome}`} seguindo={seguindo} />
+          <BotaoImprimir />
+          {PODE.interno(nivel) && (
+            <LinkMapa href={`/mapa/painel/municipio/${r.ibge}`} className="pa-btn pa-btn-pequeno">
+              Abrir a ficha no painel
+            </LinkMapa>
+          )}
+        </p>
+      )}
     </div>
   );
 }
@@ -169,7 +186,7 @@ function SemIndicadores({ r }: { r: Relatorio }) {
 }
 
 export function MunicipioConteudo({
-  r,
+  r: relatorio,
   aba,
   nivel,
   seguindo,
@@ -185,6 +202,10 @@ export function MunicipioConteudo({
   /** O resumo do Mapa das OSC (E3), também só na aba do dinheiro. */
   osc?: { resumo: ResumoOscMunicipio; fonte: FonteOsc } | null;
 }) {
+  // C4a: o recorte do público mora no dado, e não só na tela (ver `relatorioDoPublico`); do nível 1 em diante, o inteiro.
+  const r = relatorioDoNivel(relatorio, nivel);
+  const publico = !PODE.cadastro(nivel);
+  const investimentos = linkNoPublico(`/mapa/municipio/${r.ibge}/investimentos`, publico);
   const destino = destinoConvenio(nivel);
   const nomeAba = ABAS_MUNICIPIO.find((a) => a.id === aba)?.nome ?? "";
   return (
@@ -212,11 +233,12 @@ export function MunicipioConteudo({
 
       {aba === "dinheiro" && (
         <>
-          {entidades !== undefined && <QuemRecebe grupos={entidades} municipio={r.nome} ibge={r.ibge} osc={osc} />}
+          {entidades !== undefined && <QuemRecebe grupos={entidades} municipio={r.nome} ibge={r.ibge} osc={osc} publico={publico} />}
           <BlocoConvenios r={r} destino={destino} />
           <Mais>
-            <LinkMapa href={`/mapa/municipio/${r.ibge}/investimentos`} className="pa-btn pa-btn-pequeno">
+            <LinkMapa href={investimentos.href} className="pa-btn pa-btn-pequeno">
               Ver os investimentos por tema, modalidade e tipo
+              {investimentos.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
             </LinkMapa>
             {PODE.laudo(nivel) && (
               <LinkMapa href={`/mapa/pix/ente/${r.ibge}`} className="pa-btn pa-btn-pequeno">
@@ -226,9 +248,14 @@ export function MunicipioConteudo({
           </Mais>
           <BlocoPropostas r={r} destino={destino} />
           <BlocoEmendas r={r} />
-          <BlocoPix r={r} destino={destino} />
-          <BlocoTcePb r={r} />
-          <BlocoFornecedores r={r} destino={destino} />
+          {/* C4a (B3 da R3): Pix, TCE-PB e fornecedores só do nível 1 em diante, como na entidade. */}
+          {PODE.cadastro(nivel) && (
+            <>
+              <BlocoPix r={r} destino={destino} />
+              <BlocoTcePb r={r} />
+              <BlocoFornecedores r={r} destino={destino} />
+            </>
+          )}
         </>
       )}
 

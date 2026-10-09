@@ -1,8 +1,13 @@
 /**
  * Investimentos federais num município: convênios por tema, situação e modalidade, e os planos de
  * transferências especiais e de fundo a fundo do ente. Recebe os dados já lidos.
+ *
+ * C4a (09/10/2026; item 8 da revisão R3 e 4.1 da auditoria R1): `publico`, o nível 0 da versão aberta, que vê esta
+ * página (D1: a situação dos instrumentos). A busca pede cadastro: os links para ela dizem "(pede cadastro)" e levam à
+ * entrada, e as linhas das barras ficam sem link. A estrela some porque a página não passa `seguindo`.
  */
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
+import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import {
   ROTULO_GRUPO_INVESTIMENTO,
   ROTULO_TIPO_INVESTIMENTO,
@@ -32,14 +37,29 @@ type LeituraOk = Extract<LeituraInvestimentos, { estado: "ok" }>;
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 
-export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: string; uf: string; leitura: LeituraOk; seguindo?: boolean }) {
+export function InvestimentosConteudo({
+  ibge,
+  uf,
+  leitura,
+  seguindo,
+  publico = false,
+}: {
+  ibge: string;
+  uf: string;
+  leitura: LeituraOk;
+  seguindo?: boolean;
+  /** C4a: o nível 0 (versão pública). */
+  publico?: boolean;
+}) {
   const nome = leitura.municipio ?? `IBGE ${ibge}`;
   const tipos = linhasDe(leitura.linhas, "tipo");
   const temas = linhasDe(leitura.linhas, "tema");
   const situacoes = linhasDe(leitura.linhas, "situacao");
   const modalidades = linhasDe(leitura.linhas, "modalidade");
   const completo = uf === UF_DETALHE;
-  const busca = urlBusca(parametrosBusca({}), { uf, municipio: ibge });
+  const busca = linkNoPublico(urlBusca(parametrosBusca({}), { uf, municipio: ibge }), publico);
+  // C4a: a linha da barra que levaria a rota fechada fica sem link no nível 0 (uma marca por linha poluiria a tabela).
+  const aberto = (href: string | null) => (href && !linkNoPublico(href, publico).pedeCadastro ? href : null);
   const vazio = tipos.every((t) => t.n === 0);
 
   return (
@@ -71,12 +91,14 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
               <LinkMapa href={urlMunicipio(ibge, "dinheiro")}>Página do município</LinkMapa> ·{" "}
             </>
           )}
-          <LinkMapa href={busca}>Ver os convênios do município na busca</LinkMapa>
+          <LinkMapa href={busca.href}>
+            Ver os convênios do município na busca{busca.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
+          </LinkMapa>
         </p>
       </div>
 
       {vazio ? (
-        <SemInvestimento ibge={ibge} uf={uf} nome={leitura.municipio} completo={completo} />
+        <SemInvestimento ibge={ibge} uf={uf} nome={leitura.municipio} completo={completo} publico={publico} />
       ) : (
         <>
           <div className="pa-grade pa-grade-3 mp-painel-cartoes">
@@ -104,16 +126,18 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
             nota="Pelo nome do programa. Um convênio pode ter mais de um tema, então a soma das barras passa do total."
             linhas={temas}
             rotulo={(l) => (l.chave ? (ROTULO_TEMA[l.chave] ?? l.chave) : "Sem tema identificado")}
-            link={(l) => (l.chave ? urlBusca(parametrosBusca({}), { uf, municipio: ibge, tema: l.chave }) : null)}
+            link={(l) => aberto(l.chave ? urlBusca(parametrosBusca({}), { uf, municipio: ibge, tema: l.chave }) : null)}
           />
           <Barras
             titulo="Convênios por situação"
             linhas={situacoes}
             rotulo={(l) => ROTULO_GRUPO_INVESTIMENTO[l.chave] ?? l.chave}
             link={(l) =>
-              ["execucao", "contas", "concluido", "encerrado"].includes(l.chave)
-                ? urlBusca(parametrosBusca({}), { uf, municipio: ibge, grupo: l.chave })
-                : null
+              aberto(
+                ["execucao", "contas", "concluido", "encerrado"].includes(l.chave)
+                  ? urlBusca(parametrosBusca({}), { uf, municipio: ibge, grupo: l.chave })
+                  : null,
+              )
             }
           />
           <Barras
@@ -136,9 +160,9 @@ export function InvestimentosConteudo({ ibge, uf, leitura, seguindo }: { ibge: s
  * município sem nenhum convênio vivo fica vazio mesmo tendo recebido no passado, e as propostas recentes podem estar lá:
  * as saídas são elas, na busca, e a página da UF. Na PB, só as propostas (a página do município já está no topo).
  */
-function SemInvestimento({ ibge, uf, nome, completo }: { ibge: string; uf: string; nome: string | null; completo: boolean }) {
+function SemInvestimento({ ibge, uf, nome, completo, publico }: { ibge: string; uf: string; nome: string | null; completo: boolean; publico: boolean }) {
   const recorte = recorteDaBase(uf);
-  const propostas = urlBusca(parametrosBusca({}), { aba: "propostas", uf, municipio: ibge });
+  const propostas = linkNoPublico(urlBusca(parametrosBusca({}), { aba: "propostas", uf, municipio: ibge }), publico);
   // Sem nenhuma linha, o nome pode não ter vindo de lugar nenhum: "de IBGE 2408102" não se lê.
   const de = nome ? `de ${nome}` : "deste município";
   return (
@@ -154,8 +178,8 @@ function SemInvestimento({ ibge, uf, nome, completo }: { ibge: string; uf: strin
           : `Fora da Paraíba, a base tem ${recorte.convenios}: o município sem nenhum deles aparece vazio, mesmo que já tenha recebido.`}
       </p>
       <p className="pa-linha">
-        <LinkMapa href={propostas} className="pa-btn pa-btn-pequeno">
-          Ver as propostas do município
+        <LinkMapa href={propostas.href} className="pa-btn pa-btn-pequeno">
+          Ver as propostas do município{propostas.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
         </LinkMapa>
         {!completo && (
           <LinkMapa href={urlUf(uf)} className="pa-btn pa-btn-pequeno">

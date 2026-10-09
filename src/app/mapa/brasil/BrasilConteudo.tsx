@@ -25,7 +25,7 @@ import {
   type Malha,
 } from "@/lib/oportunidades/pagina-brasil";
 import type { LeituraBrasilOk } from "@/lib/oportunidades/pagina-brasil.server";
-import type { NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import { NOME_UF, funil, porSituacao, totalTerritorio, urlUf } from "@/lib/oportunidades/pagina-uf";
 import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, medianaComparavel } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -44,7 +44,7 @@ const n = (x: number | null | undefined) => (x === null || x === undefined ? "�
 const data = (iso: string | null | undefined) => dataBrasilia(iso);
 const pct = (x: number | null) => (x === null ? "—" : `${x.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`);
 
-function Cabeca({ l }: { l: LeituraBrasilOk }) {
+function Cabeca({ l, publico }: { l: LeituraBrasilOk; publico: boolean }) {
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <Trilha elos={trilha({})} />
@@ -57,7 +57,8 @@ function Cabeca({ l }: { l: LeituraBrasilOk }) {
         <span>Transferegov até {data(l.execucao.dado_ate)}</span>
       </p>
       <p className="mp-nao-imprimir mp-laudo-acoes">
-        <BotaoImprimir />
+        {/* C4a (C5 da R3): imprimir é do cadastro; no nível 0 só fica a porta da Paraíba. */}
+        {!publico && <BotaoImprimir />}
         <LinkMapa href={urlUf("PB")} className="pa-btn pa-btn-pequeno">
           Ver a Paraíba
         </LinkMapa>
@@ -169,8 +170,11 @@ export function Resumo({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; an
   );
 }
 
-/** A aba "As 27 UFs". `noRelatorio` (C1b): sem o botão do CSV, que no relatório fica no cabeçalho. */
-export function Estados({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; ano: number; noRelatorio?: boolean }) {
+/**
+ * A aba "As 27 UFs". `noRelatorio` (C1b): sem o botão do CSV, que no relatório fica no cabeçalho. `publico` (C4a,
+ * 09/10/2026): o nível 0 também fica sem o botão, porque o CSV é do cadastro (D1; a rota responde 404 sem aprovação).
+ */
+export function Estados({ l, ano, noRelatorio = false, publico = false }: { l: LeituraBrasilOk; ano: number; noRelatorio?: boolean; publico?: boolean }) {
   if (!l.territorio) return <p className="pa-cartao pa-cartao-plano">As somas por UF aparecem depois da próxima atualização diária dos dados.</p>;
   const ufs = ufsLadoALado(l.territorio, l.desfechos ?? [], l.pix ?? [], l.janelas, ano);
   return (
@@ -220,7 +224,7 @@ export function Estados({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; a
           </tbody>
         </table>
       </TabelaRolagem>
-      {!noRelatorio && (
+      {!noRelatorio && !publico && (
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <a href={URL_CSV_BRASIL} className="pa-btn pa-btn-pequeno">
             Baixar as 27 UFs (CSV)
@@ -401,13 +405,15 @@ function Relatorio({ l, ano }: { l: LeituraBrasilOk; ano: number }) {
 export function BrasilConteudo({ l, aba, nivel }: { l: LeituraBrasilOk; aba: AbaBrasil; nivel: NivelAcesso }) {
   const ano = anoDeReferencia(l.execucao);
   const nomeAba = ABAS_BRASIL.find((a) => a.id === aba)?.nome ?? "";
+  // C4a: o nível 0 da versão pública (as abas de nível 1 já somem pelo `minimo` de `ABAS_BRASIL`).
+  const publico = !PODE.cadastro(nivel);
   return (
     <div className="pa-pagina mp-radar mp-laudo mp-rel mp-mun">
-      <Cabeca l={l} />
+      <Cabeca l={l} publico={publico} />
       <Abas aba={aba} nivel={nivel} />
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
       {aba === "resumo" && <Resumo l={l} ano={ano} />}
-      {aba === "estados" && <Estados l={l} ano={ano} />}
+      {aba === "estados" && <Estados l={l} ano={ano} publico={publico} />}
       {aba === "dinheiro" && <DinheiroDoBrasil l={l} nivel={nivel} />}
       {aba === "tempos" && <Tempos l={l} />}
       {aba === "relatorio" && <Relatorio l={l} ano={ano} />}

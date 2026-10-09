@@ -6,7 +6,7 @@
  * problema. Aqui fica o que é puro. Sem banco.
  */
 import { diaBrasilia } from "./datas.ts";
-import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
+import { NOME_ABA, nivelSemCliente, type NivelAcesso } from "./pagina-municipio.ts";
 import { NOME_UF, totalTerritorio, porSituacao, type LinhaTerritorio } from "./pagina-uf.ts";
 import type { ColunaCsv, LinhaDesfecho } from "./painel.ts";
 import type { LinhaEspecialAno } from "./pix.ts";
@@ -75,11 +75,15 @@ export function urlBrasil(aba?: AbaBrasil): string {
 }
 
 /**
- * O nível no Brasil: administrador 3, todo aprovado 1 (o portão de aprovados do `/mapa` vale até a F1d). Uma regra só
- * para a página e para a rota do relatório (C1b, 08/10/2026), para as duas nunca divergirem.
+ * O nível no Brasil: administrador 3, todo aprovado 1. Uma regra só para a página e para a rota do relatório (C1b,
+ * 08/10/2026), para as duas nunca divergirem.
+ *
+ * C4a (09/10/2026; achado B1 da revisão R3): recebe também se o cadastro está aprovado. Antes era só
+ * `administrador ? 3 : 1`, certo apenas enquanto o portão de aprovados vinha antes; quem não é aprovado agora é 0, e
+ * "Tempos e funil", o relatório e o CSV continuam pedindo 1. A regra é a de `nivelSemCliente` (no Brasil não há cliente).
  */
-export function nivelNoBrasil(administrador: boolean): NivelAcesso {
-  return administrador ? 3 : 1;
+export function nivelNoBrasil(v: { aprovado: boolean; administrador: boolean }): NivelAcesso {
+  return nivelSemCliente(v);
 }
 
 /** Se o nível abre a aba. A rota do relatório usa o mínimo de "Relatório e dados" (C1b): quem vê a aba abre a peça. */

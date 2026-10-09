@@ -4,6 +4,7 @@ import { podeVerMunicipio } from "@/lib/oportunidades/cliente";
 import { lerVinculo } from "@/lib/oportunidades/cliente.server";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
 import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
+import { visitanteAtual } from "@/lib/supabase-auth";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
@@ -14,13 +15,17 @@ export const metadata: Metadata = {
 /**
  * Declarar a entidade.
  *
- * O portão de acesso é do layout de `/mapa`; aqui não se repete.
+ * O portão de acesso é do layout de `/mapa`, e a página repete a guarda (R3, 09/10/2026): com a versão pública
+ * ligada (C4a), a navegação dentro do Mapa não passa pelo layout, e o formulário apareceria vazio ao público
+ * por um instante, até a `ContaPublica` levar à entrada.
  *
  * Não é obrigatório e não bloqueia o Mapa, de propósito: o filtro por
  * elegibilidade só entra com o catálogo v2. Forçar hoje um cadastro cujo
  * benefício ainda não existe seria cobrar adiantado.
  */
 export default async function OrganizacaoPage() {
+  const visitante = await visitanteAtual();
+  if (!visitante || visitante.status !== "aprovado") return null;
   const { todas } = await lerContexto();
   // Para prefeituras: a situação do vínculo que libera a ficha em "Meu município".
   const situacoes = new Map(
