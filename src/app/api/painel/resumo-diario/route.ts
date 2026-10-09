@@ -3,11 +3,45 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email";
 import type { ContagemMudanca, MudancaPainel } from "@/lib/oportunidades/painel";
 import type { ExecucaoPainel } from "@/lib/oportunidades/painel.server";
-import { LEITURA_DESTAQUES, UF_DESTAQUE, montarResumoDiario } from "@/lib/oportunidades/resumo-diario";
+import {
+  LEITURA_DESTAQUES,
+  UF_DESTAQUE,
+  escolherRodadas,
+  montarResumoDiario,
+  type BlocoRodadas,
+} from "@/lib/oportunidades/resumo-diario";
+import { lerRodadas } from "@/lib/oportunidades/rodadas.server";
 import { administradores, authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/**
+ * Teto da leitura das rodadas no e-mail (09/10/2026, onda 10, B). `lerRodadas` já corta cada consulta e cada chamada ao
+ * GitHub em 8 s, todas em paralelo; isto é a reserva para o que não tem tempo-limite próprio.
+ */
+const LIMITE_RODADAS_MS = 12_000;
+
+/**
+ * A saúde das rodadas para o e-mail (09/10/2026, onda 10, B). Falha sozinha: erro, demora ou nenhuma linha lida viram
+ * "falhou", e o resumo sai com uma nota curta no lugar do bloco. Nunca rejeita, e o e-mail nunca deixa de sair por isso.
+ */
+async function rodadasDoResumo(): Promise<BlocoRodadas> {
+  let relogio: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const limite = new Promise<null>((resolve) => {
+      relogio = setTimeout(() => resolve(null), LIMITE_RODADAS_MS);
+    });
+    const painel = await Promise.race([lerRodadas(), limite]);
+    if (!painel) console.error("resumo-diario: a leitura das rodadas passou do tempo-limite");
+    return escolherRodadas(painel?.linhas ?? null);
+  } catch (e) {
+    console.error("resumo-diario: rodadas:", e instanceof Error ? e.message : "falha na leitura");
+    return { tipo: "falhou" };
+  } finally {
+    clearTimeout(relogio);
+  }
+}
 
 /** Comparação em tempo constante, como em /api/oportunidades/sincronizar. */
 function autorizado(cabecalho: string | null, segredo: string): boolean {
@@ -28,6 +62,9 @@ const resposta = (corpo: Record<string, unknown>, status = 200) => NextResponse.
  *
  * `?somente=<e-mail>` manda só para esse endereço, que precisa estar entre os
  * administradores, e não marca a execução — é o teste antes de ligar o envio para todos.
+ *
+ * Desde 09/10/2026 (onda 10, B), o e-mail leva a saúde das rodadas (`/mapa/painel/rodadas`): os jobs atrasados ou com
+ * aviso no topo, ou uma linha no pé quando estão em dia. A regra de envio não mudou: sai só com arquivo novo.
  */
 export async function POST(request: Request) {
   const segredo = process.env.PAINEL_RESUMO_SECRET;
@@ -54,10 +91,12 @@ export async function POST(request: Request) {
     return resposta({ status: "sem_mudancas", execucao: execucao.id });
   }
 
-  const [brasil, uf, destaques] = await Promise.all([
+  // As rodadas são lidas junto com as mudanças, antes da marca: não alongam a janela entre marcar e enviar.
+  const [brasil, uf, destaques, rodadas] = await Promise.all([
     db.rpc("painel_mudancas_resumo", { p_dias: 1 }),
     db.rpc("painel_mudancas_resumo", { p_dias: 1, p_uf: UF_DESTAQUE }),
     db.rpc("painel_mudancas", { p_dias: 1, p_uf: UF_DESTAQUE, p_limite: LEITURA_DESTAQUES }),
+    rodadasDoResumo(),
   ]);
   const erro = brasil.error ?? uf.error ?? destaques.error;
   if (erro) return resposta({ erro: erro.message }, 500);
@@ -86,6 +125,7 @@ export async function POST(request: Request) {
     uf: (uf.data ?? []) as ContagemMudanca[],
     destaques: (destaques.data ?? []) as MudancaPainel[],
     urlBase: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br").replace(/\/+$/, ""),
+    rodadas,
   });
   const envio = await sendEmail({
     to: somente ?? admins.join(", "),
@@ -98,5 +138,11 @@ export async function POST(request: Request) {
     if (!somente) await db.from("painel_execucao").update({ resumo_enviado_em: null }).eq("id", execucao.id);
     return resposta({ erro: envio.error ?? "Falha no envio." }, 502);
   }
-  return resposta({ status: somente ? "teste_enviado" : "enviado", execucao: execucao.id, destinatarios: somente ? 1 : admins.length });
+  // `rodadas` vai para o log do workflow (o passo imprime a resposta): "em_dia", "com_problema" ou "falhou".
+  return resposta({
+    status: somente ? "teste_enviado" : "enviado",
+    execucao: execucao.id,
+    destinatarios: somente ? 1 : admins.length,
+    rodadas: rodadas.tipo,
+  });
 }
