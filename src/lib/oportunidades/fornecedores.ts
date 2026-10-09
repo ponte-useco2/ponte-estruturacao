@@ -12,6 +12,8 @@
  *
  * Regra de redação: concentração é indicador para olhar, nunca irregularidade. A lista do TCU diz quem
  * está sancionado hoje; o laudo separa o pagamento feito dentro do período da sanção do feito antes.
+ * CEIS e CNEP (D1, 08/10/2026) vêm de outro job, com execução própria: "registro no CEIS na data da consulta",
+ * nunca "irregular" nem "condenada".
  *
  * Função pura, sem banco e sem relógio: `hoje` entra como parâmetro.
  */
@@ -225,6 +227,126 @@ function periodoSancao(f: Pick<Fornecedor, "tcu_acordao" | "tcu_inicio" | "tcu_d
   return `${acordao}; sanção ${de}${ate}`;
 }
 
+// ================================================================ CEIS e CNEP (D1)
+
+/*
+ * Os cadastros de sanções da CGU, pela API do Portal da Transparência (decisão do titular de 29/09/2026: só pela
+ * API, com a chave dele; o download direto tem CAPTCHA). O job `sancoes/` (semanal, oport_36) consulta por CNPJ as
+ * empresas do painel — a filial leva junto a matriz, porque a sanção vale para a empresa inteira — e grava a
+ * cobertura (`sancao_consulta`) e uma linha por sanção de pessoa jurídica (`sancao_registro`), com "vigente" medido
+ * na data da consulta. Sem execução, a página diz "CEIS/CNEP não consultados": sem marca não é "sem sanção".
+ */
+
+export type CadastroSancao = "CEIS" | "CNEP";
+
+export interface ConsultaSancao {
+  cnpj: string;
+  /** Filial: o CNPJ da matriz, consultado também. */
+  matriz: string | null;
+  consultado_em: string | null;
+  n_ceis: number | null;
+  n_cnep: number | null;
+  n_vigentes: number | null;
+  /** Preenchido quando a consulta falhou ou não coube na rodada: é "não consultado", não "sem sanção". */
+  erro: string | null;
+}
+
+export const COLUNAS_CONSULTA_SANCAO = "cnpj,matriz,consultado_em,n_ceis,n_cnep,n_vigentes,erro";
+
+export interface RegistroSancao {
+  cnpj: string;
+  /** O CNPJ no registro: o próprio fornecedor ou outro estabelecimento da mesma empresa. */
+  cnpj_sancionado: string;
+  cadastro: CadastroSancao;
+  tipo: string | null;
+  orgao: string | null;
+  orgao_uf: string | null;
+  orgao_esfera: string | null;
+  abrangencia: string | null;
+  dt_inicio: string | null;
+  dt_fim: string | null;
+  dt_publicacao: string | null;
+  processo: string | null;
+  /** A publicação da sanção (em geral no Diário Oficial). */
+  link: string | null;
+  valor_multa: number | null;
+  /** Na data da consulta; sem data final conta como vigente. */
+  vigente: boolean;
+}
+
+export const COLUNAS_REGISTRO_SANCAO =
+  "cnpj,cnpj_sancionado,cadastro,tipo,orgao,orgao_uf,orgao_esfera,abrangencia,dt_inicio,dt_fim,dt_publicacao,processo,link,valor_multa,vigente";
+
+/** CEIS e CNEP de um conjunto de CNPJs, da última rodada do job. `referencia`: a data da consulta (AAAA-MM-DD). */
+export interface EntradaSancoes {
+  referencia: string;
+  consultas: ConsultaSancao[];
+  registros: RegistroSancao[];
+}
+
+/** A leitura como um todo: consultados numa data, nunca consultados (sem execução) ou leitura que falhou agora. */
+export type LeituraCeisCnep = { estado: "consultado"; referencia: string } | { estado: "nao_consultado" } | { estado: "falhou" };
+
+/** `undefined`: o job não rodou ou a oport_36 não foi aplicada; `null`: a leitura falhou. */
+export function leituraCeisCnep(s: EntradaSancoes | null | undefined): LeituraCeisCnep {
+  if (s === undefined) return { estado: "nao_consultado" };
+  if (s === null) return { estado: "falhou" };
+  return { estado: "consultado", referencia: s.referencia };
+}
+
+export type SituacaoSancao = "nao_consultado" | "sem_sancao" | "vigente" | "encerrada";
+
+/** A situação de uma empresa. Fora da cobertura da rodada ou com erro na consulta: "não consultado". */
+export function situacaoSancao(cnpj: string, s: EntradaSancoes | null | undefined): SituacaoSancao {
+  if (!s) return "nao_consultado";
+  const c = s.consultas.find((x) => x.cnpj === cnpj);
+  if (!c || c.erro) return "nao_consultado";
+  const rs = s.registros.filter((r) => r.cnpj === cnpj);
+  if (rs.length === 0) return "sem_sancao";
+  return rs.some((r) => r.vigente) ? "vigente" : "encerrada";
+}
+
+export const ROTULO_SANCAO: Record<SituacaoSancao, string> = {
+  nao_consultado: "CEIS/CNEP não consultados",
+  sem_sancao: "sem registro no CEIS nem no CNEP",
+  vigente: "registro vigente no CEIS/CNEP",
+  encerrada: "registro encerrado no CEIS/CNEP",
+};
+
+/** "CEIS", "CNEP" ou "CEIS e CNEP", conforme os registros dados. */
+export function cadastrosDe(rs: Pick<RegistroSancao, "cadastro">[]): string {
+  return (["CEIS", "CNEP"] as const).filter((c) => rs.some((r) => r.cadastro === c)).join(" e ");
+}
+
+/** Uma sanção numa linha: cadastro, tipo, órgão que aplicou (UF), período e, se for o caso, o outro estabelecimento. */
+export function descreverSancao(r: RegistroSancao): string {
+  const partes = [r.tipo ?? "tipo não informado"];
+  if (r.orgao) partes.push(`aplicada por ${r.orgao}${r.orgao_uf ? ` (${r.orgao_uf})` : ""}`);
+  const ate = r.dt_fim ? `até ${formatarData(r.dt_fim)}` : "sem data final informada";
+  partes.push(r.dt_inicio ? `de ${formatarData(r.dt_inicio)} ${ate}` : ate);
+  if (r.cnpj_sancionado !== r.cnpj) partes.push(`em nome de outro estabelecimento da mesma empresa (CNPJ ${cnpjLegivel(r.cnpj_sancionado)})`);
+  return `${r.cadastro}: ${partes.join(", ")}`;
+}
+
+/** A inidoneidade declarada pelo TCU também vai ao CEIS: com o risco do TCU no laudo, o registro não se repete. */
+const ehDoTcu = (r: Pick<RegistroSancao, "orgao">) => /tribunal de contas da uni[aã]o|^\s*tcu\s*$/i.test(r.orgao ?? "");
+
+/** O período que cobre os registros: o início mais antigo (sem início, desde sempre) e o fim mais distante. */
+function periodoRegistros(rs: RegistroSancao[]): { inicio: string | null; fim: string | null } {
+  const inicios = rs.map((r) => r.dt_inicio).filter((x): x is string => !!x).sort();
+  const fins = rs.map((r) => r.dt_fim).filter((x): x is string => !!x).sort();
+  return {
+    inicio: inicios.length === rs.length ? inicios[0] : null,
+    fim: fins.length === rs.length ? (fins.at(-1) ?? null) : null,
+  };
+}
+
+const RELACAO_REGISTRO: Record<MomentoSancao, string> = {
+  contratou: "Há contrato deste convênio assinado dentro do período do registro.",
+  pagou: "Parte dos pagamentos deste convênio caiu dentro do período do registro, sem contrato assinado nele.",
+  antes: "Os pagamentos e contratos deste convênio são anteriores ao início do registro.",
+};
+
 // ================================================================ seção do laudo
 
 export interface EntradaFornecedores {
@@ -238,6 +360,8 @@ export interface EntradaFornecedores {
   municipio: ConcentracaoMunicipio | null;
   /** Os pares do TCE-PB (município, CNPJ, ano) dos fornecedores; ausente ou `null`: sem leitura. */
   tce?: TceFederalPar[] | null;
+  /** CEIS e CNEP das empresas deste convênio (D1). Ausente: não consultados; `null`: a leitura falhou. */
+  sancoes?: EntradaSancoes | null;
 }
 
 export interface LinhaFornecedor {
@@ -261,6 +385,9 @@ export interface LinhaFornecedor {
   sancao: string | null;
   /** Como o TCE-PB vê o pagamento deste convênio à empresa ("no TCE-PB em 2024 e 2025"). */
   tce: string | null;
+  /** CEIS e CNEP na data da consulta (D1). */
+  ceisCnep: SituacaoSancao;
+  sancoesCgu: RegistroSancao[];
 }
 
 export interface SecaoFornecedores {
@@ -273,6 +400,8 @@ export interface SecaoFornecedores {
   municipio: (ConcentracaoMunicipio & { faixa: FaixaConcentracao; nesteConvenio: boolean }) | null;
   /** A lista do TCU foi lida nesta execução (há ao menos uma empresa e nenhuma veio `null`). */
   tcuVerificado: boolean;
+  /** CEIS e CNEP: consultados em que data, não consultados (sem execução) ou leitura que falhou (D1). */
+  ceisCnep: LeituraCeisCnep;
   riscos: Risco[];
 }
 
@@ -311,6 +440,8 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
         momento,
         sancao: f?.inidoneo_tcu ? periodoSancao(f) : null,
         tce: noTce?.frase ?? null,
+        ceisCnep: situacaoSancao(l.cnpj, e.sancoes),
+        sancoesCgu: e.sancoes ? e.sancoes.registros.filter((r) => r.cnpj === l.cnpj) : [],
       };
     })
     .sort((a, b) => b.pago - a.pago || b.contratado - a.contratado || a.nome.localeCompare(b.nome));
@@ -344,6 +475,31 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
       },
     };
     riscos.push({ nivel: NIVEL_MOMENTO[l.momento], ...texto[l.momento] });
+  }
+  // D1: registro vigente no CEIS ou no CNEP na data da consulta é risco alto (o inidôneo do TCU, acima, segue com o
+  // nível do momento da sanção). O texto diz o fato e onde o convênio cai no período, sem julgar.
+  const ceisCnep = leituraCeisCnep(e.sancoes);
+  for (const l of linhas) {
+    if (l.ceisCnep !== "vigente" || ceisCnep.estado !== "consultado") continue;
+    const vigentes = l.sancoesCgu.filter((r) => r.vigente && !(l.momento && ehDoTcu(r)));
+    if (vigentes.length === 0) continue;
+    const cad = cadastrosDe(vigentes);
+    const p = periodoRegistros(vigentes);
+    const contratos = e.contratos.filter((c) => c.cnpj === l.cnpj);
+    const temDatas = (!!l.primeiro && !!l.ultimo) || contratos.some((c) => !!c.dt_assinatura);
+    const momento = temDatas
+      ? momentoDaSancao({ inidoneo_tcu: true, tcu_inicio: p.inicio, tcu_data_final: p.fim }, { primeiro: l.primeiro, ultimo: l.ultimo }, contratos)
+      : null;
+    const um = vigentes.length === 1;
+    riscos.push({
+      nivel: "alto",
+      titulo: `${l.nome}: registro no ${cad} vigente na data da consulta`,
+      fato:
+        `A empresa tem ${um ? "um registro" : `${vigentes.length} registros`} no ${cad} ${um ? "vigente" : "vigentes"} na consulta de ` +
+        `${formatarData(ceisCnep.referencia)} (${vigentes.map(descreverSancao).join("; ")}).` +
+        `${momento ? ` ${RELACAO_REGISTRO[momento]}` : ""} O alcance depende do tipo de sanção e do órgão que a aplicou; vale conferir ` +
+        "antes de novas contratações, aditivos e ordens de serviço.",
+    });
   }
   // Pago no SICONV e sem nenhum pagamento a esse CNPJ nas despesas do município no TCE-PB, no ano nem no
   // seguinte. O TCE não traz o número do convênio: o casamento é por município, CNPJ e ano.
@@ -382,6 +538,7 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
     contratos: e.contratos,
     municipio,
     tcuVerificado: e.fornecedores.length > 0 && e.fornecedores.every((f) => f.inidoneo_tcu !== null),
+    ceisCnep,
     riscos,
   };
 }

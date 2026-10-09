@@ -249,8 +249,11 @@ export interface SaidaBusca {
 
 const temFiltro = (p: ParametrosBusca) => Boolean((p.aba !== "organizacoes" && p.uf) || p.municipio || p.tema || p.grupo);
 
-/** A palavra mais longa do que se digitou, como a pessoa a escreveu (com acento), sem pontuação nas pontas. */
-function palavraMaisLonga(q: string): string | null {
+/**
+ * A palavra mais longa do que se digitou, como a pessoa a escreveu (com acento), sem pontuação nas pontas. Exportada
+ * para o vazio da busca unificada (C2, 08/10/2026), que oferece a mesma saída.
+ */
+export function palavraMaisLonga(q: string): string | null {
   const lista = q
     .split(/\s+/)
     .map((p) => p.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
@@ -292,6 +295,10 @@ export function saidasBuscaVazia(p: ParametrosBusca, temMunicipio = false): Said
   if (q) {
     const [aba, onde] = p.aba === "instrumentos" ? (["propostas", "nas propostas"] as const) : (["instrumentos", "nos convênios"] as const);
     saidas.push({ texto: `Procurar “${q}” ${onde}`, href: urlBusca(p, { aba }) });
+    // C2 (08/10/2026): de uma lista vazia, a busca nos cinco tipos de uma vez (o termo pode ser de município ou entidade).
+    if (p.aba !== "tudo") {
+      saidas.push({ texto: `Procurar “${q}” em todos os tipos`, href: urlBusca(p, { aba: "tudo" }), nota: "municípios, entidades, organizações, convênios e propostas" });
+    }
   }
   if (/\d/.test(q)) saidas.push({ texto: "Confira o número digitado.", href: null });
   if (!temMunicipio) {

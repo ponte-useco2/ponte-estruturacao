@@ -26,9 +26,11 @@ export type UsoMapa =
   | "mapa_laudo_instrumento"
   | "mapa_glossario"
   | "mapa_seguir"
-  | "mapa_deixar_de_seguir";
+  | "mapa_deixar_de_seguir"
+  /** C2 (08/10/2026): a busca unificada. Só o tipo da entrada e a UF, nunca o termo digitado. */
+  | "mapa_busca";
 
-const TIPOS: readonly UsoMapa[] = ["mapa_carteira", "mapa_municipio", "mapa_entidade", "mapa_entidade_relatorio", "mapa_organizacoes", "mapa_uf", "mapa_uf_relatorio", "mapa_brasil", "mapa_brasil_relatorio", "mapa_relatorio_municipio", "mapa_laudo_instrumento", "mapa_glossario", "mapa_seguir", "mapa_deixar_de_seguir"];
+const TIPOS: readonly UsoMapa[] = ["mapa_carteira", "mapa_municipio", "mapa_entidade", "mapa_entidade_relatorio", "mapa_organizacoes", "mapa_uf", "mapa_uf_relatorio", "mapa_brasil", "mapa_brasil_relatorio", "mapa_relatorio_municipio", "mapa_laudo_instrumento", "mapa_glossario", "mapa_seguir", "mapa_deixar_de_seguir", "mapa_busca"];
 
 /** Só texto curto e número: o detalhe diz o que interessou, não guarda conteúdo. */
 export function detalheLimpo(detalhe: Record<string, unknown>): Record<string, string | number | boolean> {

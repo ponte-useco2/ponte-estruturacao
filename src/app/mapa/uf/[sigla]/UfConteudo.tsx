@@ -7,12 +7,12 @@
  * só, como o do município, e a aba "Relatório e dados" ficou curta (o link para ele, o CSV e as fontes).
  */
 import Link from "next/link";
-import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { ROTULO_DECISAO } from "@/lib/oportunidades/fiscal";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import { formatarValor } from "@/lib/oportunidades/indicadores-municipio";
 import malhaPb from "@/lib/oportunidades/malhas/pb-municipios.json";
-import { gruposDeCor, type AreaMapa, type Malha } from "@/lib/oportunidades/pagina-brasil";
+import { anoDeReferencia, gruposDeCor, type AreaMapa, type Malha } from "@/lib/oportunidades/pagina-brasil";
 import { versaoLegivel } from "@/lib/oportunidades/osc";
 import { ROTULO_ESPECIE, especieDe, lenteDe, urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -33,6 +33,7 @@ import {
   porChave,
   porSinais,
   porSituacao,
+  SUFIXO_VIVO_POR_TCE,
   textoSemMedicoes,
   textoSemOrgaoEstadual,
   totalTerritorio,
@@ -57,7 +58,8 @@ import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 const n = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("pt-BR"));
-const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
+// A4x (08/10/2026): o `dado_ate` é carimbo com hora; o dia é o de Brasília (o arquivo de 07/10, 22h34, saía como 08/10).
+const data = (iso: string | null | undefined) => dataBrasilia(iso);
 const pct = (x: number | null) => (x === null ? "—" : `${x.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`);
 const dias = (x: number | null) => (x === null ? "—" : `${n(Math.round(x))} dias`);
 
@@ -160,7 +162,8 @@ export function Resumo({ l, peca = false }: { l: LeituraUfOk; peca?: boolean }) 
   const grupos = t ? porSituacao(t, l.sigla) : [];
   const g = (id: string) => grupos.find((x) => x.id === id);
   const vivos = t ? totalTerritorio(t, l.sigla, "vivos") : null;
-  const ano = Number((l.execucao.referencia ?? l.execucao.dado_ate ?? "").slice(0, 4));
+  // A4x: a mesma regra do Brasil, com o `dado_ate` (carimbo) pelo dia de Brasília.
+  const ano = anoDeReferencia(l.execucao);
   const f = l.desfechos ? funil(l.desfechos, l.sigla).find((x) => x.ano === ano) : undefined;
   const pixAno = (l.pix ?? []).filter((p) => p.recorte === l.sigla && p.ano !== null && p.pago > 0).sort((a, b) => (b.ano ?? 0) - (a.ano ?? 0))[0];
   const lentes = l.proponentes ? lentesDaUf(l.proponentes) : null;
@@ -516,6 +519,8 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   const t = l.territorio;
   if (!t) return <SemSomas />;
   const situacoes = porSituacao(t, l.sigla, !l.completa);
+  // A4x: entre os vivos, a linha além de execução e contas é a da tomada de contas especial (o rótulo já diz; a nota explica).
+  const vivoPorTce = !l.completa && situacoes.some((s) => s.rotulo.endsWith(SUFIXO_VIVO_POR_TCE));
   const orgaos = porChave(t, l.sigla, "orgao");
   const temas = porChave(t, l.sigla, "tema");
   const maiorTema = Math.max(1, ...temas.map((x) => x.valor));
@@ -540,6 +545,14 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
             ) : (
               <>
                 Só os <Termo slug="instrumento-vivo">vivos</Termo>: fora da Paraíba a base não guarda os encerrados.
+                {/* A4x: no Brasil, 43 concluídos apareciam aqui sem explicação; são os com tomada de contas especial. */}
+                {vivoPorTce && (
+                  <>
+                    {" "}
+                    Além dos em execução e dos prestando contas, só entram os que estão em{" "}
+                    <Termo slug="tomada-de-contas-especial">tomada de contas especial</Termo>, que conta como vivo.
+                  </>
+                )}
               </>
             )}{" "}
             O <Termo slug="valor-global">valor global</Termo> é o total previsto; o <Termo slug="desembolso">desembolsado</Termo>, o que já foi liberado.

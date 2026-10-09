@@ -8,7 +8,7 @@
  * Cada parte só entra se o nível abre a aba dela (`partesDoRelatorioBrasil`): o relatório nunca mostra o que a página
  * esconde. As UFs nunca são classificadas: a tabela é a da página, em ordem alfabética, sem destaque.
  */
-import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { URL_CSV_BRASIL, anoDeReferencia, partesDoRelatorioBrasil, urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import type { LeituraBrasilOk } from "@/lib/oportunidades/pagina-brasil.server";
 import type { NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -22,7 +22,8 @@ const AVISO =
   "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). Fora da Paraíba a base guarda só os " +
   "instrumentos vivos: é por eles que as 27 UFs aparecem lado a lado, em ordem alfabética. Não substitui as fontes oficiais.";
 
-const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
+// A4x (08/10/2026): "Transferegov até" pelo dia de Brasília, como a página (o carimbo de 22h34 não vira o dia seguinte).
+const data = (iso: string | null | undefined) => dataBrasilia(iso);
 
 export function RelatorioBrasilConteudo({ l, nivel, hoje }: { l: LeituraBrasilOk; nivel: NivelAcesso; hoje: string }) {
   const ano = anoDeReferencia(l.execucao, hoje);

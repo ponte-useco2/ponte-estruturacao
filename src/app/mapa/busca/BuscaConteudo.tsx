@@ -5,6 +5,9 @@
  * B12 (onda 2 de UX, 08/10/2026): o grupo "Municípios" no topo quando o termo é nome de município; o rótulo visível
  * diz o que se pode buscar (o placeholder era o único lugar, e sumia ao digitar: A06 da auditoria B1+B2); o vazio diz
  * o que foi procurado e oferece saídas; a estrela das linhas tem texto ("☆ Seguir"), não só o ícone.
+ *
+ * C2 (onda 4 de UX, 08/10/2026): estas são as listas (abas). A entrada da busca é a unificada (`BuscaUnificada.tsx`),
+ * que chega aqui pelo "Ver todos (N)"; o chip "Tudo" volta para ela.
  */
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { nomeOsc, rotuloArea, rotuloNatureza, situacaoNaReceita, versaoLegivel } from "@/lib/oportunidades/osc";
@@ -29,6 +32,7 @@ import {
   type SaidaIndisponivel,
 } from "@/lib/oportunidades/busca";
 import { saidasBuscaVazia, textoBuscaVazia, tituloBuscaVazia, type MunicipioAchado } from "@/lib/oportunidades/busca-municipio";
+import { urlDoChip } from "@/lib/oportunidades/busca-unificada";
 import type { LeituraBusca } from "@/lib/oportunidades/busca.server";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { UFS } from "@/lib/oportunidades/organizacao";
@@ -81,27 +85,11 @@ export function BuscaConteudo({
         )}
       </div>
 
-      <nav aria-label="O que buscar" className="pa-chips mp-radar-filtros">
-        {(
-          [
-            ["instrumentos", "Convênios"],
-            ["propostas", "Propostas"],
-            ["organizacoes", "Organizações"],
-          ] as const
-        ).map(([aba, rotulo]) => (
-          <LinkMapa
-            key={aba}
-            href={urlBusca(p, { aba })}
-            className={`pa-chip${p.aba === aba ? " pa-ativo" : ""}`}
-            aria-current={p.aba === aba ? "page" : undefined}
-          >
-            {rotulo}
-          </LinkMapa>
-        ))}
-      </nav>
+      <AbasBusca p={p} />
 
       <form method="get" action="/mapa/busca" className="mp-filtros mp-busca-form" role="search">
-        {p.aba !== "instrumentos" && <input type="hidden" name="aba" value={p.aba} />}
+        {/* C2: sem `aba` é a unificada; a lista manda a dela sempre, também a dos convênios. */}
+        <input type="hidden" name="aba" value={p.aba} />
         {/* O rótulo diz o que se pode buscar e fica à vista: no placeholder (2,66:1), sumia ao digitar (A06). */}
         <div className="mp-busca-termo">
           <label htmlFor="busca-q" className="mp-busca-rotulo">
@@ -236,7 +224,35 @@ export function BuscaConteudo({
   );
 }
 
-function Campo({ id, rotulo, children }: { id: string; rotulo: string; children: ReactNode }) {
+/**
+ * O que buscar: a unificada ("Tudo", C2, 08/10/2026) e as três listas. Cada chip leva o termo e a UF; a troca solta o
+ * que não vale na outra aba (`urlDoChip`, que da unificada leva a UF do grupo para Convênios e Propostas).
+ */
+export function AbasBusca({ p }: { p: ParametrosBusca }) {
+  return (
+    <nav aria-label="O que buscar" className="pa-chips mp-radar-filtros">
+      {(
+        [
+          ["tudo", "Tudo"],
+          ["instrumentos", "Convênios"],
+          ["propostas", "Propostas"],
+          ["organizacoes", "Organizações"],
+        ] as const
+      ).map(([aba, rotulo]) => (
+        <LinkMapa
+          key={aba}
+          href={urlDoChip(p, aba)}
+          className={`pa-chip${p.aba === aba ? " pa-ativo" : ""}`}
+          aria-current={p.aba === aba ? "page" : undefined}
+        >
+          {rotulo}
+        </LinkMapa>
+      ))}
+    </nav>
+  );
+}
+
+export function Campo({ id, rotulo, children }: { id: string; rotulo: string; children: ReactNode }) {
   return (
     <span className="mp-busca-campo">
       <label htmlFor={id} className="pa-campo-rotulo">

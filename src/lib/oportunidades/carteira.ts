@@ -11,6 +11,7 @@
  * Função pura, sem banco e sem relógio.
  */
 import { formatarData } from "./central.ts";
+import { diaBrasilia } from "./datas.ts";
 import { compararFila, type ClasseFila } from "./fila.ts";
 import { ROTULO_TIPO_ITEM, fraseDoAviso, urlDoItem, type AvisoItem, type FraseAviso, type TipoItem } from "./favoritos.ts";
 import { percentual } from "./painel.ts";
@@ -101,8 +102,9 @@ const pct = (v: number) => `${v.toLocaleString("pt-BR", { minimumFractionDigits:
 /** "painel:2026-10-01T23:00:00Z" → "2026-10-01". */
 export function dataDaReferencia(ref: string | null): string | null {
   if (!ref) return null;
-  const m = ref.match(/(\d{4}-\d{2}-\d{2})/);
-  return m ? m[1] : null;
+  // Com hora, o dia é o de Brasília: "painel:2026-10-08T01:34:18Z" é o arquivo de 07/10 (A4x, integração da onda 4).
+  const m = ref.match(/\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?/);
+  return m ? diaBrasilia(m[0]) : null;
 }
 
 function diasAte(dataIso: string | null, hoje: string): number | null {

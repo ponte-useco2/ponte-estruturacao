@@ -9,7 +9,7 @@
  * na aba "Municípios" e no relatório de cada município. A soma segue a ordem da lista da página, nunca a do número:
  * para quem não é administrador, nada aqui ordena municípios por problema.
  */
-import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { gruposDeCor } from "@/lib/oportunidades/pagina-brasil";
 import type { NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import { NOME_UF, intermediariasDaUf, municipiosSomadosPorRegiao, naUf, urlUf, type RegiaoSomada } from "@/lib/oportunidades/pagina-uf";
@@ -30,7 +30,8 @@ const AVISO =
 const AVISO_INTERNO = `Uso interno da PONTE: a tabela das regiões traz o fiscal e os sinais do painel. ${AVISO}`;
 
 const n = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("pt-BR"));
-const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
+// A4x (08/10/2026): "Transferegov até" pelo dia de Brasília, como a página (o carimbo de 22h34 não vira o dia seguinte).
+const data = (iso: string | null | undefined) => dataBrasilia(iso);
 
 /** Uma linha da tabela das regiões; o total vai em `<tfoot>`, em negrito. */
 function Celulas({ r, admin, forte }: { r: RegiaoSomada; admin: boolean; forte?: boolean }) {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { proximoDiaDoMes, recorteDaBase, vazioCatalogo, voltarParaUf } from "./vazios.ts";
+import { RECORTE_DA_BASE, proximoDiaDoMes, recorteDaBase, vazioCatalogo, voltarParaUf } from "./vazios.ts";
 
 test("B12b: o recorte da base na PB, fora dela e sem UF", () => {
   const pb = recorteDaBase("PB");
@@ -19,6 +19,19 @@ test("B12b: o recorte da base na PB, fora dela e sem UF", () => {
     assert.match(ambos.convenios, /no resto do país/);
     assert.ok(ambos.propostas.startsWith(pb.propostas) && ambos.propostas.endsWith(rn.propostas));
   }
+});
+
+test("A4x: o recorte da ficha da entidade sai do mesmo texto, sem segunda redação", () => {
+  const todo = recorteDaBase(null);
+  assert.equal(RECORTE_DA_BASE, `A base traz ${todo.convenios}. Traz também ${todo.propostas}.`);
+  // O que a ficha dizia (C1c) continua dito: PB desde 2008 e desde 2019; fora, os vivos e as propostas recentes.
+  assert.match(RECORTE_DA_BASE, /todos os convênios e contratos de repasse de proponente da Paraíba, desde 2008/);
+  assert.match(RECORTE_DA_BASE, /no resto do país, só os convênios em execução, em prestação de contas ou em tomada de contas especial\./);
+  assert.match(RECORTE_DA_BASE, /todas as propostas de proponente da Paraíba enviadas desde 2019/);
+  assert.match(RECORTE_DA_BASE, /as propostas dos últimos três anos e as antigas sem desfecho que se moveram no último ano\.$/);
+  assert.ok(!/\bTCE\b/.test(RECORTE_DA_BASE), "a tomada de contas especial vai por extenso");
+  // A regra precisa das propostas de fora (a da antiga cópia da entidade) vale também nos vazios.
+  assert.equal(recorteDaBase("RN").propostas, "as propostas dos últimos três anos e as antigas sem desfecho que se moveram no último ano");
 });
 
 test("B12b: a volta até a UF", () => {

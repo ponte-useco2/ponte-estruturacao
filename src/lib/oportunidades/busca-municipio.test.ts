@@ -133,7 +133,9 @@ test("B12: nome do banco (caixa alta) em caixa de título, com d', hífen e part
 
 test("B12: onde procurar — nada com número, município escolhido ou página 2; só a PB nas organizações", () => {
   assert.equal(ondeProcurarMunicipio(parametrosBusca({ q: "sousa" })), "brasil");
-  assert.equal(ondeProcurarMunicipio(parametrosBusca({ q: "sousa", uf: "PB" })), "pb");
+  assert.equal(ondeProcurarMunicipio(parametrosBusca({ aba: "instrumentos", q: "sousa", uf: "PB" })), "pb");
+  // C2: na unificada a PB é o padrão (sai da URL) e o município se procura no Brasil.
+  assert.equal(ondeProcurarMunicipio(parametrosBusca({ q: "sousa", uf: "PB" })), "brasil");
   assert.equal(ondeProcurarMunicipio(parametrosBusca({ q: "natal", uf: "RN" })), "uf");
   assert.equal(ondeProcurarMunicipio(parametrosBusca({ q: "sousa", aba: "organizacoes" })), "pb");
   assert.equal(ondeProcurarMunicipio(parametrosBusca({ q: "956541" })), null);
@@ -163,17 +165,23 @@ test("B12: título e saídas da busca vazia — tirar filtro, uma palavra, outra
   assert.equal(tituloBuscaVazia(p), "Nada encontrado para “creche municipal” com os filtros escolhidos");
   assert.equal(tituloBuscaVazia(parametrosBusca({ q: "creche" })), "Nada encontrado para “creche”");
   assert.equal(tituloBuscaVazia(parametrosBusca({ uf: "PB" })), "Nada encontrado com esses filtros");
+  // C2: as listas levam a aba na URL, e a lista vazia oferece a busca nos cinco tipos.
   assert.deepEqual(saidasBuscaVazia(p), [
-    { texto: "Buscar “creche municipal” sem os filtros", href: "/mapa/busca?q=creche+municipal" },
-    { texto: "Buscar só “municipal”", href: "/mapa/busca?q=municipal&uf=PB&tema=educacao" },
+    { texto: "Buscar “creche municipal” sem os filtros", href: "/mapa/busca?aba=instrumentos&q=creche+municipal" },
+    { texto: "Buscar só “municipal”", href: "/mapa/busca?aba=instrumentos&q=municipal&uf=PB&tema=educacao" },
     { texto: "Procurar “creche municipal” nas propostas", href: "/mapa/busca?aba=propostas&q=creche+municipal&uf=PB&tema=educacao" },
+    {
+      texto: "Procurar “creche municipal” em todos os tipos",
+      href: "/mapa/busca?q=creche+municipal",
+      nota: "municípios, entidades, organizações, convênios e propostas",
+    },
     { texto: "Ver os municípios da Paraíba", href: urlUf("PB", "municipios"), nota: "ou escreva na busca só o nome do município, como “Sousa”" },
     { texto: "Ver as janelas abertas", href: "/mapa" },
   ]);
 });
 
 test("B12: a frase do cartão vazio diz a lista e se havia termo, filtro ou os dois", () => {
-  assert.equal(textoBuscaVazia(parametrosBusca({ q: "creche" })), "Nenhum convênio com esses termos.");
+  assert.equal(textoBuscaVazia(parametrosBusca({ aba: "instrumentos", q: "creche" })), "Nenhum convênio com esses termos.");
   assert.equal(textoBuscaVazia(parametrosBusca({ q: "creche", tema: "saude" })), "Nenhum convênio com esses termos e filtros.");
   assert.equal(textoBuscaVazia(parametrosBusca({ aba: "propostas", uf: "AC", grupo: "negada" })), "Nenhuma proposta com esses filtros.");
   assert.equal(textoBuscaVazia(parametrosBusca({ aba: "organizacoes", q: "laureano" })), "Nenhuma organização da Paraíba com esse nome ou CNPJ.");
@@ -186,14 +194,19 @@ test("B12: a frase do cartão vazio diz a lista e se havia termo, filtro ou os d
 
 test("B12: saídas da busca vazia — com o grupo de municípios, sem a dica; número pede conferência; outra UF", () => {
   const textos = (s: { texto: string }[]) => s.map((x) => x.texto);
-  assert.deepEqual(textos(saidasBuscaVazia(parametrosBusca({ q: "sousa" }), true)), ["Procurar “sousa” nas propostas", "Ver as janelas abertas"]);
+  assert.deepEqual(textos(saidasBuscaVazia(parametrosBusca({ aba: "instrumentos", q: "sousa" }), true)), [
+    "Procurar “sousa” nas propostas",
+    "Procurar “sousa” em todos os tipos",
+    "Ver as janelas abertas",
+  ]);
   assert.deepEqual(textos(saidasBuscaVazia(parametrosBusca({ aba: "propostas", q: "123456" }))), [
     "Procurar “123456” nos convênios",
+    "Procurar “123456” em todos os tipos",
     "Confira o número digitado.",
     "Ver os municípios da Paraíba",
     "Ver as janelas abertas",
   ]);
-  const rn = saidasBuscaVazia(parametrosBusca({ q: "xyz", uf: "RN" }));
+  const rn = saidasBuscaVazia(parametrosBusca({ aba: "instrumentos", q: "xyz", uf: "RN" }));
   assert.equal(rn[rn.length - 2].texto, "Ver os municípios na página da UF (Rio Grande do Norte)");
   assert.equal(rn[rn.length - 2].href, urlUf("RN", "municipios"));
   const org = saidasBuscaVazia(parametrosBusca({ aba: "organizacoes", q: "laureano", municipio: "2507507" }));

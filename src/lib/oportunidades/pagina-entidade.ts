@@ -277,17 +277,9 @@ export function dinheiroPorOrgao(instrumentos: InstrumentoRelatorio[]): { orgao:
 
 // ================================================================ vazio, fontes (C1c, 08/10/2026)
 
-/**
- * O recorte da base do Mapa: dito na ficha "Quem é" e quando o CNPJ não tem instrumento nem proposta. Conferido no
- * job (`painel_execucao/`) e no banco em 08/10/2026: fora da PB os instrumentos vivos incluem a tomada de contas
- * especial (`instrumentos.py`, `vivo`), e há propostas de fora da PB (121.683 na última execução): as enviadas no ano
- * da referência e nos dois anteriores, mais as antigas sem desfecho que tiveram evento no último ano (`propostas.py`).
- * O texto antigo da ficha ("Propostas: só as de proponente da Paraíba") estava errado.
- */
-export const RECORTE_BASE_ENTIDADE =
-  "Instrumentos do Transferegov: todos os de proponente da Paraíba desde 2008; fora da Paraíba, só os em execução, em prestação de contas " +
-  "ou em tomada de contas especial. Propostas: todas as de proponente da Paraíba desde 2019; fora da Paraíba, as dos últimos três anos e as " +
-  "antigas sem desfecho que se moveram no último ano.";
+// O recorte da base do Mapa, que a ficha "Quem é" e o CNPJ vazio dizem, mora em `vazios.ts` (`RECORTE_DA_BASE`, A4x,
+// 08/10/2026): era escrito aqui e lá com redações diferentes. Não pode ser importado daqui: `vazios.ts` importa
+// `pagina-uf.ts`, que importa este arquivo, e o ciclo deixaria a constante sem valor na carga.
 
 export interface SaidaEntidadeVazia {
   rotulo: string;
@@ -308,7 +300,8 @@ export function saidasEntidadeVazia(e: { cnpj: string; nome: string | null | und
   return [
     ...(temNome
       ? [
-          { rotulo: `Procurar «${nome}» nos convênios`, href: urlBusca(base, { q: nome }) },
+          // Abre a aba dos convênios, não a busca unificada, que o rótulo não promete (integração da onda 4).
+          { rotulo: `Procurar «${nome}» nos convênios`, href: urlBusca(base, { q: nome, aba: "instrumentos" }) },
           { rotulo: `Procurar «${nome}» nas propostas`, href: urlBusca(base, { aba: "propostas", q: nome }) },
         ]
       : []),

@@ -120,6 +120,8 @@ test("carteira: agrupa por item, põe o pior primeiro, ignora arquivado e abre o
 
 test("data da referência do retrato", () => {
   assert.equal(dataDaReferencia("painel:2026-10-01T23:00:00Z"), "2026-10-01");
+  assert.equal(dataDaReferencia("painel:2026-10-08T01:34:18Z"), "2026-10-07", "o arquivo de 07/10, 22h34 em Brasília");
+  assert.equal(dataDaReferencia("2026-10-07T19:00:43+00:00"), "2026-10-07");
   assert.equal(dataDaReferencia(null), null);
   assert.equal(dataDaReferencia("sem data"), null);
 });

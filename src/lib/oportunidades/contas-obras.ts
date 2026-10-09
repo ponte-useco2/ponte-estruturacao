@@ -11,6 +11,7 @@
  * Função pura, sem banco e sem relógio.
  */
 import { formatarData } from "./central.ts";
+import { diaBrasilia } from "./datas.ts";
 import type { Risco } from "./laudo.ts";
 
 export interface PcConvenio {
@@ -88,7 +89,8 @@ const obraCompleta = (o: ObraConvenio) => (o.pct_convenente ?? 0) >= 99.5;
 
 export const moedaContas = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const pct = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-const dia = (iso: string | null) => (iso ? formatarData(iso.slice(0, 10)) : "—");
+// O dia em Brasília: os carimbos da coleta vêm em UTC (A4x, integração da onda 4); data pura passa direto.
+const dia = (iso: string | null) => (iso ? formatarData(diaBrasilia(iso)) : "—");
 
 export interface SecaoContasObras {
   prestacao: {

@@ -11,6 +11,7 @@
  */
 import { BotaoImprimir } from "@/app/mapa/fiscal/[ibge]/simular/BotaoImprimir";
 import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import {
   GRUPOS,
   classeEstado,
@@ -189,8 +190,9 @@ export function PlanoPixConteudo({ leitura, cliente = false }: { leitura: Leitur
           Fonte e método
         </h2>
         <ul className="mp-laudo-causas mp-laudo-miudo">
+          {/* A4x (08/10/2026): o `dado_ate` é carimbo com hora; a data é a do dia em Brasília, e não a de UTC. */}
           <li>
-            API pública das transferências especiais do Transferegov, leitura de {data(execucao.dado_ate)}; extrato, executores e documentos de
+            API pública das transferências especiais do Transferegov, leitura de {dataBrasilia(execucao.dado_ate)}; extrato, executores e documentos de
             liquidação lidos plano a plano para a PB.
           </li>
           <li>

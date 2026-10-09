@@ -29,7 +29,7 @@ export default async function FornecedoresPage({ searchParams }: { searchParams:
   const municipio = /^\d{7}$/.test(um(sp.municipio) ?? "") ? um(sp.municipio) : null;
   const ordem: Ordem = um(sp.ordem) === "valor" ? "valor" : "municipios";
   const marcaUrl = um(sp.marca);
-  const marca: Marca | null = marcaUrl === "inidoneos" || marcaUrl === "mei" ? marcaUrl : null;
+  const marca: Marca | null = marcaUrl === "inidoneos" || marcaUrl === "mei" || marcaUrl === "sancionadas" ? marcaUrl : null;
   const filtro = { q, municipio, ordem, marca };
 
   const leitura = await lerPainelFornecedores(filtro);

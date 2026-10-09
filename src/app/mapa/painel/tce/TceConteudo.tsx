@@ -2,7 +2,7 @@
  * Dinheiro federal no TCE-PB: o Pix por município e a conciliação SICONV × TCE-PB, num ano.
  * Recebe a leitura pronta (lib/oportunidades/tce.server.ts); aqui só se apresenta.
  */
-import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
   CAPITAL_MINIMO,
@@ -60,9 +60,10 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
           <Termo slug="tce-pb">TCE-PB</Termo>) — e o contrário.
         </p>
         <p className="mp-fiscal-aviso">{AVISO_TCE}</p>
+        {/* A4x (08/10/2026): o `dado_ate` é carimbo com hora; a data é a do dia em Brasília, e não a de UTC. */}
         <p className="pa-nota">
           {descreverCobertura(cob)} para {ano}
-          {leitura.execucao.dado_ate ? ` · arquivo mais novo do TCE-PB de ${formatarData(leitura.execucao.dado_ate)}` : ""}.
+          {leitura.execucao.dado_ate ? ` · arquivo mais novo do TCE-PB de ${dataBrasilia(leitura.execucao.dado_ate)}` : ""}.
         </p>
       </div>
 

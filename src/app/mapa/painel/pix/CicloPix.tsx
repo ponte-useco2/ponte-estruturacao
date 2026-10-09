@@ -3,6 +3,7 @@
  * vez do município primeiro e do prazo mais próximo. É a lista de quem procurar antes que o plano fique impedido.
  */
 import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { diasAte, ordenarCiclo } from "@/lib/oportunidades/pix-ciclo";
 import type { LeituraCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import { urlLaudoPix } from "@/lib/oportunidades/pix-laudo";
@@ -34,10 +35,11 @@ function Conteudo({ leitura, hoje }: { leitura: LeituraCicloPix | null; hoje: st
   const planos = ordenarCiclo(leitura.planos);
   const ente = planos.filter((p) => p.vez === "ente");
   const anos = Array.isArray(c.ciclo_anos) ? (c.ciclo_anos as number[]).join(" e ") : "do exercício";
+  // A4x (08/10/2026): o `dado_ate` da coleta é carimbo com hora; o dia é o de Brasília, e não o de UTC.
   return (
     <>
       <p className="pa-nota">
-        Coleta diária de {leitura.dado_ate ? formatarData(leitura.dado_ate.slice(0, 10)) : "—"}: {String(c.ciclo_planos_uf ?? "—")} planos de {anos}{" "}
+        Coleta diária de {dataBrasilia(leitura.dado_ate)}: {String(c.ciclo_planos_uf ?? "—")} planos de {anos}{" "}
         na UF; {planos.length === 0 ? "nenhum com o plano de trabalho pendente." : `${planos.length} pendentes, ${ente.length} com a vez do município.`}{" "}
         {Number(c.ciclo_prazos_cadastrados ?? 0) === 0
           ? "Nenhum prazo de comunicado cadastrado: os prazos aparecem quando o comunicado do ciclo for cadastrado."

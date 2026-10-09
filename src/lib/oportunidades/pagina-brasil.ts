@@ -5,6 +5,7 @@
  * 2D pela malha do IBGE, com cor só por região (macrorregião no Brasil, região intermediária na Paraíba), nunca por
  * problema. Aqui fica o que é puro. Sem banco.
  */
+import { diaBrasilia } from "./datas.ts";
 import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
 import { NOME_UF, totalTerritorio, porSituacao, type LinhaTerritorio } from "./pagina-uf.ts";
 import type { ColunaCsv, LinhaDesfecho } from "./painel.ts";
@@ -181,10 +182,11 @@ export function partesDoRelatorioBrasil(nivel: NivelAcesso): AbaBrasil[] {
 
 /**
  * O ano das contas "do ano" (propostas e Pix): o da referência do painel, senão o do dado, senão o de `hoje`. Antes a
- * conta se repetia na página e no CSV, cada uma com uma saída diferente para a data que falta.
+ * conta se repetia na página e no CSV, cada uma com uma saída diferente para a data que falta. O `dado_ate` é carimbo
+ * com hora: entra pelo dia de Brasília (A4x), senão o arquivo da noite de 31/12 contaria como o ano seguinte.
  */
 export function anoDeReferencia(execucao: { referencia: string | null; dado_ate: string | null }, hoje = ""): number {
-  return Number((execucao.referencia ?? execucao.dado_ate ?? hoje).slice(0, 4));
+  return Number((execucao.referencia ?? (execucao.dado_ate ? diaBrasilia(execucao.dado_ate) : hoje)).slice(0, 4));
 }
 
 /** Uma fonte do relatório, com a data do dado quando a leitura traz (o mesmo formato do relatório do município). */
@@ -194,22 +196,27 @@ export interface FonteRelatorio {
   nota: string;
 }
 
-/** As fontes do Brasil, cada uma com a sua data: o arquivo do Transferegov, o do Pix e o das janelas. */
+/**
+ * As fontes do Brasil, cada uma com a sua data: o arquivo do Transferegov, o do Pix e o das janelas. As datas são os
+ * `dado_ate` das execuções (carimbos com hora) e saem como o dia de Brasília (A4x, 08/10/2026): o arquivo de 07/10,
+ * 22h34, saía como 08/10.
+ */
 export function fontesDoBrasil(datas: { painel: string | null; pix: string | null; janelas: string | null }): FonteRelatorio[] {
+  const dia = (x: string | null) => (x ? diaBrasilia(x) : null);
   return [
     {
       fonte: "Transferegov (arquivos abertos do SICONV)",
-      data: datas.painel,
+      data: dia(datas.painel),
       nota: "Instrumentos vivos por UF, situação, órgão e tema; propostas por ano de envio e o que aconteceu com elas; tempo das etapas.",
     },
     {
       fonte: "API das transferências especiais (Pix) e do fundo a fundo",
-      data: datas.pix,
+      data: dia(datas.pix),
       nota: "Planos de ação do Pix por ano da emenda e do fundo a fundo por ano.",
     },
     {
       fonte: "Programas do Transferegov (catálogo do Mapa)",
-      data: datas.janelas,
+      data: dia(datas.janelas),
       nota: "Janelas abertas por UF; o mesmo programa aberto em mais de uma UF conta em cada uma.",
     },
     { fonte: "IBGE (API de malhas v3)", data: null, nota: "O contorno das UFs no mapa; a cor é só a da macrorregião." },

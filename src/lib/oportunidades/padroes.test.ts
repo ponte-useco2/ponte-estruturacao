@@ -261,6 +261,70 @@ test("tituloOrgao põe o acento que o SICONV esquece e deixa os conectivos em mi
   assert.equal(tituloOrgao("MINISTERIO DA JUSTICA E SEGURANCA PUBLICA"), "Ministério da Justiça e Segurança Pública");
 });
 
+test("A4x: os 36 órgãos superiores da execução 42 do painel saem com acento, sigla e conectivos certos", () => {
+  // Lista tirada do banco em 08/10/2026 (painel_territorio, painel_etapa_tempo, painel_instrumento, painel_proposta e
+  // painel_programa_desfecho da execução 42), na grafia em que o SICONV grava.
+  const casos: [string, string][] = [
+    ["ADVOCACIA-GERAL DA UNIAO", "Advocacia-Geral da União"],
+    ["CONSELHO NACIONAL DE JUSTIÇA", "Conselho Nacional de Justiça"],
+    ["JUSTICA ELEITORAL", "Justiça Eleitoral"],
+    ["MGI - MINISTÉRIO DA GESTÃO E DA INOVAÇÃO EM SERVIÇOS PÚBLICOS", "MGI - Ministério da Gestão e da Inovação em Serviços Públicos"],
+    ["MIN.DAS MULH., DA IG.RACIAL E DOS DIR.HUMANOS", "Min. das Mulh., da Ig. Racial e dos Dir. Humanos"],
+    ["MINISTÉRIO DA AGRICULTURA E PECUÁRIA", "Ministério da Agricultura e Pecuária"],
+    ["MINISTÉRIO DA CIÊNCIA, TECNOLOGIA E INOVAÇÃO", "Ministério da Ciência, Tecnologia e Inovação"],
+    ["MINISTERIO DA CULTURA", "Ministério da Cultura"],
+    ["MINISTERIO DA DEFESA", "Ministério da Defesa"],
+    ["MINISTERIO DA ECONOMIA", "Ministério da Economia"],
+    ["MINISTERIO DA EDUCACAO", "Ministério da Educação"],
+    ["MINISTÉRIO DA IGUALDADE RACIAL", "Ministério da Igualdade Racial"],
+    ["MINISTERIO DA INFRAESTRUTURA", "Ministério da Infraestrutura"],
+    ["MINISTÉRIO DA INTEGRAÇÃO E DO DESENVOLVIMENTO REGIONAL", "Ministério da Integração e do Desenvolvimento Regional"],
+    ["MINISTERIO DA JUSTICA E SEGURANCA PUBLICA", "Ministério da Justiça e Segurança Pública"],
+    ["MINISTÉRIO DA PESCA E AQUICULTURA", "Ministério da Pesca e Aquicultura"],
+    ["MINISTERIO DA SAUDE", "Ministério da Saúde"],
+    ["MINISTERIO DAS CIDADES", "Ministério das Cidades"],
+    ["MINISTERIO DAS COMUNICACOES", "Ministério das Comunicações"],
+    ["MINISTÉRIO DAS MULHERES", "Ministério das Mulheres"],
+    ["MINISTERIO DAS RELACOES EXTERIORES", "Ministério das Relações Exteriores"],
+    ["MINISTERIO DE MINAS E ENERGIA", "Ministério de Minas e Energia"],
+    ["MINISTÉRIO DE PORTOS E AEROPORTOS", "Ministério de Portos e Aeroportos"],
+    ["MINISTÉRIO DO DESENVOLVIMENTO AGRÁRIO E AGRICULTURA FAMILIAR", "Ministério do Desenvolvimento Agrário e Agricultura Familiar"],
+    [
+      "MINISTÉRIO DO DESENVOLVIMENTO E ASSISTÊNCIA SOCIAL, FAMÍLIA E COMBATE FOME",
+      "Ministério do Desenvolvimento e Assistência Social, Família e Combate Fome",
+    ],
+    ["MINISTÉRIO DO DESENVOLVIMENTO, INDÚSTRIA, COMÉRCIO E SERVIÇOS", "Ministério do Desenvolvimento, Indústria, Comércio e Serviços"],
+    [
+      "MINISTÉRIO DO EMPREENDEDORISMO, DA MICROEMPRESA E DA EMPRESA DE PEQUENO PORTE",
+      "Ministério do Empreendedorismo, da Microempresa e da Empresa de Pequeno Porte",
+    ],
+    ["MINISTERIO DO ESPORTE", "Ministério do Esporte"],
+    ["MINISTERIO DO MEIO AMBIENTE", "Ministério do Meio Ambiente"],
+    ["MINISTERIO DO PLANEJAMENTO, DESENVOLVIMENTO E GESTAO", "Ministério do Planejamento, Desenvolvimento e Gestão"],
+    ["MINISTERIO DO TRABALHO E EMPREGO", "Ministério do Trabalho e Emprego"],
+    ["MINISTERIO DO TURISMO", "Ministério do Turismo"],
+    ["MINISTERIO DOS DIREITOS HUMANOS E CIDADANIA", "Ministério dos Direitos Humanos e Cidadania"],
+    ["MINISTERIO DOS POVOS INDIGENAS", "Ministério dos Povos Indígenas"],
+    ["PRESIDENCIA DA REPÚBLICA", "Presidência da República"],
+    ["SEC.ESPEC.DE AGRIC.FAMIL.E DO DESENV.AGRARIO", "Sec. Espec. de Agric. Famil. e do Desenv. Agrário"],
+  ];
+  assert.equal(casos.length, 36);
+  for (const [cru, esperado] of casos) assert.equal(tituloOrgao(cru), esperado, cru);
+});
+
+test("A4x: grafias antigas, sigla de outro órgão e os nomes que não são de órgão", () => {
+  assert.equal(
+    tituloOrgao("MINISTERIO DA CIENCIA, TECNOLOGIA, INOVACOES E COMUNICACOES"),
+    "Ministério da Ciência, Tecnologia, Inovações e Comunicações",
+  );
+  assert.equal(tituloOrgao("MINISTERIO DA AGRICULTURA, PECUARIA E ABASTECIMENTO"), "Ministério da Agricultura, Pecuária e Abastecimento");
+  assert.equal(tituloOrgao("FMS - FUNDO MUNICIPAL DE SAUDE"), "FMS - Fundo Municipal de Saúde");
+  // O proponente e o município (o laudo e a página da UF usam a mesma função) não mudam.
+  assert.equal(tituloOrgao("MUNICIPIO DE SOUSA"), "Município de Sousa");
+  assert.equal(tituloOrgao("ESTADO DA PARAIBA"), "Estado da Paraíba");
+  assert.equal(tituloOrgao("SOUSA"), "Sousa", "nome de uma palavra só não vira sigla");
+});
+
 test("o lote do analista conta pelo dia de Brasília, não pelo de UTC", () => {
   const eventos = [
     ev("1", "2025-12-15T12:00:00Z", "ANA", "complementação solicitada"),

@@ -10,10 +10,10 @@
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import {
   ABAS_ENTIDADE,
-  RECORTE_BASE_ENTIDADE,
   ROTULO_ESPECIE,
   carteiraPorSituacao,
   dinheiroPorOrgao,
@@ -41,6 +41,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { InstrumentoRelatorio, PropostaRelatorio, Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import type { IdentidadeEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
 import { lugarDaEntidade, trilha } from "@/lib/oportunidades/trilha";
+import { RECORTE_DA_BASE } from "@/lib/oportunidades/vazios";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
@@ -208,8 +209,8 @@ export function Sobre({ e, instrumentos, propostas }: { e: IdentidadeEntidade; i
           )}
         </dd>
       </dl>
-      {/* Sem nada na base, o `EntidadeVazia` logo acima já diz o recorte (C1c). */}
-      {(instrumentos.length > 0 || propostas.length > 0) && <p className="pa-nota">{RECORTE_BASE_ENTIDADE}</p>}
+      {/* Sem nada na base, o `EntidadeVazia` logo acima já diz o recorte (C1c). O texto é o de `vazios.ts` (A4x). */}
+      {(instrumentos.length > 0 || propostas.length > 0) && <p className="pa-nota">{RECORTE_DA_BASE}</p>}
     </Secao>
   );
 }
@@ -312,9 +313,10 @@ export function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; 
           )}
         </dd>
       </dl>
+      {/* A4x: o Last-Modified das planilhas é carimbo com hora; a data é a do dia em Brasília, e não a de UTC. */}
       <p className="pa-nota">
         A área de atuação é a classificação do Ipea, pelo nome e pela atividade declarada. As planilhas de CEBAS do Mapa são de{" "}
-        {osc.fonte.cebasModificado ? dataCurta(new Date(osc.fonte.cebasModificado).toISOString()) : "data não informada"}: a certificação é
+        {dataBrasilia(osc.fonte.cebasModificado, "data não informada")}: a certificação é
         renovada por processo, e a situação atual se confere no ministério certificador. Endereço, dirigentes e contatos não entram nesta página.
       </p>
     </Secao>
@@ -425,7 +427,7 @@ export function EntidadeVazia({ e, cadastro = false }: { e: Pick<IdentidadeEntid
   return (
     <div className="pa-cartao pa-cartao-plano">
       <p>
-        <strong>Nenhum instrumento nem proposta deste CNPJ na base do Mapa.</strong> {RECORTE_BASE_ENTIDADE}
+        <strong>Nenhum instrumento nem proposta deste CNPJ na base do Mapa.</strong> {RECORTE_DA_BASE}
       </p>
       {cadastro && (
         <p>

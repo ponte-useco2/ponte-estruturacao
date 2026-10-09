@@ -34,6 +34,61 @@
 .pa-root .mp-busca-vazio ul { margin: 0; display: grid; gap: 0.45rem; }
 .pa-root .mp-busca-vazio li { color: var(--pa-muted); }
 
+/* =====================================================================
+   C2 (onda 4 de UX, 08/10/2026) — a busca unificada: cinco grupos em
+   lista, não em tabela, para caber em 375 px sem rolar de lado. Tudo
+   quebra linha (flex-wrap, overflow-wrap) e o alvo de toque do nome tem
+   44 px. Só tokens do Mapa.
+   ===================================================================== */
+
+/* A região viva com o total: a frase que resume a busca, à vista. */
+.pa-root .mp-unif-total { margin: 1.25rem 0 0.25rem; font-weight: 600; color: var(--pa-text); overflow-wrap: anywhere; }
+.pa-root .mp-unif-aviso { margin: 0.25rem 0 0; }
+.pa-root .mp-unif-alerta { margin: 0.75rem 0 0; }
+
+/* Cada grupo: o título com a contagem, a linha do alcance e a lista. */
+.pa-root .mp-unif-grupo { display: grid; gap: 0.4rem; min-width: 0; }
+.pa-root .mp-unif-grupo .mp-unif-titulo { margin: 0; }
+.pa-root .mp-unif-n { font-weight: 400; color: var(--pa-muted); }
+.pa-root .mp-unif-alcance { margin: 0; font-size: 0.82rem; color: var(--pa-muted); line-height: 1.45; }
+
+.pa-root .mp-unif-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; min-width: 0; }
+.pa-root .mp-unif-lista li { display: grid; gap: 0.1rem; min-width: 0; padding-bottom: 0.6rem; border-bottom: 1px solid var(--pa-border); }
+.pa-root .mp-unif-lista li:last-child { border-bottom: 0; padding-bottom: 0; }
+.pa-root .mp-unif-lista .mp-unif-nome {
+  display: inline-flex; align-items: center; min-height: 44px; justify-self: start; max-width: 100%;
+  font-weight: 700; font-size: 1rem; color: var(--pa-brand-2);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.pa-root .mp-unif-lista .mp-unif-nome:hover { text-decoration-thickness: 2px; }
+.pa-root .mp-unif-principal { font-size: 0.92rem; color: var(--pa-text); overflow-wrap: anywhere; }
+.pa-root .mp-unif-sec { font-size: 0.82rem; color: var(--pa-muted); line-height: 1.45; overflow-wrap: anywhere; }
+.pa-root .mp-unif-sec a { color: var(--pa-brand-2); text-decoration: underline; text-underline-offset: 2px; }
+/* O objeto do convênio pode ter parágrafos: duas linhas aqui, inteiro na página do convênio. */
+.pa-root .mp-unif-objeto { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+
+.pa-root .mp-unif-vazio, .pa-root .mp-unif-espera { margin: 0; color: var(--pa-muted); }
+.pa-root .mp-unif-falha { margin: 0; color: var(--pa-danger); }
+.pa-root .mp-unif-falha a { color: var(--pa-brand-2); text-decoration: underline; text-underline-offset: 2px; }
+
+/* "Ver todos (N)" e o Brasil inteiro: botão e link lado a lado, quebrando no celular. */
+.pa-root .mp-unif-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.pa-root .mp-unif-brasil { font-size: 0.82rem; color: var(--pa-muted); }
+.pa-root .mp-unif-brasil a { display: inline-flex; align-items: center; min-height: 44px; color: var(--pa-brand-2); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Municípios e entidades abrem o resto no lugar (não têm aba): o resumo do <details> é o alvo de toque. */
+.pa-root .mp-unif-mais { display: grid; gap: 0.5rem; }
+.pa-root .mp-unif-mais > summary {
+  display: inline-flex; align-items: center; min-height: 44px; cursor: pointer;
+  color: var(--pa-brand-2); font-weight: 600; text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* Sem termo: o que cada grupo acha. */
+.pa-root .mp-unif-inicio { margin: 0; display: grid; gap: 0.4rem; color: var(--pa-muted); }
+.pa-root .mp-unif-inicio strong { color: var(--pa-text); }
+
 @media print {
   .mp-busca-municipio-filtro { display: none !important; }
+  .mp-unif-acoes, .mp-unif-brasil { display: none !important; }
 }

@@ -18,18 +18,34 @@ import {
   type LinhaInvestimento,
   type ParametrosBusca,
   type PropostaBusca,
+  urlInstrumento,
 } from "./busca";
 import {
   CANDIDATOS_PB,
+  casarMunicipios,
   municipiosDaBusca,
   ondeProcurarMunicipio,
+  pareceMunicipio,
   regexMunicipio,
   type MunicipioAchado,
   type MunicipioNome,
 } from "./busca-municipio";
+import {
+  LIMITE_GRUPO,
+  MOTIVO_MUNICIPIO_FORA,
+  casarEntidades,
+  entidadeAchada,
+  escopoUnificado,
+  type EntidadeAchada,
+  type Entrada,
+  type GrupoLido,
+  type ProponenteBusca,
+} from "./busca-unificada";
 import { ehEsquemaAusente } from "./esquema";
-import type { FonteOsc } from "./osc";
-import { buscarOsc, type OscBusca } from "./osc.server";
+import { criarMemoria } from "./memoria";
+import { nomeOsc, type FonteOsc } from "./osc";
+import { buscarOsc, lerCadastroOsc, type OscBusca } from "./osc.server";
+import { todas } from "./padroes.server";
 import type { LinhaEtapa, PropostaPainel } from "./painel";
 
 export interface ExecucaoBusca {
@@ -101,9 +117,10 @@ const LIMITE_NOMES_FORA_PB = 60;
 /**
  * Os municípios de fora da PB cujo nome casa com o termo (B12), em `painel_municipio`: uma linha por município com
  * sinal no painel, 3,7 mil no total; com a peneira de `regexMunicipio`, de 4 a 13 ms medidos com EXPLAIN ANALYZE em
- * 08/10/2026 (no caso mais largo, "sao", 224 nomes casam e vêm os 60 primeiros). Se falhar, a busca segue sem eles.
+ * 08/10/2026 (no caso mais largo, "sao", 224 nomes casam e vêm os 60 primeiros). Se falhar, a busca segue sem eles:
+ * null, para a busca unificada (C2) dizer que faltaram os de fora da PB.
  */
-async function nomesForaDaPb(db: Banco, execucaoId: number, q: string): Promise<MunicipioNome[]> {
+async function nomesForaDaPb(db: Banco, execucaoId: number, q: string): Promise<MunicipioNome[] | null> {
   const re = regexMunicipio(q);
   if (!re) return [];
   const r = await db
@@ -116,7 +133,7 @@ async function nomesForaDaPb(db: Banco, execucaoId: number, q: string): Promise<
     .limit(LIMITE_NOMES_FORA_PB);
   if (r.error) {
     console.error("lerBusca (municípios pelo nome):", r.error.message);
-    return [];
+    return null;
   }
   return ((r.data ?? []) as OpcaoMunicipioBusca[]).flatMap((m) => (m.municipio ? [{ ibge: m.cod_ibge, nome: m.municipio }] : []));
 }
@@ -140,10 +157,13 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
   const onde = ondeProcurarMunicipio(p);
   const fora =
     onde === "brasil"
-      ? nomesForaDaPb(db, ex.id, p.q).catch((e: unknown) => {
-          console.error("lerBusca (municípios pelo nome):", e instanceof Error ? e.message : e);
-          return [] as MunicipioNome[];
-        })
+      ? nomesForaDaPb(db, ex.id, p.q).then(
+          (l) => l ?? [],
+          (e: unknown) => {
+            console.error("lerBusca (municípios pelo nome):", e instanceof Error ? e.message : e);
+            return [] as MunicipioNome[];
+          },
+        )
       : Promise.resolve([] as MunicipioNome[]);
   const grupoDeMunicipios = (daUf: OpcaoMunicipioBusca[], deFora: MunicipioNome[]) => {
     if (!onde) return nenhumMunicipio;
@@ -202,6 +222,163 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
     municipios: daUf,
     ...grupoDeMunicipios(daUf, deFora),
   };
+}
+
+// ============================ BUSCA UNIFICADA (C2) ============================
+
+/**
+ * Os proponentes da PB com convênio, para as entidades pelo nome (C2, 08/10/2026). É a mesma função da página da UF
+ * (`painel_territorio_proponente`, pelo índice da UF): 498 linhas e 36 ms medidos com EXPLAIN ANALYZE na execução 42
+ * (a primeira chamada, com a instância parada, levou 1,9 s com tudo no cache). A lista muda uma vez por dia: fica 10
+ * minutos na memória da instância, e o casamento pelo nome (`casarEntidades`) é feito aqui, sem banco.
+ */
+const memoriaProponentesPb = criarMemoria<ProponenteBusca[] | null>({ validadeMs: 10 * 60 * 1000, maximo: 3, guardar: (l) => l !== null });
+
+function proponentesDaPb(db: Banco, execucaoId: number): Promise<ProponenteBusca[] | null> {
+  return memoriaProponentesPb.obter(String(execucaoId), async () => {
+    const r = await todas<ProponenteBusca>("busca unificada (entidades da PB)", (a, b) =>
+      db.rpc("painel_territorio_proponente", { p_execucao: execucaoId, p_uf: "PB" }).order("cnpj").range(a, b),
+    );
+    return Array.isArray(r) ? r : null;
+  });
+}
+
+type LinhaProponente = { proponente: string | null; tipo_agente: string | null; uf: string | null; municipio: string | null };
+
+/**
+ * A entidade de um CNPJ completo, de qualquer UF: o primeiro convênio, a primeira proposta ou o cadastro das OSC — os
+ * mesmos três lugares que decidem se a página da entidade existe (`lerRelatorioEntidade`). Três leituras por índice,
+ * em paralelo (de 0,1 a 2 ms cada, medidas em 08/10/2026). Sem ordenar: com ordem, o CNPJ de 188 convênios lia todos.
+ */
+async function entidadePorCnpj(db: Banco, execucaoId: number, cnpj: string): Promise<EntidadeAchada | null> {
+  const colunas = "proponente,tipo_agente,uf,municipio";
+  const [ins, pro, osc] = await Promise.all([
+    db.from("painel_instrumento").select(colunas).eq("execucao_id", execucaoId).eq("cnpj", cnpj).limit(1),
+    db.from("painel_proposta").select(colunas).eq("execucao_id", execucaoId).eq("cnpj", cnpj).limit(1),
+    lerCadastroOsc(cnpj, null),
+  ]);
+  if (ins.error) throw new Error(ins.error.message);
+  if (pro.error) throw new Error(pro.error.message);
+  const l = ((ins.data ?? []) as LinhaProponente[])[0] ?? ((pro.data ?? []) as LinhaProponente[])[0];
+  // A OSC do Mapa das OSC é OSC, qualquer que seja o tipo gravado no painel (a mesma regra da página da entidade).
+  const ehOsc = osc.estado === "ok";
+  if (l) return entidadeAchada({ cnpj, nome: l.proponente, tipo_agente: l.tipo_agente, especie: ehOsc ? "osc" : undefined, municipio: l.municipio, uf: l.uf });
+  if (osc.estado === "ok") return entidadeAchada({ cnpj, nome: nomeOsc(osc.cadastro), especie: "osc", municipio: osc.cadastro.municipio, uf: "PB" });
+  return null;
+}
+
+/** O convênio de um número exato, pelo índice `(execucao_id, nr_convenio)`: 5,6 ms medidos. */
+async function convenioPeloNumero(db: Banco, execucaoId: number, numero: string): Promise<string | null> {
+  const r = await db
+    .from("painel_instrumento")
+    .select("nr_convenio")
+    .eq("execucao_id", execucaoId)
+    .in("nr_convenio", [...new Set([numero, numero.toUpperCase()])])
+    .limit(1);
+  if (r.error) {
+    console.error("busca unificada (número do convênio):", r.error.message);
+    return null;
+  }
+  return ((r.data ?? []) as { nr_convenio: string }[])[0]?.nr_convenio ?? null;
+}
+
+/** Os cinco grupos, cada um uma leitura em andamento: a página mostra cada grupo quando o dele chega. */
+export interface GruposUnificados {
+  municipios: Promise<GrupoLido<MunicipioAchado>>;
+  entidades: Promise<GrupoLido<EntidadeAchada>>;
+  organizacoes: Promise<GrupoLido<OscBusca>>;
+  convenios: Promise<GrupoLido<InstrumentoBusca>>;
+  propostas: Promise<GrupoLido<PropostaBusca>>;
+}
+
+export type LeituraUnificada =
+  | Falha
+  /** A entrada exata achou a página: a página da busca redireciona. */
+  | { estado: "direto"; destino: string }
+  /** `grupos` null: nada que procurar (campo vazio ou só curinga). */
+  | { estado: "ok"; execucao: ExecucaoBusca; grupos: GruposUnificados | null };
+
+/** Cada grupo falha sozinho: o erro vai para o log e vira `{ estado: "erro" }`, sem derrubar os outros. */
+function sozinho<T>(onde: string, ler: () => Promise<GrupoLido<T>>): Promise<GrupoLido<T>> {
+  return ler().catch((e: unknown) => {
+    console.error(`busca unificada (${onde}):`, e instanceof Error ? e.message : e);
+    return { estado: "erro" } as const;
+  });
+}
+
+/**
+ * A busca unificada (C2, 08/10/2026). Lê a execução do painel e, se a entrada é exata e veio do formulário (`direto`),
+ * procura a página dela antes de tudo: o convênio pelo número, a entidade pelo CNPJ. Achou: devolve o destino e não
+ * dispara mais nada. Senão, dispara os cinco grupos em paralelo e devolve as leituras em andamento, sem esperar.
+ * Medições (EXPLAIN ANALYZE, PB, "patos"): municípios de fora 4–61 ms, entidades da memória 0 ms (36 ms ao ler),
+ * organizações 10 ms (752 ms com o disco frio), convênios e propostas 23 ms cada.
+ */
+export async function lerBuscaUnificada(p: ParametrosBusca, entrada: Entrada, direto: boolean): Promise<LeituraUnificada> {
+  if (!authConfigurada()) return { estado: "nao_ativado" };
+  const db = clienteServidor();
+  const ex = await execucaoAtual(db, "lerBuscaUnificada");
+  if (ehFalha(ex)) return ex;
+  const termos = termosDaBusca(p.q);
+  if (!termos.length) return { estado: "ok", execucao: ex, grupos: null };
+
+  const exata = entrada.tipo === "cnpj" ? entidadePorCnpj(db, ex.id, entrada.cnpj) : null;
+  // Sem isto, um erro da leitura exata sem ninguém esperando (o caso sem `direto`, antes do grupo) sairia como rejeição solta.
+  exata?.catch(() => undefined);
+  if (direto && entrada.tipo === "numero") {
+    const nr = await convenioPeloNumero(db, ex.id, entrada.numero);
+    if (nr) return { estado: "direto", destino: urlInstrumento(nr) };
+  }
+  if (direto && exata) {
+    const e = await exata.catch((erro: unknown) => {
+      console.error("busca unificada (CNPJ):", erro instanceof Error ? erro.message : erro);
+      return null;
+    });
+    if (e) return { estado: "direto", destino: e.href };
+  }
+
+  const escopo = escopoUnificado(p);
+  const rpcComuns = { p_termos: termos, p_uf: escopo.uf, p_ibge: null, p_tema: null, p_limite: LIMITE_GRUPO, p_offset: 0 };
+  const grupos: GruposUnificados = {
+    municipios: sozinho("municípios", async () => {
+      if (!pareceMunicipio(p.q)) return { estado: "fora", motivo: MOTIVO_MUNICIPIO_FORA };
+      const fora = await nomesForaDaPb(db, ex.id, p.q);
+      const achados = casarMunicipios(p.q, [...CANDIDATOS_PB, ...(fora ?? [])]);
+      return {
+        estado: "ok",
+        itens: achados,
+        total: achados.length,
+        mais: (fora?.length ?? 0) >= LIMITE_NOMES_FORA_PB,
+        aviso: fora === null ? "Os municípios de fora da Paraíba não puderam ser lidos agora; aparecem só os da Paraíba." : undefined,
+      };
+    }),
+    entidades: sozinho("entidades", async () => {
+      if (exata) {
+        const e = await exata;
+        return { estado: "ok", itens: e ? [e] : [], total: e ? 1 : 0 };
+      }
+      const lista = await proponentesDaPb(db, ex.id);
+      if (!lista) return { estado: "erro" };
+      const achadas = casarEntidades(p.q, lista);
+      return { estado: "ok", itens: achadas, total: achadas.length };
+    }),
+    organizacoes: sozinho("organizações", async () => {
+      const r = await buscarOsc(termos, null, LIMITE_GRUPO, 0);
+      return r ? { estado: "ok", itens: r.linhas, total: r.total } : { estado: "erro" };
+    }),
+    convenios: sozinho("convênios", async () => {
+      const r = await db.rpc("painel_busca_instrumentos", { ...rpcComuns, p_situacoes: null });
+      if (r.error) throw new Error(r.error.message);
+      const linhas = (r.data ?? []) as InstrumentoBusca[];
+      return { estado: "ok", itens: linhas, total: Number(linhas[0]?.total ?? 0) };
+    }),
+    propostas: sozinho("propostas", async () => {
+      const r = await db.rpc("painel_busca_propostas", { ...rpcComuns, p_desfechos: null });
+      if (r.error) throw new Error(r.error.message);
+      const linhas = (r.data ?? []) as PropostaBusca[];
+      return { estado: "ok", itens: linhas, total: Number(linhas[0]?.total ?? 0) };
+    }),
+  };
+  return { estado: "ok", execucao: ex, grupos };
 }
 
 // ============================ INSTRUMENTO ============================

@@ -108,11 +108,16 @@ test("C1b: o ano das contas «do ano» vem da referência, do dado ou de hoje", 
   assert.equal(anoDeReferencia({ referencia: "2026-10-07", dado_ate: "2025-12-31T00:00:00Z" }, "2027-01-02"), 2026);
   assert.equal(anoDeReferencia({ referencia: null, dado_ate: "2025-12-31T00:00:00Z" }, "2027-01-02"), 2025);
   assert.equal(anoDeReferencia({ referencia: null, dado_ate: null }, "2027-01-02"), 2027);
+  // A4x: o arquivo das 22h30 de 31/12 em Brasília é do ano que termina, mesmo já sendo 1º de janeiro em UTC.
+  assert.equal(anoDeReferencia({ referencia: null, dado_ate: "2026-01-01T01:30:00+00:00" }, "2026-01-02"), 2025);
 });
 
 test("C1b: fontes com a data de cada uma e método em texto neutro", () => {
   const f = fontesDoBrasil({ painel: "2026-10-07T03:00:00Z", pix: "2026-10-06", janelas: null });
-  assert.deepEqual(f.map((x) => x.data), ["2026-10-07T03:00:00Z", "2026-10-06", null, null]);
+  assert.deepEqual(f.map((x) => x.data), ["2026-10-07", "2026-10-06", null, null]);
+  // A4x: o carimbo vira o dia de Brasília (o arquivo de 07/10, 22h34, não sai como 08/10); a data pura passa direto.
+  const noite = fontesDoBrasil({ painel: "2026-10-08T01:34:18+00:00", pix: "2026-10-06T03:00:00+00:00", janelas: "2026-10-08T01:34:18+00:00" });
+  assert.deepEqual(noite.map((x) => x.data), ["2026-10-07", "2026-10-06", "2026-10-07", null]);
   assert.match(f[0].fonte, /Transferegov/);
   assert.match(f[1].fonte, /Pix/);
   assert.match(f[3].fonte, /IBGE/);

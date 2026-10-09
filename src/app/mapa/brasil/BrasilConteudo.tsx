@@ -6,7 +6,7 @@
  * Desde a C1b (08/10/2026) cada aba é um bloco exportado, como no município: o relatório para imprimir
  * (`/mapa/brasil/relatorio`) junta os mesmos blocos, e a aba "Relatório e dados" ficou curta (o link, o CSV e as fontes).
  */
-import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import malhaBrasil from "@/lib/oportunidades/malhas/brasil-uf.json";
 import {
   ABAS_BRASIL,
@@ -40,7 +40,8 @@ import { Dinheiro } from "../uf/[sigla]/UfConteudo";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 const n = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("pt-BR"));
-const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
+// A4x (08/10/2026): o `dado_ate` é carimbo com hora; o dia é o de Brasília (o arquivo de 07/10, 22h34, saía como 08/10).
+const data = (iso: string | null | undefined) => dataBrasilia(iso);
 const pct = (x: number | null) => (x === null ? "—" : `${x.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`);
 
 function Cabeca({ l }: { l: LeituraBrasilOk }) {

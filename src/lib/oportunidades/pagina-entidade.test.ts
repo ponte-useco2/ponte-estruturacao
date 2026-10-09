@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   ABAS_ENTIDADE,
   COLUNAS_CSV_INSTRUMENTOS,
-  RECORTE_BASE_ENTIDADE,
   abaDaEntidade,
   areaExcetuadaDe,
   carteiraPorSituacao,
@@ -162,16 +161,14 @@ test("C1c: o relatório para imprimir segue a aba «Relatório e dados» — mes
   assert.equal(urlRelatorioEntidade("09084815000170"), "/mapa/entidade/09084815000170/relatorio");
 });
 
-test("C1c: entidade sem instrumento nem proposta — o recorte da base e as saídas (nome e Transferegov)", () => {
-  assert.match(RECORTE_BASE_ENTIDADE, /todos os de proponente da Paraíba desde 2008/);
-  assert.match(RECORTE_BASE_ENTIDADE, /fora da Paraíba, só os em execução, em prestação de contas ou em tomada de contas especial/);
-  assert.match(RECORTE_BASE_ENTIDADE, /Propostas: todas as de proponente da Paraíba desde 2019; fora da Paraíba, as dos últimos três anos/);
+test("C1c: entidade sem instrumento nem proposta — as saídas (nome e Transferegov)", () => {
+  // O recorte da base, que a ficha também diz, é testado em `vazios.test.ts` (`RECORTE_DA_BASE`, A4x).
   const s = saidasEntidadeVazia({ cnpj: "09282237000187", nome: "ACAO SOCIAL DIOCESANA DE PATOS" });
   assert.deepEqual(
     s.map((x) => x.rotulo),
     ["Procurar «ACAO SOCIAL DIOCESANA DE PATOS» nos convênios", "Procurar «ACAO SOCIAL DIOCESANA DE PATOS» nas propostas", "Abrir a consulta pública do Transferegov"],
   );
-  assert.equal(s[0].href, "/mapa/busca?q=ACAO+SOCIAL+DIOCESANA+DE+PATOS");
+  assert.equal(s[0].href, "/mapa/busca?aba=instrumentos&q=ACAO+SOCIAL+DIOCESANA+DE+PATOS");
   assert.equal(s[1].href, "/mapa/busca?aba=propostas&q=ACAO+SOCIAL+DIOCESANA+DE+PATOS");
   assert.deepEqual(s[2], { rotulo: "Abrir a consulta pública do Transferegov", href: TRANSFEREGOV_CONSULTA, externo: true });
   assert.ok(s.slice(0, 2).every((x) => !x.externo), "a busca é do Mapa");

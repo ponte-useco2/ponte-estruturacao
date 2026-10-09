@@ -4,6 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/datas";
 import {
   FATIA_ALTA,
   PAGO_MINIMO_CONCENTRACAO,
@@ -13,6 +14,7 @@ import {
   nomeFornecedor,
   urlFornecedor,
   type ConcentracaoMunicipio,
+  type LeituraCeisCnep,
 } from "@/lib/oportunidades/fornecedores";
 import { POR_PAGINA, type FiltroFornecedores, type LeituraPainelFornecedores, type LinhaPainel } from "@/lib/oportunidades/fornecedores.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -22,7 +24,7 @@ import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPainelFornecedores, { estado: "ok" }>;
 
-const ROTULO_MARCA = { inidoneos: "só inidôneas (TCU)", mei: "só MEI" } as const;
+const ROTULO_MARCA = { inidoneos: "só inidôneas (TCU)", mei: "só MEI", sancionadas: "só com registro vigente no CEIS/CNEP" } as const;
 
 const AVISO =
   "Uso interno da PONTE. Nomes de empresas como registrados nos pagamentos e contratos do SICONV, inclusive de MEI e empresário individual " +
@@ -51,7 +53,8 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
     .filter((m) => m.faixa === "alta" || m.faixa === "moderada")
     .sort((a, b) => (b.maior_fatia ?? 0) - (a.maior_fatia ?? 0) || b.pago_pj - a.pago_pj);
   const altos = concentrados.filter((m) => m.faixa === "alta").length;
-  const referencia = leitura.execucao.referencia ?? leitura.execucao.dado_ate;
+  // Sem `referencia`, o carimbo vira o dia em Brasília (A4x, integração da onda 4).
+  const referencia = leitura.execucao.referencia ?? (leitura.execucao.dado_ate ? diaBrasilia(leitura.execucao.dado_ate) : leitura.execucao.dado_ate);
 
   return (
     <div className="pa-pagina mp-radar">
@@ -79,6 +82,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
         <Cartao titulo="Prefeituras concentradas" numero={n(altos)} nota={`um fornecedor com mais de ${pct(FATIA_ALTA)} do pago a empresas`} />
         <Cartao titulo="MEI" numero={n(totais.mei)} nota="razão social com CPF ou com a raiz do CNPJ na frente" />
       </div>
+      <NotaCeisCnep leitura={leitura.ceisCnep} sancionadas={totais.sancionadas} filtro={filtro} />
 
       <form method="get" action="/mapa/fornecedores" className="mp-filtros mp-busca-form mp-nao-imprimir" role="search">
         <div className="mp-busca-termo">
@@ -116,6 +120,7 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
             <select id="forn-marca" name="marca" defaultValue={filtro.marca ?? ""} className="pa-select">
               <option value="">Todas</option>
               <option value="inidoneos">Inidôneas (TCU)</option>
+              <option value="sancionadas">Com registro no CEIS/CNEP</option>
               <option value="mei">MEI</option>
             </select>
           </Campo>
@@ -203,7 +208,12 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
           </li>
           <li>
             Inidôneos: lista de licitantes inidôneos do TCU, lida no dia da atualização. O início da sanção é o trânsito em julgado do acórdão.
-            CEIS e CNEP, da CGU, ainda não entram.
+          </li>
+          <li>
+            CEIS e CNEP, da CGU: consulta semanal por CNPJ na API do Portal da Transparência
+            {leitura.ceisCnep.estado === "consultado" ? `, a última em ${formatarData(leitura.ceisCnep.referencia)}` : " (ainda sem rodada)"}. A
+            filial leva junto a consulta da matriz, porque a sanção vale para a empresa inteira. “Vigente” é na data da consulta; registro no
+            cadastro é fato a conferir, e o alcance depende do tipo de sanção e do órgão que a aplicou.
           </li>
         </ul>
       </section>
@@ -246,6 +256,31 @@ function VazioFornecedores({ filtro, municipio }: { filtro: FiltroFornecedores; 
   );
 }
 
+/**
+ * CEIS e CNEP (D1, 08/10/2026), numa linha abaixo dos cartões: quantas empresas têm registro vigente na última
+ * consulta, com o atalho para vê-las; ou que não houve consulta. Sem rodada não é "nenhuma sancionada".
+ */
+function NotaCeisCnep({ leitura, sancionadas, filtro }: { leitura: LeituraCeisCnep; sancionadas: number | null; filtro: FiltroFornecedores }) {
+  if (leitura.estado === "nao_consultado") {
+    return <p className="pa-nota">CEIS/CNEP não consultados: a consulta semanal à API do Portal da Transparência ainda não rodou.</p>;
+  }
+  if (leitura.estado === "falhou" || sancionadas === null) {
+    return <p className="pa-nota">CEIS/CNEP não puderam ser lidos agora: sem marca não quer dizer sem registro. Recarregue em alguns minutos.</p>;
+  }
+  return (
+    <p className="pa-nota">
+      CEIS e CNEP (CGU), consulta de {formatarData(leitura.referencia)}:{" "}
+      {sancionadas === 0 ? "nenhuma empresa com registro vigente." : `${n(sancionadas)} ${sancionadas === 1 ? "empresa" : "empresas"} com registro vigente.`}
+      {sancionadas > 0 && filtro.marca !== "sancionadas" && (
+        <>
+          {" "}
+          <LinkMapa href={url(filtro, { marca: "sancionadas" })}>Ver só elas</LinkMapa>
+        </>
+      )}
+    </p>
+  );
+}
+
 function Cartao({ titulo, numero, nota }: { titulo: string; numero: string; nota: string }) {
   return (
     <article className="pa-cartao">
@@ -279,6 +314,8 @@ function Linha({ l }: { l: LinhaPainel }) {
           {l.mei ? " · MEI" : ""}
         </span>
         {l.inidoneo_tcu && <span className="pa-tag mp-laudo-nivel mp-laudo-critico">inidôneo (TCU)</span>}
+        {l.ceisCnep === "vigente" && <span className="pa-tag mp-laudo-nivel mp-laudo-alto">registro vigente no {l.cadastros ?? "CEIS/CNEP"}</span>}
+        {l.ceisCnep === "encerrada" && <span className="mp-tabela-secundario">registro encerrado no CEIS/CNEP</span>}
       </th>
       <td className="mp-num">
         {n(l.pb_municipios)}

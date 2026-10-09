@@ -71,6 +71,26 @@ test("U1: as somas do job agrupadas como na busca, com os vivos à parte", () =>
   assert.deepEqual(porChave(linhas, "PB", "orgao").map((l) => l.chave), ["MINISTERIO DAS CIDADES", "MINISTERIO DA SAUDE"]);
 });
 
+test("A4x: entre os vivos, o concluído é o que está em tomada de contas especial, e o rótulo diz isso", () => {
+  // O Brasil da execução 42: 17 + 6 + 20 = 43 concluídos vivos, todos com a subsituação "Em processo de TCE".
+  const linhas = [
+    t("BR", "situacao", "Em execução", 46200, 1e11, true),
+    t("BR", "situacao", "Aguardando Prestação de Contas", 900, 1e9, true),
+    t("BR", "situacao", "Prestação de Contas Aprovada", 17, 14_260_086, true),
+    t("BR", "situacao", "Prestação de Contas Aprovada com Ressalvas", 6, 1_483_287, true),
+    t("BR", "situacao", "Prestação de Contas Concluída", 20, 13_567_044, true),
+  ];
+  const vivos = porSituacao(linhas, "BR", true);
+  assert.deepEqual(
+    vivos.map((g) => [g.rotulo, g.n]),
+    [["Em execução", 46200], ["Prestando contas", 900], ["Concluído, em tomada de contas especial", 43]],
+  );
+  assert.ok(!vivos.some((g) => /\bTCE\b/.test(g.rotulo)), "a tomada de contas especial vai por extenso");
+  // Na PB (todos os instrumentos), o concluído é só "Concluído": lá entram também os encerrados.
+  const todos = porSituacao([...linhas.map((l) => ({ ...l, recorte: "PB" })), t("PB", "situacao", "Prestação de Contas Aprovada", 5000, 2e9, false)], "PB");
+  assert.deepEqual(todos.map((g) => g.rotulo), ["Em execução", "Prestando contas", "Concluído"]);
+});
+
 test("U1: quem recebe no estado, pelas lentes da página do município", () => {
   const p = (cnpj: string, proponente: string, tipo: string, n: number, valor: number) => ({ cnpj, proponente, tipo_agente: tipo, cod_ibge: null, municipio: null, instrumentos: n, em_execucao: 1, valor, ultimo_ano: 2025 });
   const l = lentesDaUf([
@@ -219,6 +239,9 @@ test("C1a: fontes só do que a página leu, com a data do dado, e o método com 
   };
   const pb = fontesDaUf(base);
   assert.equal(pb[0].data, "2026-10-07", "o Transferegov leva a data do arquivo");
+  // A4x: o carimbo de 07/10, 22h34 em Brasília (01h34 de 08/10 em UTC), fica em 07/10.
+  assert.equal(fontesDaUf({ ...base, execucao: { dado_ate: "2026-10-08T01:34:18+00:00" } })[0].data, "2026-10-07");
+  assert.equal(fontesDaUf({ ...base, execucao: { dado_ate: null } })[0].data, null);
   assert.deepEqual(pb.map((f) => f.fonte.split(" ")[0]), ["SICONV", "API", "Catálogo", "IBGE:", "Indicadores", "Mapa"]);
   assert.match(pb.at(-1)?.nota ?? "", /setembro de 2026\. Sem endereço nem dirigentes/);
   assert.ok(!pb.some((f) => /uso interno/.test(f.nota)), "quem não é administrador não lê a origem das colunas internas");

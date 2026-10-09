@@ -11,8 +11,14 @@ import { ufDoIbge } from "./painel.ts";
 import { ehTemaConhecido } from "./temas.ts";
 import { urlMunicipio, type AbaMunicipio } from "./pagina-municipio.ts";
 
-/** "organizacoes" (E3): o cadastro do Mapa das OSC (Ipea), só da PB. */
-export type AbaBusca = "instrumentos" | "propostas" | "organizacoes";
+/**
+ * "organizacoes" (E3): o cadastro do Mapa das OSC (Ipea), só da PB.
+ * "tudo" (C2, 08/10/2026): a busca unificada, os cinco tipos num campo só (`busca-unificada.ts`). É a entrada da busca:
+ * sem `aba` na URL. As três listas continuam, e o "Ver todos (N)" de cada grupo leva a elas.
+ */
+export type AbaBusca = "tudo" | "instrumentos" | "propostas" | "organizacoes";
+
+const ABAS_BUSCA: readonly AbaBusca[] = ["tudo", "instrumentos", "propostas", "organizacoes"];
 
 /** Grupos de situação do convênio, em linguagem de gente. As situações são as do arquivo do SICONV. */
 export const GRUPOS_SITUACAO: { id: string; rotulo: string; situacoes: string[] }[] = [
@@ -74,10 +80,37 @@ export interface ParametrosBusca {
 }
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+const preenchido = (v: string | string[] | undefined) => Boolean(um(v)?.trim());
+
+/**
+ * A aba quando a URL não diz (C2, 08/10/2026). Antes da C2, sem `aba` era a lista dos convênios, e as páginas que
+ * filtram essa lista continuam mandando para cá sem `aba`: o tema e a situação no convênio, o município e o tema nos
+ * investimentos, a página 2 da lista. Por isso: tema, situação, município ou página → convênios; termo → unificada;
+ * só a UF, sem termo → convênios (sem termo não há o que unificar); nada → unificada, a entrada.
+ */
+function abaSemParametro(sp: Record<string, string | string[] | undefined>): AbaBusca {
+  if (preenchido(sp.tema) || preenchido(sp.grupo) || preenchido(sp.municipio) || Number(um(sp.pagina)) > 1) return "instrumentos";
+  if (preenchido(sp.q)) return "tudo";
+  return preenchido(sp.uf) ? "instrumentos" : "tudo";
+}
 
 export function parametrosBusca(sp: Record<string, string | string[] | undefined>): ParametrosBusca {
   const abaUrl = um(sp.aba);
-  const aba: AbaBusca = abaUrl === "propostas" || abaUrl === "organizacoes" ? abaUrl : "instrumentos";
+  const aba: AbaBusca = (ABAS_BUSCA as readonly (string | undefined)[]).includes(abaUrl) ? (abaUrl as AbaBusca) : abaSemParametro(sp);
+  if (aba === "tudo") {
+    // C2: a unificada não filtra por tema, situação nem município (são filtros das listas) e não pagina. A UF diz onde
+    // procurar convênios e propostas; a PB é o padrão e fica fora da URL (null), para cada busca ter um endereço só.
+    const ufTudo = um(sp.uf)?.toUpperCase() ?? null;
+    return {
+      aba,
+      q: (um(sp.q) ?? "").trim().slice(0, 200),
+      uf: ufTudo && ufTudo !== "PB" && (UFS as readonly string[]).includes(ufTudo) ? ufTudo : null,
+      municipio: null,
+      tema: null,
+      grupo: null,
+      pagina: 1,
+    };
+  }
   // O cadastro das OSC é só da PB: a UF fica fixa, e tema e grupo não se aplicam.
   const ufUrl = aba === "organizacoes" ? "PB" : (um(sp.uf)?.toUpperCase() ?? null);
   const uf = ufUrl && (UFS as readonly string[]).includes(ufUrl) ? ufUrl : null;
@@ -106,9 +139,21 @@ export function urlBusca(atual: ParametrosBusca, muda: Partial<ParametrosBusca>)
   // Para as organizações a UF é sempre a PB; de volta delas, a PB só fica se houver município escolhido.
   const ufTroca = muda.aba === "organizacoes" ? { tema: null, uf: "PB" } : atual.aba === "organizacoes" && !atual.municipio ? { uf: null } : {};
   const p = { ...atual, pagina: 1, ...(trocouAba ? { grupo: null, ...ufTroca } : {}), ...muda };
+  // C2 (08/10/2026): `parametrosBusca({})` virou a unificada. Quem parte dela e pede tema, situação, município ou só a
+  // UF quer a lista dos convênios, como antes (as etiquetas do convênio, os investimentos do município).
+  if (p.aba === "tudo" && muda.aba === undefined && (p.tema || p.grupo || p.municipio || (!p.q && p.uf))) p.aba = "instrumentos";
   if (p.municipio && ufDoIbge(p.municipio) !== p.uf) p.municipio = null;
+  if (p.aba === "tudo") {
+    p.tema = null;
+    p.grupo = null;
+    p.municipio = null;
+    p.pagina = 1;
+    if (p.uf === "PB") p.uf = null;
+  }
   const q = new URLSearchParams();
-  if (p.aba !== "instrumentos") q.set("aba", p.aba);
+  // C2: sem `aba` é a unificada, então as listas levam a aba sempre. A unificada só a leva sem termo e com UF, o único
+  // endereço dela que, sem a aba, seria lido como a lista dos convênios (`abaSemParametro`).
+  if (p.aba !== "tudo" || (!p.q && p.uf)) q.set("aba", p.aba);
   if (p.q) q.set("q", p.q);
   if (p.uf && p.aba !== "organizacoes") q.set("uf", p.uf);
   if (p.municipio) q.set("municipio", p.municipio);

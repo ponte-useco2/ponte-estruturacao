@@ -11,6 +11,7 @@
  * administrador vê os sinais do painel e a decisão B do fiscal, com ordenação. Aqui fica o que é puro. Sem banco.
  */
 import { GRUPOS_SITUACAO } from "./busca.ts";
+import { diaBrasilia } from "./datas.ts";
 import type { ItemCatalogo } from "./indicadores-municipio.ts";
 import { especieDe, lenteDe, type LenteEntidade } from "./pagina-entidade.ts";
 import { versaoLegivel } from "./osc.ts";
@@ -135,9 +136,26 @@ export interface GrupoSituacaoUf {
   desembolsado: number;
 }
 
-/** As situações de um recorte agrupadas como na busca; o que não casa com nenhum grupo vai em "Outras situações". */
+/** Os grupos que são vivos pela situação: em execução e prestando contas (`VIVAS` de `painel_execucao/instrumentos.py`). */
+const GRUPOS_VIVOS_PELA_SITUACAO = new Set(["execucao", "contas"]);
+/** O que se acrescenta ao rótulo dos outros grupos quando a soma é só dos vivos (A4x). */
+export const SUFIXO_VIVO_POR_TCE = ", em tomada de contas especial";
+
+/**
+ * As situações de um recorte agrupadas como na busca; o que não casa com nenhum grupo vai em "Outras situações".
+ *
+ * Com `soVivos` (o Brasil e as UFs fora da PB), um grupo além de "Em execução" e "Prestando contas" só aparece pela
+ * tomada de contas especial: o job marca vivo a situação em execução ou de prestação de contas OU a subsituação com
+ * "TCE". O rótulo diz isso (A4x, 08/10/2026). Antes a tabela mostrava "Concluído 43" debaixo de "Só os vivos": no
+ * banco, execução 42, são 17 "Prestação de Contas Aprovada", 6 "Aprovada com Ressalvas" e 20 "Concluída", todos com a
+ * subsituação "Em processo de TCE".
+ */
 export function porSituacao(linhas: LinhaTerritorio[], recorte: string, soVivos = false): GrupoSituacaoUf[] {
-  const grupos = [...GRUPOS_SITUACAO.map((g) => ({ id: g.id, rotulo: g.rotulo, situacoes: g.situacoes })), { id: "outro", rotulo: "Outras situações", situacoes: [] as string[] }];
+  const rotulo = (id: string, r: string) => (soVivos && !GRUPOS_VIVOS_PELA_SITUACAO.has(id) ? `${r}${SUFIXO_VIVO_POR_TCE}` : r);
+  const grupos = [
+    ...GRUPOS_SITUACAO.map((g) => ({ id: g.id, rotulo: rotulo(g.id, g.rotulo), situacoes: g.situacoes })),
+    { id: "outro", rotulo: rotulo("outro", "Outras situações"), situacoes: [] as string[] },
+  ];
   const soma = new Map(grupos.map((g) => [g.id, { id: g.id, rotulo: g.rotulo, n: 0, valor: 0, desembolsado: 0 }]));
   for (const l of linhas) {
     if (l.recorte !== recorte || l.dimensao !== "situacao" || (soVivos && !l.vivo)) continue;
@@ -440,7 +458,8 @@ export function fontesDaUf(l: LeituraParaFontesUf, administrador = false): Fonte
   const fontes: FonteUf[] = [
     {
       fonte: "SICONV / Transferegov (arquivos abertos)",
-      data: l.execucao.dado_ate,
+      // A4x (08/10/2026): o `dado_ate` é carimbo com hora; a fonte leva o dia de Brasília, e não o de UTC.
+      data: l.execucao.dado_ate ? diaBrasilia(l.execucao.dado_ate) : null,
       nota: l.completa
         ? "Todos os instrumentos da Paraíba desde 2008, as propostas desde 2019 e o tempo de cada etapa, somados pelo painel de execução da PONTE."
         : `Os instrumentos vivos ${naUf(l.sigla)} (em execução, em prestação de contas e em tomada de contas especial), as propostas desde 2019 e o ` +

@@ -12,13 +12,20 @@ function lista(xs: string[]): string {
   return xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} e ${xs.at(-1)}`;
 }
 
+// A4x (08/10/2026): a fonte única do recorte da base. Os vazios (convênio, laudo, proposta, investimentos) e a ficha da
+// entidade (`RECORTE_DA_BASE`, abaixo) leem daqui; antes a entidade tinha uma cópia em `pagina-entidade.ts`, com outra
+// redação. As propostas de fora da PB ficaram com a regra precisa que a cópia da entidade trazia.
 const RECORTE_PB = {
   convenios: "todos os convênios e contratos de repasse de proponente da Paraíba, desde 2008",
-  propostas: "as propostas enviadas da Paraíba desde 2019",
+  propostas: "todas as propostas de proponente da Paraíba enviadas desde 2019",
 };
 const RECORTE_FORA = {
   convenios: "só os convênios em execução, em prestação de contas ou em tomada de contas especial",
-  propostas: "as propostas dos últimos três anos e as antigas que ainda se movem",
+  propostas: "as propostas dos últimos três anos e as antigas sem desfecho que se moveram no último ano",
+};
+const RECORTE_TODO = {
+  convenios: `${RECORTE_PB.convenios}, e, no resto do país, ${RECORTE_FORA.convenios}`,
+  propostas: `${RECORTE_PB.propostas} e, no resto do país, ${RECORTE_FORA.propostas}`,
 };
 
 /**
@@ -35,11 +42,16 @@ export function recorteDaBase(uf?: string | null): { convenios: string; proposta
   const sigla = siglaDaUrl(uf);
   if (sigla === UF_DETALHE) return RECORTE_PB;
   if (sigla) return RECORTE_FORA;
-  return {
-    convenios: `${RECORTE_PB.convenios}, e, no resto do país, ${RECORTE_FORA.convenios}`,
-    propostas: `${RECORTE_PB.propostas} e, no resto do país, ${RECORTE_FORA.propostas}`,
-  };
+  return RECORTE_TODO;
 }
+
+/**
+ * O recorte em duas frases, para a ficha "Quem é" da entidade e para o CNPJ sem instrumento nem proposta (C1c). Sai do
+ * mesmo texto de `recorteDaBase` sem UF (A4x): a entidade pode ser de qualquer UF. Conferido no job e no banco em
+ * 08/10/2026: fora da PB há propostas (121.683 na execução da época), e o texto antigo da ficha ("Propostas: só as de
+ * proponente da Paraíba") estava errado.
+ */
+export const RECORTE_DA_BASE = `A base traz ${RECORTE_TODO.convenios}. Traz também ${RECORTE_TODO.propostas}.`;
 
 /**
  * A volta "um nível acima" até a UF, para o `voltarPara` do `DadoIndisponivel`. Fora da PB, o nome vai entre parênteses,

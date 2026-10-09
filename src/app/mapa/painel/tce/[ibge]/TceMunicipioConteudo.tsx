@@ -3,7 +3,7 @@
  * convênios, empresa por empresa. Recebe a leitura pronta; aqui só se apresenta.
  */
 import { urlLaudo } from "@/lib/oportunidades/busca";
-import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { cnpjLegivel, nomeFornecedor, urlFornecedor } from "@/lib/oportunidades/fornecedores";
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { urlFicha } from "@/lib/oportunidades/painel";
@@ -216,10 +216,11 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
         <ul className="mp-laudo-causas mp-laudo-miudo">
           {anos.map((a) => {
             const c = leitura.cobertura.find((x) => x.ano === a);
+            // A4x (08/10/2026): `coletado_em` é carimbo com hora; a data é a do dia em Brasília, e não a de UTC.
             return (
               <li key={a}>
                 Despesas de {a} no TCE-PB:{" "}
-                {c?.lido ? `lidas${c.coletado_em ? ` em ${formatarData(c.coletado_em)}` : ""}` : `não lidas — ${c?.motivo ?? "motivo não registrado"}`}.
+                {c?.lido ? `lidas${c.coletado_em ? ` em ${dataBrasilia(c.coletado_em)}` : ""}` : `não lidas — ${c?.motivo ?? "motivo não registrado"}`}.
               </li>
             );
           })}

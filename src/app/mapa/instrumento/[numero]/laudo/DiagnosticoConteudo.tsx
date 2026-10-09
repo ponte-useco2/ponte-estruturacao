@@ -9,6 +9,7 @@
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/datas";
 import {
   ROTULO_ETAPA_LAUDO,
   ROTULO_TIPO_EMENDA,
@@ -21,7 +22,15 @@ import {
 } from "@/lib/oportunidades/diagnostico";
 import { ROTULO_CANAL } from "@/lib/oportunidades/contrato-v2";
 import { NOME_VERIFICACAO, ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
-import { NIVEL_MOMENTO, ROTULO_FAIXA, ROTULO_MOMENTO, nomeFornecedor, urlFornecedor, type SecaoFornecedores } from "@/lib/oportunidades/fornecedores";
+import {
+  NIVEL_MOMENTO,
+  ROTULO_FAIXA,
+  ROTULO_MOMENTO,
+  cadastrosDe,
+  nomeFornecedor,
+  urlFornecedor,
+  type SecaoFornecedores,
+} from "@/lib/oportunidades/fornecedores";
 import type { Dossie, Nivel, Passo, Risco } from "@/lib/oportunidades/laudo";
 import { classeEstado, rotuloItem, type ItemLaudo } from "@/lib/oportunidades/itens-laudo";
 import { DIAS_JANELA_TEMPO, percentual } from "@/lib/oportunidades/painel";
@@ -326,8 +335,13 @@ export function FontesDiagnostico({ d, referencia, hoje }: { d: Diagnostico; ref
           Fornecedores: pagamentos, contratos (ligados pela licitação) e empenhos do SICONV. Pessoa física entra só somada, sem nome; o que vai
           para a conta do próprio convenente ou do executor não é fornecedor. O “no TCE-PB” casa o pagamento com as despesas do município no
           TCE-PB pelo CNPJ e pelo ano (o TCE-PB não traz o número do convênio). A marca de inidôneo é a lista do TCU no dia do painel
-          {d.fornecedores.tcuVerificado ? "" : " (não lida nesta execução: sem marca não quer dizer fora da lista)"}. Concentração é indicador
-          para olhar, não irregularidade.
+          {d.fornecedores.tcuVerificado ? "" : " (não lida nesta execução: sem marca não quer dizer fora da lista)"}.{" "}
+          {d.fornecedores.ceisCnep.estado === "consultado"
+            ? `CEIS e CNEP, da CGU: consulta por CNPJ na API do Portal da Transparência em ${data(d.fornecedores.ceisCnep.referencia)}; “vigente” é na data da consulta, e a filial leva a sanção registrada em nome da matriz.`
+            : d.fornecedores.ceisCnep.estado === "falhou"
+              ? "CEIS/CNEP não puderam ser lidos nesta leitura: sem marca não quer dizer sem registro."
+              : "CEIS/CNEP não consultados."}{" "}
+          Concentração é indicador para olhar, não irregularidade.
         </li>
       )}
       <li>Janelas abertas: catálogo de oportunidades, filtrado pelo tipo de proponente e pela UF; entram as do mesmo programa ou do mesmo órgão concedente.</li>
@@ -760,7 +774,7 @@ function ContasEObra({ s, cliente }: { s: SecaoContasObras | null; cliente: bool
                         {e.evento ?? "—"}
                         {e.situacao && e.situacao !== "Enviada" ? <span className="mp-laudo-miudo"> · {e.situacao}</span> : null}
                       </td>
-                      <td>{e.data_hora ? formatarData(e.data_hora.slice(0, 10)) : "—"}</td>
+                      <td>{e.data_hora ? formatarData(diaBrasilia(e.data_hora)) : "—"}</td>
                       <td className="mp-num">{e.valor !== null ? moedaContas(e.valor) : "—"}</td>
                     </tr>
                   ))}
@@ -936,6 +950,13 @@ function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
       </ul>
 
       {f && f.linhas.length > 0 && <TabelaFornecedores f={f} />}
+      {/* D1: sem rodada do job de sanções, o laudo diz que não consultou (sem marca não é "sem registro"). */}
+      {f && f.linhas.length > 0 && f.ceisCnep.estado === "nao_consultado" && (
+        <p className="pa-nota">CEIS/CNEP não consultados: a marca de sanção da CGU não entra nesta leitura.</p>
+      )}
+      {f && f.linhas.length > 0 && f.ceisCnep.estado === "falhou" && (
+        <p className="pa-nota">CEIS/CNEP não puderam ser lidos agora: sem marca não quer dizer sem registro.</p>
+      )}
       {f && f.contratos.length > 0 && <TabelaContratos f={f} />}
 
       {m && m.faixa !== "pouco_dado" && (
@@ -985,6 +1006,10 @@ function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
                 {l.momento && (
                   <span className={`pa-tag mp-laudo-nivel mp-laudo-${NIVEL_MOMENTO[l.momento]}`}>inidôneo (TCU) · {ROTULO_MOMENTO[l.momento]}</span>
                 )}
+                {l.ceisCnep === "vigente" && (
+                  <span className="pa-tag mp-laudo-nivel mp-laudo-alto">registro vigente no {cadastrosDe(l.sancoesCgu.filter((r) => r.vigente))}</span>
+                )}
+                {l.ceisCnep === "encerrada" && <span className="mp-tabela-secundario">registro encerrado no {cadastrosDe(l.sancoesCgu)}</span>}
               </th>
               <td className="mp-num">
                 {moedaCurta(l.pago)}

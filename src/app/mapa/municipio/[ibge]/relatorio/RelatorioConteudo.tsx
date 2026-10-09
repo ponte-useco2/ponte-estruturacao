@@ -11,6 +11,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { EXPLICA_CLASSE, ROTULO_CLASSE, ROTULO_QUEM } from "@/lib/oportunidades/fila";
 import { rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraIndicadores } from "@/lib/oportunidades/indicadores-municipio";
 import { ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
@@ -415,8 +416,9 @@ export function BlocoFila({ r, destino, linkIndicadores }: { r: Relatorio; desti
 export function BlocoMunicipio({ r }: { r: Relatorio }) {
   const ind = r.indicadores;
   if (!ind || !ind.municipio.length) return null;
+  // A4x (08/10/2026): `coletadoEm` é o fim da rodada (carimbo com hora); o dia é o de Brasília, e não o de UTC.
   return (
-    <Secao id="rel-municipio" titulo="O município" nota={ind.coletadoEm ? `Fontes oficiais em lote, lidas em ${data(ind.coletadoEm)}; cada indicador traz o seu ano.` : undefined}>
+    <Secao id="rel-municipio" titulo="O município" nota={ind.coletadoEm ? `Fontes oficiais em lote, lidas em ${dataBrasilia(ind.coletadoEm)}; cada indicador traz o seu ano.` : undefined}>
       <OMunicipio l={ind} />
     </Secao>
   );
@@ -796,10 +798,11 @@ export function BlocoFontes({ r }: { r: Relatorio }) {
   return (
     <Secao id="rel-fontes" titulo="Fontes, datas e limites">
       <ul>
+        {/* A4x (08/10/2026): a data dos indicadores é carimbo com hora; pelo dia de Brasília, e não pelo de UTC. */}
         {r.fontes.map((x) => (
           <li key={x.fonte}>
             <strong>{x.fonte}</strong>
-            {x.data ? ` (${data(x.data)})` : ""}: {x.nota}
+            {x.data ? ` (${dataBrasilia(x.data)})` : ""}: {x.nota}
           </li>
         ))}
       </ul>

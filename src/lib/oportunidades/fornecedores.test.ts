@@ -1,17 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  cadastrosDe,
   cnpjValido,
+  descreverSancao,
+  leituraCeisCnep,
   momentoDaSancao,
   faixaConcentracao,
   lerSecaoFornecedores,
   nomeFornecedor,
+  situacaoSancao,
   situacaoTcu,
   type ConcentracaoMunicipio,
   type Contrato,
   type EntradaFornecedores,
+  type EntradaSancoes,
   type Fornecedor,
   type FornecedorConvenio,
+  type RegistroSancao,
 } from "./fornecedores.ts";
 
 // Casos do SICONV de 14/09/2026: ACM Auto Center (45 municípios, R$ 29,8 mi) e Livramento Construções
@@ -257,4 +263,117 @@ test("pago no SICONV sem registro no TCE-PB: risco moderado, com o convênio do 
   assert.match(r[0].fato, /R\$ 600 mil pagos à empresa em 2020/);
   // Sem a leitura do TCE, nada muda.
   assert.ok(lerSecaoFornecedores(entrada(), PREFEITURA).linhas.every((l) => l.tce === null));
+});
+
+// ================================================================ CEIS e CNEP (D1, 08/10/2026)
+
+function sancao(cnpj: string, extra: Partial<RegistroSancao> = {}): RegistroSancao {
+  return {
+    cnpj,
+    cnpj_sancionado: cnpj,
+    cadastro: "CEIS",
+    tipo: "Impedimento/proibição de contratar com prazo determinado",
+    orgao: "Prefeitura Municipal de Patos",
+    orgao_uf: "PB",
+    orgao_esfera: "Municipal",
+    abrangencia: null,
+    dt_inicio: "2025-03-10",
+    dt_fim: "2027-03-10",
+    dt_publicacao: "2025-03-12",
+    processo: "2025.0001/PB",
+    link: "https://www.in.gov.br/web/dou/-/extrato-123",
+    valor_multa: null,
+    vigente: true,
+    ...extra,
+  };
+}
+
+function consultadas(registros: RegistroSancao[], cnpjs = [ACM, LIVRAMENTO, MEI]): EntradaSancoes {
+  return {
+    referencia: "2026-10-11",
+    consultas: cnpjs.map((cnpj) => ({ cnpj, matriz: null, consultado_em: "2026-10-11T03:20:00Z", n_ceis: 0, n_cnep: 0, n_vigentes: 0, erro: null })),
+    registros,
+  };
+}
+
+// Nada de juízo nos textos de CEIS/CNEP: registro é fato a conferir.
+const PROIBIDAS = /irregular|condenad|inidôneo|fraude|culpad/i;
+
+test("CEIS/CNEP: não consultado, sem sanção, vigente e encerrada", () => {
+  assert.equal(situacaoSancao(ACM, undefined), "nao_consultado");
+  assert.equal(situacaoSancao(ACM, null), "nao_consultado");
+  const s = consultadas([sancao(ACM), sancao(LIVRAMENTO, { vigente: false, dt_fim: "2026-01-01" })]);
+  assert.equal(situacaoSancao(ACM, s), "vigente");
+  assert.equal(situacaoSancao(LIVRAMENTO, s), "encerrada");
+  assert.equal(situacaoSancao(MEI, s), "sem_sancao");
+  // Fora da cobertura da rodada ou com erro na consulta: não consultado, nunca "sem sanção".
+  assert.equal(situacaoSancao("11111111000191", s), "nao_consultado");
+  const comErro = consultadas([], [ACM]);
+  comErro.consultas[0].erro = "Indisponivel: HTTP 503";
+  assert.equal(situacaoSancao(ACM, comErro), "nao_consultado");
+  assert.deepEqual(leituraCeisCnep(undefined), { estado: "nao_consultado" });
+  assert.deepEqual(leituraCeisCnep(null), { estado: "falhou" });
+  assert.deepEqual(leituraCeisCnep(s), { estado: "consultado", referencia: "2026-10-11" });
+});
+
+test("CEIS/CNEP: descrição neutra, com o outro estabelecimento quando a sanção é da matriz", () => {
+  assert.equal(
+    descreverSancao(sancao(ACM)),
+    "CEIS: Impedimento/proibição de contratar com prazo determinado, aplicada por Prefeitura Municipal de Patos (PB), de 10/03/2025 até 10/03/2027",
+  );
+  assert.match(descreverSancao(sancao("05476456000227", { cnpj_sancionado: ACM, dt_fim: null })), /sem data final informada, em nome de outro estabelecimento da mesma empresa \(CNPJ 05\.476\.456\/0001-46\)/);
+  assert.equal(cadastrosDe([sancao(ACM, { cadastro: "CNEP" }), sancao(ACM)]), "CEIS e CNEP");
+  assert.equal(cadastrosDe([sancao(ACM, { cadastro: "CNEP" })]), "CNEP");
+});
+
+test("laudo sem execução de CEIS/CNEP: a seção diz que não consultou e não há risco", () => {
+  const s = lerSecaoFornecedores(entrada(), PREFEITURA);
+  assert.deepEqual(s.ceisCnep, { estado: "nao_consultado" });
+  assert.ok(s.linhas.every((l) => l.ceisCnep === "nao_consultado" && l.sancoesCgu.length === 0));
+  assert.equal(s.riscos.some((r) => /CEIS|CNEP/.test(r.titulo)), false);
+  assert.deepEqual(lerSecaoFornecedores(entrada({ sancoes: null }), PREFEITURA).ceisCnep, { estado: "falhou" });
+});
+
+test("laudo: registro vigente no CEIS é risco alto, com o período confrontado com o convênio", () => {
+  const s = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { dt_inicio: "2020-04-01" })]) }), PREFEITURA);
+  const acm = s.linhas.find((l) => l.cnpj === ACM);
+  assert.equal(acm?.ceisCnep, "vigente");
+  assert.equal(s.linhas.find((l) => l.cnpj === MEI)?.ceisCnep, "sem_sancao");
+  const r = s.riscos.filter((x) => /CEIS/.test(x.titulo));
+  assert.equal(r.length, 1);
+  assert.equal(r[0].nivel, "alto");
+  assert.equal(r[0].titulo, "ACM AUTO CENTER MAQUINAS LTDA: registro no CEIS vigente na data da consulta");
+  assert.match(r[0].fato, /um registro no CEIS vigente na consulta de 11\/10\/2026 \(CEIS: Impedimento/);
+  // Pagamentos de 01/03/2020 a 01/06/2020, registro desde 01/04/2020, contrato de 01/02/2020.
+  assert.match(r[0].fato, /Parte dos pagamentos deste convênio caiu dentro do período do registro/);
+  assert.doesNotMatch(`${r[0].titulo} ${r[0].fato}`, PROIBIDAS);
+  assert.deepEqual(s.ceisCnep, { estado: "consultado", referencia: "2026-10-11" });
+
+  // Registro que começou depois de tudo deste convênio.
+  const depois = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM)]) }), PREFEITURA);
+  assert.match(depois.riscos.find((x) => /CEIS/.test(x.titulo))?.fato ?? "", /anteriores ao início do registro/);
+});
+
+test("laudo: registro encerrado não vira risco; CNEP vigente também é alto", () => {
+  const encerrado = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { vigente: false, dt_fim: "2026-01-01" })]) }), PREFEITURA);
+  assert.equal(encerrado.linhas.find((l) => l.cnpj === ACM)?.ceisCnep, "encerrada");
+  assert.equal(encerrado.riscos.some((r) => /CEIS|CNEP/.test(r.titulo)), false);
+  const cnep = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(MEI, { cadastro: "CNEP", valor_multa: 10_000 })]) }), PREFEITURA);
+  const r = cnep.riscos.find((x) => /CNEP/.test(x.titulo));
+  assert.equal(r?.nivel, "alto");
+  assert.doesNotMatch(`${r?.titulo} ${r?.fato}`, PROIBIDAS);
+});
+
+test("laudo: inidôneo do TCU segue com o nível dele, e o mesmo registro no CEIS não se repete", () => {
+  const doTcu = sancao(LIVRAMENTO, { tipo: "Inidoneidade", orgao: "Tribunal de Contas da União", orgao_uf: null, dt_fim: null });
+  const s = lerSecaoFornecedores(entrada({ sancoes: consultadas([doTcu]) }), PREFEITURA);
+  assert.equal(s.linhas.find((l) => l.cnpj === LIVRAMENTO)?.ceisCnep, "vigente");
+  assert.equal(s.riscos.filter((r) => r.titulo.startsWith("LIVRAMENTO")).length, 1);
+  assert.equal(s.riscos.find((r) => r.titulo.startsWith("LIVRAMENTO"))?.titulo, "LIVRAMENTO CONSTRUCOES, SERVICOS E PROJETOS LTDA: pago durante a sanção do TCU");
+  // Um registro de outro órgão entra à parte, como alto.
+  const outro = lerSecaoFornecedores(entrada({ sancoes: consultadas([doTcu, sancao(LIVRAMENTO)]) }), PREFEITURA);
+  const r = outro.riscos.filter((x) => x.titulo.startsWith("LIVRAMENTO"));
+  assert.deepEqual(r.map((x) => x.nivel), ["alto", "alto"]);
+  assert.match(r[1].titulo, /registro no CEIS vigente/);
+  assert.doesNotMatch(r[1].fato, /Tribunal de Contas/);
 });

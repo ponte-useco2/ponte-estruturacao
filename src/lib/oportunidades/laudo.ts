@@ -16,6 +16,7 @@
  *     Já o prazo da suspensiva e a vigência contam até hoje, porque vêm do painel, que é diário.
  */
 import { formatarData } from "./central.ts";
+import { diaBrasilia } from "./datas.ts";
 // Só o tipo: padroes.ts importa este arquivo, e o cálculo do tempo no órgão mora lá.
 import type { TempoOrgao } from "./padroes.ts";
 import { moedaCurta } from "./radar.ts";
@@ -314,13 +315,9 @@ export const DIAS_ATRASO_REGISTRO = 7;
 
 // ------------------------------------------------------------------ datas
 
-/** "AAAA-MM-DD" em hora de Brasília. Data pura passa direto; instante é convertido (UTC−3, sem verão). */
-export function diaBrasilia(iso: string): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return iso.slice(0, 10);
-  return new Date(t - 3 * 3600 * 1000).toISOString().slice(0, 10);
-}
+// A4x (08/10/2026): `diaBrasilia` mudou para `datas.ts`, para as páginas usarem a mesma regra sem importar o laudo.
+// O export continua aqui, para quem já importa do laudo.
+export { diaBrasilia };
 
 /** Dias de `de` até `ate`, ambos "AAAA-MM-DD" (ou instantes, convertidos para Brasília). */
 export function diasEntre(de: string, ate: string): number {

@@ -51,7 +51,8 @@ test("termos: sem acento, minúsculas, CNPJ só dígitos, sem curinga do LIKE e 
 
 test("parâmetros: valores fora da lista caem no padrão; município só vale na UF dele", () => {
   const p = parametrosBusca({});
-  assert.deepEqual(p, { aba: "instrumentos", q: "", uf: null, municipio: null, tema: null, grupo: null, pagina: 1 });
+  // C2 (08/10/2026): a entrada da busca é a unificada.
+  assert.deepEqual(p, { aba: "tudo", q: "", uf: null, municipio: null, tema: null, grupo: null, pagina: 1 });
   assert.equal(parametrosBusca({ aba: "x", tema: "nao_existe", grupo: "nao", pagina: "-3" }).tema, null);
   const mun = parametrosBusca({ municipio: "2507507" });
   assert.equal(mun.uf, "PB");
@@ -64,10 +65,11 @@ test("parâmetros: valores fora da lista caem no padrão; município só vale na
 
 test("url: filtro volta à primeira página, trocar de aba solta o grupo, trocar a UF solta o município", () => {
   const p = parametrosBusca({ q: "creche", uf: "PB", municipio: "2507507", grupo: "execucao", pagina: "3" });
-  assert.equal(urlBusca(p, { pagina: 4 }), "/mapa/busca?q=creche&uf=PB&municipio=2507507&grupo=execucao&pagina=4");
-  assert.equal(urlBusca(p, { tema: "educacao" }), "/mapa/busca?q=creche&uf=PB&municipio=2507507&tema=educacao&grupo=execucao");
+  // C2: as listas levam a aba sempre (sem aba é a unificada).
+  assert.equal(urlBusca(p, { pagina: 4 }), "/mapa/busca?aba=instrumentos&q=creche&uf=PB&municipio=2507507&grupo=execucao&pagina=4");
+  assert.equal(urlBusca(p, { tema: "educacao" }), "/mapa/busca?aba=instrumentos&q=creche&uf=PB&municipio=2507507&tema=educacao&grupo=execucao");
   assert.equal(urlBusca(p, { aba: "propostas" }), "/mapa/busca?aba=propostas&q=creche&uf=PB&municipio=2507507");
-  assert.equal(urlBusca(p, { uf: "RN" }), "/mapa/busca?q=creche&uf=RN&grupo=execucao");
+  assert.equal(urlBusca(p, { uf: "RN" }), "/mapa/busca?aba=instrumentos&q=creche&uf=RN&grupo=execucao");
   assert.equal(urlBusca(parametrosBusca({}), {}), "/mapa/busca");
 });
 
@@ -163,5 +165,49 @@ test("E3: a aba das organizações é só da PB, sem tema nem grupo", () => {
   assert.equal(urlBusca(p, { pagina: 2 }), "/mapa/busca?aba=organizacoes&q=laureano&municipio=2510808&pagina=2");
   const conv = parametrosBusca({ q: "creche", uf: "SP", tema: "saude" });
   assert.equal(urlBusca(conv, { aba: "organizacoes" }), "/mapa/busca?aba=organizacoes&q=creche");
-  assert.equal(urlBusca(parametrosBusca({ aba: "organizacoes", q: "x" }), { aba: "instrumentos" }), "/mapa/busca?q=x", "de volta, sem a PB fixa");
+  assert.equal(urlBusca(parametrosBusca({ aba: "organizacoes", q: "x" }), { aba: "instrumentos" }), "/mapa/busca?aba=instrumentos&q=x", "de volta, sem a PB fixa");
+});
+
+test("C2: sem aba na URL — termo vai à unificada; tema, situação, município ou página vão aos convênios, como antes", () => {
+  assert.equal(parametrosBusca({ q: "patos" }).aba, "tudo");
+  assert.equal(parametrosBusca({ q: "patos", uf: "SP" }).aba, "tudo");
+  assert.equal(parametrosBusca({ q: "creche", tema: "educacao" }).aba, "instrumentos");
+  assert.equal(parametrosBusca({ q: "creche", grupo: "execucao" }).aba, "instrumentos");
+  assert.equal(parametrosBusca({ uf: "PB", municipio: "2510808" }).aba, "instrumentos", "o link dos investimentos do município");
+  assert.equal(parametrosBusca({ q: "creche", pagina: "2" }).aba, "instrumentos", "a página 2 é de uma lista");
+  assert.equal(parametrosBusca({ uf: "SP" }).aba, "instrumentos", "só a UF, sem termo: a lista");
+  assert.equal(parametrosBusca({ aba: "tudo", uf: "SP" }).aba, "tudo");
+  // A unificada não guarda tema, situação, município nem página, e a PB é o padrão (fora da URL).
+  assert.deepEqual(parametrosBusca({ aba: "tudo", q: " Patos ", uf: "pb", tema: "saude", grupo: "execucao", municipio: "2510808", pagina: "3" }), {
+    aba: "tudo",
+    q: "Patos",
+    uf: null,
+    municipio: null,
+    tema: null,
+    grupo: null,
+    pagina: 1,
+  });
+  assert.equal(parametrosBusca({ q: "patos", uf: "XX" }).uf, null);
+});
+
+test("C2: endereços — a unificada sem aba; as listas com aba; de fora, tema e município continuam nos convênios", () => {
+  const vazia = parametrosBusca({});
+  assert.equal(urlBusca(vazia, { q: "patos" }), "/mapa/busca?q=patos");
+  assert.equal(urlBusca(vazia, { q: "patos", uf: "PB" }), "/mapa/busca?q=patos", "a PB é o padrão da unificada");
+  assert.equal(urlBusca(vazia, { q: "patos", uf: "SP" }), "/mapa/busca?q=patos&uf=SP");
+  assert.equal(urlBusca(vazia, { uf: "SP" }), "/mapa/busca?aba=instrumentos&uf=SP", "sem termo e com UF: a lista, como antes");
+  // As etiquetas do convênio e os investimentos do município partem de `parametrosBusca({})`.
+  assert.equal(urlBusca(vazia, { tema: "saude", uf: "PB" }), "/mapa/busca?aba=instrumentos&uf=PB&tema=saude");
+  assert.equal(urlBusca(vazia, { uf: "PB", municipio: "2510808" }), "/mapa/busca?aba=instrumentos&uf=PB&municipio=2510808");
+  assert.equal(urlBusca(vazia, { aba: "propostas", uf: "PB", municipio: "2510808" }), "/mapa/busca?aba=propostas&uf=PB&municipio=2510808");
+  // De uma lista para a unificada: solta tema, situação, município e página; a UF fica (menos a PB).
+  const lista = parametrosBusca({ aba: "instrumentos", q: "creche", uf: "SP", tema: "saude", grupo: "execucao", pagina: "4" });
+  assert.equal(urlBusca(lista, { aba: "tudo" }), "/mapa/busca?q=creche&uf=SP");
+  assert.equal(urlBusca(parametrosBusca({ aba: "organizacoes", q: "x" }), { aba: "tudo" }), "/mapa/busca?q=x");
+  assert.equal(urlBusca(parametrosBusca({ aba: "instrumentos", uf: "RN" }), { aba: "tudo" }), "/mapa/busca?aba=tudo&uf=RN");
+  // Ida e volta: o endereço da unificada é lido como unificada.
+  for (const u of ["/mapa/busca?q=patos", "/mapa/busca?q=x&uf=SP", "/mapa/busca?aba=tudo&uf=RN"]) {
+    const sp = Object.fromEntries(new URLSearchParams(u.split("?")[1]));
+    assert.equal(parametrosBusca(sp).aba, "tudo", u);
+  }
 });

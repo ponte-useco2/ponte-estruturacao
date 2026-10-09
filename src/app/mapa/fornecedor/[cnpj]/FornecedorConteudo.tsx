@@ -5,8 +5,20 @@
  */
 import { urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { nomeProponente } from "@/lib/oportunidades/diagnostico";
-import { NIVEL_MOMENTO, ROTULO_MOMENTO, cnpjLegivel, momentoDaSancao, nomeFornecedor, type FornecedorConvenio } from "@/lib/oportunidades/fornecedores";
+import {
+  NIVEL_MOMENTO,
+  ROTULO_MOMENTO,
+  cnpjLegivel,
+  descreverSancao,
+  leituraCeisCnep,
+  momentoDaSancao,
+  nomeFornecedor,
+  situacaoSancao,
+  type EntradaSancoes,
+  type FornecedorConvenio,
+} from "@/lib/oportunidades/fornecedores";
 import type { LeituraDossieFornecedor } from "@/lib/oportunidades/fornecedores.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -19,8 +31,8 @@ import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 type LeituraOk = Extract<LeituraDossieFornecedor, { estado: "ok" }>;
 
 const AVISO =
-  "Uso interno da PONTE. Dados abertos do Transferegov (SICONV) e lista de inidôneos do TCU. Estar em muitos municípios ou concentrar as " +
-  "compras de uma prefeitura é indicador para olhar, não irregularidade.";
+  "Uso interno da PONTE. Dados abertos do Transferegov (SICONV), lista de inidôneos do TCU e cadastros CEIS e CNEP da CGU. Estar em muitos " +
+  "municípios ou concentrar as compras de uma prefeitura é indicador para olhar, não irregularidade.";
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—");
@@ -32,7 +44,8 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
   const { fornecedor: f, convenios, contratos, instrumentos, lidera } = leitura;
   const nome = nomeFornecedor(f);
   const porNr = new Map(instrumentos.map((i) => [i.nr_convenio, i]));
-  const referencia = leitura.execucao.referencia ?? leitura.execucao.dado_ate;
+  // Sem `referencia`, o carimbo vira o dia em Brasília (A4x, integração da onda 4).
+  const referencia = leitura.execucao.referencia ?? (leitura.execucao.dado_ate ? diaBrasilia(leitura.execucao.dado_ate) : leitura.execucao.dado_ate);
   const momento = (c: FornecedorConvenio) =>
     momentoDaSancao(f, { primeiro: c.primeiro_pagamento, ultimo: c.ultimo_pagamento }, contratos.filter((k) => k.nr_convenio === c.nr_convenio));
   const contratouNa = convenios.filter((c) => momento(c) === "contratou").length;
@@ -94,6 +107,8 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
           </div>
         </section>
       )}
+
+      <SancoesCgu cnpj={f.cnpj} sancoes={leitura.sancoes} />
 
       <div className="pa-grade pa-grade-4 mp-painel-cartoes">
         <article className="pa-cartao">
@@ -320,12 +335,85 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
             Inidôneos:{" "}
             {f.inidoneo_tcu === null
               ? "a lista do TCU não foi lida nesta atualização; sem marca não quer dizer fora da lista."
-              : "lista de licitantes inidôneos do TCU, lida no dia da atualização; o início da sanção é o trânsito em julgado do acórdão."}{" "}
-            CEIS e CNEP, da CGU, ainda não entram.
+              : "lista de licitantes inidôneos do TCU, lida no dia da atualização; o início da sanção é o trânsito em julgado do acórdão."}
+          </li>
+          <li>
+            CEIS e CNEP, da CGU: consulta semanal por CNPJ na API do Portal da Transparência; a filial leva junto a consulta da matriz, porque a
+            sanção vale para a empresa inteira. “Vigente” é na data da consulta. Do registro ficam só o tipo, o órgão, as datas, o processo e o
+            link da publicação: nenhum nome de pessoa.
           </li>
         </ul>
       </section>
     </div>
+  );
+}
+
+/**
+ * CEIS e CNEP da CGU (D1, 08/10/2026): cada registro com o tipo, o órgão que aplicou, o período e a publicação. Sem
+ * rodada, "CEIS/CNEP não consultados"; fora da cobertura da rodada, "não consultado" — nunca "sem sanção".
+ */
+function SancoesCgu({ cnpj, sancoes }: { cnpj: string; sancoes: EntradaSancoes | null | undefined }) {
+  const leitura = leituraCeisCnep(sancoes);
+  const situacao = situacaoSancao(cnpj, sancoes);
+  const registros = sancoes ? sancoes.registros.filter((r) => r.cnpj === cnpj) : [];
+  const quando = leitura.estado === "consultado" ? data(leitura.referencia) : null;
+  let frase: string;
+  if (leitura.estado === "nao_consultado") frase = "CEIS/CNEP não consultados: a consulta semanal à API do Portal da Transparência ainda não rodou.";
+  else if (leitura.estado === "falhou") frase = "CEIS e CNEP não puderam ser lidos agora. Costuma ser passageiro: recarregue a página em alguns minutos.";
+  else if (situacao === "nao_consultado") frase = `Esta empresa não foi consultada no CEIS/CNEP na rodada de ${quando} (entrou depois na lista ou a consulta falhou).`;
+  else if (situacao === "sem_sancao") frase = `Sem registro no CEIS nem no CNEP na consulta de ${quando}.`;
+  else {
+    const vig = registros.filter((r) => r.vigente).length;
+    frase =
+      vig > 0
+        ? `${n(vig)} ${vig === 1 ? "registro vigente" : "registros vigentes"} na consulta de ${quando}${registros.length > vig ? `, e ${n(registros.length - vig)} encerrado${registros.length - vig === 1 ? "" : "s"}` : ""}. O alcance depende do tipo de sanção e do órgão que a aplicou.`
+        : `Só registro encerrado na consulta de ${quando}: nenhum vigente nessa data.`;
+  }
+  return (
+    <section aria-labelledby="forn-cgu" className="mp-radar-secao">
+      <h2 id="forn-cgu" className="mp-radar-h2">
+        Sanções no CEIS e no CNEP (CGU)
+      </h2>
+      <p className={registros.length > 0 ? "pa-sub" : "pa-cartao pa-cartao-plano"}>{frase}</p>
+      {registros.length > 0 && (
+        <ul className="mp-laudo-lista">
+          {registros.map((r, k) => (
+            <li key={`${r.cadastro}-${r.cnpj_sancionado}-${r.dt_inicio ?? ""}-${k}`} className={`pa-cartao mp-laudo-risco mp-laudo-${r.vigente ? "alto" : "informativo"}`}>
+              <p>
+                <span className={`pa-tag mp-laudo-nivel mp-laudo-${r.vigente ? "alto" : "informativo"}`}>{r.vigente ? "vigente" : "encerrado"}</span>{" "}
+                <strong>{descreverSancao(r)}</strong>
+              </p>
+              {(r.orgao_esfera || r.abrangencia || r.valor_multa) && (
+                <p className="mp-laudo-miudo">
+                  {[
+                    r.orgao_esfera ? `Esfera do órgão: ${r.orgao_esfera.toLowerCase()}.` : null,
+                    r.abrangencia ? `Abrangência definida na decisão: ${r.abrangencia}.` : null,
+                    r.valor_multa ? `Multa: ${moedaCurta(r.valor_multa)}.` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                </p>
+              )}
+              {(r.processo || r.link || r.dt_publicacao) && (
+                <p className="mp-laudo-miudo">
+                  {r.processo ? `Processo ${r.processo}` : "Processo não informado"}
+                  {r.dt_publicacao ? ` · publicado em ${data(r.dt_publicacao)}` : ""}
+                  {r.link && (
+                    <span className="mp-nao-imprimir">
+                      {" · "}
+                      <a href={r.link} target="_blank" rel="noopener noreferrer">
+                        Abrir a publicação
+                        <span className="pa-sr"> (abre em nova aba)</span>
+                      </a>
+                    </span>
+                  )}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

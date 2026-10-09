@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { ROTULO_TIPO_ITEM, nomeDoItemSeguido, situacaoDaJanela, type SituacaoJanela } from "@/lib/oportunidades/favoritos";
 import { ROTULO_CLASSE } from "@/lib/oportunidades/fila";
 import type { Carteira, Consequencia, ItemCarteira, MudancaCarteira, Recomendacao } from "@/lib/oportunidades/carteira";
@@ -104,13 +105,14 @@ function Recomendacoes({ r, dadoDe }: { r: Recomendacao[]; dadoDe: string | null
   );
 }
 
+/** A4x (08/10/2026): o `criado_em` da mudança é carimbo com hora; a data é a do dia em Brasília, e não a de UTC. */
 function Mudancas({ m }: { m: MudancaCarteira[] }) {
   return (
     <ul className="mp-cart-mudancas">
       {m.map((x) => (
         <li key={x.id}>
           <Nivel nivel={x.consequencia} melhora={x.melhora} /> <strong>{x.rotulo}</strong>: {x.detalhe}{" "}
-          <span className="mp-cart-mudo">({formatarData(x.criado_em.slice(0, 10))})</span>
+          <span className="mp-cart-mudo">({dataBrasilia(x.criado_em)})</span>
         </li>
       ))}
     </ul>

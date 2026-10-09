@@ -69,16 +69,48 @@ const ACENTOS_ORGAO: Record<string, string> = {
   ciencia: "ciência",
   inovacao: "inovação",
   agropecuaria: "agropecuária",
+  // A4x (08/10/2026): os que faltavam nos 36 órgãos superiores da execução 42 do painel ("De onde vem o dinheiro")…
+  agrario: "agrário",
+  comunicacoes: "comunicações",
+  gestao: "gestão",
+  indigenas: "indígenas",
+  presidencia: "presidência",
+  relacoes: "relações",
+  republica: "república",
+  uniao: "união",
+  // …e as grafias antigas dos mesmos ministérios, que o catálogo e as mudanças do painel ainda trazem.
+  assistencia: "assistência",
+  comercio: "comércio",
+  comunicacao: "comunicação",
+  familia: "família",
+  industria: "indústria",
+  inovacoes: "inovações",
+  pecuaria: "pecuária",
+  previdencia: "previdência",
+  servicos: "serviços",
 };
 
-/** "MINISTERIO DA SAUDE" → "Ministério da Saúde": o dado vem em caixa alta e às vezes sem acento. */
+/** Conectivos que ficam em minúscula no meio do nome ("em" entrou na A4x: "Inovação em Serviços Públicos"). */
+const CONECTIVOS_ORGAO = new Set(["a", "à", "ao", "aos", "as", "às", "da", "das", "de", "do", "dos", "e", "em", "na", "nas", "no", "nos", "o", "os"]);
+
+/**
+ * "MINISTERIO DA SAUDE" → "Ministério da Saúde": o dado vem em caixa alta e às vezes sem acento.
+ *
+ * A4x (08/10/2026), pelos nomes da execução 42: a sigla na frente ("MGI - MINISTÉRIO…") fica em caixa alta; a palavra
+ * depois do hífen também começa em maiúscula ("Advocacia-Geral"); e a abreviatura colada ganha o espaço depois do ponto
+ * ("SEC.ESPEC.DE AGRIC.FAMIL.E DO DESENV.AGRARIO" → "Sec. Espec. de Agric. Famil. e do Desenv. Agrário"). A abreviatura
+ * não é desdobrada: o nome fica como a fonte o escreve.
+ */
 export function tituloOrgao(o: string): string {
-  const minusculas = new Set(["da", "das", "de", "do", "dos", "e"]);
+  const comSigla = /^([A-ZÀ-Ú]{2,6})\s+-\s+(\S.*)$/.exec(o.trim());
+  if (comSigla) return `${comSigla[1]} - ${tituloOrgao(comSigla[2])}`;
+  const maiuscula = (p: string) => p.split("-").map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join("-");
   return o
     .toLowerCase()
+    .replace(/([a-zà-ú]{2,})\.(?=[a-zà-ú])/g, "$1. ")
     .replace(/[a-zà-ú]+/g, (p) => ACENTOS_ORGAO[p] ?? p)
     .split(/\s+/)
-    .map((p, k) => (k > 0 && minusculas.has(p) ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+    .map((p, k) => (k > 0 && CONECTIVOS_ORGAO.has(p) ? p : maiuscula(p)))
     .join(" ");
 }
 
