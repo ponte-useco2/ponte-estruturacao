@@ -8,6 +8,7 @@ import {
   COLUNAS_CSV_ACHADOS,
   acimaDoLimite,
   filaDoMunicipio,
+  leituraGuardavel,
   montarRelatorio,
   relatorioSemNomes,
   rotuloPeriodo,
@@ -193,6 +194,15 @@ test("fonte que falhou não vira achado nem 'em dia': a seção some e a falta a
   assert.ok(!r.achados.some((a) => a.dimensao === "fiscal"));
   assert.ok(!r.cartoes.some((c) => c.rotulo === "CAUC" || c.rotulo === "Pessoal / RCL ajustada"));
   assert.deepEqual(r.faltas, ["painel fiscal", "e-TCE do TCU"]);
+});
+
+test("memória (B12b): guarda a leitura inteira e o 'não encontrado'; leitura com falta volta sem ficar, para o 'Tentar de novo' reler", () => {
+  const inteira = montarRelatorio(patos(), HOJE);
+  const comFalta = montarRelatorio(patos({ fiscal: null, serie: null, faltas: ["painel fiscal"] }), HOJE);
+  assert.equal(leituraGuardavel({ estado: "ok", relatorio: inteira }), true);
+  assert.equal(leituraGuardavel({ estado: "ok", relatorio: comFalta }), false);
+  assert.equal(leituraGuardavel({ estado: "nao_encontrado" }), true);
+  for (const estado of ["erro", "nao_ativado", "sem_execucao"]) assert.equal(leituraGuardavel({ estado }), false, estado);
 });
 
 test("município sem problema: nenhum crítico, e o 'em dia' diz o que foi conferido", () => {

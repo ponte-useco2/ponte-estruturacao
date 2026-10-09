@@ -1348,6 +1348,15 @@ export function relatorioSemNomes(r: Relatorio): Relatorio {
   };
 }
 
+/**
+ * O que a memória de 10 minutos do relatório guarda (`relatorio-municipio.server.ts`, município e entidade): só a
+ * leitura inteira e o "não encontrado". Com uma fonte em `faltas`, o "Tentar de novo" da página tem de reler na hora,
+ * e não devolver a mesma falta por 10 minutos (achado da B12b, 08/10/2026). Erro e fonte não ativada também não ficam.
+ */
+export function leituraGuardavel(l: { estado: string; relatorio?: Pick<Relatorio, "faltas"> }): boolean {
+  return l.estado === "nao_encontrado" || (l.estado === "ok" && l.relatorio?.faltas.length === 0);
+}
+
 /** O CSV do relatório: um achado por linha (pelo `paraCsv` do painel). */
 export const COLUNAS_CSV_ACHADOS: ColunaCsv<Achado>[] = [
   { titulo: "Nível", valor: (a) => ROTULO_NIVEL_ACHADO[a.nivel] },

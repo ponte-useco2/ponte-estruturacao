@@ -12,7 +12,8 @@
  * Memória de 10 minutos (06/10/2026): a página do município relia tudo a cada troca de aba (~3 s). O
  * relatório montado fica guardado por município e dia na memória da instância do servidor (`memoria.ts`); o
  * que cada visitante vê (sem nomes, nível de acesso) é aplicado DEPOIS, na página, sobre uma cópia. Erro e
- * fonte fora do ar não ficam guardados. As fontes mudam uma vez por dia, então 10 minutos não escondem nada.
+ * leitura com fonte fora do ar (nome em `faltas`) não ficam guardados (`leituraGuardavel`). As fontes mudam uma
+ * vez por dia, então 10 minutos não escondem nada.
  *
  * Página da entidade (E1, 07/10/2026): o mesmo relatório, lido por CNPJ (`lerRelatorioEntidade`). TCU, emendas,
  * Acesso Livre e fornecedores vão pelos números dos convênios da entidade; Pix, fundo a fundo e o ciclo, pelo CNPJ;
@@ -39,6 +40,7 @@ import type { PlanoFundo } from "./pix";
 import type { PlanoCicloPix } from "./pix-ciclo";
 import { lerLaudoEntePix } from "./pix-laudo.server";
 import {
+  leituraGuardavel,
   montarRelatorio,
   type EmendaRelatorio,
   type EntradaRelatorio,
@@ -204,13 +206,10 @@ async function lerJanelas(nome: string, hoje: string, faltas: string[]): Promise
   }
 }
 
-/** Tudo o que o relatório de um município cruza. */
-// Só se guarda a leitura inteira: com uma fonte em `faltas`, o "Tentar de novo" da página tem de reler na hora, e não
-// devolver a mesma falta por 10 minutos (achado da B12b, 08/10/2026).
 const memoria = criarMemoria<LeituraRelatorio>({
   validadeMs: 10 * 60 * 1000,
   maximo: 30,
-  guardar: (l) => (l.estado === "ok" && l.relatorio.faltas.length === 0) || l.estado === "nao_encontrado",
+  guardar: leituraGuardavel,
 });
 
 /** O relatório do município, da memória quando há (ver o cabeçalho). Não altere o objeto devolvido. */
@@ -218,6 +217,7 @@ export function lerRelatorioMunicipio(ibge: string, hoje: string): Promise<Leitu
   return memoria.obter(`${ibge}|${hoje}`, () => lerDoBanco(ibge, hoje));
 }
 
+/** Tudo o que o relatório de um município cruza. */
 async function lerDoBanco(ibge: string, hoje: string): Promise<LeituraRelatorio> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
@@ -399,7 +399,7 @@ async function lerInidoneosDosConvenios(db: Banco, execucaoId: number, numeros: 
 const memoriaEntidade = criarMemoria<LeituraEntidade>({
   validadeMs: 10 * 60 * 1000,
   maximo: 30,
-  guardar: (l) => (l.estado === "ok" && l.relatorio.faltas.length === 0) || l.estado === "nao_encontrado",
+  guardar: leituraGuardavel,
 });
 
 /** O relatório de uma entidade (um CNPJ), da memória quando há. Não altere o objeto devolvido. */

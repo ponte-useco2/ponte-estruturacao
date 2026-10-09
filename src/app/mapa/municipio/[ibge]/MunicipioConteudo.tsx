@@ -99,9 +99,9 @@ function Mais({ children }: { children: React.ReactNode }) {
  * B12b (onda 3 de UX, 08/10/2026): as duas abas sem dado diziam só "ainda não tem" / "ainda não foram lidos". Agora
  * separam a leitura que falhou agora (o nome vai em `faltas`, ver `relatorio-municipio.server.ts`), que pede "Tentar de
  * novo", do dado que ainda não existe, que diz quando a próxima rodada está marcada. A memória do relatório não guarda
- * a leitura que veio com falta (integração da onda 3), então o "Tentar de novo" relê na hora. Os horários são os agendados em
- * `.github/workflows/` e no cron da Vercel, e só eles: o GitHub atrasa as execuções em horas, e a frase não promete o
- * minuto em que o dado chega.
+ * a leitura que veio com falta (`leituraGuardavel`), então o "Tentar de novo" relê na hora. Os horários são os agendados
+ * em `.github/workflows/` e no cron da Vercel, e só eles: o GitHub atrasa as execuções em horas, e a frase não promete
+ * o minuto em que o dado chega.
  */
 function TentarDeNovo({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -121,7 +121,7 @@ function SemFiscal({ r }: { r: Relatorio }) {
   if (r.faltas.includes("painel fiscal")) {
     return (
       <TentarDeNovo href={urlMunicipio(r.ibge, "contas")}>
-        O painel fiscal não pôde ser lido agora. Tente de novo em instantes.
+        O painel fiscal não pôde ser lido agora. Costuma ser passageiro: tente de novo em alguns minutos.
       </TentarDeNovo>
     );
   }
@@ -148,7 +148,7 @@ function SemIndicadores({ r }: { r: Relatorio }) {
   if (r.faltas.includes("indicadores do município")) {
     return (
       <TentarDeNovo href={urlMunicipio(r.ibge, "indicadores")}>
-        Os indicadores não puderam ser lidos agora. Tente de novo em instantes.
+        Os indicadores não puderam ser lidos agora. Costuma ser passageiro: tente de novo em alguns minutos.
       </TentarDeNovo>
     );
   }
