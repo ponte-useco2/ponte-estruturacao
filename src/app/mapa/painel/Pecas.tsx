@@ -124,6 +124,27 @@ export function BotaoCsv({ href, rotulo = "Baixar todos os convênios (CSV)" }: 
   );
 }
 
+/**
+ * O sinal de urgência do painel: a marca ▲ e a palavra, dentro do `mp-painel-urgente` (onda 8, C, 09/10/2026; N09 da
+ * auditoria R1, WCAG 1.4.1 e 1.3.1). Antes, "mais lento que o Brasil", "parado há mais de um ano", o prazo curto e o
+ * físico zerado eram só o vermelho e o negrito: quem não distingue a cor, o papel em preto e branco e o leitor de tela
+ * perdiam o destaque. A marca fica fora da leitura em voz alta; a palavra é lida. Na célula de número, a palavra desce
+ * para a linha de baixo (mapa.css), e o número continua alinhado com os outros.
+ */
+export function Urgente({ palavra }: { palavra: string }) {
+  return (
+    <span className="mp-urgente-marca">
+      <span aria-hidden="true">▲ </span>
+      {palavra}
+    </span>
+  );
+}
+
+/** A palavra do sinal de prazo (suspensiva e vigência): "vencido" depois do dia, "prazo curto" até ele. */
+export function palavraDoPrazo(dias: number | null | undefined): string {
+  return (dias ?? 0) < 0 ? "vencido" : "prazo curto";
+}
+
 /** Na ficha, o município é o da página: sem link para ele mesmo. */
 export function CelulaConvenio({ c, naFicha }: { c: ConvenioPainel; naFicha?: boolean }) {
   const lugar = `${c.municipio ?? "—"}/${c.uf ?? "—"}`;
@@ -139,6 +160,13 @@ export function CelulaConvenio({ c, naFicha }: { c: ConvenioPainel; naFicha?: bo
       </span>
       {c.dias_sem_movimentacao !== null && c.dias_sem_movimentacao !== undefined && (
         <span className={`mp-tabela-secundario${c.dias_sem_movimentacao > 365 ? " mp-painel-urgente" : ""}`}>
+          {/* N09 (onda 8, C): mais de um ano sem movimento leva "▲ parado", e não só o vermelho. */}
+          {c.dias_sem_movimentacao > 365 && (
+            <>
+              <Urgente palavra="parado" />
+              {" · "}
+            </>
+          )}
           último movimento há {idadePorExtenso(c.dias_sem_movimentacao)}
           {c.ultima_movimentacao_tipo ? ` (${ROTULO_FONTE_MOVIMENTACAO[c.ultima_movimentacao_tipo] ?? c.ultima_movimentacao_tipo})` : ""}
         </span>
@@ -178,6 +206,13 @@ export function TabelaSuspensiva({ linhas, naFicha }: TabelaProps) {
             <td className="mp-nowrap">
               <span className="mp-tabela-principal">{c.suspensiva_prazo ? formatarData(c.suspensiva_prazo) : "—"}</span>
               <span className={`mp-tabela-secundario${(c.suspensiva_dias ?? 999) <= 30 ? " mp-painel-urgente" : ""}`}>
+                {/* N09 (onda 8, C): o prazo de 30 dias ou menos leva "▲ prazo curto" (ou "▲ vencido"). */}
+                {(c.suspensiva_dias ?? 999) <= 30 && (
+                  <>
+                    <Urgente palavra={palavraDoPrazo(c.suspensiva_dias)} />
+                    {" · "}
+                  </>
+                )}
                 {(c.suspensiva_dias ?? 0) < -60
                   ? `venceu há ${idadePorExtenso(-(c.suspensiva_dias ?? 0))}`
                   : prazoPorExtenso(c.suspensiva_dias)}
@@ -227,6 +262,13 @@ export function TabelaNunca({ linhas, naFicha }: TabelaProps) {
               </span>
               {c.dt_aceite && (
                 <span className={`mp-tabela-secundario${c.aceite_parado ? " mp-painel-urgente" : ""}`}>
+                  {/* N09 (onda 8, C): o aceite antigo sem desembolso leva "▲ parado". */}
+                  {c.aceite_parado && (
+                    <>
+                      <Urgente palavra="parado" />
+                      {" · "}
+                    </>
+                  )}
                   aceite em {formatarData(c.dt_aceite)}
                 </span>
               )}
@@ -260,6 +302,13 @@ export function TabelaVigencia({ linhas, naFicha }: TabelaProps) {
             <td className="mp-nowrap">
               <span className="mp-tabela-principal">{c.dt_fim_vigencia ? formatarData(c.dt_fim_vigencia) : "—"}</span>
               <span className={`mp-tabela-secundario${(c.dias_para_fim ?? 999) <= 90 ? " mp-painel-urgente" : ""}`}>
+                {/* N09 (onda 8, C): a vigência que acaba em 90 dias ou menos leva "▲ prazo curto" (ou "▲ vencido"). */}
+                {(c.dias_para_fim ?? 999) <= 90 && (
+                  <>
+                    <Urgente palavra={palavraDoPrazo(c.dias_para_fim)} />
+                    {" · "}
+                  </>
+                )}
                 {prazoPorExtenso(c.dias_para_fim, { futuro: "termina", passado: "terminou" })}
               </span>
             </td>
@@ -299,7 +348,11 @@ export function TabelaFisico({ linhas, naFicha }: TabelaProps) {
             <CelulaPrograma c={c} />
             <td className="mp-num">{percentual(c.pct_desembolsado)}</td>
             <td className="mp-num">
-              <span className={(c.pct_fisico ?? 1) === 0 ? "mp-painel-urgente" : undefined}>{percentual(c.pct_fisico)}</span>
+              {/* N09 (onda 8, C): o físico zerado leva "▲ zerado" sob o número. */}
+              <span className={(c.pct_fisico ?? 1) === 0 ? "mp-painel-urgente" : undefined}>
+                {percentual(c.pct_fisico)}
+                {(c.pct_fisico ?? 1) === 0 && <Urgente palavra="zerado" />}
+              </span>
             </td>
             <td className="mp-nowrap">
               <span className="mp-tabela-principal">{c.dt_fim_vigencia ? formatarData(c.dt_fim_vigencia) : "—"}</span>

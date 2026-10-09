@@ -4,15 +4,18 @@
  * Formulário de Perfil Institucional — dossiê da OSC.
  *
  * O que a página é: um formulário longo que a instituição preenche por conta
- * própria, no navegador dela. NÃO há envio para servidor — de propósito. As
- * respostas ficam em localStorage enquanto o preenchimento acontece (é comum
- * levar dias e passar pelo contador), e o encerramento é manual: "Copiar
- * respostas" gera o texto que a pessoa cola no e-mail para
- * diretoria.ponte.projetos@gmail.com, junto com os PDFs.
+ * própria, no navegador dela. As respostas ficam em localStorage enquanto o
+ * preenchimento acontece (é comum levar dias e passar pelo contador). Para
+ * encerrar, há dois caminhos: "Copiar respostas" gera o texto para o e-mail, e
+ * o botão "Enviar para a Ponte" (`BotaoEnviar` → `enviarPerfil`, em
+ * `enviar.ts`) grava as respostas no Supabase, na tabela `perfil_institucional`.
  *
- * Consequência importante: dados sensíveis (CPF, RG, conta bancária) nunca
- * trafegam por aqui. Se um dia entrar envio direto, isso deixa de valer e o
- * texto da declaração LGPD no Bloco 10 precisa ser revisto junto.
+ * Comentário corrigido em 09/10/2026 (onda 8, sobra da revisão da política de
+ * privacidade): o envio direto EXISTE, e com ele CPF, RG e conta bancária da
+ * diretoria, quando preenchidos, chegam ao banco. A declaração LGPD do Bloco 10
+ * (`campos.ts`, `dec_lgpd`) e a política de privacidade ainda não tratam disso
+ * por inteiro: a finalidade, a base e o prazo de guarda desse dossiê são
+ * decisão do titular, pendente.
  *
  * A estrutura das perguntas está em campos.ts; a aparência, em estilos.ts.
  * Este arquivo é a máquina (estado, progresso, cópia, impressão, limpeza) mais

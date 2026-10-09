@@ -47,7 +47,9 @@
 
 /* Onda 7, C (09/10/2026; N20 da auditoria R1): abaixo de 860 px o aviso subia 4,8rem para fugir da barra de navegação de
    baixo (`.pa-bottom`) do protótipo. O Mapa não tem essa barra (a linha de abas fica no topo, ver mapa.css), e o aviso
-   cobria o meio do conteúdo por 10 s. Agora fica a 1rem do pé em toda largura, com a margem do entalhe do celular. */
+   cobria o meio do conteúdo por 10 s. Agora fica a 1rem do pé em toda largura, com a margem do entalhe do celular.
+   Onda 8, C (09/10/2026; o resto do N20): um aviso por vez. A estrela e "Marcar como lidas" (carteira/MarcarLidas.tsx)
+   usam esta mesma caixa; quem publica fecha o aviso do outro (`aviso-da-vez.ts`), e os dois nunca se sobrepõem. */
 
 @media (prefers-reduced-motion: reduce) {
   .pa-root .mp-estrela { transition: none; }

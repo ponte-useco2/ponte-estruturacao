@@ -26,6 +26,22 @@ import type { CamadaCompartilhada } from "./memoria.ts";
 export const VALIDADE_DADOS_S = 600;
 export const VALIDADE_DADOS_MS = VALIDADE_DADOS_S * 1000;
 
+/**
+ * A falta com validade curta (onda 8, B, 09/10/2026; R2 de 09/10, §5.1 item 6): a leitura com uma fonte fora do ar fica
+ * 1 minuto na memória da instância (`criarMemoria`, opção `falta`), e não zero, para que a fonte fora do ar não faça cada
+ * visita reler o pacote inteiro. Nunca vai ao cache compartilhado: a regra dele (`leituraGuardavel`) continua a recusá-la.
+ * 1 minuto cabe no "tente de novo em alguns minutos" que a página já diz quando uma fonte falha.
+ */
+export const VALIDADE_FALTA_MS = 60 * 1000;
+
+/**
+ * A falta do relatório (município e entidade): a leitura chegou inteira, mas com uma fonte em `faltas`. É o complemento
+ * exato de `leituraGuardavel` entre as leituras "ok"; erro, "não ativado" e "sem execução" não são falta e não ficam.
+ */
+export function leituraComFalta(l: { estado: string; relatorio?: { faltas: readonly string[] } }): boolean {
+  return l.estado === "ok" && (l.relatorio?.faltas.length ?? 0) > 0;
+}
+
 /** Sobe quando o formato do envelope muda. */
 export const VERSAO_CACHE = "1";
 

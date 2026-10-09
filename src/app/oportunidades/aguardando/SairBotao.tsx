@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { esquecerOrganizacaoAoSair } from "../../mapa/_componentes/esquecer-ao-sair";
 
-/** Encerra a sessão e volta à tela de entrada, permitindo trocar de conta. */
+/**
+ * Encerra a sessão e volta à tela de entrada, permitindo trocar de conta.
+ *
+ * Onda 8, C (09/10/2026; privacidade): o cookie da organização ativa do Mapa (`mapa_org`) sai junto, como no "Sair" do
+ * menu do Mapa (`ContaMenu`). Quem chega à sala de espera pode ter tido cadastro aprovado e organização escolhida antes
+ * de ser bloqueado; a privacidade da saída é a mesma nas duas portas.
+ */
 export function SairBotao() {
   const [saindo, setSaindo] = useState(false);
 
@@ -16,6 +23,8 @@ export function SairBotao() {
       const supabase = createBrowserClient(url, anon);
       await supabase.auth.signOut();
     }
+    // Depois do `signOut`, como no Mapa (ver `mapa/_componentes/sair.ts`). Com erro ou demora, a saída segue.
+    await esquecerOrganizacaoAoSair();
     // Recarga completa, e não navegação do Next: a sessão acabou de mudar e nada
     // do estado da página deve sobreviver.
     window.location.assign(new URL("/oportunidades/entrar", window.location.origin));

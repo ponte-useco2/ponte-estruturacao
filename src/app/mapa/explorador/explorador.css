@@ -55,11 +55,14 @@
 .pa-root .mp-exp-camada:is([data-distancia="1"], [data-distancia="2"]):not([data-saindo]) { cursor: pointer; }
 .pa-root .mp-exp-camada:is([data-distancia="1"], [data-distancia="2"]):not([data-saindo]):hover { border-color: var(--pa-brand-2); }
 
-/* A lombada: o nível e o nome, na faixa que fica à vista quando a camada está atrás. */
+/* A lombada: o nível e o nome, na faixa que fica à vista quando a camada está atrás.
+   Onda 8, C (09/10/2026; N27 da auditoria R1): 0,75rem, o piso dos rótulos do Mapa (A18); era 0,66rem em caixa alta, e
+   a perspectiva ainda encolhe a camada de trás. Cabe na faixa: a de trás mostra uns 35 px da borda de cima. A cor segue a
+   marca-2, #14607a no branco da camada: 7,04:1. */
 .pa-root .mp-exp-lombada {
   margin: 0 0 0.6rem;
   font-family: var(--pa-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;

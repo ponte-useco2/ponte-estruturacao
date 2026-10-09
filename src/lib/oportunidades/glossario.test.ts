@@ -58,7 +58,18 @@ const MINIMOS = [
   "vigencia",
   "ponto-a-conferir",
   "nivel-do-ponto",
+  // território do relatório (onda 8, A, 09/10/2026): a fonte e a unidade da cobertura da terra
+  "mapbiomas",
+  "ponto-percentual",
 ];
+
+test("onda 8: MapBiomas e ponto percentual ficam na ordem certa e se apontam", () => {
+  const ordem = termosEmOrdem().map((t) => t.slug);
+  assert.ok(ordem.indexOf("mapa-das-osc") < ordem.indexOf("mapbiomas"));
+  assert.ok(ordem.indexOf("ponto-a-conferir") < ordem.indexOf("ponto-percentual"));
+  assert.ok(termoPorSlug("mapbiomas")?.veja.includes("ponto-percentual"));
+  assert.match(termoPorSlug("ponto-percentual")?.curta ?? "", /não 6%/);
+});
 
 test("slugs únicos, no formato [a-z0-9-] e sem hífen nas pontas", () => {
   const slugs = GLOSSARIO.map((t) => t.slug);

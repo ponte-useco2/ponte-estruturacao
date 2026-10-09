@@ -26,6 +26,7 @@ import {
   type Ref,
 } from "react";
 import { marcarItensLidos, marcarItensNaoLidos } from "../acoes";
+import { largarAVez, tomarAVez } from "../_componentes/aviso-da-vez";
 import "../_componentes/estrela.css";
 import "./marcar-lidas.css";
 
@@ -82,6 +83,7 @@ function pausar() {
 function fechar() {
   pausar();
   aviso = null;
+  largarAVez(fechar);
   emitir();
 }
 
@@ -95,6 +97,9 @@ function armar() {
 }
 
 function publicar(novo: Omit<Aviso, "id" | "desfazendo">) {
+  // Onda 8, C (09/10/2026; N20 da auditoria R1): um aviso por vez no pé da janela. O da estrela, se estava à vista,
+  // fecha, e este aparece sozinho no lugar dele (`aviso-da-vez.ts`).
+  tomarAVez(fechar);
   aviso = { ...novo, id: ++sequencia, desfazendo: false };
   armar();
   emitir();
@@ -174,6 +179,7 @@ export function MarcarLidas({ ids, rotulo = "Marcar como lidas" }: { ids: string
       if (montadas.length === 0) {
         pausar();
         aviso = null;
+        largarAVez(fechar);
       }
       emitir();
     };

@@ -419,10 +419,20 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
       {admin && (
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <span className="pa-nota">Administrador: </span>
-          <LinkMapa href={urlUf(l.sigla, "municipios")} className={`pa-chip${!ordenarPorSinais ? " pa-ativo" : ""}`}>
+          {/* Onda 8, C (09/10/2026; N26 da auditoria R1, WCAG 4.1.2): a ordem escolhida não era só a cor do chip; o
+              `aria-current` diz qual é, como nos chips do painel. */}
+          <LinkMapa
+            href={urlUf(l.sigla, "municipios")}
+            className={`pa-chip${!ordenarPorSinais ? " pa-ativo" : ""}`}
+            aria-current={!ordenarPorSinais ? "true" : undefined}
+          >
             Por região
           </LinkMapa>
-          <LinkMapa href={`${urlUf(l.sigla, "municipios")}&ordem=sinais`} className={`pa-chip${ordenarPorSinais ? " pa-ativo" : ""}`}>
+          <LinkMapa
+            href={`${urlUf(l.sigla, "municipios")}&ordem=sinais`}
+            className={`pa-chip${ordenarPorSinais ? " pa-ativo" : ""}`}
+            aria-current={ordenarPorSinais ? "true" : undefined}
+          >
             Por sinais do painel
           </LinkMapa>
         </p>

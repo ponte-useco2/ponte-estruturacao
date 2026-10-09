@@ -115,8 +115,9 @@ function Mais({ children }: { children: React.ReactNode }) {
 /*
  * B12b (onda 3 de UX, 08/10/2026): as duas abas sem dado diziam só "ainda não tem" / "ainda não foram lidos". Agora
  * separam a leitura que falhou agora (o nome vai em `faltas`, ver `relatorio-municipio.server.ts`), que pede "Tentar de
- * novo", do dado que ainda não existe, que diz quando a próxima rodada está marcada. A memória do relatório não guarda
- * a leitura que veio com falta (`leituraGuardavel`), então o "Tentar de novo" relê na hora. Os horários são os agendados
+ * novo", do dado que ainda não existe, que diz quando a próxima rodada está marcada. A leitura que veio com falta não
+ * vai ao cache compartilhado (`leituraGuardavel`) e fica no máximo 60 s só no servidor que a leu (onda 8, B: uma fonte
+ * fora do ar não multiplica as leituras); por isso o texto pede "em alguns minutos". Os horários são os agendados
  * em `.github/workflows/` e no cron da Vercel, e só eles: o GitHub atrasa as execuções em horas, e a frase não promete
  * o minuto em que o dado chega.
  */

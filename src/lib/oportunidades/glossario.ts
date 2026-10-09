@@ -207,6 +207,17 @@ const ENTRADAS = [
     fonte: "Mapa das OSC (Ipea)",
     veja: ["osc", "osc-ativa", "natureza-juridica", "cebas"],
   },
+  // Onda 8, A (09/10/2026): o território do relatório passou a ter a cobertura da terra do MapBiomas, com a variação da
+  // vegetação nativa em pontos percentuais; os dois termos aparecem na fonte e na unidade da tabela.
+  {
+    slug: "mapbiomas",
+    termo: "MapBiomas",
+    curta: "Rede de universidades, ONGs e empresas de tecnologia que mapeia a cobertura e o uso da terra do Brasil, ano a ano, por satélite.",
+    explica:
+      "O MapBiomas classifica imagens de satélite com pixel de 30 metros em classes como floresta, savana, pastagem, agricultura, água e área urbanizada, de 1985 até o ano anterior. A PONTE lê a planilha de estatísticas por município e mostra a fatia de vegetação nativa, de agropecuária e de área urbanizada, e a variação da vegetação nativa em 10 anos. Cada coleção nova reclassifica a série inteira: os números de anos anteriores podem mudar. Os dados são públicos, com citação obrigatória da coleção.",
+    fonte: "Projeto MapBiomas (brasil.mapbiomas.org)",
+    veja: ["ponto-percentual"],
+  },
   {
     slug: "mediana",
     termo: "Mediana",
@@ -289,6 +300,16 @@ const ENTRADAS = [
       "O Mapa lê fontes públicas de forma automática e marca o que foge do esperado: prazo vencido, dado que não bate entre duas bases, regra da norma sem comprovação nos dados abertos. Cada ponto traz o fato e a fonte. A explicação pode estar fora dos dados abertos, num documento anexado, numa decisão do concedente ou numa exceção prevista na norma; por isso o ponto pede conferência, não conclusão. Não substitui certidão, parecer do concedente, decisão de Tribunal de Contas nem orientação jurídica.",
     fonte: "Critério da PONTE",
     veja: ["nivel-do-ponto", "pc-33"],
+  },
+  {
+    slug: "ponto-percentual",
+    termo: "Ponto percentual (p.p.)",
+    curta: "Diferença entre duas porcentagens: passar de 61% para 55% é cair 6 pontos percentuais, não 6%.",
+    explica:
+      "Quando o indicador já é uma porcentagem, a variação dele é dita em pontos percentuais, para não confundir com a variação relativa. Na vegetação nativa do MapBiomas, a variação em 10 anos é a fatia da área no último ano menos a fatia dez anos antes. Na Caatinga, a classificação oscila com a chuva, e variação menor que 2 pontos fica dentro dessa oscilação.",
+    fonte: "Estatística descritiva; cálculo da PONTE sobre o MapBiomas",
+    exemplo: "Na PB, a vegetação nativa foi de 61,0% da área em 2015 para 55,1% em 2025: -5,9 p.p., ou cerca de 10% a menos de vegetação.",
+    veja: ["mapbiomas", "mediana"],
   },
   {
     slug: "prestacao-de-contas",

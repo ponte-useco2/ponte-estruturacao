@@ -56,9 +56,14 @@ export function NormasConteudo({ leitura }: { leitura: LeituraNormas }) {
                 <p className="pa-mono">
                   {n.orgao ? `${n.orgao} · ` : ""}publicada em {formatarData(n.publicada_em)}
                 </p>
+                {/* Onda 8, C (09/10/2026; N24 da auditoria R1): o título é link e tem a cara de link (mapa.css,
+                    `.mp-norma-link`), com o ↗ à vista; o leitor de tela segue ouvindo que abre em nova aba. */}
                 <h2 className="pa-oportunidade-titulo">
-                  <a href={n.link} target="_blank" rel="noopener noreferrer">
+                  <a href={n.link} target="_blank" rel="noopener noreferrer" className="mp-norma-link">
                     {n.titulo}
+                    <span className="mp-norma-seta" aria-hidden="true">
+                      ↗
+                    </span>
                     <span className="pa-sr"> (abre o texto oficial em nova aba)</span>
                   </a>
                 </h2>

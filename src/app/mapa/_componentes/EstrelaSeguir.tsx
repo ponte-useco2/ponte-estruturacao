@@ -18,6 +18,7 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, useTransition, type FocusEvent, type KeyboardEvent, type MouseEvent, type Ref } from "react";
 import { rotuloEstrela, type TipoItem } from "@/lib/oportunidades/favoritos";
 import { deixarDeSeguir, seguir } from "../acoes";
+import { largarAVez, tomarAVez } from "./aviso-da-vez";
 import "./estrela.css";
 
 /** Quanto o aviso fica à vista. O relógio para enquanto o ponteiro ou o foco estão nele. */
@@ -82,6 +83,7 @@ function pausar() {
 function fechar() {
   pausar();
   aviso = null;
+  largarAVez(fechar);
   emitir();
 }
 
@@ -95,6 +97,9 @@ function armar() {
 }
 
 function publicar(novo: NovoAviso) {
+  // Onda 8, C (09/10/2026; N20 da auditoria R1): um aviso por vez no pé da janela. O de "Marcar como lidas", se estava
+  // à vista, fecha (`aviso-da-vez.ts`).
+  tomarAVez(fechar);
   aviso = { ...novo, id: ++sequencia, desfazendo: false };
   armar();
   emitir();

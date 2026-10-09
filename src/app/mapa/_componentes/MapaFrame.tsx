@@ -8,6 +8,8 @@ import { somaNaoLidos } from "@/lib/oportunidades/favoritos";
 import { contarAvisosItensNaoLidos } from "@/lib/oportunidades/favoritos.server";
 import { NOTA_DA_IMPRESSAO_PUBLICA, convitePublico, type SessaoPublica } from "@/lib/oportunidades/publico";
 import { ehAdministrador } from "@/lib/supabase-auth";
+import { AbrirAoImprimir } from "./AbrirAoImprimir";
+import { EsperaDoMapa } from "./Carregando";
 import { LinkMapa } from "./LinkMapa";
 import "./pular.css";
 
@@ -56,6 +58,12 @@ export function ConvitePublico({ sessao, caminho, acao }: { sessao: SessaoPublic
  * C4a (09/10/2026): com a chave `MAPA_PUBLICO` ligada, a moldura também serve a versão pública (`publico`, no lugar
  * de `email` e `nome`): "Entrar" no lugar do menu da conta, só as abas de nível 0 e nenhuma leitura de banco ligada à
  * sessão. Com a chave desligada, o layout nunca passa `publico`, e a moldura é a de antes.
+ *
+ * Onda 8, C (09/10/2026), três peças da moldura, porque ela fica montada entre as páginas:
+ * - `data-publico` em `.mp-root` só na versão pública (N13 da auditoria R1): o esqueleto do `loading.tsx` sabe o nível
+ *   sem ler a sessão e desenha só as abas do público (esqueleto.css). Sem a chave, o atributo não existe;
+ * - `EsperaDoMapa` (N22): a região de status única, que os links pendentes e os esqueletos alimentam (`Carregando.tsx`);
+ * - `AbrirAoImprimir` (N21): os grupos fechados abrem antes de imprimir, também no Firefox e no Safari.
  */
 export async function MapaFrame(
   props: { children: ReactNode } & (
@@ -78,59 +86,63 @@ export async function MapaFrame(
   return (
     // `pa-root` é a raiz do design system: declara os alias de token e o reset.
     // `mp-root` ajusta o que é desta moldura — ver mapa.css.
-    <div className="pa-root mp-root">
-      {/* B12 (08/10/2026; A15 da auditoria B1+B2): o primeiro Tab da página. São até 13 paradas no cabeçalho antes do
-          conteúdo (11 abas para o administrador). Âncora da própria página, não rota: <a> simples, sem LinkMapa. */}
-      <a href="#conteudo" className="mp-pular">
-        Pular para o conteúdo
-      </a>
-      <header className="pa-top">
-        <div className="pa-top-inner">
-          <Link prefetch={false} href="/mapa" className="pa-marca">
-            <span className="pa-marca-selo" aria-hidden="true">
-              P
-            </span>
-            <span className="pa-marca-nome">
-              PONTE <strong>Mapa de Oportunidades</strong>
-            </span>
-          </Link>
+    <div className="pa-root mp-root" data-publico={publico ? "sim" : undefined}>
+      {/* Onda 8, C (N22): o contexto não desenha caixa; a região de status única fica no fim, depois do rodapé. */}
+      <EsperaDoMapa>
+        <AbrirAoImprimir />
+        {/* B12 (08/10/2026; A15 da auditoria B1+B2): o primeiro Tab da página. São até 13 paradas no cabeçalho antes do
+            conteúdo (11 abas para o administrador). Âncora da própria página, não rota: <a> simples, sem LinkMapa. */}
+        <a href="#conteudo" className="mp-pular">
+          Pular para o conteúdo
+        </a>
+        <header className="pa-top">
+          <div className="pa-top-inner">
+            <Link prefetch={false} href="/mapa" className="pa-marca">
+              <span className="pa-marca-selo" aria-hidden="true">
+                P
+              </span>
+              <span className="pa-marca-nome">
+                PONTE <strong>Mapa de Oportunidades</strong>
+              </span>
+            </Link>
 
-          <div className="pa-espaco" />
+            <div className="pa-espaco" />
 
-          {conta ? (
-            <ContaMenu email={conta.email} nome={conta.nome} organizacoes={todas} ativa={ativa} />
-          ) : (
-            publico && <ContaPublica sessao={publico} />
-          )}
-        </div>
+            {conta ? (
+              <ContaMenu email={conta.email} nome={conta.nome} organizacoes={todas} ativa={ativa} />
+            ) : (
+              publico && <ContaPublica sessao={publico} />
+            )}
+          </div>
 
-        <MapaNav
-          naoLidas={naoLidas}
-          admin={conta ? ehAdministrador(conta.email) : false}
-          municipio={ativa?.tipo === "municipio" && Boolean(ativa.municipioIbge)}
-          meuIbge={ativa?.tipo === "municipio" ? ativa.municipioIbge : null}
-          organizacao={!!ativa && ativa.tipo !== "municipio" && Boolean(ativa.cnpj)}
-          minhaEntidade={ativa && ativa.tipo !== "municipio" ? ativa.cnpj : null}
-          publico={publico !== null}
-        />
-      </header>
+          <MapaNav
+            naoLidas={naoLidas}
+            admin={conta ? ehAdministrador(conta.email) : false}
+            municipio={ativa?.tipo === "municipio" && Boolean(ativa.municipioIbge)}
+            meuIbge={ativa?.tipo === "municipio" ? ativa.municipioIbge : null}
+            organizacao={!!ativa && ativa.tipo !== "municipio" && Boolean(ativa.cnpj)}
+            minhaEntidade={ativa && ativa.tipo !== "municipio" ? ativa.cnpj : null}
+            publico={publico !== null}
+          />
+        </header>
 
-      {/* `tabIndex={-1}`: o salto do "Pular para o conteúdo" leva também o foco, e o próximo Tab segue daqui. */}
-      <main id="conteudo" tabIndex={-1} className="pa-main">
-        {children}
-      </main>
+        {/* `tabIndex={-1}`: o salto do "Pular para o conteúdo" leva também o foco, e o próximo Tab segue daqui. */}
+        <main id="conteudo" tabIndex={-1} className="pa-main">
+          {children}
+        </main>
 
-      <footer className="mp-rodape">
-        <div className="mp-rodape-inner">
-          <p className="pa-mono">{conta ? "Acesso restrito" : "Versão pública"} · fontes oficiais de fomento</p>
-          <div className="pa-espaco" />
-          {/* O glossário (B7) explica os termos que as páginas marcam; no menu não coube (onda 1 de UX, 08/10/2026).
-              C4a: aberto também na versão pública (sem dado nenhum; ver `publico.ts`). */}
-          <LinkMapa href="/mapa/glossario">Glossário</LinkMapa>
-          <Link prefetch={false} href="/privacidade">Privacidade</Link>
-          <Link prefetch={false} href="/termos">Termos</Link>
-        </div>
-      </footer>
+        <footer className="mp-rodape">
+          <div className="mp-rodape-inner">
+            <p className="pa-mono">{conta ? "Acesso restrito" : "Versão pública"} · fontes oficiais de fomento</p>
+            <div className="pa-espaco" />
+            {/* O glossário (B7) explica os termos que as páginas marcam; no menu não coube (onda 1 de UX, 08/10/2026).
+                C4a: aberto também na versão pública (sem dado nenhum; ver `publico.ts`). */}
+            <LinkMapa href="/mapa/glossario">Glossário</LinkMapa>
+            <Link prefetch={false} href="/privacidade">Privacidade</Link>
+            <Link prefetch={false} href="/termos">Termos</Link>
+          </div>
+        </footer>
+      </EsperaDoMapa>
     </div>
   );
 }

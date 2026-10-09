@@ -11,6 +11,10 @@
  * (`cache-dados.server.ts`), também de 10 minutos, e só com a leitura inteira (sem faltas). A do administrador traz a
  * decisão B do fiscal e os sinais do painel, que só ele vê: fica fora do cache comum, só na memória da instância, como
  * antes (R2 de 09/10, §5.1 item 3). São poucos administradores; o ganho seria pequeno e o risco, de dado interno.
+ *
+ * Onda 8, B (09/10/2026): a última execução do painel vai junto com as das outras fontes, e a leitura a frio perde uma
+ * ida e volta em série (PB: de 3 para 2; SP, com 3 páginas de proponentes: de 5 para 4). Os pedidos e o resultado são os
+ * mesmos.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { VALIDADE_DADOS_MS } from "./cache-dados";
@@ -90,7 +94,19 @@ async function lerDoBanco(sigla: string, administrador: boolean): Promise<Leitur
   const db = clienteServidor();
   const faltas: string[] = [];
 
-  const painel = await db.rpc("painel_ultima_execucao");
+  const completa = ehUfCompleta(sigla);
+
+  // Onda 8, B (09/10/2026): as últimas execuções numa ida só. Antes, as das outras fontes esperavam a do painel, uma ida
+  // e volta a mais (~300 ms de iad1 a Oregon, R2 §2.9). Sem o painel, o resultado é o mesmo de antes: as outras leituras
+  // se perdem, e a página diz "não ativado", "erro" ou "sem execução".
+  const [painel, pixId, radarId, munId, oscId, fiscalId] = await Promise.all([
+    db.rpc("painel_ultima_execucao"),
+    ultimaId(db, "pix_ultima_execucao"),
+    ultimaId(db, "radar_ultima_execucao"),
+    completa ? ultimaId(db, "mun_ultima_execucao") : Promise.resolve(null),
+    completa ? ultimaId(db, "osc_ultima_execucao") : Promise.resolve(null),
+    completa ? ultimaId(db, "fiscal_ultima_execucao") : Promise.resolve(null),
+  ]);
   if (painel.error) {
     if (ehEsquemaAusente(painel.error.code)) return { estado: "nao_ativado" };
     console.error("página da UF (painel):", painel.error.message);
@@ -98,15 +114,6 @@ async function lerDoBanco(sigla: string, administrador: boolean): Promise<Leitur
   }
   const ex = ((painel.data as { id: number; referencia: string | null; dado_ate: string | null }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
-  const completa = ehUfCompleta(sigla);
-
-  const [pixId, radarId, munId, oscId, fiscalId] = await Promise.all([
-    ultimaId(db, "pix_ultima_execucao"),
-    ultimaId(db, "radar_ultima_execucao"),
-    completa ? ultimaId(db, "mun_ultima_execucao") : Promise.resolve(null),
-    completa ? ultimaId(db, "osc_ultima_execucao") : Promise.resolve(null),
-    completa ? ultimaId(db, "fiscal_ultima_execucao") : Promise.resolve(null),
-  ]);
 
   const [territorio, proponentes, porMunicipio, etapas, desfechos, pix, fundo, janelas, refs, grupos, oscMun, oscVersao, fiscal, sinais] =
     await Promise.all([

@@ -1,5 +1,5 @@
 {
-  "versao": "2026-10-01.1",
+  "versao": "2026-10-09.1",
   "nota": "Catálogo dos indicadores do relatório do município (onda 14, camada 2). O job `municipios/` grava os ids; o site lê nome, unidade e direção daqui. direcao: maior = quanto maior melhor; menor = quanto menor melhor; null = contexto, sem nível. chave = vira achado no relatório.",
   "indicadores": [
     {
@@ -210,6 +210,26 @@
       "nota": "Óbitos por acidente de transporte (CID V01–V89), por residência, média de 3 anos."
     },
     {
+      "id": "creche_0a3",
+      "dimensao": "educacao",
+      "nome": "Crianças de 0 a 3 anos na creche ou na escola",
+      "unidade": "por 100 crianças de 0 a 3 anos",
+      "casas": 1,
+      "direcao": "maior",
+      "chave": true,
+      "nota": "Matrículas de crianças de 0 a 3 anos em creche ou pré-escola no município (Censo Escolar, INEP), por 100 crianças de 0 a 3 anos que moram nele (Censo 2022, IBGE). A matrícula conta onde fica a escola; a população, onde a criança mora. Como nasceram menos crianças depois de 2022, o número fica abaixo da cobertura real (cerca de 9% na edição de 2025), e a PB e o Brasil, calculados do mesmo jeito, também. Em município pequeno ou que recebe crianças de vizinhos, pode passar de 100. Meta do PNE (Lei 15.388/2026): 60% das crianças de até 3 anos no país até o fim do plano; no PNE anterior (Lei 13.005/2014), 50%."
+    },
+    {
+      "id": "pre_escola_4a5",
+      "dimensao": "educacao",
+      "nome": "Crianças de 4 e 5 anos na pré-escola ou na creche",
+      "unidade": "por 100 crianças de 4 e 5 anos",
+      "casas": 1,
+      "direcao": null,
+      "chave": false,
+      "nota": "Matrículas de crianças de 4 e 5 anos em pré-escola ou creche no município (Censo Escolar, INEP), por 100 crianças de 4 e 5 anos que moram nele (Censo 2022, IBGE). Contexto, sem nível: em quase metade dos municípios da PB passa de 100, porque a escola atende vizinhos ou a população de 2022 ficou pequena; acima de 100 quer dizer cobertura plena ou atendimento a vizinhos. A matrícula de 4 e 5 anos é obrigatória desde a Emenda Constitucional 59/2009."
+    },
+    {
       "id": "ideb_ai_municipal",
       "dimensao": "educacao",
       "nome": "IDEB da rede municipal, anos iniciais",
@@ -375,6 +395,46 @@
       "casas": 1,
       "direcao": null,
       "chave": false
+    },
+    {
+      "id": "vegetacao_nativa_pct",
+      "dimensao": "territorio",
+      "nome": "Vegetação nativa",
+      "unidade": "% da área do município",
+      "casas": 1,
+      "direcao": null,
+      "chave": false,
+      "nota": "MapBiomas: mapas anuais por satélite, com pixel de 30 m. Florestas, savanas (a maior parte da Caatinga), campos e outras formações naturais, como fatia da área total do município. Cada coleção nova recalcula a série inteira; os números de anos anteriores podem mudar."
+    },
+    {
+      "id": "vegetacao_nativa_var10_pp",
+      "dimensao": "territorio",
+      "nome": "Variação da vegetação nativa em 10 anos",
+      "unidade": "p.p. da área do município",
+      "casas": 1,
+      "direcao": "maior",
+      "chave": false,
+      "nota": "Variação líquida da fatia de vegetação nativa (perda menos regeneração), em pontos percentuais. Não é a taxa de desmatamento. Na Caatinga, a classificação oscila com a chuva: variação menor que 2 pontos é estabilidade."
+    },
+    {
+      "id": "agropecuaria_pct",
+      "dimensao": "territorio",
+      "nome": "Agropecuária",
+      "unidade": "% da área do município",
+      "casas": 1,
+      "direcao": null,
+      "chave": false,
+      "nota": "Pastagem, agricultura, silvicultura e mosaico de usos (MapBiomas), como fatia da área total do município."
+    },
+    {
+      "id": "area_urbanizada_pct",
+      "dimensao": "territorio",
+      "nome": "Área urbanizada",
+      "unidade": "% da área do município",
+      "casas": 2,
+      "direcao": null,
+      "chave": false,
+      "nota": "Área construída vista do satélite (prédios, ruas), não o perímetro urbano da lei. Em município pequeno fica abaixo de 1%."
     },
     {
       "id": "pntp_prefeitura",

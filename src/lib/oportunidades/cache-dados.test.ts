@@ -8,12 +8,14 @@ import {
   LIMITE_ITEM,
   VALIDADE_DADOS_MS,
   VALIDADE_DADOS_S,
+  VALIDADE_FALTA_MS,
   abrirEnvelope,
   chaveDoCache,
   criarCamadaCompartilhada,
   decidirGuarda,
   etiquetasDoLeitor,
   implantacaoDe,
+  leituraComFalta,
   perdaNoJson,
   tamanhoNoCache,
   type Cachear,
@@ -269,6 +271,53 @@ test("memória + camada: duas instâncias, um cache comum — o banco é lido um
   await z.obter("2510808|2026-10-09", b.carregar);
   await z.obter("2510808|2026-10-09", b.carregar);
   assert.equal(b.conta.leituras, 1);
+});
+
+// ================================================================ falta com validade curta (onda 8, B)
+
+test("falta: o complemento exato de `leituraGuardavel` entre as leituras ok; 1 minuto", () => {
+  const casos = [
+    { estado: "ok", relatorio: { faltas: [] as string[] } },
+    { estado: "ok", relatorio: { faltas: ["TCE-PB"] } },
+    { estado: "nao_encontrado" },
+    { estado: "erro" },
+    { estado: "nao_ativado" },
+    { estado: "sem_execucao" },
+  ];
+  assert.deepEqual(casos.map(leituraComFalta), [false, true, false, false, false, false]);
+  for (const c of casos) assert.ok(!(leituraComFalta(c) && leituraGuardavel(c)), "nunca as duas");
+  assert.equal(VALIDADE_FALTA_MS, 60_000);
+});
+
+test("memória + camada: a falta fica 1 minuto só na instância e nunca vai ao cache comum; a outra instância relê", async () => {
+  const r = relogio();
+  const c = cacheFalso(r);
+  type Leitura = { estado: string; relatorio: { faltas: string[] } };
+  const b = banco<Leitura>([{ estado: "ok", relatorio: { faltas: ["fornecedores"] } }]);
+  // Como em `relatorio-municipio.server.ts`: a regra do cache comum e a da memória são `leituraGuardavel`.
+  const instancia = () =>
+    criarMemoria<Leitura>({
+      validadeMs: VALIDADE_DADOS_MS,
+      maximo: 30,
+      guardar: leituraGuardavel,
+      falta: { validadeMs: VALIDADE_FALTA_MS, e: leituraComFalta },
+      agora: r.agora,
+      compartilhada: camadaDeTeste<Leitura>(c, r, [], { guardavel: leituraGuardavel }),
+    });
+  const a = instancia();
+  const lida = await a.obter("2507507|2026-10-09", b.carregar);
+  assert.deepEqual(lida.relatorio.faltas, ["fornecedores"], "quem visita vê a mesma falta de antes");
+  assert.equal(c.itens.size, 0, "a falta não foi ao cache comum");
+  for (let i = 0; i < 5; i++) assert.equal(await a.obter("2507507|2026-10-09", b.carregar), lida);
+  assert.equal(b.conta.leituras, 1, "cinco visitas no minuto, uma leitura só");
+
+  await instancia().obter("2507507|2026-10-09", b.carregar);
+  assert.equal(b.conta.leituras, 2, "a outra instância não vê a falta desta: relê");
+  assert.equal(c.itens.size, 0);
+
+  r.andar(VALIDADE_FALTA_MS);
+  await a.obter("2507507|2026-10-09", b.carregar);
+  assert.equal(b.conta.leituras, 3, "depois de 1 minuto, relê");
 });
 
 // ================================================================ as fontes por nível

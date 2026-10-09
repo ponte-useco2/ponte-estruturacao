@@ -197,6 +197,67 @@ export async function lerFornecedoresDoConvenio(
   };
 }
 
+// ================================================================ relatório do município (onda 8, B)
+
+/** O que o relatório do município usa dos fornecedores: a concentração e os inidôneos com o que receberam lá. */
+export type LeituraInidoneosMunicipio =
+  | Falha
+  | { estado: "ok"; concentracao: ConcentracaoMunicipio | null; inidoneos: { cnpj: string; nome: string | null; pago: number }[] };
+
+/**
+ * A concentração do município e os fornecedores inidôneos (TCU) que receberam nos convênios dele, para o relatório do
+ * município (onda 8, B, 09/10/2026; R2 de 09/10, §2.4 e §5.5 item 5). Só a leitura completa, do nível 1 em diante: a
+ * pública não lê fornecedores (onda 7, A).
+ *
+ * Antes, o relatório pedia a lista do painel (`lerPainelFornecedores`, com o município e a marca "inidôneos"), que lê o
+ * que o relatório não usa: as 4 contagens exatas da base inteira, os CNPJs com registro no CEIS/CNEP e a situação de
+ * cada linha. E lia TODOS os pares do município por OFFSET (João Pessoa: 2.466 pares, 3 páginas) e TODAS as empresas
+ * deles em lotes de 100, um depois do outro (1.565 CNPJs, 16 lotes), para no fim ficar só com os inidôneos — 15 na base
+ * inteira em 09/10. Em João Pessoa eram ~29 pedidos e ~21 idas e voltas em série; em Patos, ~13 e ~8.
+ *
+ * Agora, 3 pedidos em 2 idas e voltas, em qualquer município: os inidôneos da execução (uma página) junto com a
+ * concentração do município (pela chave); depois, só os pares desses CNPJs no município, pelo índice
+ * `(execucao_id, cnpj)` (João Pessoa: 4 pares). Sem índice novo: o que pesava eram as idas e voltas, não o banco (a
+ * página de pares por IBGE leva 5 ms e as contagens, 1 ms cada; medido pelo MCP em 09/10).
+ *
+ * O resultado é o mesmo da lista antiga: a soma por CNPJ não muda quando se filtra pelo CNPJ antes de somar, e seguem a
+ * mesma ordem (o que recebeu mais primeiro), o mesmo corte de `POR_PAGINA` e o mesmo "só quem recebeu" (pago > 0).
+ * Conferido pelo MCP em 09/10, refazendo as duas formas em SQL: 223 municípios, 223 iguais (36 inidôneos em 30
+ * municípios). O município sem concentração caía na lista geral, sem o valor de lá, e saía sem inidôneo nenhum: aqui,
+ * direto. A diferença está só nas falhas: as contagens e o CEIS/CNEP não lidos já não podem derrubar a seção.
+ */
+export async function lerInidoneosDoMunicipio(db: Banco, execucaoId: number, ibge: string): Promise<LeituraInidoneosMunicipio> {
+  const onde = "relatório do município (fornecedores)";
+  const [municipio, inidoneos] = await Promise.all([
+    db.from("painel_fornecedor_municipio").select("*").eq("execucao_id", execucaoId).eq("cod_ibge", ibge).limit(1),
+    todas<Pick<Fornecedor, "cnpj" | "nome">>(`${onde}, inidôneos`, (a, b) =>
+      db.from("painel_fornecedor").select("cnpj,nome").eq("execucao_id", execucaoId).eq("inidoneo_tcu", true).order("cnpj").range(a, b),
+    ),
+  ]);
+  if (municipio.error) return falha(`${onde}, concentração`, municipio.error);
+  if (ehFalha(inidoneos)) return inidoneos;
+  const concentracao = ((municipio.data ?? []) as ConcentracaoMunicipio[])[0] ?? null;
+  if (!concentracao || inidoneos.length === 0) return { estado: "ok", concentracao, inidoneos: [] };
+
+  // O que cada inidôneo recebeu no município: só os pares dele lá, somados na ordem em que chegam, como antes.
+  const recebido = new Map<string, number>();
+  for (let k = 0; k < inidoneos.length; k += LOTE_IN) {
+    const lote = inidoneos.slice(k, k + LOTE_IN).map((f) => f.cnpj);
+    const pares = await todas<Pick<FornecedorConvenio, "cnpj" | "pago">>(`${onde}, pares`, (a, b) =>
+      db.from("painel_fornecedor_convenio").select("cnpj,pago").eq("execucao_id", execucaoId).eq("cod_ibge", ibge).in("cnpj", lote).order("cnpj").range(a, b),
+    );
+    if (ehFalha(pares)) return pares;
+    for (const p of pares) recebido.set(p.cnpj, (recebido.get(p.cnpj) ?? 0) + p.pago);
+  }
+  const lista = inidoneos
+    .filter((f) => recebido.has(f.cnpj))
+    .map((f) => ({ cnpj: f.cnpj, nome: f.nome, pago: recebido.get(f.cnpj) ?? 0 }))
+    .sort((a, b) => b.pago - a.pago)
+    .slice(0, POR_PAGINA)
+    .filter((f) => f.pago > 0);
+  return { estado: "ok", concentracao, inidoneos: lista };
+}
+
 // ================================================================ painel
 
 export type Ordem = "municipios" | "valor";

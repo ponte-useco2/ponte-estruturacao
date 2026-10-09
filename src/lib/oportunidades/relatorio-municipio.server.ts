@@ -29,9 +29,18 @@
  *     todas as instâncias, com a mesma validade de 10 minutos e a mesma regra do que se guarda (`leituraGuardavel`).
  *     A leitura pública tem memória e chave próprias. O que se guarda não depende de quem visita: o recorte por nível
  *     continua na página, a cada pedido, sobre o objeto que voltou (que ninguém pode alterar).
+ *
+ * Onda 8, B (09/10/2026; R2 de 09/10, §4.2 e §5.5 item 5): duas mudanças de velocidade, sem mudar o que se vê.
+ *   - **Falta com validade curta**: a leitura com uma fonte em `faltas` fica 1 minuto na memória desta instância
+ *     (`VALIDADE_FALTA_MS`), e não zero; nunca no cache compartilhado. Uma fonte fora do ar deixava cada visita reler
+ *     o pacote inteiro (~50 pedidos no município completo). O "tente de novo em alguns minutos" da página continua
+ *     valendo: depois de 1 minuto, a leitura é refeita.
+ *   - **Fornecedores do município** (`lerInidoneosDoMunicipio`): o relatório lê só o que usa — a concentração e os
+ *     inidôneos que receberam lá —, em 3 pedidos e 2 idas e voltas, no lugar da lista do painel (de 13 a 29 pedidos,
+ *     com 4 contagens exatas, o CEIS/CNEP e todos os pares do município por OFFSET). O resultado é o mesmo.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
-import { VALIDADE_DADOS_MS } from "./cache-dados";
+import { VALIDADE_DADOS_MS, VALIDADE_FALTA_MS, leituraComFalta } from "./cache-dados";
 import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { montarCatalogo } from "./catalogo-v2";
 import { lerCatalogo, lerCatalogoV2 } from "./catalogo.server";
@@ -46,7 +55,7 @@ import { cnpjDaMatriz, nomeOsc, type CadastroOsc } from "./osc";
 import { lerCadastroOsc, type LeituraCadastroOsc } from "./osc.server";
 import catalogoIndicadores from "./indicadores-municipio.json";
 import type { EntradaIndicadores, GrupoMunicipio, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio";
-import { lerPainelFornecedores } from "./fornecedores.server";
+import { lerInidoneosDoMunicipio } from "./fornecedores.server";
 import { MUNICIPIOS_PB } from "./municipios-pb";
 import { todas } from "./padroes.server";
 import type { PlanoFundo } from "./pix";
@@ -234,17 +243,22 @@ const fontesDaLeitura = (o: OpcoesLeitura) => fontesDoNivel(o.publico ? 0 : 1);
 /** Nada a ler: a fonte fora da lista da leitura. */
 const NADA = Promise.resolve(null);
 
+/** Onda 8, B: a leitura com fonte em `faltas` fica 1 minuto nesta instância (e nunca no cache comum, que a recusa). */
+const FALTA_CURTA = { validadeMs: VALIDADE_FALTA_MS, e: leituraComFalta };
+
 // Onda 7, A: cada memória ganha a camada comum às instâncias; a leitura pública tem memória e chave próprias.
 const memoria = criarMemoria<LeituraRelatorio>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
+  falta: FALTA_CURTA,
   compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio", guardavel: leituraGuardavel }),
 });
 const memoriaPublica = criarMemoria<LeituraRelatorio>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
+  falta: FALTA_CURTA,
   compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio-publico", guardavel: leituraGuardavel }),
 });
 
@@ -292,7 +306,8 @@ async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRela
     le("tcu") ? lerTcu(db, { ibge }, faltas) : NADA,
     le("pix") ? lerLaudoEntePix({ tipo: "ibge", valor: ibge }) : NADA,
     le("tce_pb") ? lerTceMunicipio(ibge) : NADA,
-    le("fornecedores") ? lerPainelFornecedores({ q: null, municipio: ibge, ordem: "valor", marca: "inidoneos" }) : NADA,
+    // Onda 8, B: só o que o relatório usa (a concentração e os inidôneos de lá), pela execução que esta leitura já tem.
+    le("fornecedores") ? lerInidoneosDoMunicipio(db, ex.id, ibge) : NADA,
     le("fundo") ? lerFundo(db, { campo: "cod_ibge", valor: ibge }, faltas) : NADA,
     le("indicadores") ? lerIndicadores(db, ibge, faltas) : NADA,
     le("pix_ciclo") ? lerCiclo(db, { campo: "cod_ibge", valor: ibge }, faltas) : NADA,
@@ -341,13 +356,7 @@ async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRela
     pixTce: tce?.estado === "ok" ? tce.pix : pix?.estado === "ok" ? pix.tce : null,
     fundo,
     conciliacao: tce?.estado === "ok" ? tce.municipios : null,
-    fornecedores:
-      fornecedores?.estado === "ok"
-        ? {
-            concentracao: fornecedores.municipios.find((m) => m.cod_ibge === ibge) ?? null,
-            inidoneos: fornecedores.linhas.map((f) => ({ cnpj: f.cnpj, nome: f.nome, pago: f.noMunicipio?.pago ?? 0 })).filter((f) => f.pago > 0),
-          }
-        : null,
+    fornecedores: fornecedores?.estado === "ok" ? { concentracao: fornecedores.concentracao, inidoneos: fornecedores.inidoneos } : null,
     janelas,
     indicadores,
     faltas,
@@ -450,18 +459,20 @@ async function lerInidoneosDosConvenios(db: Banco, execucaoId: number, numeros: 
   };
 }
 
-// Como a do município: leitura com fonte faltando não fica guardada (B12b, 08/10/2026). Onda 7, A: com a camada
-// comum às instâncias, e a leitura pública com memória e chave próprias.
+// Como a do município: leitura com fonte faltando não fica os 10 minutos (B12b, 08/10/2026). Onda 7, A: com a camada
+// comum às instâncias, e a leitura pública com memória e chave próprias. Onda 8, B: a falta fica 1 minuto, só aqui.
 const memoriaEntidade = criarMemoria<LeituraEntidade>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
+  falta: FALTA_CURTA,
   compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade", guardavel: leituraGuardavel }),
 });
 const memoriaEntidadePublica = criarMemoria<LeituraEntidade>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
+  falta: FALTA_CURTA,
   compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade-publica", guardavel: leituraGuardavel }),
 });
 

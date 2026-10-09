@@ -6,7 +6,8 @@
  * Substitui o `MenuPerfil` do protótipo, que lia um perfil fictício de
  * `_lib/fixtures` e cujo "sair" apenas limpava estado local em memória. Aqui o
  * que aparece vem do Supabase e o que sai, sai de verdade: `signOut` derruba o
- * cookie de sessão antes de navegar.
+ * cookie de sessão antes de navegar. Desde a onda 8, C (09/10/2026), o cookie da
+ * organização ativa (`mapa_org`) sai junto (`esquecerOrganizacaoAoSair`).
  *
  * B12 (onda 2 de UX, 08/10/2026; achado A13 da auditoria B1+B2): é um disclosure, não um menu. O botão dizia
  * `aria-haspopup`, mas o painel é uma lista de links e botões que se percorre com Tab, sem setas: agora só
@@ -24,6 +25,7 @@ import { ROTULO_AGENTE, type Organizacao } from "@/lib/oportunidades/organizacao
 import { destinoDoPublico, portaDoPublico, type SessaoPublica } from "@/lib/oportunidades/publico";
 import { trocarOrganizacao } from "../conta/organizacao/acoes";
 import { LinkMapa } from "./LinkMapa";
+import { esquecerOrganizacaoAoSair } from "./esquecer-ao-sair";
 
 function inicial(nome: string | null, email: string): string {
   const base = (nome ?? email).trim();
@@ -113,6 +115,10 @@ export function ContaMenu({
     if (url && anon) {
       await createBrowserClient(url, anon).auth.signOut();
     }
+
+    // Onda 8, C (09/10/2026; privacidade): o cookie da organização ativa sai junto com a sessão. Depois do `signOut`,
+    // para o Next não ler a página inteira de novo (ver sair.ts); com erro ou demora, a saída segue (esquecer-ao-sair.ts).
+    await esquecerOrganizacaoAoSair();
 
     // `window.location` e não `router.push`: a sessão vive em cookie lido pelo
     // servidor, e só uma navegação de documento inteiro garante que a próxima

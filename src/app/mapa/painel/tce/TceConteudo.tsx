@@ -6,12 +6,14 @@ import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
   CAPITAL_MINIMO,
+  REGRAS_PIX,
   VERSAO_REGRAS_PIX,
   descreverCobertura,
   marcasPix,
   pct,
   resumirConciliacao,
   urlTce,
+  type RegraPix,
   type TceFederalMunicipio,
   type TcePixMunicipio,
 } from "@/lib/oportunidades/tce";
@@ -22,6 +24,13 @@ import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 import { Termo } from "../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraPainelTce, { estado: "ok" }>;
+
+/**
+ * O nome curto de cada marca do Pix na tabela (onda 8, C, 09/10/2026): "dívida" com acento (a etiqueta mostrava o id da
+ * regra, "divida"). A ordem é a de `REGRAS_PIX`, a mesma da legenda abaixo da tabela.
+ */
+const ROTULO_MARCA: Record<RegraPix, string> = { pessoal: "pessoal", divida: "dívida", capital: "capital < 70%" };
+const ORDEM_MARCAS = Object.keys(REGRAS_PIX) as RegraPix[];
 
 // B14b (08/10/2026): "TCE" solto aqui é sempre o TCE-PB, e passa a ser escrito assim (H06).
 export const AVISO_TCE =
@@ -126,6 +135,21 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
             </table>
           </TabelaRolagem>
         )}
+        {/* Onda 8, C (09/10/2026; N25 da auditoria R1, WCAG 1.3.1 e 3.3.2 como referência): o dispositivo legal de cada
+            marca ficava só no `title` da etiqueta, que o toque, o teclado, o leitor de tela e o papel não mostram. Agora
+            fica à vista, numa legenda logo abaixo da tabela. Na etiqueta, que mora no cabeçalho de linha e se repete a
+            cada célula, só o nome curto; o `title` continua como atalho de quem passa o mouse. */}
+        {comMarca.length > 0 && (
+          <p className="pa-nota">
+            O dispositivo de cada marca:{" "}
+            {ORDEM_MARCAS.map((r, i) => (
+              <span key={r}>
+                <strong>{ROTULO_MARCA[r]}</strong>: {REGRAS_PIX[r].dispositivo}
+                {i < ORDEM_MARCAS.length - 1 ? "; " : "."}
+              </span>
+            ))}
+          </p>
+        )}
         <p className="pa-nota">
           Fonte 706 (transferência especial da União) nas despesas do município. Capital = investimentos e inversões financeiras; a amortização
           de dívida fica fora, porque o § 5º do art. 166-A ressalva a vedação do serviço da dívida. As marcas seguem a CF, art. 166-A (EC 105/2019),
@@ -209,7 +233,7 @@ function LinhaPix({ p }: { p: TcePixMunicipio }) {
         </span>
         {marcas.map((m) => (
           <span key={m.regra} className={`pa-tag mp-laudo-nivel mp-laudo-${m.nivel}`} title={m.dispositivo}>
-            {m.regra === "capital" ? "capital < 70%" : m.regra}
+            {ROTULO_MARCA[m.regra]}
           </span>
         ))}
       </th>

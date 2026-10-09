@@ -44,6 +44,12 @@
 .pa-root .mp-esq-aba { flex: none; padding: 0.6rem 0.85rem; border-bottom: 3px solid transparent; }
 .pa-root .mp-esq-aba-atual { border-bottom-color: var(--pa-border); }
 .pa-root .mp-esq-aba .mp-esq-osso { height: 0.75rem; margin: 0.15rem 0; }
+/* Onda 8, C (09/10/2026; N13 da auditoria R1): na versão pública (`data-publico` na moldura, `MapaFrame`), só as abas que
+   o nível 0 vê, como na página que vem: o município desenhava 7 e o público vê 3. A aba de entrada do público é o
+   resumo, e não "O que trava e o que destrava", que pede cadastro. Sem a chave `MAPA_PUBLICO`, o atributo não existe e
+   o esqueleto é o de antes. Nenhuma cor nova. */
+.mp-root[data-publico] .mp-esq-aba-cadastro { display: none; }
+.mp-root[data-publico] .mp-esq-aba-atual-publico { border-bottom-color: var(--pa-border); }
 
 /* Tabela: mesma caixa que rola (`mp-tabela-rolagem`); a primeira coluna é a do nome, as outras são números. */
 .pa-root .mp-esq-linha {

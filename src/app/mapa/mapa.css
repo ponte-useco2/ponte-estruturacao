@@ -1363,3 +1363,30 @@ html:has(.pa-root.mp-root) { scroll-padding-top: calc(60px + 2.75rem + 1px + 1re
   background: var(--pa-surface); color: var(--pa-danger); font-size: 0.9rem; font-weight: 600; line-height: 1.5;
 }
 .pa-root :is(.pa-input, .pa-select)[aria-invalid="true"] { border-color: var(--pa-danger); box-shadow: inset 0 0 0 1px var(--pa-danger); }
+
+/* ------------------------------------------------------------------------------------------------
+   Onda 8, C (09/10/2026): as sobras de acessibilidade da auditoria R1 (N09, N21 e N24). No fim do arquivo pelo mesmo
+   motivo do bloco acima. Nenhuma cor nova: só tokens que já existem.
+   ------------------------------------------------------------------------------------------------ */
+
+/* N09: o sinal de urgência do painel do administrador ("mais lento que o Brasil", "parado há mais de um ano", prazo
+   curto, físico zerado) era só o vermelho e o negrito. Agora leva a marca ▲ e a palavra (`Urgente`, painel/Pecas.tsx),
+   como os selos de nível. A cor é a de sempre, --pa-danger #8a4b42: 6,63:1 no branco da célula, 5,91:1 na superfície 2
+   e 6,22:1 no fundo da página. Na célula de número, a palavra desce para a linha de baixo e o número fica alinhado. */
+.pa-root .mp-urgente-marca { white-space: nowrap; }
+.pa-root .mp-num .mp-urgente-marca { display: block; font-size: 0.75rem; line-height: 1.3; }
+
+/* N21: os anos fechados da linha do tempo do convênio também abrem no papel, como os grupos da carteira da entidade e a
+   lista recolhida do laudo. No Chromium basta esta regra; no Firefox e no Safari, que não conhecem `::details-content`,
+   quem abre é o `AbrirAoImprimir` da moldura, no evento `beforeprint`. */
+@media print {
+  .pa-root .mp-linha-ano::details-content { content-visibility: visible; display: block; }
+}
+
+/* N24: o título da norma (Avisos, Normas) é link para o texto oficial e tem a cara de link: a cor da marca-2 e o
+   sublinhado, como o link no meio do texto (A01). Até aqui ele só pegava essa regra por morar dentro de um `li`; com a
+   classe própria, a cara não depende do lugar. #14607a no branco do cartão: 7,04:1. O ↗ diz à vista que abre em outra
+   aba (A21); o leitor de tela já ouvia isso pelo texto oculto. */
+.pa-root .mp-norma-link { color: var(--pa-brand-2); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+.pa-root .mp-norma-link:hover { text-decoration-thickness: 2px; }
+.pa-root .mp-norma-link .mp-norma-seta { margin-left: 0.25em; text-decoration: none; display: inline-block; }

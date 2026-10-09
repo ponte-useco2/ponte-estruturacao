@@ -13,6 +13,13 @@
  * "Pior que" a mediana ou o Brasil pede uma diferença de mais de 5% (TOLERANCIA): 17,5 contra 17,4 é empate.
  * Só os indicadores-chave do catálogo ganham nível; os de contexto (população, PIB, frota) não. Sem valor, sem
  * nível: a ausência é dita com o porquê da fonte, nunca como zero. Função pura, sem banco e sem relógio.
+ *
+ * Onda 8, A (09/10/2026): a creche de 0 a 3 anos entra com nível pela regra de sempre (maior é melhor; PB e Brasil
+ * pela mesma conta, sinopse do INEP sobre o Censo 2022). A pré-escola e os quatro do MapBiomas (vegetação nativa,
+ * a variação dela em 10 anos, agropecuária e área urbanizada) são informativos: `chave: false`, sem nível. Só a
+ * variação tem direção (perder vegetação é o pior), e por isso tem posição na PB; as fatias da área não são
+ * melhores nem piores em si, e a pré-escola passa de 100 em quase metade dos municípios, o que tornaria a posição
+ * enganosa.
  */
 import { moedaCurta } from "./radar.ts";
 
@@ -138,9 +145,22 @@ const SOCIAL: DimensaoIndicador[] = ["saude", "educacao", "assistencia", "segura
 
 const CLASSES = ["", "Mínima", "Baixa", "Média", "Alta", "Máxima"];
 
+/**
+ * O número com as casas do catálogo. Variação em pontos percentuais (unidade "p.p. …", onda 8, A, 09/10/2026: a da
+ * vegetação nativa em 10 anos) leva o sinal, "+0,9" ou "-5,9" (o que arredonda a zero fica "0,0"): sem ele, ganho
+ * e perda se confundem na tabela.
+ */
+function comCasas(v: number, item: Pick<ItemCatalogo, "unidade" | "casas">): string {
+  return v.toLocaleString("pt-BR", {
+    minimumFractionDigits: item.casas,
+    maximumFractionDigits: item.casas,
+    ...(item.unidade.startsWith("p.p.") ? { signDisplay: "exceptZero" as const } : {}),
+  });
+}
+
 export function formatarValor(v: number, item: Pick<ItemCatalogo, "unidade" | "casas">): string {
   if (item.unidade === "mil R$") return moedaCurta(v * 1000);
-  const t = v.toLocaleString("pt-BR", { minimumFractionDigits: item.casas, maximumFractionDigits: item.casas });
+  const t = comCasas(v, item);
   if (item.unidade.startsWith("%")) return `${t}${item.unidade}`;
   if (item.unidade.startsWith("pontos")) return t;
   return `${t} ${item.unidade}`;
@@ -151,7 +171,7 @@ function numero(v: number | null | undefined, item: Pick<ItemCatalogo, "unidade"
   if (v === null || v === undefined) return null;
   if (item.unidade === "mil R$") return moedaCurta(v * 1000);
   if (item.unidade.startsWith("classe") && CLASSES[Math.round(v)]) return CLASSES[Math.round(v)];
-  return v.toLocaleString("pt-BR", { minimumFractionDigits: item.casas, maximumFractionDigits: item.casas });
+  return comCasas(v, item);
 }
 
 const comPonto = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);

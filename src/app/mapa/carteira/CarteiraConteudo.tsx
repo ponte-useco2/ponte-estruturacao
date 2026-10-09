@@ -12,6 +12,7 @@ import type { Carteira, Consequencia, ItemCarteira, MudancaCarteira, Recomendaca
 import { AvisoSeguir, EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../fiscal/[ibge]/simular/BotaoImprimir";
 import { MarcarLidas } from "./MarcarLidas";
+import { Urgente } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { Termo } from "../_componentes/Termo";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
@@ -296,6 +297,13 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
                       {i.numeros.map((n) => (
                         <span key={n.rotulo} className={`mp-tabela-secundario${n.nivel === "alto" ? " mp-painel-urgente" : ""}`}>
                           {n.rotulo}: {n.valor}
+                          {/* Onda 8 (09/10/2026, N09 da R1): o "alto" não fica só na cor. */}
+                          {n.nivel === "alto" && (
+                            <>
+                              {" "}
+                              <Urgente palavra="alto" />
+                            </>
+                          )}
                         </span>
                       ))}
                     </td>

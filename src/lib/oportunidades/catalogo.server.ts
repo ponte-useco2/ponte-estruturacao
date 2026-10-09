@@ -9,15 +9,52 @@
  *
  * Só pode ser importado por código de servidor: `node:fs` quebra o bundle do
  * cliente se vazar.
+ *
+ * Uma vez por versão do arquivo (onda 8, B, 09/10/2026; R2 de 09/10, §2.2 e
+ * §5.5 item 7): cada pedido relia e interpretava os dois JSON (692 kB e 362 kB;
+ * ~5 ms numa máquina de mesa, mais a memória de 1 MB de texto por pedido) — as
+ * janelas, a página do município, o diagnóstico. Agora cada instância interpreta
+ * o arquivo uma vez por versão (a data e o tamanho dele, num `stat` de ~0,1 ms)
+ * e devolve o mesmo objeto enquanto o arquivo não muda. Na Vercel o arquivo vem
+ * na publicação e não muda; na máquina, a Action que reescreve o JSON muda a
+ * data, e a leitura seguinte já interpreta o novo. Falha não fica guardada: o
+ * próximo pedido lê de novo e deixa o rastro de novo, como antes. O objeto é o
+ * mesmo para todos: quem chama não pode alterá-lo.
+ *
+ * As leituras do disco ficam com o `fs.readFile(path.join(process.cwd(), …))`
+ * de sempre, palavra por palavra: é o que o rastreador de arquivos do Next
+ * reconhece para pôr o JSON no pacote da função (ver o v2, mais abaixo).
  */
 import fs from "node:fs/promises";
 import path from "node:path";
 import { versaoSuportada, type Payload } from "./contrato";
 import { comoPayloadV2, type PayloadV2 } from "./contrato-v2";
+import { criarPorVersao } from "./memoria";
 
 export const CAMINHO_CATALOGO = path.join("src", "dados", "oportunidades.json");
 
+/**
+ * A versão do arquivo no disco: a data de modificação e o tamanho. Null quando o `stat` falha (arquivo ausente): aí a
+ * leitura vai ao disco como antes, e é ela que diz "ausente" ou "indisponível" e deixa o rastro.
+ */
+async function versaoDoArquivo(caminho: string): Promise<string | null> {
+  try {
+    const s = await fs.stat(path.join(process.cwd(), caminho));
+    return `${s.mtimeMs}|${s.size}`;
+  } catch {
+    return null;
+  }
+}
+
+const catalogoPorVersao = criarPorVersao<Payload | null>((p) => p !== null);
+
+/** O catálogo v1.1, interpretado uma vez por versão do arquivo. Não altere o objeto devolvido. */
 export async function lerCatalogo(): Promise<Payload | null> {
+  const versao = await versaoDoArquivo(CAMINHO_CATALOGO);
+  return versao === null ? lerCatalogoDoDisco() : catalogoPorVersao.obter(versao, lerCatalogoDoDisco);
+}
+
+async function lerCatalogoDoDisco(): Promise<Payload | null> {
   try {
     const bruto = await fs.readFile(path.join(process.cwd(), CAMINHO_CATALOGO), "utf-8");
     const payload = JSON.parse(bruto) as Payload;
@@ -59,7 +96,16 @@ export type LeituraCatalogoV2 =
   | { estado: "ausente" }
   | { estado: "invalido" };
 
+// Como o v1.1 (onda 8, B): uma vez por versão do arquivo; "ausente" e "inválido" não ficam, e o próximo pedido relê.
+const catalogoV2PorVersao = criarPorVersao<LeituraCatalogoV2>((l) => l.estado === "ok");
+
+/** O catálogo v2, interpretado uma vez por versão do arquivo. Não altere o objeto devolvido. */
 export async function lerCatalogoV2(): Promise<LeituraCatalogoV2> {
+  const versao = await versaoDoArquivo(CAMINHO_CATALOGO_V2);
+  return versao === null ? lerCatalogoV2DoDisco() : catalogoV2PorVersao.obter(versao, lerCatalogoV2DoDisco);
+}
+
+async function lerCatalogoV2DoDisco(): Promise<LeituraCatalogoV2> {
   let bruto: string;
   try {
     bruto = await fs.readFile(path.join(process.cwd(), CAMINHO_CATALOGO_V2), "utf-8");

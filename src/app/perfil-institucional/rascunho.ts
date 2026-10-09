@@ -7,8 +7,18 @@
  * acontece em várias sessões, muitas vezes depois de uma ida ao contador — um
  * rascunho que morre ao fechar a aba seria inútil aqui.
  *
- * Nada disso sai do navegador: não há envio para servidor. O fecho é manual,
- * pelo botão "Copiar respostas".
+ * O rascunho em si não sai do navegador: este arquivo só lê e grava o
+ * `localStorage`. Mas a página já não é só local (comentário corrigido em
+ * 09/10/2026, onda 8, C; sobra da revisão da política de privacidade, E da
+ * onda 7, seção 4.3, item 1). O botão "Enviar para a Ponte" (`BotaoEnviar`)
+ * manda as respostas à ação `enviarPerfil` (`enviar.ts`), que guarda no
+ * Supabase, na tabela `perfil_institucional`, as respostas dos campos do
+ * formulário (com CPF, RG e conta bancária da diretoria, se preenchidos), o
+ * texto montado, a razão social, o CNPJ e o e-mail de contato; e avisa a
+ * diretoria por e-mail só com a razão social, o CNPJ, o e-mail de contato e a
+ * contagem de campos, sem o dossiê. Depois do envio o rascunho continua aqui,
+ * até "Limpar formulário". "Copiar respostas" segue como o fecho manual, por
+ * e-mail, quando o envio falha ou a pessoa prefere.
  *
  * A leitura é exposta por `useSyncExternalStore`, seguindo o mesmo desenho de
  * `plataforma/app/_lib/sessao.tsx`: storage é fonte externa, e o React sabe ler

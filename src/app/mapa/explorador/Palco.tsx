@@ -235,7 +235,10 @@ export function Palco({
     palco.querySelector<HTMLElement>(`[data-chave="${CSS.escape(topo.chave)}"] [data-titulo-camada]`)?.focus({ preventScroll: true });
   }, [topo.chave]);
 
-  // Esc sobe uma camada — só com o foco no explorador (ou em lugar nenhum): o Esc de um menu aberto é do menu.
+  // Esc sobe uma camada — só com o foco no explorador: o Esc de um menu aberto é do menu.
+  // Onda 8, C (09/10/2026; N27 da auditoria R1): antes valia também com o foco no corpo da página (em lugar nenhum), e o
+  // Esc dado para fechar outra coisa, ou sem querer, trocava a camada. Agora o foco precisa estar dentro do explorador:
+  // na trilha, na barra ("Voltar", a vista) ou na camada; a cada troca o foco já vai para o título da camada nova.
   const destinoPai = pai?.href ?? null;
   useEffect(() => {
     if (!destinoPai) return;
@@ -243,7 +246,7 @@ export function Palco({
       if (e.key !== "Escape" || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       const alvo = e.target instanceof Element ? e.target : null;
       const explorador = raizRef.current?.closest(".mp-exp") ?? raizRef.current;
-      if (alvo && alvo !== document.body && !explorador?.contains(alvo)) return;
+      if (!alvo || alvo === document.body || !explorador?.contains(alvo)) return;
       if (alvo?.closest("input, textarea, select, [contenteditable='true']")) return;
       e.preventDefault();
       ir(destinoPai);

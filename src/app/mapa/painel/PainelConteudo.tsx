@@ -86,6 +86,7 @@ import {
   TabelaSaldo,
   TabelaSuspensiva,
   TabelaVigencia,
+  Urgente,
   n,
   type Saida,
 } from "./Pecas";
@@ -1010,10 +1011,14 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
                       <td key={e} className="mp-num">
                         {m === null ? (
                           "—"
-                        ) : (
-                          <span className={maisLento(m, medianaComparavel(todos[e])) ? "mp-painel-urgente" : undefined}>
+                        ) : maisLento(m, medianaComparavel(todos[e])) ? (
+                          // N09 (onda 8, C, 09/10/2026): o destaque tinha só a cor; agora leva "▲ lento" sob o número.
+                          <span className="mp-painel-urgente">
                             {n(Math.round(m))}
+                            <Urgente palavra="lento" />
                           </span>
+                        ) : (
+                          n(Math.round(m))
                         )}
                       </td>
                     );
@@ -1027,7 +1032,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
         )}
       </Lista>
       <p className="pa-nota">
-        Em destaque, a mediana 1,5 vez ou mais a de {p.uf ? `todos os órgãos em ${onde}` : "todos os órgãos do Brasil"}.
+        Com &ldquo;▲ lento&rdquo;, a mediana 1,5 vez ou mais a de {p.uf ? `todos os órgãos em ${onde}` : "todos os órgãos do Brasil"}.
         &ldquo;—&rdquo; quando há menos de {MINIMO_MEDICOES} medições.{" "}
         {porPrograma ? "O código é o que se digita na consulta de programas do Transferegov." : "O nome do órgão abre os programas dele."}
       </p>

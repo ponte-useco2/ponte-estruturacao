@@ -1351,8 +1351,10 @@ export function relatorioSemNomes(r: Relatorio): Relatorio {
 
 /**
  * O que a memória de 10 minutos do relatório guarda (`relatorio-municipio.server.ts`, município e entidade): só a
- * leitura inteira e o "não encontrado". Com uma fonte em `faltas`, o "Tentar de novo" da página tem de reler na hora,
- * e não devolver a mesma falta por 10 minutos (achado da B12b, 08/10/2026). Erro e fonte não ativada também não ficam.
+ * leitura inteira e o "não encontrado". Com uma fonte em `faltas`, a página não pode devolver a mesma falta por 10
+ * minutos (achado da B12b, 08/10/2026). Erro e fonte não ativada também não ficam. Desde a onda 8 (B, 09/10/2026), a
+ * leitura com falta fica no máximo 60 s, só no servidor que a leu e nunca no cache compartilhado (`memoria.ts`): uma
+ * fonte fora do ar não multiplica as leituras.
  */
 export function leituraGuardavel(l: { estado: string; relatorio?: Pick<Relatorio, "faltas"> }): boolean {
   return l.estado === "nao_encontrado" || (l.estado === "ok" && l.relatorio?.faltas.length === 0);

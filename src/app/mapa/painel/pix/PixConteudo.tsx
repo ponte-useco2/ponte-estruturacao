@@ -32,7 +32,7 @@ import type { LeituraCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import type { LeituraPix } from "@/lib/oportunidades/pix.server";
 import { LIMITE_LISTA } from "@/lib/oportunidades/pix.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import { Cartao, Lista, Saidas, n, type Saida } from "../Pecas";
+import { Cartao, Lista, Saidas, Urgente, n, type Saida } from "../Pecas";
 import { CicloPix } from "./CicloPix";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
@@ -717,7 +717,10 @@ function TabelaPlanosFundo({ linhas, coluna }: { linhas: PlanoFundo[]; coluna: "
                 l.dt_ultimo_pagamento ? (
                   data(l.dt_ultimo_pagamento)
                 ) : (
-                  <span className="mp-painel-urgente">nunca pagou</span>
+                  // N09 (onda 8, C, 09/10/2026): a palavra já estava; faltava a marca dos outros sinais do painel.
+                  <span className="mp-painel-urgente">
+                    <Urgente palavra="nunca pagou" />
+                  </span>
                 )
               ) : coluna === "vigencia" ? (
                 data(l.fim_vigencia)

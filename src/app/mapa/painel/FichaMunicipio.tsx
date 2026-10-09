@@ -51,6 +51,7 @@ import {
   TabelaSaldo,
   TabelaSuspensiva,
   TabelaVigencia,
+  Urgente,
   n,
   type Saida,
 } from "./Pecas";
@@ -493,7 +494,12 @@ function TabelaPropostas({ linhas, quando }: { linhas: PropostaPainel[]; quando:
                   {p.com_emenda && <Tag>emenda</Tag>}
                   {vez && <Tag tom="proto">vez do {vez}</Tag>}
                 </span>
-                {p.limbo && <span className="mp-tabela-secundario mp-painel-urgente">nunca analisada</span>}
+                {/* N09 (onda 8, C, 09/10/2026): a palavra já estava; faltava a marca, como nos outros sinais. */}
+                {p.limbo && (
+                  <span className="mp-tabela-secundario mp-painel-urgente">
+                    <Urgente palavra="nunca analisada" />
+                  </span>
+                )}
               </td>
               <td className="mp-nowrap">
                 {quando === "assinatura" ? (
@@ -506,6 +512,13 @@ function TabelaPropostas({ linhas, quando }: { linhas: PropostaPainel[]; quando:
                     {p.dt_ultimo_evento ? formatarData(p.dt_ultimo_evento) : "—"}
                     {p.dias_sem_evento !== null && (
                       <span className={`mp-tabela-secundario${vez && p.dias_sem_evento > 90 ? " mp-painel-urgente" : ""}`}>
+                        {/* N09 (onda 8, C): mais de 90 dias sem andar, com a vez do lado de cá, leva "▲ parada". */}
+                        {vez && p.dias_sem_evento > 90 && (
+                          <>
+                            <Urgente palavra="parada" />
+                            {" · "}
+                          </>
+                        )}
                         há {idadePorExtenso(p.dias_sem_evento)}
                       </span>
                     )}

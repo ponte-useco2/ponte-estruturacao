@@ -11,13 +11,20 @@
  *
  * Onda 7, C (09/10/2026; N13 da auditoria R1): a região de status nascia já com o texto e podia não ser lida. Agora é o
  * `AvisoDeEspera` (`Carregando.tsx`, de cliente), que nasce vazio e escreve o texto logo depois; o texto à vista fica
- * fora do leitor de tela, para não ser dito duas vezes.
+ * fora do leitor de tela, para não ser dito duas vezes. Desde a onda 8, C (N22), o `AvisoDeEspera` escreve na região
+ * única da moldura.
+ *
+ * Onda 8, C (09/10/2026; o resto do N13): as abas pelo nível. O esqueleto do município desenhava 7 abas, e o público vê
+ * 3. Sem ler a sessão: o `loading.tsx` passa a lista de abas da própria página (`ABAS_MUNICIPIO`…), cada aba de
+ * cadastro sai marcada, e a moldura diz se a versão é a pública (`data-publico` em `.mp-root`, `MapaFrame`). O CSS
+ * (esqueleto.css) esconde as abas de cadastro e acende a entrada do público, o resumo.
  *
  * Não aparece quando só muda o `?aba=`: a página do mesmo endereço continua montada e o roteador segura a tela
  * velha até a nova chegar. Ali o retorno é o `Carregando` dentro da aba clicada.
  */
 import type { ReactNode } from "react";
 import { AvisoDeEspera } from "./Carregando";
+import { abasDoEsqueleto, type AbaComNivel } from "./espera";
 import "./esqueleto.css";
 
 /** Larguras que se revezam, para as linhas não saírem todas iguais. */
@@ -61,11 +68,15 @@ export function Esqueleto({
   acoes?: number;
   /** A faixa de aviso sob o cabeçalho (laudo, relatório). */
   aviso?: boolean;
-  /** Abas da página (Brasil, UF, município, entidade); a primeira aparece marcada, como a aba de entrada. */
-  abas?: number;
+  /**
+   * Abas da página (Brasil, UF, município, entidade); a de entrada aparece marcada. Um número desenha abas sem nível;
+   * a lista da página (`ABAS_MUNICIPIO`…) desenha cada aba com o nível dela (N13, onda 8).
+   */
+  abas?: number | readonly AbaComNivel[];
   /** O corpo, com as peças `Esqueleto*` deste arquivo. */
   children?: ReactNode;
 }) {
+  const listaDeAbas = abasDoEsqueleto(abas);
   return (
     <div className="pa-pagina mp-radar mp-esq">
       <p aria-hidden="true" className="pa-mono mp-esq-status">
@@ -91,10 +102,20 @@ export function Esqueleto({
             </div>
           )}
         </div>
-        {abas > 0 && (
+        {listaDeAbas.length > 0 && (
           <div className="mp-mun-abas">
-            {repete(abas, (i) => (
-              <span key={i} className={i === 0 ? "mp-esq-aba mp-esq-aba-atual" : "mp-esq-aba"}>
+            {listaDeAbas.map((a, i) => (
+              <span
+                key={i}
+                className={[
+                  "mp-esq-aba",
+                  a.entrada && "mp-esq-aba-atual",
+                  a.entradaDoPublico && "mp-esq-aba-atual-publico",
+                  a.cadastro && "mp-esq-aba-cadastro",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <Osso largura={i === 0 ? "9rem" : i % 2 ? "5rem" : "6.5rem"} />
               </span>
             ))}
