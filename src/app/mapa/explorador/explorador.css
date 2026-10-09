@@ -1,0 +1,141 @@
+/* =====================================================================
+   O explorador em camadas (C3a, 09/10/2026; protótipo da onda 5).
+   Desenho em `Palco.tsx` (a pilha e o movimento) e `Camadas.tsx` (o
+   conteúdo de cada camada).
+
+   O 3D é a `perspective` do palco; quem move as camadas é o Framer Motion,
+   e só em `transform` (Y e Z) e `opacity`. Aqui não há transição nem
+   animação de layout, filtro ou sombra: o que muda de uma camada para a
+   outra em CSS (borda, recorte, preenchimento de cima) muda de uma vez.
+
+   Só tokens e classes que já existem (a sombra usa a `--mp-sombra-borda`
+   do mapa.css); nada de cor nova. Prefixo `mp-exp-` (o `mx-` colidiria
+   com o Tailwind).
+   ===================================================================== */
+
+/* ------------------------------------------------ a barra: voltar e vista */
+.pa-root .mp-exp-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0 0 0.9rem; }
+.pa-root .mp-exp-barra .pa-btn { min-height: 44px; display: inline-flex; align-items: center; gap: 0.35rem; }
+
+/* ------------------------------------------------ o palco
+   As camadas ficam na mesma célula da grade. A da frente fica no fluxo: é
+   ela que dá a altura, e a página rola normalmente (sem rolagem dentro de
+   rolagem, que no celular prende o dedo). As de trás (e a que sai) têm o
+   tamanho contido (`contain: strict`: não esticam a página e não repintam
+   o resto), ficam do tamanho da da frente e aparecem só pela borda de
+   cima, recuadas pela perspectiva.
+
+   O preenchimento de cima é o lugar dessas bordas. Com a perspectiva de
+   1200 px e o passo de 34 px em Y e 110 px em Z (`PASSO_DO_RECUO`), a borda
+   de cada camada de trás fica uns 35 px acima da seguinte. */
+.pa-root .mp-exp-palco {
+  display: grid;
+  perspective: 1200px;
+  perspective-origin: 50% 0;
+}
+.pa-root .mp-exp-palco[data-vista="camadas"][data-camadas="2"] { padding-top: 2.4rem; }
+.pa-root .mp-exp-palco[data-vista="camadas"][data-camadas="3"] { padding-top: 4.6rem; }
+
+.pa-root .mp-exp-camada {
+  grid-area: 1 / 1;
+  position: relative;
+  min-width: 0;
+  padding: 1rem 1.1rem 1.25rem;
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-r-lg);
+  box-shadow: 0 18px 36px -22px var(--mp-sombra-borda);
+}
+.pa-root .mp-exp-camada:is([data-distancia="1"], [data-distancia="2"], [data-saindo]) {
+  contain: strict;
+  overflow: hidden;
+  padding-top: 0.55rem;
+}
+/* A camada de trás volta com o clique do mouse (o teclado volta pela trilha ou pelo "Voltar"). */
+.pa-root .mp-exp-camada:is([data-distancia="1"], [data-distancia="2"]):not([data-saindo]) { cursor: pointer; }
+.pa-root .mp-exp-camada:is([data-distancia="1"], [data-distancia="2"]):not([data-saindo]):hover { border-color: var(--pa-brand-2); }
+
+/* A lombada: o nível e o nome, na faixa que fica à vista quando a camada está atrás. */
+.pa-root .mp-exp-lombada {
+  margin: 0 0 0.6rem;
+  font-family: var(--pa-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--pa-brand-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------ a cabeça de cada camada */
+.pa-root .mp-exp-cabeca { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1rem; }
+/* O título recebe o foco a cada troca; com o cabeçalho grudado, ele não pode ficar escondido atrás dele. */
+.pa-root .mp-exp-titulo { scroll-margin-top: calc(var(--pa-top-total) + 1rem); overflow-wrap: anywhere; }
+.pa-root .mp-exp-saidas .pa-btn { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* ------------------------------------------------ o corpo: listas e ficha */
+.pa-root .mp-exp-corpo { display: flex; flex-direction: column; gap: 0.75rem; }
+.pa-root .mp-exp-corpo .mp-mapa { margin-bottom: 0; }
+
+.pa-root .mp-exp-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pa-root .mp-ent-grupo .mp-exp-lista { margin-top: 0.25rem; }
+/* Cada item é um link inteiro, com borda que se vê (3:1, a do campo): o que diz "isto se toca" não é a cor. */
+.pa-root .mp-exp-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  height: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--mp-borda-campo);
+  border-radius: var(--pa-r);
+  background: var(--pa-surface);
+  color: var(--pa-text);
+  text-decoration: none;
+}
+.pa-root .mp-exp-item:hover { border-color: var(--pa-brand-2); background: var(--pa-surface-2); }
+.pa-root .mp-exp-item-nome { font-weight: 600; color: var(--pa-text); overflow-wrap: anywhere; }
+.pa-root .mp-exp-item-dado { font-size: 0.82rem; color: var(--pa-muted); overflow-wrap: anywhere; }
+
+.pa-root .mp-exp-objeto { color: var(--pa-text); max-width: 72ch; }
+.pa-root .mp-exp-ficha {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  gap: 0.6rem 1.2rem;
+  margin: 0;
+}
+.pa-root .mp-exp-ficha div { border-top: 1px solid var(--pa-border); padding-top: 0.4rem; }
+.pa-root .mp-exp-ficha dt { font-size: 0.78rem; color: var(--pa-muted); }
+.pa-root .mp-exp-ficha dd { margin: 0; font-weight: 600; color: var(--pa-text); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------ celular */
+@media (max-width: 640px) {
+  .pa-root .mp-exp-camada { padding: 0.8rem 0.8rem 1rem; }
+  .pa-root .mp-exp-camada:is([data-distancia="1"], [data-distancia="2"], [data-saindo]) { padding-top: 0.5rem; }
+}
+
+/* ------------------------------------------------ menos movimento
+   Antes da hidratação o servidor desenha a pilha; quem pediu menos
+   movimento ao sistema já não vê as camadas de trás nem o espaço delas.
+   Depois, o palco troca para a vista plana (`vistaEfetiva`). Quem pediu
+   as camadas no endereço (`?vista=camadas`) continua com elas, sem
+   animação (o Framer Motion respeita o sistema: `reducedMotion="user"`). */
+@media (prefers-reduced-motion: reduce) {
+  .pa-root .mp-exp-palco[data-vista]:not([data-pedida="camadas"]) { padding-top: 0; }
+  .pa-root .mp-exp-palco[data-vista]:not([data-pedida="camadas"]) > .mp-exp-camada:not([data-distancia="0"]) { display: none; }
+}
+
+@media print {
+  .pa-root .mp-exp-palco { padding-top: 0 !important; perspective: none; }
+  .pa-root .mp-exp-camada:not([data-distancia="0"]) { display: none; }
+  .pa-root .mp-exp-camada { transform: none !important; opacity: 1 !important; box-shadow: none; }
+}

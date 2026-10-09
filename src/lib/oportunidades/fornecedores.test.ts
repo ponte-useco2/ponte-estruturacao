@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   cadastrosDe,
   cnpjValido,
+  alcanceMaior,
+  alcanceSancao,
   descreverSancao,
   leituraCeisCnep,
   momentoDaSancao,
@@ -334,15 +336,16 @@ test("laudo sem execução de CEIS/CNEP: a seção diz que não consultou e não
   assert.deepEqual(lerSecaoFornecedores(entrada({ sancoes: null }), PREFEITURA).ceisCnep, { estado: "falhou" });
 });
 
-test("laudo: registro vigente no CEIS é risco alto, com o período confrontado com o convênio", () => {
+test("laudo: impedimento vigente no CEIS, restrito ao órgão, é moderado, com o período confrontado com o convênio", () => {
   const s = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { dt_inicio: "2020-04-01" })]) }), PREFEITURA);
   const acm = s.linhas.find((l) => l.cnpj === ACM);
   assert.equal(acm?.ceisCnep, "vigente");
   assert.equal(s.linhas.find((l) => l.cnpj === MEI)?.ceisCnep, "sem_sancao");
   const r = s.riscos.filter((x) => /CEIS/.test(x.titulo));
   assert.equal(r.length, 1);
-  assert.equal(r[0].nivel, "alto");
-  assert.equal(r[0].titulo, "ACM AUTO CENTER MAQUINAS LTDA: registro no CEIS vigente na data da consulta");
+  assert.equal(r[0].nivel, "moderado");
+  assert.equal(r[0].titulo, "ACM AUTO CENTER MAQUINAS LTDA: registro no CEIS restrito ao órgão ou à esfera que o aplicou");
+  assert.match(r[0].fato, /Lei 14\.133, art\. 156, § 4º/);
   assert.match(r[0].fato, /um registro no CEIS vigente na consulta de 11\/10\/2026 \(CEIS: Impedimento/);
   // Pagamentos de 01/03/2020 a 01/06/2020, registro desde 01/04/2020, contrato de 01/02/2020.
   assert.match(r[0].fato, /Parte dos pagamentos deste convênio caiu dentro do período do registro/);
@@ -354,13 +357,14 @@ test("laudo: registro vigente no CEIS é risco alto, com o período confrontado 
   assert.match(depois.riscos.find((x) => /CEIS/.test(x.titulo))?.fato ?? "", /anteriores ao início do registro/);
 });
 
-test("laudo: registro encerrado não vira risco; CNEP vigente também é alto", () => {
+test("laudo: registro encerrado não vira risco; multa no CNEP é informação", () => {
   const encerrado = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { vigente: false, dt_fim: "2026-01-01" })]) }), PREFEITURA);
   assert.equal(encerrado.linhas.find((l) => l.cnpj === ACM)?.ceisCnep, "encerrada");
   assert.equal(encerrado.riscos.some((r) => /CEIS|CNEP/.test(r.titulo)), false);
-  const cnep = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(MEI, { cadastro: "CNEP", valor_multa: 10_000 })]) }), PREFEITURA);
+  const cnep = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(MEI, { cadastro: "CNEP", tipo: "Multa", valor_multa: 10_000 })]) }), PREFEITURA);
   const r = cnep.riscos.find((x) => /CNEP/.test(x.titulo));
-  assert.equal(r?.nivel, "alto");
+  assert.equal(r?.nivel, "informativo");
+  assert.match(r?.titulo ?? "", /registro no CNEP que não proíbe contratar/);
   assert.doesNotMatch(`${r?.titulo} ${r?.fato}`, PROIBIDAS);
 });
 
@@ -370,10 +374,30 @@ test("laudo: inidôneo do TCU segue com o nível dele, e o mesmo registro no CEI
   assert.equal(s.linhas.find((l) => l.cnpj === LIVRAMENTO)?.ceisCnep, "vigente");
   assert.equal(s.riscos.filter((r) => r.titulo.startsWith("LIVRAMENTO")).length, 1);
   assert.equal(s.riscos.find((r) => r.titulo.startsWith("LIVRAMENTO"))?.titulo, "LIVRAMENTO CONSTRUCOES, SERVICOS E PROJETOS LTDA: pago durante a sanção do TCU");
-  // Um registro de outro órgão entra à parte, como alto.
+  // Um registro de outro órgão entra à parte; impedimento restrito ao órgão é moderado.
   const outro = lerSecaoFornecedores(entrada({ sancoes: consultadas([doTcu, sancao(LIVRAMENTO)]) }), PREFEITURA);
   const r = outro.riscos.filter((x) => x.titulo.startsWith("LIVRAMENTO"));
-  assert.deepEqual(r.map((x) => x.nivel), ["alto", "alto"]);
-  assert.match(r[1].titulo, /registro no CEIS vigente/);
+  assert.deepEqual(r.map((x) => x.nivel), ["alto", "moderado"]);
+  assert.match(r[1].titulo, /registro no CEIS restrito/);
   assert.doesNotMatch(r[1].fato, /Tribunal de Contas/);
+});
+
+test("alcance da sanção (09/10/2026): inidoneidade e todas as esferas valem em todo ente; impedimento é restrito; multa do CNEP não proíbe", () => {
+  assert.equal(alcanceSancao(sancao(ACM, { tipo: "Declaração de Inidoneidade com prazo determinado" })), "amplo");
+  assert.equal(alcanceSancao(sancao(ACM, { tipo: "Suspensão", abrangencia: "Todas as Esferas em todos os Poderes" })), "amplo");
+  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Dissolução compulsória da PJ" })), "amplo");
+  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Suspensão/Interdição das atividades com prazo determinado" })), "amplo");
+  assert.equal(alcanceSancao(sancao(ACM, { tipo: "Suspensão", abrangencia: "No órgão sancionador" })), "restrito");
+  assert.equal(alcanceSancao(sancao(ACM, { tipo: "Impedimento/proibição de contratar com prazo determinado", abrangencia: "Em todos os Poderes da Esfera do órgão sancionador" })), "restrito");
+  assert.equal(alcanceSancao(sancao(ACM, { tipo: null })), "restrito", "CEIS de tipo desconhecido fica a conferir, nunca abaixo");
+  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Multa" })), "sem_impedimento");
+  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Publicação extraordinária da decisão condenatória" })), "sem_impedimento");
+  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Proibição de receber incentivos, subsídios, subvenções, doações ou empréstimos" })), "sem_impedimento");
+  assert.equal(alcanceMaior([sancao(ACM, { cadastro: "CNEP", tipo: "Multa" }), sancao(ACM, { tipo: "Declaração de Inidoneidade sem prazo determinado" })]), "amplo");
+  // No laudo, a inidoneidade vigente é alto, com o texto neutro.
+  const s = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { tipo: "Declaração de Inidoneidade com prazo determinado", orgao: "Controladoria-Geral da União" })]) }), PREFEITURA);
+  const r = s.riscos.find((x) => /CEIS/.test(x.titulo));
+  assert.equal(r?.nivel, "alto");
+  assert.match(r?.titulo ?? "", /registro no CEIS que impede contratar com qualquer ente/);
+  assert.doesNotMatch(`${r?.titulo} ${r?.fato}`, PROIBIDAS);
 });

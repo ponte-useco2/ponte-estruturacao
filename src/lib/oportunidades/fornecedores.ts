@@ -328,6 +328,54 @@ export function descreverSancao(r: RegistroSancao): string {
   return `${r.cadastro}: ${partes.join(", ")}`;
 }
 
+/**
+ * O alcance de uma sanção para o contrato de um convênio, que é assinado por outro ente (decisão do titular de
+ * 09/10/2026, depois da 1ª rodada: dos 164 fornecedores com registro vigente, só 31 tinham sanção de alcance amplo).
+ * - amplo: declaração de inidoneidade (Lei 14.133, art. 156, § 5º: todos os entes), abrangência "todas as esferas", e
+ *   as sanções judiciais que param a própria empresa (Lei 12.846, art. 19: suspensão das atividades, dissolução);
+ * - restrito: impedimento e suspensão, que valem no órgão ou no ente que os aplicou (Lei 14.133, art. 156, § 4º; Lei
+ *   8.666, art. 87, III): a conferir se alcançam o contratante; CEIS de tipo não reconhecido também fica aqui;
+ * - sem impedimento: as outras sanções do CNEP (multa, publicação extraordinária, perdimento de bens, proibição de
+ *   receber incentivos), que não proíbem contratar.
+ */
+export type AlcanceSancao = "amplo" | "restrito" | "sem_impedimento";
+
+const PARA_A_EMPRESA = /dissolu[cç][aã]o compuls[oó]ria|suspens[aã]o\/interdi[cç][aã]o das atividades/i;
+
+export function alcanceSancao(r: Pick<RegistroSancao, "cadastro" | "tipo" | "abrangencia">): AlcanceSancao {
+  const tipo = r.tipo ?? "";
+  if (/inidoneidade/i.test(tipo) || /^\s*todas as esferas/i.test(r.abrangencia ?? "") || PARA_A_EMPRESA.test(tipo)) return "amplo";
+  if (/impedimento|proibi[cç][aã]o de contratar|suspens[aã]o/i.test(tipo) || r.cadastro === "CEIS") return "restrito";
+  return "sem_impedimento";
+}
+
+const ORDEM_ALCANCE: Record<AlcanceSancao, number> = { amplo: 0, restrito: 1, sem_impedimento: 2 };
+
+/** O alcance mais largo entre os registros dados (o que manda no nível do risco). */
+export function alcanceMaior(rs: Pick<RegistroSancao, "cadastro" | "tipo" | "abrangencia">[]): AlcanceSancao {
+  return rs.map(alcanceSancao).sort((x, y) => ORDEM_ALCANCE[x] - ORDEM_ALCANCE[y])[0] ?? "sem_impedimento";
+}
+
+const RISCO_ALCANCE: Record<AlcanceSancao, { nivel: Risco["nivel"]; titulo: string; fecho: string }> = {
+  amplo: {
+    nivel: "alto",
+    titulo: "que impede contratar com qualquer ente",
+    fecho: "Vale conferir antes de novas contratações, aditivos e ordens de serviço.",
+  },
+  restrito: {
+    nivel: "moderado",
+    titulo: "restrito ao órgão ou à esfera que o aplicou",
+    fecho:
+      "Impedimento e suspensão valem no órgão ou no ente que os aplicou (Lei 14.133, art. 156, § 4º): a conferir se alcançam o " +
+      "contratante deste convênio antes de novas contratações e aditivos.",
+  },
+  sem_impedimento: {
+    nivel: "informativo",
+    titulo: "que não proíbe contratar",
+    fecho: "São sanções da Lei Anticorrupção (Lei 12.846/2013) que não proíbem contratar com a administração; ficam como informação.",
+  },
+};
+
 /** A inidoneidade declarada pelo TCU também vai ao CEIS: com o risco do TCU no laudo, o registro não se repete. */
 const ehDoTcu = (r: Pick<RegistroSancao, "orgao">) => /tribunal de contas da uni[aã]o|^\s*tcu\s*$/i.test(r.orgao ?? "");
 
@@ -476,8 +524,9 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
     };
     riscos.push({ nivel: NIVEL_MOMENTO[l.momento], ...texto[l.momento] });
   }
-  // D1: registro vigente no CEIS ou no CNEP na data da consulta é risco alto (o inidôneo do TCU, acima, segue com o
-  // nível do momento da sanção). O texto diz o fato e onde o convênio cai no período, sem julgar.
+  // D1: registro vigente no CEIS ou no CNEP na data da consulta. O nível segue o alcance da sanção (`alcanceSancao`,
+  // 09/10/2026): alto só quando ela impede contratar com qualquer ente; o inidôneo do TCU, acima, segue com o nível do
+  // momento da sanção. O texto diz o fato e onde o convênio cai no período, sem julgar.
   const ceisCnep = leituraCeisCnep(e.sancoes);
   for (const l of linhas) {
     if (l.ceisCnep !== "vigente" || ceisCnep.estado !== "consultado") continue;
@@ -491,14 +540,14 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
       ? momentoDaSancao({ inidoneo_tcu: true, tcu_inicio: p.inicio, tcu_data_final: p.fim }, { primeiro: l.primeiro, ultimo: l.ultimo }, contratos)
       : null;
     const um = vigentes.length === 1;
+    const alcance = RISCO_ALCANCE[alcanceMaior(vigentes)];
     riscos.push({
-      nivel: "alto",
-      titulo: `${l.nome}: registro no ${cad} vigente na data da consulta`,
+      nivel: alcance.nivel,
+      titulo: `${l.nome}: registro no ${cad} ${alcance.titulo}`,
       fato:
         `A empresa tem ${um ? "um registro" : `${vigentes.length} registros`} no ${cad} ${um ? "vigente" : "vigentes"} na consulta de ` +
         `${formatarData(ceisCnep.referencia)} (${vigentes.map(descreverSancao).join("; ")}).` +
-        `${momento ? ` ${RELACAO_REGISTRO[momento]}` : ""} O alcance depende do tipo de sanção e do órgão que a aplicou; vale conferir ` +
-        "antes de novas contratações, aditivos e ordens de serviço.",
+        `${momento ? ` ${RELACAO_REGISTRO[momento]}` : ""} ${alcance.fecho}`,
     });
   }
   // Pago no SICONV e sem nenhum pagamento a esse CNPJ nas despesas do município no TCE-PB, no ano nem no

@@ -28,9 +28,15 @@ export type UsoMapa =
   | "mapa_seguir"
   | "mapa_deixar_de_seguir"
   /** C2 (08/10/2026): a busca unificada. Só o tipo da entrada e a UF, nunca o termo digitado. */
-  | "mapa_busca";
+  | "mapa_busca"
+  /**
+   * C3a (09/10/2026): o protótipo do explorador em camadas (só administrador). A camada aberta, a profundidade, a UF, o
+   * município e a vista: o que diz se a descida é usada e até onde vai. A `oport_evento` não restringe o tipo (só chave
+   * primária e a do usuário, conferido pelo MCP em 09/10/2026): não precisa de migração.
+   */
+  | "mapa_explorador";
 
-const TIPOS: readonly UsoMapa[] = ["mapa_carteira", "mapa_municipio", "mapa_entidade", "mapa_entidade_relatorio", "mapa_organizacoes", "mapa_uf", "mapa_uf_relatorio", "mapa_brasil", "mapa_brasil_relatorio", "mapa_relatorio_municipio", "mapa_laudo_instrumento", "mapa_glossario", "mapa_seguir", "mapa_deixar_de_seguir", "mapa_busca"];
+const TIPOS: readonly UsoMapa[] = ["mapa_carteira", "mapa_municipio", "mapa_entidade", "mapa_entidade_relatorio", "mapa_organizacoes", "mapa_uf", "mapa_uf_relatorio", "mapa_brasil", "mapa_brasil_relatorio", "mapa_relatorio_municipio", "mapa_laudo_instrumento", "mapa_glossario", "mapa_seguir", "mapa_deixar_de_seguir", "mapa_busca", "mapa_explorador"];
 
 /** Só texto curto e número: o detalhe diz o que interessou, não guarda conteúdo. */
 export function detalheLimpo(detalhe: Record<string, unknown>): Record<string, string | number | boolean> {
