@@ -14,9 +14,14 @@
  *
  * Nomes das tabelas e das chaves do `contagens` conferidos pelo MCP em 09/10/2026 (só os catálogos e as tabelas
  * `*_execucao`; a coluna `erro`, texto livre, não é lida nem mostrada).
+ *
+ * O frescor do dado (10/10/2026, onda 11, B): rodar em dia não é ter dado novo. Em 09/10/2026 o fiscal rodou todo dia,
+ * no prazo, com o CAUC parado em 02/10, e a tela disse "em dia". Cada job diz agora onde a execução grava a data do
+ * DADO (não a da rodada) e quanto ela pode ficar para trás da rodada que a leu; passou disso, com a rodada em dia, a
+ * linha fica "dado velho".
  */
 import { REPOSITORIO } from "./agendamento.ts";
-import { dataBrasilia } from "./datas.ts";
+import { dataBrasilia, diaBrasilia } from "./datas.ts";
 
 // ================================================================ cadência e folga
 
@@ -76,6 +81,170 @@ export function descreverCron(cron: string): string {
   return dias.length === 1 ? `dia ${dias[0]}, ${quando}` : `dias ${dias.slice(0, -1).join(", ")} e ${dias.at(-1)}, ${quando}`;
 }
 
+// ================================================================ a data do dado e a defasagem esperada (10/10/2026, onda 11, B)
+
+/**
+ * A defasagem é medida na hora da rodada: o dia do dado contra o dia em que a rodada concluiu, os dois em Brasília. A
+ * idade da rodada já é a regra de "atrasada"; assim as duas não se sobrepõem, e "dado velho" quer dizer uma coisa só:
+ * o job rodou, mas a fonte não andou. Os limites abaixo saíram do código de cada job e do histórico das tabelas
+ * `*_execucao`, lido pelo MCP em 09/10/2026.
+ *
+ * "dias": dias corridos. "dias_uteis": de segunda a sexta, sem o calendário de feriados (um dia útil de folga cobre um
+ * feriado isolado). "meses": meses do calendário (o mês do dado contra o mês da rodada).
+ */
+export type UnidadeDefasagem = "dias" | "dias_uteis" | "meses";
+
+/**
+ * O arquivo do Transferegov (radar e painel): o `dado_ate` é o último carimbo do `siconv_historico_situacao`. O lote
+ * noturno carimba entre 22h e 23h em Brasília, e a rodada da manhã lê o de ontem (D-1). Na segunda o dado é de sábado
+ * (domingo em geral não tem lote), e o Transferegov às vezes pula a noite (23, 24 e 26/09 e 07 e 09/10/2026): D-2. Nas
+ * 44 rodadas do radar desde 14/09/2026, nunca D-3. Fonte: `painel_execucao/trava_do_dia.py` e as execuções do radar e
+ * do painel.
+ */
+export const DEFASAGEM_TRANSFEREGOV_DIAS = 2;
+
+/**
+ * O CAUC (fiscal): `contagens.cauc_data_pesquisa`, a data da pesquisa do relatório do Tesouro. Sai todo dia útil, por
+ * volta das 11h10 UTC, e a rodada das 11h30 lê a do dia (0) ou, se a publicação atrasa, a da véspera (1); no fim de
+ * semana fica a de sexta (27/09/2026, domingo: 25/09, 0). A única falha antes de outubro deu 2 (a rodada de 23/09 leu o
+ * de 21/09). De 3 em diante é o mesmo limite de `DIAS_UTEIS_CAUC` (3) em `fiscal/regras.py` (onda 11, A), que deixa G7 e
+ * G7A "desatualizado": a mesma regra na tela do fiscal e aqui (o teste confere). A diferença: aqui não há calendário de
+ * feriados, e o dia depois de um feriado conta um dia útil a mais. Fonte: execuções 1 a 27 do fiscal; em 09/10/2026 o
+ * CAUC de 02/10 tinha 5 dias úteis.
+ */
+export const DEFASAGEM_CAUC_DIAS_UTEIS = 2;
+
+/**
+ * Pix e fundo a fundo (semanal): `contagens.especiais_dado_ate` e `fundo_dado_ate`, o dia do último relatório ou
+ * lançamento que a API do Transferegov trouxe (vale o mais velho dos dois). É D-1 útil: a API atualiza de madrugada e
+ * quase ninguém registra no fim de semana (21/09/2026, segunda: dado de 18/09, sexta). Mais um dia útil para a rodada
+ * que sai antes da atualização (as de 07/10/2026 à 01h51 e às 02h33 em Brasília leram o de 05/10) e para um feriado.
+ * Fonte: `pix_fundo/especiais.py`, `pix_fundo/fundo.py` e as execuções 1 a 8 do Pix.
+ */
+export const DEFASAGEM_PIX_DIAS_UTEIS = 2;
+
+/**
+ * Pix, ciclo em curso (diário): `contagens.especiais_data_atualizacao`, a data que a própria API dos especiais informa
+ * (`/especiais/data-atualizacao`, à 0h do dia). A rodada da manhã lê a do dia; em 21/09/2026 (segunda), às 12h38, a
+ * API ainda dizia 20/09. Fonte: `pix_fundo/ciclo.py`, as execuções 1 a 4 do ciclo e 1 a 8 do Pix.
+ */
+export const DEFASAGEM_API_ESPECIAIS_DIAS = 1;
+
+/**
+ * O TCE-PB refaz o arquivo de despesas do ano corrente toda madrugada, mas o job só o baixa de novo a cada 7 dias
+ * (`DIAS_ANO_CORRENTE` em `tce_federal/cache.py`; o teste confere o número no arquivo).
+ */
+export const DIAS_ANO_CORRENTE_TCE_PB = 7;
+
+/**
+ * Dinheiro federal no TCE-PB: o `dado_ate` é o maior Last-Modified dos arquivos de despesas lidos. Até 7 dias é a regra
+ * do próprio job, mais 1 para os downloads que o prazo da rodada adia para o dia seguinte. Em 05/10/2026 o dado era de
+ * 29/09 (6 dias); em 06/10 voltou a ser do dia. Fonte: `tce_federal/executar.py` e as execuções 1 a 14.
+ */
+export const DEFASAGEM_TCE_PB_DIAS = DIAS_ANO_CORRENTE_TCE_PB + 1;
+
+/**
+ * As consultas ao vivo (sanções no Portal da Transparência, tomadas de contas no e-TCE): a API responde o cadastro do
+ * momento, e o `dado_ate` é o instante da consulta. O dia do dado é o da rodada; 1 dia cobre a consulta que atravessa a
+ * meia-noite. Fonte: `sancoes/executar.py` e `tce_tcu/executar.py` (`dado_ate=agora`).
+ */
+export const DEFASAGEM_CONSULTA_DIAS = 1;
+
+/**
+ * As OSC (Mapa das OSC, Ipea): `contagens.versao_fonte`, a data no nome do arquivo (AAAAMMDD), que dá o mês do arquivo.
+ * O Ipea publica o arquivo do mês por volta do dia 18 (agosto/2026: Last-Modified 18/08), e o job roda nos dias 20 e
+ * 28: a carga do mês traz o arquivo do mês, ou o do mês anterior quando o do mês atrasa. Dois meses para trás é um mês
+ * que o Ipea não publicou. Fonte: `osc_mapa/executar.py` e o estudo de 07/10/2026 (em 07/10, o de setembro ainda não
+ * tinha saído).
+ *
+ * Supervisor, integração da onda 11 (10/10/2026): 2 meses, e não 1. O de setembro não saiu até 09/10, e com 1 o resumo
+ * diário abriria todo dia com o Ipea como "dado velho" — atraso de fora, sem nada a fazer, num cadastro que muda
+ * devagar. O job parado continua aparecendo pela cadência; o dado velho fica para o Ipea parado de verdade.
+ */
+export const DEFASAGEM_OSC_MESES = 2;
+
+/** Onde a execução de um job grava a data do dado, e quanto ela pode ficar para trás da rodada. */
+export interface RegraDado {
+  /** O lugar na execução, por extenso: "coluna dado_ate (…)", "contagens.cauc_data_pesquisa". */
+  onde: string;
+  /** O que é o dado, curto, para a tela e o e-mail: "CAUC", "arquivo do Transferegov". */
+  rotulo: string;
+  /**
+   * "coluna": a coluna `dado_ate`, lida numa consulta à parte que falha sozinha (`rodadas.server.ts`); "contagens": o
+   * jsonb que a tela já lê.
+   */
+  origem: "coluna" | "contagens";
+  /** A data do dado na execução, como veio (data, instante ou "AAAAMMDD"), ou null quando ela não a trouxe. */
+  ler: (e: { contagens: Contagens; dadoAte: string | null }) => string | null;
+  /** Quanto o dado pode ficar para trás da rodada; null: coleta assistida, sem defasagem esperada (nunca "velho"). */
+  limite: number | null;
+  unidade: UnidadeDefasagem;
+}
+
+const DIA_PURO = /^\d{4}-\d{2}-\d{2}$/;
+/** Instante sem fuso ("2026-10-09T00:00:00", da API dos especiais): já está em Brasília, e o dia é o do texto. */
+const INSTANTE_SEM_FUSO = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+
+function diaExiste(dia: string): boolean {
+  const [a, m, d] = dia.split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, d)).toISOString().slice(0, 10) === dia;
+}
+
+/**
+ * O dia do dado em Brasília ("AAAA-MM-DD"), ou null. Aceita a data pura, "AAAAMMDD" (a versão do Ipea), o instante com
+ * fuso (convertido por `diaBrasilia`) e o instante sem fuso, que fica no dia escrito: o `Date.parse` o leria no fuso
+ * da máquina (UTC na Vercel), e "09/10 0h" viraria 08/10.
+ */
+export function diaDoDado(valor: string | null | undefined): string | null {
+  if (typeof valor !== "string" || !valor.trim()) return null;
+  const v = valor.trim();
+  let dia: string;
+  if (/^\d{8}$/.test(v)) dia = `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+  else if (DIA_PURO.test(v) || INSTANTE_SEM_FUSO.test(v)) dia = v.slice(0, 10);
+  else if (Number.isNaN(Date.parse(v))) return null;
+  else dia = diaBrasilia(v);
+  return DIA_PURO.test(dia) && diaExiste(dia) ? dia : null;
+}
+
+const DIA_MS = 24 * 3600 * 1000;
+const numeroDoDia = (dia: string) => Math.round(Date.parse(`${dia}T00:00:00Z`) / DIA_MS);
+
+/**
+ * Quanto o dia do dado ficou para trás do dia da rodada, na unidade dada (os dois "AAAA-MM-DD", em Brasília). O dado
+ * mais novo que a rodada conta 0. Dias úteis: os de segunda a sexta depois do dia do dado, até o dia da rodada (o
+ * domingo que lê o CAUC de sexta conta 0; a sexta que lê o da sexta anterior conta 5).
+ */
+export function defasagemEntre(diaDado: string, diaRodada: string, unidade: UnidadeDefasagem): number {
+  if (unidade === "meses") {
+    const [ad, md] = diaDado.split("-").map(Number);
+    const [ar, mr] = diaRodada.split("-").map(Number);
+    return Math.max(0, ar * 12 + mr - (ad * 12 + md));
+  }
+  const de = numeroDoDia(diaDado);
+  const ate = numeroDoDia(diaRodada);
+  if (ate <= de) return 0;
+  if (unidade === "dias") return ate - de;
+  let uteis = 0;
+  // O dia 0 (01/01/1970) foi uma quinta: (n + 4) % 7 dá 0 no domingo e 6 no sábado.
+  for (let k = de + 1; k <= ate; k++) {
+    const semana = (k + 4) % 7;
+    if (semana !== 0 && semana !== 6) uteis += 1;
+  }
+  return uteis;
+}
+
+const NOME_UNIDADE: Record<UnidadeDefasagem, readonly [string, string]> = {
+  dias: ["dia", "dias"],
+  dias_uteis: ["dia útil", "dias úteis"],
+  meses: ["mês", "meses"],
+};
+
+/** "1 dia útil", "5 dias úteis", "2 meses". */
+export function textoUnidade(x: number, unidade: UnidadeDefasagem): string {
+  const [um, varios] = NOME_UNIDADE[unidade];
+  return `${x.toLocaleString("pt-BR")} ${x === 1 ? um : varios}`;
+}
+
 // ================================================================ os jobs
 
 export type Contagens = Record<string, unknown>;
@@ -101,6 +270,15 @@ const tamanho = (c: Contagens, chave: string) => {
 
 const soma = (o: Record<string, unknown>) => Object.values(o).reduce<number>((s, v) => s + (typeof v === "number" ? v : 0), 0);
 
+/** O texto de uma chave do `contagens`, ou null (a data do dado, quando o job a grava lá). */
+const textoDe = (c: Contagens, chave: string) => {
+  const v = c[chave];
+  return typeof v === "string" && v ? v : null;
+};
+
+/** A data do dado na coluna `dado_ate` da execução. */
+const colunaDadoAte = ({ dadoAte }: { dadoAte: string | null }) => dadoAte;
+
 /** Avisos de "ficou para a próxima rodada" e afins: só entram quando o número é maior que zero. */
 function seMaior(x: number | null, texto: (x: number) => string): string[] {
   return x !== null && x > 0 ? [texto(x)] : [];
@@ -120,6 +298,11 @@ export interface JobRodada {
   /** O `schedule` do workflow, como está lá (UTC). */
   cron: string | null;
   folgaH: number;
+  /**
+   * Onde a execução grava a data do dado e a defasagem esperada (10/10/2026, onda 11, B). null: o job não grava uma data
+   * do dado que valha para a rodada inteira (os indicadores dos municípios: cada fonte tem o seu ano).
+   */
+  dado: RegraDado | null;
   /** A contagem principal do `contagens` e o que ela conta. */
   linhas: (c: Contagens) => number | null;
   rotuloLinhas: string;
@@ -131,6 +314,46 @@ export interface JobRodada {
 
 const nenhumAviso = () => [];
 const semFalhas = () => null;
+
+// A data do dado de cada job (10/10/2026, onda 11, B). Os limites e o porquê estão nas constantes `DEFASAGEM_*`.
+
+/** O radar e o painel leem o mesmo arquivo: o `siconv_historico_situacao` do Transferegov. */
+const DADO_TRANSFEREGOV: RegraDado = {
+  onde: "coluna dado_ate: o último carimbo do siconv_historico_situacao",
+  rotulo: "arquivo do Transferegov",
+  origem: "coluna",
+  ler: colunaDadoAte,
+  limite: DEFASAGEM_TRANSFEREGOV_DIAS,
+  unidade: "dias",
+};
+
+const dadoDaConsulta = (rotulo: string): RegraDado => ({
+  onde: "coluna dado_ate: o instante da consulta à API",
+  rotulo,
+  origem: "coluna",
+  ler: colunaDadoAte,
+  limite: DEFASAGEM_CONSULTA_DIAS,
+  unidade: "dias",
+});
+
+/** Nas coletas assistidas a data aparece, mas não há defasagem esperada, como não há cadência: nunca "dado velho". */
+const DADO_ACESSO_LIVRE: RegraDado = {
+  onde: "coluna dado_ate: a leitura mais nova da coleta no navegador",
+  rotulo: "coleta no Acesso Livre",
+  origem: "coluna",
+  ler: colunaDadoAte,
+  limite: null,
+  unidade: "dias",
+};
+
+const DADO_EXIGENCIAS: RegraDado = {
+  onde: "coluna dado_ate: o evento mais novo do retrato coletado",
+  rotulo: "evento mais novo do retrato",
+  origem: "coluna",
+  ler: colunaDadoAte,
+  limite: null,
+  unidade: "dias",
+};
 
 /**
  * Os jobs com tabela de execução no banco, na ordem da tela: diários, semanais, mensais, assistidos. Conferidos em
@@ -147,6 +370,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
     folgaH: FOLGA_PADRAO_H,
+    dado: DADO_TRANSFEREGOV,
     linhas: (c) => numero(c, "janelas_abertas"),
     rotuloLinhas: "janelas abertas",
     falhas: semFalhas,
@@ -161,6 +385,15 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
     folgaH: FOLGA_PADRAO_H,
+    // O `dado_ate` do ciclo é o instante da rodada; a data do dado é a que a API dos especiais informa.
+    dado: {
+      onde: "contagens.especiais_data_atualizacao: a data de atualização que a API dos especiais informa",
+      rotulo: "atualização da API dos especiais",
+      origem: "contagens",
+      ler: ({ contagens }) => textoDe(contagens, "especiais_data_atualizacao"),
+      limite: DEFASAGEM_API_ESPECIAIS_DIAS,
+      unidade: "dias",
+    },
     linhas: (c) => numero(c, "ciclo_planos_uf"),
     rotuloLinhas: "planos da UF no ciclo",
     falhas: semFalhas,
@@ -178,6 +411,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
     folgaH: FOLGA_PADRAO_H,
+    dado: DADO_TRANSFEREGOV,
     linhas: (c) => numero(c, "instrumentos"),
     rotuloLinhas: "instrumentos",
     falhas: semFalhas,
@@ -195,6 +429,14 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
     folgaH: FOLGA_PADRAO_H,
+    dado: {
+      onde: "coluna dado_ate: o maior Last-Modified dos arquivos de despesas lidos",
+      rotulo: "arquivos do TCE-PB",
+      origem: "coluna",
+      ler: colunaDadoAte,
+      limite: DEFASAGEM_TCE_PB_DIAS,
+      unidade: "dias",
+    },
     linhas: (c) => numero(c, "tce_arquivos_lidos"),
     rotuloLinhas: "arquivos do TCE-PB lidos",
     falhas: (c) => numero(objeto(c, "tce_downloads"), "falhas"),
@@ -218,6 +460,15 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "fiscal.yml",
     cron: "0 12 * * *",
     folgaH: FOLGA_PADRAO_H,
+    // O `dado_ate` do fiscal é o instante da rodada; o que envelhece sem aviso é o CAUC (09/10/2026: parado em 02/10).
+    dado: {
+      onde: "contagens.cauc_data_pesquisa: a data da pesquisa do relatório do CAUC",
+      rotulo: "CAUC",
+      origem: "contagens",
+      ler: ({ contagens }) => textoDe(contagens, "cauc_data_pesquisa"),
+      limite: DEFASAGEM_CAUC_DIAS_UTEIS,
+      unidade: "dias_uteis",
+    },
     linhas: (c) => numero(c, "municipios"),
     rotuloLinhas: "municípios",
     // `fontes_com_erro`: {fonte: chamadas que falharam} (09/10: vazio; 03/10: siconfi_rreo1 e siconfi_rreo9).
@@ -236,6 +487,21 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "pix-fundo.yml",
     cron: "15 8 * * 1",
     folgaH: FOLGA_PADRAO_H,
+    // A coluna `dado_ate` é a mais nova das duas datas; aqui vale a mais velha, para um módulo parado não se esconder.
+    dado: {
+      onde: "contagens.especiais_dado_ate e fundo_dado_ate: o último relatório ou lançamento na API (o mais velho)",
+      rotulo: "API do Transferegov (especiais e fundo a fundo)",
+      origem: "contagens",
+      ler: ({ contagens }) => {
+        const dias = [textoDe(contagens, "especiais_dado_ate"), textoDe(contagens, "fundo_dado_ate")]
+          .map(diaDoDado)
+          .filter((d): d is string => d !== null)
+          .sort();
+        return dias[0] ?? null;
+      },
+      limite: DEFASAGEM_PIX_DIAS_UTEIS,
+      unidade: "dias_uteis",
+    },
     linhas: (c) => {
       const especiais = numero(c, "especiais_planos");
       const fundo = numero(c, "fundo_planos");
@@ -254,6 +520,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "tce-tcu.yml",
     cron: "0 9 * * 3",
     folgaH: FOLGA_PADRAO_H,
+    dado: dadoDaConsulta("consulta ao e-TCE"),
     linhas: (c) => numero(c, "tcu_consultados"),
     rotuloLinhas: "convênios consultados",
     falhas: (c) => numero(c, "tcu_erros"),
@@ -271,6 +538,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "sancoes.yml",
     cron: "15 3 * * 0",
     folgaH: FOLGA_PADRAO_H,
+    dado: dadoDaConsulta("consulta ao CEIS e ao CNEP"),
     linhas: (c) => numero(c, "sancao_consultados"),
     rotuloLinhas: "fornecedores consultados",
     falhas: (c) => numero(c, "sancao_erros"),
@@ -289,6 +557,9 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: "municipios.yml",
     cron: "0 10 5 * *",
     folgaH: FOLGA_PADRAO_H,
+    // O `dado_ate` é o instante da rodada, e cada fonte tem o seu período (`mun_indicador.ano`: MapBiomas anual, Caged
+    // mensal…). Não há uma data do dado da rodada inteira; a fonte que falha já vira aviso (repetida da anterior).
+    dado: null,
     linhas: (c) => {
       const porFonte = objeto(c, "linhas_por_fonte");
       return Object.keys(porFonte).length ? soma(porFonte) : null;
@@ -312,6 +583,14 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     // O job não grava execução quando a versão do arquivo do Ipea é a da última carga, e o dia 28 existe para pegar o
     // arquivo que sai atrasado: a carga de um mês pode vir até 8 dias depois da do anterior (dia 20 → dia 28).
     folgaH: 8 * 24 + FOLGA_PADRAO_H,
+    dado: {
+      onde: "contagens.versao_fonte: a data no nome do arquivo do Ipea (AAAAMMDD), que dá o mês do arquivo",
+      rotulo: "arquivo do Ipea",
+      origem: "contagens",
+      ler: ({ contagens }) => textoDe(contagens, "versao_fonte"),
+      limite: DEFASAGEM_OSC_MESES,
+      unidade: "meses",
+    },
     linhas: (c) => numero(c, "ativas"),
     rotuloLinhas: "OSC ativas na PB",
     falhas: (c) => numero(c, "malformadas_pb"),
@@ -330,6 +609,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: null,
     cron: null,
     folgaH: 0,
+    dado: DADO_ACESSO_LIVRE,
     linhas: (c) => numero(c, "al_convenios"),
     rotuloLinhas: "convênios",
     falhas: (c) => numero(c, "al_erros"),
@@ -344,6 +624,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: null,
     cron: null,
     folgaH: 0,
+    dado: DADO_ACESSO_LIVRE,
     linhas: (c) => numero(c, "al_convenios"),
     rotuloLinhas: "convênios",
     falhas: (c) => numero(c, "al_erros"),
@@ -358,6 +639,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: null,
     cron: null,
     folgaH: 0,
+    dado: DADO_EXIGENCIAS,
     linhas: (c) => numero(c, "instrumentos"),
     rotuloLinhas: "instrumentos",
     falhas: (c) => numero(c, "instrumentos_com_erro"),
@@ -372,6 +654,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     workflow: null,
     cron: null,
     folgaH: 0,
+    dado: DADO_EXIGENCIAS,
     linhas: (c) => numero(c, "instrumentos"),
     rotuloLinhas: "instrumentos",
     falhas: (c) => numero(c, "instrumentos_com_erro"),
@@ -396,27 +679,33 @@ export function prazoH(job: Pick<JobRodada, "cadencia" | "folgaH">): number | nu
 
 // ================================================================ o estado de cada linha
 
-export type EstadoRodada = "em_dia" | "atrasada" | "com_aviso" | "nao_lido";
+/** "dado_velho" (10/10/2026, onda 11, B): a rodada está em dia, mas a data do dado passou da defasagem esperada. */
+export type EstadoRodada = "em_dia" | "atrasada" | "dado_velho" | "com_aviso" | "nao_lido";
 
 export const ROTULO_ESTADO: Record<EstadoRodada, string> = {
   em_dia: "em dia",
   atrasada: "atrasada",
+  dado_velho: "dado velho",
   com_aviso: "com aviso",
   nao_lido: "não lido",
 };
 
-/** Marca de forma, além da cor: o estado não pode depender só de cor (WCAG 1.4.1), como em `fiscal.ts`. */
-export const MARCA_ESTADO: Record<EstadoRodada, string> = { em_dia: "✓", atrasada: "▲", com_aviso: "!", nao_lido: "?" };
+/**
+ * Marca de forma, além da cor: o estado não pode depender só de cor (WCAG 1.4.1), como em `fiscal.ts`. O "dado velho"
+ * usa a marca e o tom do "Desatualizado" do fiscal (↻), o mesmo vocabulário para a mesma ideia.
+ */
+export const MARCA_ESTADO: Record<EstadoRodada, string> = { em_dia: "✓", atrasada: "▲", dado_velho: "↻", com_aviso: "!", nao_lido: "?" };
 
-export const TOM_ESTADO: Record<EstadoRodada, "aderente" | "urgente" | "proto" | "neutro"> = {
+export const TOM_ESTADO: Record<EstadoRodada, "aderente" | "urgente" | "nova" | "proto" | "neutro"> = {
   em_dia: "aderente",
   atrasada: "urgente",
+  dado_velho: "nova",
   com_aviso: "proto",
   nao_lido: "neutro",
 };
 
 /** A ordem dos cartões do topo: o que pede ação primeiro. */
-export const ESTADOS: readonly EstadoRodada[] = ["atrasada", "com_aviso", "nao_lido", "em_dia"];
+export const ESTADOS: readonly EstadoRodada[] = ["atrasada", "dado_velho", "com_aviso", "nao_lido", "em_dia"];
 
 /** A última execução concluída, só com as colunas que a tela usa. */
 export interface ExecucaoConcluida {
@@ -436,9 +725,96 @@ export interface ExecucaoAberta {
 /** "ausente": a tabela não existe no banco (migração não aplicada); "falha": a leitura não respondeu. */
 export type MotivoNaoLido = "ausente" | "falha";
 
+/**
+ * A coluna `dado_ate` da última concluída (10/10/2026, onda 11, B), lida numa consulta à parte: se ela falhar, só a
+ * coluna "dado até" diz "não lido", e a linha segue. O `id` confere que é a mesma execução da outra consulta.
+ */
+export type LeituraDadoAte = { estado: "ok"; id: number | null; dadoAte: string | null } | { estado: "falha" };
+
 export type LeituraRodada =
-  | { estado: "ok"; ultima: ExecucaoConcluida | null; abertas: readonly ExecucaoAberta[] }
+  | {
+      estado: "ok";
+      ultima: ExecucaoConcluida | null;
+      abertas: readonly ExecucaoAberta[];
+      /** Só nos jobs cuja data do dado está na coluna (`RegraDado.origem` "coluna"). Ausente nesses: "não lido". */
+      dadoAte?: LeituraDadoAte;
+    }
   | { estado: "nao_lido"; motivo: MotivoNaoLido };
+
+/**
+ * A data do dado de uma linha (10/10/2026, onda 11, B).
+ * - "no_prazo" e "velho": a data foi lida, e a defasagem ficou dentro ou passou do limite da regra;
+ * - "sem_prazo": a data foi lida, mas a coleta assistida não tem defasagem esperada;
+ * - "nao_grava": o job não grava uma data do dado da rodada inteira (`JobRodada.dado` null);
+ * - "nao_lido": a consulta da coluna falhou, ou a rodada não trouxe a data (`motivo`);
+ * - "sem_execucao": nenhuma execução concluída, ou a linha inteira não foi lida.
+ */
+export type SituacaoDado = "no_prazo" | "velho" | "sem_prazo" | "nao_grava" | "nao_lido" | "sem_execucao";
+
+export interface FrescorDado {
+  situacao: SituacaoDado;
+  /** O dia do dado em Brasília ("AAAA-MM-DD"). */
+  dia: string | null;
+  /** Quanto o dado ficou para trás da rodada, na unidade da regra. */
+  defasagem: number | null;
+  /** O que a tela e o e-mail precisam da regra do job; null quando o job não grava a data. */
+  regra: Pick<RegraDado, "rotulo" | "limite" | "unidade"> | null;
+  /** Em "nao_lido": "falha" (a consulta não respondeu) ou "sem_data" (a rodada não gravou a data, ou não é data). */
+  motivo: "falha" | "sem_data" | null;
+}
+
+/**
+ * A data do dado da última concluída e a defasagem contra o dia da rodada (os dois em Brasília). Função pura: a
+ * leitura da coluna, quando a regra pede, vem pronta em `dadoAte`.
+ */
+export function avaliarDado(
+  job: Pick<JobRodada, "dado">,
+  ultima: Pick<ExecucaoConcluida, "id" | "contagens"> | null,
+  concluidaEm: string | null,
+  dadoAte?: LeituraDadoAte,
+): FrescorDado {
+  const regra = job.dado;
+  const vazio: FrescorDado = { situacao: "sem_execucao", dia: null, defasagem: null, regra: null, motivo: null };
+  if (!regra) return { ...vazio, situacao: "nao_grava" };
+  const base = { ...vazio, regra: { rotulo: regra.rotulo, limite: regra.limite, unidade: regra.unidade } };
+  if (!ultima || !concluidaEm) return base;
+
+  let coluna: string | null = null;
+  if (regra.origem === "coluna") {
+    // Sem a leitura, com a leitura que falhou, ou com outra execução (uma rodada concluiu entre as duas consultas).
+    if (!dadoAte || dadoAte.estado === "falha" || dadoAte.id !== ultima.id) return { ...base, situacao: "nao_lido", motivo: "falha" };
+    coluna = dadoAte.dadoAte;
+  }
+  const dia = diaDoDado(regra.ler({ contagens: ultima.contagens ?? {}, dadoAte: coluna }));
+  const diaRodada = diaDoDado(concluidaEm);
+  if (!dia || !diaRodada) return { ...base, situacao: "nao_lido", motivo: "sem_data" };
+
+  const defasagem = defasagemEntre(dia, diaRodada, regra.unidade);
+  const situacao: SituacaoDado = regra.limite === null ? "sem_prazo" : defasagem > regra.limite ? "velho" : "no_prazo";
+  return { ...base, situacao, dia, defasagem };
+}
+
+/** "5 dias úteis antes da rodada", "do mesmo dia da rodada", "do mesmo mês da rodada". */
+export function textoDefasagem(f: Pick<FrescorDado, "defasagem" | "regra">): string {
+  if (f.defasagem === null || !f.regra) return "";
+  if (f.defasagem === 0) return f.regra.unidade === "meses" ? "do mesmo mês da rodada" : "do mesmo dia da rodada";
+  return `${textoUnidade(f.defasagem, f.regra.unidade)} antes da rodada`;
+}
+
+/** "esperado: até 1 dia útil"; vazio sem limite (coleta assistida). */
+export function textoEsperado(regra: Pick<RegraDado, "limite" | "unidade"> | null): string {
+  return regra && regra.limite !== null ? `esperado: até ${textoUnidade(regra.limite, regra.unidade)}` : "";
+}
+
+/**
+ * A data do dado numa frase, para o e-mail e a tela: "CAUC de 02/10/2026, 5 dias úteis antes da rodada (esperado: até
+ * 1 dia útil)". Vazio quando a data não foi lida.
+ */
+export function textoFrescor(f: FrescorDado): string {
+  if (!f.dia || !f.regra) return "";
+  const esperado = textoEsperado(f.regra);
+  return `${f.regra.rotulo} de ${dataBrasilia(f.dia)}, ${textoDefasagem(f)}${esperado ? ` (${esperado})` : ""}`;
+}
 
 export interface GravandoAgora {
   iniciadaEm: string;
@@ -461,6 +837,8 @@ export interface LinhaRodada {
   avisos: string[];
   /** A execução "gravando" mais antiga, se houver. */
   gravando: GravandoAgora | null;
+  /** A data do dado da última concluída e a defasagem (10/10/2026, onda 11, B). */
+  dado: FrescorDado;
 }
 
 const HORA_MS = 3600 * 1000;
@@ -471,11 +849,14 @@ function horasDesde(iso: string, agora: number): number | null {
 }
 
 /**
- * O estado de uma linha. A ordem decide quando mais de um vale: "não lido" (nada a dizer), "atrasada" (o dado está
- * velho; os avisos continuam listados), "com aviso" (rodou no prazo, mas parou, falhou ou deixou coisa para depois),
- * "em dia".
+ * O estado de uma linha. A ordem decide quando mais de um vale: "não lido" (nada a dizer), "atrasada" (a rodada não
+ * veio; os avisos continuam listados), "dado velho" (a rodada veio, a fonte não andou), "com aviso" (rodou no prazo,
+ * mas parou, falhou ou deixou coisa para depois), "em dia".
  *
  * - Atrasada: a última concluída passou de `prazoH` (intervalo da cadência + folga), ou a agendada nunca concluiu.
+ * - Dado velho (10/10/2026, onda 11, B): a data do dado da última concluída ficou mais para trás da rodada do que a
+ *   defasagem esperada do job (`avaliarDado`). O fiscal de 09/10/2026, com o CAUC de 02/10 (5 dias úteis), é o caso.
+ *   A data que não pôde ser lida não muda o estado: a coluna diz "não lido".
  * - Com aviso: uma execução "gravando" há mais de `LIMITE_GRAVANDO_H`; uma tentativa em erro mais nova que a última
  *   concluída; falha contada no `contagens`; um aviso do próprio job; a coleta assistida que nunca concluiu.
  * A tentativa em erro anterior à última concluída é história, não aviso (o Acesso Livre de obras, 02/10/2026: erro às
@@ -483,7 +864,17 @@ function horasDesde(iso: string, agora: number): number | null {
  */
 export function avaliarRodada(job: JobRodada, leitura: LeituraRodada, agora: number): LinhaRodada {
   const prazo = prazoH(job);
-  const base = { job, prazoH: prazo, linhas: null, falhas: null, avisos: [], gravando: null, concluidaEm: null, idadeH: null };
+  const base = {
+    job,
+    prazoH: prazo,
+    linhas: null,
+    falhas: null,
+    avisos: [],
+    gravando: null,
+    concluidaEm: null,
+    idadeH: null,
+    dado: avaliarDado(job, null, null),
+  };
   if (leitura.estado === "nao_lido") return { ...base, estado: "nao_lido", motivoNaoLido: leitura.motivo };
 
   const { ultima, abertas } = leitura;
@@ -511,9 +902,10 @@ export function avaliarRodada(job: JobRodada, leitura: LeituraRodada, agora: num
   else if (job.cadencia === "assistida") avisos.push("nenhuma coleta concluída");
 
   const falhas = ultima ? job.falhas(c) : null;
+  const dado = avaliarDado(job, ultima, concluidaEm, leitura.dadoAte);
   const atrasada = prazo !== null && (idadeH === null || idadeH > prazo);
   const comAviso = avisos.length > 0 || (falhas ?? 0) > 0 || gravando?.parada === true;
-  const estado: EstadoRodada = atrasada ? "atrasada" : comAviso ? "com_aviso" : "em_dia";
+  const estado: EstadoRodada = atrasada ? "atrasada" : dado.situacao === "velho" ? "dado_velho" : comAviso ? "com_aviso" : "em_dia";
 
   return {
     job,
@@ -526,12 +918,13 @@ export function avaliarRodada(job: JobRodada, leitura: LeituraRodada, agora: num
     falhas,
     avisos,
     gravando,
+    dado,
   };
 }
 
 /** Quantas linhas em cada estado, para os cartões do topo. */
 export function contarEstados(linhas: readonly Pick<LinhaRodada, "estado">[]): Record<EstadoRodada, number> {
-  const conta: Record<EstadoRodada, number> = { em_dia: 0, atrasada: 0, com_aviso: 0, nao_lido: 0 };
+  const conta: Record<EstadoRodada, number> = { em_dia: 0, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 0 };
   for (const l of linhas) conta[l.estado] += 1;
   return conta;
 }

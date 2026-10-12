@@ -9,7 +9,11 @@
  * "não lido" naquela linha, e as outras seguem. O GitHub é opcional: sem `GITHUB_DISPARO_TOKEN` (o mesmo do agendador,
  * já na Vercel), a seção diz "não configurado"; com ele, uma chamada por workflow, também com tempo-limite.
  *
- * Volume: 14 linhas, 28 consultas pequenas em paralelo (uma linha e até 20 linhas) e 7 chamadas ao GitHub.
+ * A data do dado (10/10/2026, onda 11, B): nos jobs que a gravam na coluna `dado_ate`, uma terceira consulta lê só
+ * `id,dado_ate` da última concluída. Ela falha sozinha: a coluna "dado até" diz "não lido" e o resto da linha segue. Nos
+ * que a gravam no `contagens` (fiscal, Pix, ciclo, OSC), a primeira consulta já a traz.
+ *
+ * Volume: 14 linhas, 37 consultas pequenas em paralelo (uma linha e até 20 linhas) e 7 chamadas ao GitHub.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
@@ -21,6 +25,7 @@ import {
   type ExecucaoAberta,
   type ExecucaoConcluida,
   type JobRodada,
+  type LeituraDadoAte,
   type LeituraRodada,
   type LinhaRodada,
   type RodadaGithub,
@@ -31,8 +36,33 @@ type Banco = ReturnType<typeof clienteServidor>;
 const TEMPO_LIMITE_MS = 8_000;
 const COLUNAS_CONCLUIDA = "id,iniciada_em,concluida_em,contagens";
 const COLUNAS_ABERTA = "id,status,iniciada_em";
+const COLUNAS_DADO = "id,dado_ate";
 /** As últimas execuções não concluídas de cada job: basta para achar a "gravando" parada e o erro mais novo. */
 const ABERTAS = 20;
+
+/**
+ * A coluna `dado_ate` da última concluída (10/10/2026, onda 11, B). Nunca rejeita: o erro vira "falha", e só a coluna
+ * "dado até" da linha diz "não lido". A mesma ordem da outra consulta; o `id` confere que é a mesma execução.
+ */
+async function lerDadoAte(db: Banco, job: JobRodada): Promise<LeituraDadoAte> {
+  try {
+    let q = db.from(job.tabela).select(COLUNAS_DADO).eq("status", "concluida");
+    if (job.recorte) q = q.eq("recorte", job.recorte);
+    const { data, error } = await q
+      .order("concluida_em", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .abortSignal(AbortSignal.timeout(TEMPO_LIMITE_MS));
+    if (error) {
+      console.error(`rodadas (${job.id}, dado_ate):`, error.message);
+      return { estado: "falha" };
+    }
+    const linha = ((data ?? []) as { id: number; dado_ate: string | null }[])[0];
+    return { estado: "ok", id: linha?.id ?? null, dadoAte: linha?.dado_ate ?? null };
+  } catch (e) {
+    console.error(`rodadas (${job.id}, dado_ate):`, e instanceof Error ? e.message : "falha na leitura");
+    return { estado: "falha" };
+  }
+}
 
 async function lerJob(db: Banco, job: JobRodada): Promise<LeituraRodada> {
   try {
@@ -42,9 +72,10 @@ async function lerJob(db: Banco, job: JobRodada): Promise<LeituraRodada> {
       concluida = concluida.eq("recorte", job.recorte);
       abertas = abertas.eq("recorte", job.recorte);
     }
-    const [c, a] = await Promise.all([
+    const [c, a, dadoAte] = await Promise.all([
       concluida.order("concluida_em", { ascending: false, nullsFirst: false }).limit(1).abortSignal(AbortSignal.timeout(TEMPO_LIMITE_MS)),
       abertas.order("iniciada_em", { ascending: false }).limit(ABERTAS).abortSignal(AbortSignal.timeout(TEMPO_LIMITE_MS)),
+      job.dado?.origem === "coluna" ? lerDadoAte(db, job) : Promise.resolve(undefined),
     ]);
     const erro = c.error ?? a.error;
     if (erro) {
@@ -56,6 +87,7 @@ async function lerJob(db: Banco, job: JobRodada): Promise<LeituraRodada> {
       estado: "ok",
       ultima: ((c.data ?? []) as ExecucaoConcluida[])[0] ?? null,
       abertas: (a.data ?? []) as ExecucaoAberta[],
+      dadoAte,
     };
   } catch (e) {
     console.error(`rodadas (${job.id}):`, e instanceof Error ? e.message : "falha na leitura");

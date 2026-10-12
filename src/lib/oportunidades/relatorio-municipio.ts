@@ -267,6 +267,13 @@ export interface SecaoFiscal {
   decisoes: { decisao: string; nome: string; estado: string; bloqueantes: string[] }[];
   verificacoes: { codigo: string; nome: string; estado: string; resumo: string }[];
   caucPendencias: string[];
+  /**
+   * Onda 11, A (10/10/2026): a posição do CAUC (evidência da G7), não a data da execução. De 03 a 09/10 o painel
+   * leu o CAUC de 02/10 e o cartão dizia "em" a data da execução. `caucParado`: a G7 ficou "desatualizado".
+   */
+  caucData: string | null;
+  caucParado: boolean;
+  caucDiasUteis: number | null;
   pessoal: number | null;
   serie: PontoSerie[];
   /** Períodos seguidos acima do limite máximo, contados do mais recente para trás. */
@@ -301,6 +308,9 @@ function secaoFiscal(e: EntradaRelatorio): SecaoFiscal | null {
   const serie = [...(e.serie?.periodos ?? [])].sort((a, b) => a.exercicio - b.exercicio || a.periodo - b.periodo);
   const { seguidos, desde } = acimaDoLimite(serie);
   const de2021 = serie.filter((p) => p.exercicio === 2021);
+  const g7 = e.fiscal.verificacoes.find((v) => v.codigo === "G7");
+  const posicaoCauc = g7?.evidencia?.data_pesquisa;
+  const diasCauc = g7?.evidencia?.dias_uteis;
   return {
     decisoes: (["A", "B", "C"] as const)
       .map((d) => conclusaoDe(m, d))
@@ -308,6 +318,9 @@ function secaoFiscal(e: EntradaRelatorio): SecaoFiscal | null {
       .map((c) => ({ decisao: c.decisao, nome: c.nome, estado: c.estado, bloqueantes: c.bloqueantes.map((g) => NOME_CURTO[g] ?? g) })),
     verificacoes: e.fiscal.verificacoes.map((v) => ({ codigo: v.codigo, nome: v.nome, estado: v.estado, resumo: v.resumo })),
     caucPendencias: m.indicadores.cauc_pendencias ?? [],
+    caucData: typeof posicaoCauc === "string" && /^\d{4}-\d{2}-\d{2}/.test(posicaoCauc) ? posicaoCauc.slice(0, 10) : null,
+    caucParado: g7?.estado === "desatualizado",
+    caucDiasUteis: typeof diasCauc === "number" && Number.isFinite(diasCauc) ? diasCauc : null,
     pessoal: m.indicadores.pessoal_pct ?? null,
     serie,
     acimaSeguidos: seguidos,
@@ -325,11 +338,23 @@ const EM_DIA_FISCAL: Record<string, string> = {
   G3: "Regra de ouro cumprida",
 };
 
+/** "5 dias úteis"; sem a contagem (execução anterior à onda 11), o limite da regra. */
+const diasSemCauc = (s: Pick<SecaoFiscal, "caucDiasUteis">) =>
+  s.caucDiasUteis !== null ? plural(s.caucDiasUteis, "dia útil", "dias úteis") : "3 dias úteis ou mais";
+
+/** O CAUC na frase do achado, com a data da posição; parado, diz que é a última publicada (onda 11, A). */
+function fraseCauc(s: SecaoFiscal): string {
+  const posicao = s.caucData ? ` na posição de ${data(s.caucData)}` : "";
+  const parado = s.caucParado ? `, a última publicada pelo Tesouro (sem relatório novo há ${diasSemCauc(s)})` : "";
+  if (s.caucPendencias.length) return ` O CAUC registra pendência nos itens ${lista(s.caucPendencias)}${posicao}${parado}.`;
+  return s.caucParado ? ` O CAUC não registra pendência${posicao}${parado}.` : "";
+}
+
 function achadosFiscais(s: SecaoFiscal): Achado[] {
   const a: Achado[] = [];
   const b = s.decisoes.find((d) => d.decisao === "B");
   const c = s.decisoes.find((d) => d.decisao === "C");
-  const cauc = s.caucPendencias.length ? ` O CAUC registra pendência nos itens ${lista(s.caucPendencias)}.` : "";
+  const cauc = fraseCauc(s);
   if (b?.estado === "nao_atendido") {
     const credito = c?.estado === "nao_atendido";
     a.push({
@@ -1140,11 +1165,17 @@ function cartoes(r: Pick<Relatorio, "fiscal" | "convenios" | "controle">, e: Ent
   }
   if (f) {
     const p = f.caucPendencias;
+    // Onda 11, A (10/10/2026): a data é a da posição do CAUC; a da execução fica só para execução sem ela na G7.
+    const quando = f.caucData ? `na posição de ${data(f.caucData)}` : e.fiscal?.referencia ? `em ${data(e.fiscal.referencia)}` : "";
+    const parado = f.caucParado ? ` O Tesouro não publica relatório novo há ${diasSemCauc(f)}.` : "";
     c.push({
       rotulo: "CAUC",
       valor: p.length ? plural(p.length, "pendência", "pendências") : "sem pendência",
-      nota: p.length ? `Itens ${lista(p)}${e.fiscal?.referencia ? `, em ${data(e.fiscal.referencia)}` : ""}.` : "Nenhum item pendente no relatório do Tesouro.",
-      nivel: p.length ? "critico" : "em_dia",
+      nota: p.length
+        ? `Itens ${lista(p)}${quando ? `, ${quando}` : ""}.${parado}`
+        : `Nenhum item pendente no relatório do Tesouro${f.caucData ? ` de ${data(f.caucData)}` : ""}.${parado}`,
+      // posição parada não é a de hoje: nem crítico nem em dia (a G7 está "desatualizado")
+      nivel: p.length ? (f.caucParado ? "alto" : "critico") : f.caucParado ? "moderado" : "em_dia",
     });
   }
   const conv = r.convenios;

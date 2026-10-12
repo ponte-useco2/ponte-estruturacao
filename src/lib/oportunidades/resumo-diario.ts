@@ -9,6 +9,9 @@
  * A saúde das rodadas (09/10/2026, onda 10, B): o e-mail leva também um bloco curto com os jobs atrasados ou com
  * aviso, avaliados pela mesma regra da tela `/mapa/painel/rodadas` (`avaliarRodada`, em `rodadas.ts`). Aqui só se
  * escolhe o que entra e se escreve o texto; a regra do estado não é repetida.
+ *
+ * O "dado velho" (10/10/2026, onda 11, B) entra no bloco como os outros problemas, com a data do dado na linha ("CAUC
+ * de 02/10/2026, 5 dias úteis antes da rodada"): a rodada em dia não basta para o e-mail ficar calado.
  */
 import { moedaCurta } from "./radar.ts";
 import {
@@ -17,6 +20,7 @@ import {
   ROTULO_ESTADO,
   dataHoraBrasilia,
   haQuanto,
+  textoFrescor,
   type EstadoRodada,
   type LinhaRodada,
 } from "./rodadas.ts";
@@ -89,23 +93,32 @@ export function urlRodadas(urlBase: string): string {
   return `${urlBase}/mapa/painel/rodadas`;
 }
 
-/** Os estados que entram no e-mail job a job: os que pedem ação. "Não lido" vai numa frase só, com os nomes. */
-const ESTADOS_NO_RESUMO: readonly EstadoRodada[] = ["atrasada", "com_aviso"];
+/**
+ * Os estados que entram no e-mail job a job: os que pedem ação. "Não lido" vai numa frase só, com os nomes. O "dado
+ * velho" entrou em 10/10/2026 (onda 11, B).
+ */
+const ESTADOS_NO_RESUMO: readonly EstadoRodada[] = ["atrasada", "dado_velho", "com_aviso"];
 
-/** As colunas da linha que o e-mail usa. Os `avisos` do job ficam de fora: o detalhe mora na tela. */
-export type RodadaNoResumo = Pick<LinhaRodada, "estado" | "concluidaEm" | "idadeH"> & { job: Pick<LinhaRodada["job"], "id" | "nome"> };
+/**
+ * As colunas da linha que o e-mail usa. Os `avisos` do job ficam de fora: o detalhe mora na tela. O `dado` (onda 11, B)
+ * só é escrito no "dado velho".
+ */
+export type RodadaNoResumo = Pick<LinhaRodada, "estado" | "concluidaEm" | "idadeH"> & {
+  job: Pick<LinhaRodada["job"], "id" | "nome">;
+  dado?: LinhaRodada["dado"];
+};
 
 export type BlocoRodadas =
   /** A leitura não respondeu, ou nenhuma linha foi lida: o e-mail sai com uma nota curta no pé, no lugar do bloco. */
   | { tipo: "falhou" }
-  /** Nenhum job atrasado nem com aviso: uma linha só, no pé. `naoLidas`: os nomes das linhas que não responderam. */
+  /** Nenhum job atrasado, com dado velho ou com aviso: uma linha só, no pé. `naoLidas`: os nomes das que não responderam. */
   | { tipo: "em_dia"; total: number; naoLidas: string[] }
-  /** Um ou mais jobs atrasados ou com aviso: o bloco vai no topo, um job por linha, os atrasados primeiro. */
+  /** Um ou mais jobs atrasados, com dado velho ou com aviso: o bloco vai no topo, um job por linha, os atrasados primeiro. */
   | { tipo: "com_problema"; total: number; problemas: RodadaNoResumo[]; naoLidas: string[] };
 
 /**
  * O que o e-mail diz das rodadas, a partir das linhas já avaliadas por `avaliarRodada` (null: a leitura falhou). A
- * ordem dos problemas é a dos cartões da tela (`ESTADOS`: atrasada, com aviso) e, dentro do estado, a de
+ * ordem dos problemas é a dos cartões da tela (`ESTADOS`: atrasada, dado velho, com aviso) e, dentro do estado, a de
  * `JOBS_RODADAS`.
  */
 export function escolherRodadas(linhas: readonly RodadaNoResumo[] | null): BlocoRodadas {
@@ -125,9 +138,21 @@ export function quandoConcluiu(l: Pick<LinhaRodada, "concluidaEm" | "idadeH">): 
   return `última concluída em ${dataHoraBrasilia(l.concluidaEm)}${l.idadeH !== null ? `, ${haQuanto(l.idadeH)}` : ""}`;
 }
 
-/** A linha de um job no texto puro: "▲ Dinheiro federal no TCE-PB: atrasada · última concluída em …, há 2 dias". */
+/**
+ * A data do dado na linha do e-mail, só no "dado velho" (10/10/2026, onda 11, B): "CAUC de 02/10/2026, 5 dias úteis
+ * antes da rodada (esperado: até 1 dia útil)". Vazio nos outros estados.
+ */
+export function dadoNoResumo(l: Pick<RodadaNoResumo, "estado" | "dado">): string {
+  return l.estado === "dado_velho" && l.dado ? textoFrescor(l.dado) : "";
+}
+
+/**
+ * A linha de um job no texto puro: "▲ Dinheiro federal no TCE-PB: atrasada · última concluída em …, há 2 dias". No dado
+ * velho, a data do dado vem antes da rodada: "↻ Capacidade fiscal (PB): dado velho · CAUC de 02/10/2026, … · última…".
+ */
 export function linhaRodada(l: RodadaNoResumo): string {
-  return `${MARCA_ESTADO[l.estado]} ${l.job.nome}: ${ROTULO_ESTADO[l.estado]} · ${quandoConcluiu(l)}`;
+  const dado = dadoNoResumo(l);
+  return `${MARCA_ESTADO[l.estado]} ${l.job.nome}: ${ROTULO_ESTADO[l.estado]}${dado ? ` · ${dado}` : ""} · ${quandoConcluiu(l)}`;
 }
 
 /** O título do bloco: "1 de 14 rodadas pede atenção", "2 de 14 rodadas pedem atenção". */
@@ -149,7 +174,14 @@ export function fraseRodadasNoPe(b: Exclude<BlocoRodadas, { tipo: "com_problema"
   return `${n(b.total - k)} de ${n(b.total)} rodadas em dia; ${n(k)} não ${k === 1 ? "lida" : "lidas"} agora: ${b.naoLidas.join(", ")}.`;
 }
 
-const COR_ESTADO: Record<EstadoRodada, string> = { atrasada: "#b91c1c", com_aviso: "#b45309", nao_lido: "#475569", em_dia: "#047857" };
+const COR_ESTADO: Record<EstadoRodada, string> = {
+  atrasada: "#b91c1c",
+  // O azul do "Desatualizado" do fiscal (`pa-tag-nova`), como na tela.
+  dado_velho: "#2d5580",
+  com_aviso: "#b45309",
+  nao_lido: "#475569",
+  em_dia: "#047857",
+};
 
 export function montarResumoDiario(e: EntradaResumo): ResumoDiario {
   const dia = diaDoDado(e.dadoAte);
@@ -256,6 +288,7 @@ export function montarResumoDiario(e: EntradaResumo): ResumoDiario {
       .map(
         (l) => `<div style="margin-top:8px;">
               <div style="font-size:14px;font-weight:600;color:#0f172a;"><span aria-hidden="true" style="color:${COR_ESTADO[l.estado]};">${MARCA_ESTADO[l.estado]}</span> ${escapar(l.job.nome)} · <span style="color:${COR_ESTADO[l.estado]};">${ROTULO_ESTADO[l.estado]}</span></div>
+              ${dadoNoResumo(l) ? `<div style="font-size:12px;color:#0f172a;margin-top:1px;">${escapar(dadoNoResumo(l))}</div>` : ""}
               <div style="font-size:12px;color:#475569;margin-top:1px;">${escapar(quandoConcluiu(l))}</div>
             </div>`,
       )

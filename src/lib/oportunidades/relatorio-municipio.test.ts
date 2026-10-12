@@ -462,3 +462,40 @@ test("entidade (teste de 07/10): fundo de saúde não fica travado pelo fiscal d
   assert.equal(m.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados")?.quem, "municipio");
   assert.ok(m.achados.filter((a) => a.dimensao !== "fiscal").some((a) => a.quem === "municipio"));
 });
+
+// Onda 11, A (10/10/2026): de 03 a 09/10 o painel leu o CAUC de 02/10, e o cartão dizia "em" a data da execução.
+const g7 = (estado: string, evidencia: Record<string, unknown>) =>
+  ({ codigo: "G7", nome: "CAUC", estado, resumo: "x", decisoes: ["B", "C"], evidencia, base_legal: "", documental: false, versao: "2026-10-10.1" }) as unknown as VerificacaoFiscal;
+
+test("CAUC (onda 11, A): o cartão e o achado dizem a posição do CAUC, não a data da execução", () => {
+  const r = montarRelatorio(patos({ fiscal: { municipio, verificacoes: [...verificacoes, g7("nao_atendido", { data_pesquisa: "2026-09-29", dias_uteis: 1 })], referencia: "2026-09-30" } }), HOJE);
+  const cartao = r.cartoes.find((c) => c.rotulo === "CAUC");
+  assert.deepEqual([cartao?.valor, cartao?.nota, cartao?.nivel], ["2 pendências", "Itens 1.5 e 4.2, na posição de 29/09/2026.", "critico"]);
+  assert.match(r.achados[0].fato, /O CAUC registra pendência nos itens 1\.5 e 4\.2 na posição de 29\/09\/2026\. Saúde/);
+});
+
+test("CAUC parado (onda 11, A): a pendência fica, com a data e há quantos dias úteis o Tesouro não publica", () => {
+  const comAlerta = {
+    ...municipio,
+    conclusoes: municipio.conclusoes.map((c) => ({ ...c, estado: "atencao" as const, bloqueantes: [], alertas: [c.decisao === "A" ? "G7A" : "G7"] })),
+  };
+  const r = montarRelatorio(patos({ fiscal: { municipio: comAlerta, verificacoes: [...verificacoes, g7("desatualizado", { data_pesquisa: "2026-10-02", dias_uteis: 5 })], referencia: "2026-10-09" } }), HOJE);
+  const cartao = r.cartoes.find((c) => c.rotulo === "CAUC");
+  assert.equal(cartao?.nota, "Itens 1.5 e 4.2, na posição de 02/10/2026. O Tesouro não publica relatório novo há 5 dias úteis.");
+  assert.equal(cartao?.nivel, "alto", "posição parada não é a de hoje: nem crítico nem em dia");
+  const alerta = r.achados.find((a) => a.titulo === "Transferência voluntária com alertas");
+  assert.equal(
+    alerta?.fato,
+    "O painel fiscal registra alertas na decisão de receber transferência voluntária. O CAUC registra pendência nos itens 1.5 e 4.2 na posição de 02/10/2026, a última publicada pelo Tesouro (sem relatório novo há 5 dias úteis).",
+  );
+  assert.ok(!/irregular/i.test(alerta?.fato ?? ""));
+
+  const limpo = { ...comAlerta, indicadores: { pessoal_pct: 45, cauc_pendencias: [] } };
+  const s = montarRelatorio(patos({ fiscal: { municipio: limpo, verificacoes: [...verificacoes, g7("desatualizado", { data_pesquisa: "2026-10-02", dias_uteis: 5 })], referencia: "2026-10-09" } }), HOJE);
+  const c2 = s.cartoes.find((c) => c.rotulo === "CAUC");
+  assert.deepEqual(
+    [c2?.valor, c2?.nota, c2?.nivel],
+    ["sem pendência", "Nenhum item pendente no relatório do Tesouro de 02/10/2026. O Tesouro não publica relatório novo há 5 dias úteis.", "moderado"],
+  );
+  assert.match(s.achados.find((a) => a.titulo === "Transferência voluntária com alertas")?.fato ?? "", /O CAUC não registra pendência na posição de 02\/10\/2026, a última publicada pelo Tesouro/);
+});

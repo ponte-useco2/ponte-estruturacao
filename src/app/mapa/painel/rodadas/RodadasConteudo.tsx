@@ -6,8 +6,12 @@
  * O estado vai com marca e palavra (`Tag`), como a decisão do fiscal: a cor sozinha não basta (WCAG 1.4.1). A marca
  * fica fora da leitura em voz alta; a palavra é lida. Nenhum nome de pessoa e nenhuma mensagem de erro dos jobs:
  * só datas, contagens e nomes de fonte.
+ *
+ * A coluna "Dado até" (10/10/2026, onda 11, B): a data do dado da última concluída, quanto ela ficou para trás da
+ * rodada e o esperado. Passou do esperado com a rodada em dia, a linha fica "dado velho".
  */
 import { WORKFLOWS } from "@/lib/oportunidades/agendamento";
+import { dataBrasilia } from "@/lib/oportunidades/datas";
 import {
   ESTADOS,
   FOLGA_PADRAO_H,
@@ -26,7 +30,10 @@ import {
   haQuanto,
   rotuloEvento,
   rotuloGithub,
+  textoDefasagem,
+  textoEsperado,
   textoPrazo,
+  textoUnidade,
   type EstadoRodada,
   type LinhaRodada,
   type RodadaGithub,
@@ -41,10 +48,18 @@ const n = (x: number) => x.toLocaleString("pt-BR");
 
 const NOTA_ESTADO: Record<EstadoRodada, string> = {
   atrasada: "passaram da cadência mais a folga",
+  dado_velho: "no prazo, mas com o dado mais velho que o esperado",
   com_aviso: "no prazo, mas pararam, falharam ou deixaram parte para depois",
   nao_lido: "a tabela não existe no banco ou não respondeu",
   em_dia: "no prazo e sem aviso",
 };
+
+/** O esperado de cada fonte, sem repetir (o radar e o painel leem o mesmo arquivo), para o "Como ler". */
+const ESPERADOS: readonly (readonly [string, string])[] = [
+  ...new Map(
+    JOBS_RODADAS.flatMap((j) => (j.dado && j.dado.limite !== null ? [[j.dado.rotulo, `até ${textoUnidade(j.dado.limite, j.dado.unidade)}`] as const] : [])),
+  ),
+];
 
 export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
   const conta = contarEstados(painel.linhas);
@@ -55,8 +70,8 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
         <h1 className="pa-titulo">As rodadas dos jobs</h1>
         <p className="pa-sub">
           Lido em <strong>{dataHoraBrasilia(painel.lidoEm)}</strong> (Brasília). Uma linha por job: a última execução concluída e há quanto
-          tempo, se alguma ficou gravando parada, as contagens que o próprio job gravou e se a rodada está em dia com a cadência dos
-          workflows.
+          tempo, a data do dado que ela trouxe, se alguma ficou gravando parada, as contagens que o próprio job gravou e se a rodada está em
+          dia com a cadência dos workflows.
         </p>
         <p className="mp-fiscal-aviso">
           Uso interno da PONTE. Aqui só há datas, contagens e nomes de fonte: nenhum nome de pessoa e nenhuma mensagem de erro dos jobs.
@@ -68,7 +83,8 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
         </p>
       </div>
 
-      <div className="pa-grade pa-grade-4 mp-painel-cartoes">
+      {/* Cinco estados (onda 11, B): três por linha, os que pedem ação na primeira. */}
+      <div className="pa-grade pa-grade-3 mp-painel-cartoes">
         {ESTADOS.map((e) => (
           <article key={e} className="pa-cartao">
             <h2 className="pa-mono">
@@ -94,6 +110,7 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
                 <th scope="col">Job</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Última concluída</th>
+                <th scope="col">Dado até</th>
                 <th scope="col">Cadência</th>
                 <th scope="col">Linhas</th>
                 <th scope="col" className="mp-num">
@@ -123,6 +140,24 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
           folga do job. A folga é de {FOLGA_PADRAO_H} h nos agendados: o agendador do GitHub sai de 4 a 5 h depois do cron desde 29/08/2026,
           e o job ainda leva até o tempo-limite do workflow. Nas organizações da sociedade civil, mais 8 dias: o job só grava quando o Ipea
           publica arquivo novo, e o dia 28 existe para pegar o arquivo atrasado.
+        </p>
+        <p className="pa-nota">
+          <strong>Dado velho</strong>: rodou no prazo, mas a data do dado que a rodada trouxe ficou mais para trás do que o esperado para aquela
+          fonte. Rodar em dia não é ter dado novo: em 09/10/2026 o fiscal rodou no prazo com o CAUC de 02/10, cinco dias úteis para trás. A
+          coluna <strong>Dado até</strong> diz o dia do dado, quanto ele ficou para trás do dia da rodada e o esperado. A idade da rodada é a
+          regra de atrasada; a do dado é medida no dia da rodada, e as duas não se misturam. O esperado de cada fonte:
+        </p>
+        <ul className="pa-nota">
+          {ESPERADOS.map(([rotulo, ate]) => (
+            <li key={rotulo}>
+              {rotulo}: {ate}
+            </li>
+          ))}
+        </ul>
+        <p className="pa-nota">
+          Na coluna Dado até, <strong>não lido</strong> quer dizer que a data não respondeu ou que a rodada não a gravou: a linha segue e o
+          estado não muda por isso. Os indicadores dos municípios não têm uma data do dado da rodada inteira (cada fonte tem o seu ano), e as
+          coletas assistidas mostram a data sem esperado.
         </p>
         <p className="pa-nota">
           <strong>Com aviso</strong>: rodou no prazo, mas uma execução está gravando há mais de {LIMITE_GRAVANDO_H} h (o job morreu sem marcar
@@ -160,6 +195,47 @@ function UltimaConcluida({ l }: { l: LinhaRodada }) {
     <>
       <span className="mp-tabela-principal">{dataHoraBrasilia(l.concluidaEm)}</span>
       {l.idadeH !== null && <span className="mp-tabela-secundario">{haQuanto(l.idadeH)}</span>}
+    </>
+  );
+}
+
+/**
+ * A coluna "Dado até" (10/10/2026, onda 11, B): o dia do dado, o que ele é, quanto ficou para trás da rodada e o
+ * esperado. A data que não pôde ser lida diz "não lido", e o resto da linha segue.
+ */
+function DadoAte({ l }: { l: LinhaRodada }) {
+  const { dado } = l;
+  if (l.estado === "nao_lido" || dado.situacao === "sem_execucao") return <>—</>;
+  if (dado.situacao === "nao_grava") {
+    return (
+      <>
+        <span className="mp-tabela-principal">—</span>
+        <span className="mp-tabela-secundario">o job não grava uma data do dado da rodada: cada fonte tem o seu período</span>
+      </>
+    );
+  }
+  if (dado.situacao === "nao_lido") {
+    return (
+      <>
+        <span className="mp-tabela-principal">
+          <span aria-hidden="true">{MARCA_ESTADO.nao_lido} </span>
+          não lido
+        </span>
+        <span className="mp-tabela-secundario">{dado.motivo === "falha" ? "a data do dado não respondeu" : "a rodada não gravou a data do dado"}</span>
+      </>
+    );
+  }
+  const velho = dado.situacao === "velho";
+  return (
+    <>
+      <span className="mp-tabela-principal">{dataBrasilia(dado.dia)}</span>
+      {dado.regra && <span className="mp-tabela-secundario">{dado.regra.rotulo}</span>}
+      <span className={velho ? "mp-tabela-principal" : "mp-tabela-secundario"}>
+        {velho && <span aria-hidden="true">{MARCA_ESTADO.dado_velho} </span>}
+        {textoDefasagem(dado)}
+        {velho ? ", acima do esperado" : ""}
+      </span>
+      <span className="mp-tabela-secundario">{dado.situacao === "sem_prazo" ? "coleta assistida: sem esperado" : textoEsperado(dado.regra)}</span>
     </>
   );
 }
@@ -203,6 +279,9 @@ function LinhaJob({ l }: { l: LinhaRodada }) {
       </td>
       <td>
         <UltimaConcluida l={l} />
+      </td>
+      <td>
+        <DadoAte l={l} />
       </td>
       <td>
         <span className="mp-tabela-principal">{ROTULO_CADENCIA[job.cadencia]}</span>

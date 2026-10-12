@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   LIMITE_DESTAQUES,
+  dadoNoResumo,
   escapar,
   escolherRodadas,
   fraseRodadasNoPe,
@@ -283,6 +284,34 @@ test("rodadas: linha não lida é nomeada, sem virar problema nem falha", () => 
   const t = montarResumoDiario({ ...BASE, rodadas: junto }).texto;
   assert.ok(t.includes("1 de 14 rodadas pede atenção:\n- ▲ Dinheiro federal no TCE-PB"), t);
   assert.ok(t.includes("\nNão lida agora: Acesso Livre: obras.\n"), t);
+});
+
+test("rodadas: o dado velho entra no bloco, com a data do dado, depois das atrasadas (10/10/2026, onda 11, B)", () => {
+  // O fiscal real de 09/10/2026: a rodada em dia, sem falha, com o CAUC de 02/10. Antes da onda 11, o e-mail ficava calado.
+  const fiscal = concluida(3, { municipios: 223, fontes_com_erro: {}, cauc_data_pesquisa: "2026-10-02" });
+  const so = escolherRodadas(rodadas({ fiscal }));
+  assert.equal(so.tipo, "com_problema");
+  if (so.tipo !== "com_problema") return;
+  assert.equal(tituloRodadas(so), "1 de 14 rodadas pede atenção");
+  const linha =
+    "↻ Capacidade fiscal (PB): dado velho · CAUC de 02/10/2026, 5 dias úteis antes da rodada (esperado: até 2 dias úteis) · última concluída em 09/10/2026 às 06:00, há 3 h";
+  assert.equal(linhaRodada(so.problemas[0]), linha);
+
+  const junto = escolherRodadas(rodadas({ fiscal, tce: concluida(50), radar: concluida(3, {}, [{ id: 8, status: "erro", iniciada_em: horasAntes(0.5) }]) }));
+  assert.ok(junto.tipo === "com_problema");
+  assert.deepEqual(
+    junto.problemas.map((l) => `${l.job.id} ${l.estado}`),
+    ["tce atrasada", "fiscal dado_velho", "radar com_aviso"],
+  );
+  const r = montarResumoDiario({ ...BASE, rodadas: junto });
+  assert.ok(r.texto.includes(`3 de 14 rodadas pedem atenção:\n- ▲ Dinheiro federal no TCE-PB: atrasada · última`), r.texto);
+  assert.ok(r.texto.includes(`\n- ${linha}\n`), r.texto);
+  // A data do dado só vai na linha do dado velho.
+  assert.ok(r.texto.includes("- ! Radar de propostas: com aviso · última concluída"), r.texto);
+  assert.match(r.html, /↻<\/span> Capacidade fiscal \(PB\) · <span[^>]*>dado velho<\/span>/);
+  assert.ok(r.html.includes(">CAUC de 02/10/2026, 5 dias úteis antes da rodada (esperado: até 2 dias úteis)</div>"));
+  assert.equal((r.html.match(/antes da rodada/g) ?? []).length, 1);
+  assert.equal(dadoNoResumo({ estado: "com_aviso", dado: so.problemas[0].dado }), "");
 });
 
 test("rodadas: a linha de um job diz nome, estado, quando concluiu e há quanto tempo", () => {
