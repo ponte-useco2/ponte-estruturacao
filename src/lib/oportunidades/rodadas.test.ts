@@ -11,10 +11,12 @@ import {
   DEFASAGEM_CONSULTA_DIAS,
   DEFASAGEM_OSC_MESES,
   DEFASAGEM_PIX_DIAS_UTEIS,
+  DEFASAGEM_PORTAL_EMENDAS_DIAS,
   DEFASAGEM_TCE_PB_DIAS,
   DEFASAGEM_TRANSFEREGOV_DIAS,
   DIAS_ANO_CORRENTE_TCE_PB,
   ESTADOS,
+  FOLGA_EMENDAS_H,
   FOLGA_PADRAO_H,
   FONTE_CAGED,
   INTERVALO_H,
@@ -37,6 +39,7 @@ import {
   githubPedeAtencao,
   haQuanto,
   horaBrasilia,
+  leituraDasConsultas,
   periodosPorFonte,
   prazoH,
   rotuloEvento,
@@ -56,6 +59,7 @@ import {
   type JobRodada,
   type LeituraDadoAte,
   type LeituraRodada,
+  type RespostaConsulta,
 } from "./rodadas.ts";
 
 // Onda 9, C (09/10/2026): a saúde das rodadas.
@@ -137,11 +141,13 @@ test("onda 9, C: os workflows do disparo da Vercel são diários", () => {
   assert.equal(cronDoWorkflow("nao-existe.yml"), null);
 });
 
-test("onda 9, C: os 14 jobs, com as 12 tabelas conferidas no banco em 09/10/2026", () => {
-  assert.equal(JOBS_RODADAS.length, 14);
+test("onda 9, C: os 15 jobs, com as 13 tabelas (12 conferidas no banco em 09/10/2026; a emd_execucao, da oport_39, na onda 14)", () => {
+  // Onda 14, integração (12/10/2026): as emendas parlamentares, a 15ª linha e a 13ª tabela.
+  assert.equal(JOBS_RODADAS.length, 15);
   assert.equal(new Set(JOBS_RODADAS.map((j) => j.id)).size, JOBS_RODADAS.length, "ids únicos");
   assert.deepEqual([...new Set(JOBS_RODADAS.map((j) => j.tabela))].sort(), [
     "al_execucao",
+    "emd_execucao",
     "exigencia_execucao",
     "fiscal_execucao",
     "mun_execucao",
@@ -500,6 +506,8 @@ test("onda 11, B: cada job diz onde grava a data do dado, ou que não grava", ()
     pix: `contagens:dias_uteis:${DEFASAGEM_PIX_DIAS_UTEIS}`,
     tcu: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
     sancao: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
+    // Onda 14, integração (12/10/2026): o Last-Modified do zip de emendas do Portal, na coluna.
+    emd: `coluna:dias:${DEFASAGEM_PORTAL_EMENDAS_DIAS}`,
     // Onda 12, C (12/10/2026): o Caged, de `contagens.periodo_por_fonte`. Até aqui, null.
     mun: `contagens:meses:${DEFASAGEM_CAGED_MESES}`,
     osc: `contagens:meses:${DEFASAGEM_OSC_MESES}`,
@@ -513,8 +521,8 @@ test("onda 11, B: cada job diz onde grava a data do dado, ou que não grava", ()
     if (j.dado) assert.equal(j.dado.limite === null, j.cadencia === "assistida", `${j.id}: limite só onde há cadência`);
     if (j.dado) assert.ok(j.dado.onde && j.dado.rotulo, `${j.id}: onde e rótulo por extenso`);
   }
-  // As 9 linhas da coluna fazem as 9 consultas a mais de `rodadas.server.ts` (28 + 9 = 37).
-  assert.equal(JOBS_RODADAS.filter((j) => j.dado?.origem === "coluna").length, 9);
+  // As 10 linhas da coluna fazem as 10 consultas a mais de `rodadas.server.ts` (30 + 10 = 40; até a onda 14, 28 + 9).
+  assert.equal(JOBS_RODADAS.filter((j) => j.dado?.origem === "coluna").length, 10);
 });
 
 test("onda 11, B: as defasagens esperadas, com o porquê nas constantes", () => {
@@ -528,6 +536,7 @@ test("onda 11, B: as defasagens esperadas, com o porquê nas constantes", () => 
       DEFASAGEM_CONSULTA_DIAS,
       DEFASAGEM_OSC_MESES,
       DEFASAGEM_CAGED_MESES,
+      DEFASAGEM_PORTAL_EMENDAS_DIAS,
     },
     {
       DEFASAGEM_TRANSFEREGOV_DIAS: 2,
@@ -539,6 +548,8 @@ test("onda 11, B: as defasagens esperadas, com o porquê nas constantes", () => 
       DEFASAGEM_OSC_MESES: 2,
       // Onda 12, C: M-2 na rodada do dia 5, mais um mês para a publicação do MTE que escorrega.
       DEFASAGEM_CAGED_MESES: 3,
+      // Onda 14, integração: a terça já lê o zip de sexta à noite (Brasília) com 4 dias; mais 1 para a segunda de feriado.
+      DEFASAGEM_PORTAL_EMENDAS_DIAS: 5,
     },
   );
   assert.equal(DEFASAGEM_TCE_PB_DIAS, DIAS_ANO_CORRENTE_TCE_PB + 1, "a regra do job mais 1 dia para o download adiado");
@@ -654,7 +665,13 @@ test("onda 11, B: as rodadas fiscais de 22/09 a 09/10/2026 — 'dado velho' a pa
   ]);
 });
 
-test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MCP em 09/10/2026", () => {
+/**
+ * As emendas antes da primeira rodada (onda 14, integração, 12/10/2026): a `emd_execucao` criada e ainda sem linha, como
+ * o servidor a lê (a consulta do `dado_ate` respondeu, sem execução).
+ */
+const EMD_SEM_EXECUCAO: LeituraRodada = { estado: "ok", ultima: null, abertas: [], dadoAte: { estado: "ok", id: null, dadoAte: null } };
+
+test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MCP em 09/10/2026 e as emendas sem execução", () => {
   const agora = Date.parse("2026-10-09T21:54:37Z");
   const leituras: Record<string, LeituraRodada> = {
     radar: comDadoAte(execucao(44, "2026-10-09T11:49:06.274366+00:00", "2026-10-09T11:49:12.4345+00:00", { janelas_abertas: 3245 }), "2026-10-08T01:34:18+00:00"),
@@ -696,6 +713,8 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
       execucao(1, "2026-10-09T13:35:26.644682+00:00", "2026-10-09T13:35:31.963232+00:00", { sancao_consultados: 4352, sancao_erros: 0, sancao_nao_consultados: 0, sancao_parada: null }),
       "2026-10-09T12:45:03.514201+00:00",
     ),
+    // Onda 14, integração (12/10/2026): nenhuma rodada ainda.
+    emd: EMD_SEM_EXECUCAO,
     mun: ok(execucao(5, "2026-10-09T18:25:14.450873+00:00", "2026-10-09T18:25:22.305704+00:00", { linhas_por_fonte: { ibge: 2453, mapbiomas: 892 }, avisos: {} })),
     osc: ok(
       execucao(1, "2026-10-08T12:44:57.557481+00:00", "2026-10-08T12:45:17.547464+00:00", { ativas: 10381, malformadas_pb: 0, cebas_ok: true, descartadas: {}, versao_fonte: "20260806" }),
@@ -722,6 +741,9 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     pix: "em_dia · no_prazo 2026-10-06 1",
     tcu: "em_dia · no_prazo 2026-10-07 0",
     sancao: "em_dia · no_prazo 2026-10-09 0",
+    // A agendada que nunca concluiu é "atrasada" (a regra da onda 9, C), e a data do dado fica "sem execução": a tela
+    // mostra "nenhuma" e "—"; o e-mail a põe no bloco do topo até a primeira rodada concluir (onda 14, integração).
+    emd: "atrasada · sem_execucao — —",
     // A execução 5 é de antes do `periodo_por_fonte` (onda 12, C): continua como era. Conferido de novo em 12/10/2026,
     // ainda a última concluída.
     mun: "em_dia · nao_grava — —",
@@ -733,8 +755,13 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     "exigencia:suspensiva": "em_dia · sem_prazo 2026-09-16 5",
     "exigencia:assinatura": "em_dia · sem_prazo 2026-09-28 0",
   });
-  assert.deepEqual(contarEstados(linhas), { em_dia: 13, atrasada: 0, dado_velho: 1, com_aviso: 0, nao_lido: 0 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 13, atrasada: 1, dado_velho: 1, com_aviso: 0, nao_lido: 0 });
   assert.equal(textoFrescor(linhas.find((l) => l.job.id === "osc")?.dado ?? linhas[0].dado), "arquivo do Ipea de 06/08/2026, 2 meses antes da rodada (esperado: até 2 meses)");
+  const emd = linhas.find((l) => l.job.id === "emd");
+  assert.deepEqual([emd?.concluidaEm, emd?.idadeH, emd?.linhas, emd?.falhas, emd?.avisos], [null, null, null, null, []]);
+  // E hoje de fato, com a oport_39 ainda não aplicada (12/10/2026): a tabela não existe, e a linha é "não lido".
+  const semTabela = avaliarRodada(job("emd"), { estado: "nao_lido", motivo: "ausente" }, agora);
+  assert.deepEqual([semTabela.estado, semTabela.motivoNaoLido, semTabela.dado.situacao], ["nao_lido", "ausente", "sem_execucao"]);
 });
 
 test("onda 11, B: a data que não pôde ser lida diz 'não lido' na coluna, e a linha segue", () => {
@@ -1108,4 +1135,153 @@ test("onda 12, C: o SIOPE incompleto deixa o fiscal 'com aviso'; ausente ou 0, n
   // O dado velho vence o aviso, e o aviso continua listado.
   const velho = rodadaFiscal(DIA_14, { cauc_data_pesquisa: "2026-10-08", cauc_dias_uteis: 3, siope_incompletos: 37 });
   assert.deepEqual([velho.estado, velho.avisos], ["dado_velho", ["SIOPE incompleto em 37 municípios"]]);
+});
+
+// ================================================================ as emendas parlamentares (onda 14, integração, 12/10/2026)
+
+/** Uma rodada das emendas que concluiu em `fim`, com o `dado_ate` dado, avaliada 1 h depois; o FNS coletado inteiro. */
+const rodadaEmd = (fim: string, dadoAte: string | null, contagens: Record<string, unknown> = {}) =>
+  avaliarRodada(
+    job("emd"),
+    comDadoAte(
+      execucao(1, fim, fim, { emd_catalogo_codigos: 4321, emd_fns_origem: "coletado", emd_fns_erro: null, emd_fns_detalhes_pendentes: 0, ...contagens }),
+      dadoAte,
+    ),
+    depoisDe(fim, 1),
+  );
+/** Terça, 13/10/2026: o cron das 09h15 UTC mais o atraso do GitHub (11h20 em Brasília). */
+const TERCA_13 = "2026-10-13T14:20:00Z";
+/** O zip de sábado, 10/10/2026, às 02h57 UTC: sexta, 09/10, às 23h57 em Brasília (o HEAD de 12/10/2026). */
+const ZIP_SABADO = "2026-10-10T02:57:00+00:00";
+
+test("onda 14, integração: emendas — o zip de até 5 dias está no prazo; o de 6 é dado velho", () => {
+  const r = rodadaEmd(TERCA_13, ZIP_SABADO);
+  assert.deepEqual([r.estado, r.dado.situacao, r.dado.dia, r.dado.defasagem], ["em_dia", "no_prazo", "2026-10-09", 4]);
+  assert.equal(textoFrescor(r.dado), "arquivo de emendas do Portal de 09/10/2026, 4 dias antes da rodada (esperado: até 5 dias)");
+  assert.deepEqual([r.linhas, r.falhas, r.avisos], [4321, 0, []]);
+  // Um dia a mais (o zip da madrugada de sexta, quinta à noite em Brasília): 5 dias, ainda no prazo.
+  const cinco = rodadaEmd(TERCA_13, "2026-10-09T02:57:00+00:00");
+  assert.deepEqual([cinco.estado, cinco.dado.situacao, cinco.dado.defasagem], ["em_dia", "no_prazo", 5]);
+  // Dois dias a mais (quarta à noite em Brasília): dado velho, com a rodada em dia.
+  const velho = rodadaEmd(TERCA_13, "2026-10-08T02:57:00+00:00");
+  assert.deepEqual([velho.estado, velho.dado.situacao, velho.dado.defasagem], ["dado_velho", "velho", 6]);
+  assert.equal(textoFrescor(velho.dado), "arquivo de emendas do Portal de 07/10/2026, 6 dias antes da rodada (esperado: até 5 dias)");
+  // A semana normal: o zip da madrugada de terça (segunda à noite em Brasília), 1 dia.
+  assert.equal(rodadaEmd("2026-10-20T14:20:00Z", "2026-10-20T02:57:00+00:00").dado.defasagem, 1);
+  // A semana em que o zip não muda: a rodada relê o `dado_ate` da anterior, e o Portal parado aparece.
+  const parado = rodadaEmd("2026-10-20T14:20:00Z", ZIP_SABADO);
+  assert.deepEqual([parado.estado, parado.dado.defasagem], ["dado_velho", 11]);
+  // A cadência é a do `emendas.yml`: toda terça, e atrasada depois de 7 dias e 9 h (o tempo-limite de 3 h do workflow).
+  assert.equal(descreverCron(job("emd").cron ?? ""), "toda terça, 09h15 UTC");
+  assert.equal(FOLGA_EMENDAS_H, 9);
+  assert.equal(prazoH(job("emd")), 7 * 24 + FOLGA_EMENDAS_H);
+  const semana = (horas: number) =>
+    avaliarRodada(job("emd"), comDadoAte(execucao(1, TERCA_13, TERCA_13, { emd_catalogo_codigos: 4321 }), ZIP_SABADO), depoisDe(TERCA_13, horas)).estado;
+  assert.deepEqual([semana(7 * 24 + FOLGA_EMENDAS_H), semana(7 * 24 + FOLGA_EMENDAS_H + 1 / 60)], ["em_dia", "atrasada"]);
+});
+
+test("onda 14, integração: emendas — o FNS parcial ou da rodada anterior vira aviso", () => {
+  const parcial = rodadaEmd(TERCA_13, ZIP_SABADO, { emd_fns_origem: "parcial" });
+  assert.deepEqual([parcial.estado, parcial.avisos, parcial.falhas], ["com_aviso", ["o FNS desta rodada veio pela metade"], 0]);
+  const anterior = rodadaEmd(TERCA_13, ZIP_SABADO, { emd_fns_origem: "anterior" });
+  assert.deepEqual([anterior.estado, anterior.avisos, anterior.falhas], ["com_aviso", ["o FNS desta rodada é o da rodada anterior"], 0]);
+  // Coletado, ausente ou outro texto: nada.
+  for (const origem of ["coletado", undefined, null, "outra coisa"]) {
+    const r = rodadaEmd(TERCA_13, ZIP_SABADO, { emd_fns_origem: origem });
+    assert.deepEqual([r.estado, r.avisos], ["em_dia", []], String(origem));
+  }
+});
+
+test("onda 14, integração: emendas — os detalhes pendentes do FNS viram aviso, com o plural certo", () => {
+  const pendentes = (x: unknown) => contar("emd", { emd_catalogo_codigos: 4321, emd_fns_origem: "coletado", emd_fns_detalhes_pendentes: x }).avisos;
+  assert.deepEqual(pendentes(1), ["1 proposta do FNS ficou sem o detalhe, para a próxima rodada"]);
+  assert.deepEqual(pendentes(2), ["2 propostas do FNS ficaram sem o detalhe, para a próxima rodada"]);
+  assert.deepEqual(pendentes(1234), ["1.234 propostas do FNS ficaram sem o detalhe, para a próxima rodada"]);
+  // Zero, ausente, negativo ou texto: nada.
+  for (const x of [0, undefined, null, -1, "12"]) assert.deepEqual(pendentes(x), [], String(x));
+  // Na linha: "com aviso", sem falha.
+  const r = rodadaEmd(TERCA_13, ZIP_SABADO, { emd_fns_detalhes_pendentes: 2500 });
+  assert.deepEqual([r.estado, r.falhas, r.avisos], ["com_aviso", 0, ["2.500 propostas do FNS ficaram sem o detalhe, para a próxima rodada"]]);
+});
+
+test("onda 14, integração: emendas — o erro do FNS é 1 falha, e o texto do erro não chega à linha", () => {
+  const erro = "ReadTimeout: texto do job que não aparece";
+  const r = rodadaEmd(TERCA_13, ZIP_SABADO, { emd_fns_erro: erro });
+  assert.deepEqual([r.estado, r.falhas, r.avisos], ["com_aviso", 1, []]);
+  assert.equal(JSON.stringify(r).includes("texto do job"), false);
+  // Sem erro (null, vazio, ausente ou não texto): 0.
+  for (const x of [null, "", undefined, true, 1]) assert.equal(contar("emd", { emd_fns_erro: x }).falhas, 0, String(x));
+  // O FNS que parou no meio, como o job grava: parcial, com o erro e o que ficou para depois, na ordem do job.
+  const meio = rodadaEmd(TERCA_13, ZIP_SABADO, { emd_fns_origem: "parcial", emd_fns_erro: erro, emd_fns_detalhes_pendentes: 1 });
+  assert.deepEqual(
+    [meio.estado, meio.falhas, meio.avisos],
+    ["com_aviso", 1, ["o FNS desta rodada veio pela metade", "1 proposta do FNS ficou sem o detalhe, para a próxima rodada"]],
+  );
+  // O dado velho vence o aviso, e os avisos continuam listados.
+  const velho = rodadaEmd(TERCA_13, "2026-10-08T02:57:00+00:00", { emd_fns_origem: "anterior", emd_fns_erro: erro });
+  assert.deepEqual([velho.estado, velho.falhas, velho.avisos], ["dado_velho", 1, ["o FNS desta rodada é o da rodada anterior"]]);
+  // Sem o catálogo nas contagens: sem número de linhas.
+  assert.equal(contar("emd", {}).linhas, null);
+});
+
+test("onda 14, integração: emendas antes da primeira rodada — atrasada, também enquanto a primeira grava ou depois de um erro", () => {
+  const nunca = avaliarRodada(job("emd"), EMD_SEM_EXECUCAO, AGORA);
+  assert.deepEqual([nunca.estado, nunca.concluidaEm, nunca.dado.situacao, nunca.avisos], ["atrasada", null, "sem_execucao", []]);
+  // A primeira gravando há 1 h: em curso, e ainda atrasada (nenhuma concluída).
+  const gravando = avaliarRodada(job("emd"), { ...EMD_SEM_EXECUCAO, abertas: [aberta("gravando", 1)] }, AGORA);
+  assert.deepEqual([gravando.estado, gravando.gravando?.parada], ["atrasada", false]);
+  // A primeira terminou em erro (o Portal barrou, por exemplo): atrasada, com o aviso do erro.
+  const erro = avaliarRodada(job("emd"), { ...EMD_SEM_EXECUCAO, abertas: [aberta("erro", 3)] }, AGORA);
+  assert.deepEqual([erro.estado, erro.avisos], ["atrasada", ["a tentativa de 09/10/2026 às 15:00 terminou em erro"]]);
+});
+
+// ================================================================ a tabela que ainda não existe (onda 14, integração, 12/10/2026)
+
+/** A resposta do PostgREST para a tabela que não existe (a `emd_execucao` antes da oport_39). */
+const semTabela = (code: string): RespostaConsulta => ({
+  data: null,
+  error: { code, message: "Could not find the table 'public.emd_execucao' in the schema cache" },
+});
+const vazia: RespostaConsulta = { data: [], error: null };
+
+test("onda 14, integração: a tabela que não existe (42P01, PGRST205) é 'não lido' ausente; outro erro, falha", () => {
+  for (const code of ["PGRST205", "42P01"]) {
+    assert.deepEqual(leituraDasConsultas(semTabela(code), semTabela(code), { estado: "falha" }), { estado: "nao_lido", motivo: "ausente" }, code);
+    // Basta uma das duas consultas.
+    assert.deepEqual(leituraDasConsultas(vazia, semTabela(code)), { estado: "nao_lido", motivo: "ausente" }, code);
+    assert.deepEqual(leituraDasConsultas(semTabela(code), vazia), { estado: "nao_lido", motivo: "ausente" }, code);
+  }
+  // O tempo-limite do Postgres, a permissão negada, o erro sem código: "falha".
+  for (const code of ["57014", "42501", null, undefined]) {
+    assert.deepEqual(leituraDasConsultas({ data: null, error: { code, message: "x" } }, vazia), { estado: "nao_lido", motivo: "falha" }, String(code));
+  }
+  // A tabela criada e ainda sem linha: "ok", sem execução (a mesma leitura do "estado de hoje").
+  assert.deepEqual(leituraDasConsultas(vazia, vazia, { estado: "ok", id: null, dadoAte: null }), EMD_SEM_EXECUCAO);
+  // Com linhas: a primeira concluída e as abertas como vieram.
+  const e = concluida(2, { emd_catalogo_codigos: 4321 });
+  const a = aberta("gravando", 1);
+  assert.deepEqual(leituraDasConsultas({ data: [e], error: null }, { data: [a], error: null }), { estado: "ok", ultima: e, abertas: [a], dadoAte: undefined });
+  assert.deepEqual(leituraDasConsultas({ data: null, error: null }, { data: null, error: null }), { estado: "ok", ultima: null, abertas: [], dadoAte: undefined });
+});
+
+test("onda 14, integração: sem a emd_execucao, só a linha das emendas fica 'não lido', e a tela segue com as outras 14", () => {
+  const ausente = leituraDasConsultas(semTabela("PGRST205"), semTabela("PGRST205"), { estado: "falha" });
+  const linhas = JOBS_RODADAS.map((j) => avaliarRodada(j, j.id === "emd" ? ausente : ok(concluida(1)), AGORA));
+  assert.deepEqual(contarEstados(linhas), { em_dia: 14, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 1 });
+  const emd = linhas.find((l) => l.job.id === "emd");
+  assert.deepEqual([emd?.estado, emd?.motivoNaoLido, emd?.dado.situacao, emd?.linhas, emd?.avisos], ["nao_lido", "ausente", "sem_execucao", null, []]);
+});
+
+const LEITURA_SERVIDOR = path.join(import.meta.dirname, "rodadas.server.ts");
+
+test("onda 14, integração: rodadas.server.ts lê pela leituraDasConsultas e não registra a tabela ausente como erro", () => {
+  const fonte = fs.readFileSync(LEITURA_SERVIDOR, "utf-8");
+  assert.match(fonte, /const leitura = leituraDasConsultas\(c, a, dadoAte\);/);
+  // Só a "falha" vai ao log; a regra do "ausente" não é repetida no servidor.
+  assert.match(fonte, /if \(leitura\.estado === "nao_lido" && leitura\.motivo === "falha"\) console\.error/);
+  // A consulta do `dado_ate` da tabela ausente também não vai ao log (a principal já diz "não lido").
+  assert.match(fonte, /if \(!ehEsquemaAusente\(error\.code\)\) console\.error\(`rodadas \(\$\{job\.id\}, dado_ate\):`/);
+  // A leitura sai de JOBS_RODADAS, sem lista fixa de tabelas.
+  assert.match(fonte, /JOBS_RODADAS\.map\(\(j\): Promise<LeituraRodada> =>/);
+  assert.equal(/"[a-z]+_execucao"/.test(fonte), false, "nenhuma tabela escrita à mão no servidor");
 });

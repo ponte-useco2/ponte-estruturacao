@@ -20,7 +20,9 @@
  * (`/api/painel/resumo-diario`) chama `lerRodadas({ github: false })`, porque o e-mail não usa a coluna do GitHub.
  * Fica de fora o `import "server-only"`: ele pede o pacote no `web/package.json`, que é de outra sessão.
  *
- * Volume: 14 linhas, 37 consultas pequenas em paralelo (uma linha e até 20 linhas) e, na tela, 7 chamadas ao GitHub.
+ * Volume: uma linha por job de `JOBS_RODADAS`, duas consultas pequenas por linha (uma linha e até 20 linhas), mais a
+ * do `dado_ate` nas que a gravam na coluna, todas em paralelo, e, na tela, uma chamada ao GitHub por workflow. Com as
+ * emendas (onda 14, integração, 12/10/2026): 15 linhas, 40 consultas e 8 chamadas.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
@@ -28,9 +30,8 @@ import {
   JOBS_RODADAS,
   WORKFLOWS_DAS_RODADAS,
   avaliarRodada,
+  leituraDasConsultas,
   ultimaNoGithub,
-  type ExecucaoAberta,
-  type ExecucaoConcluida,
   type JobRodada,
   type LeituraDadoAte,
   type LeituraRodada,
@@ -60,7 +61,9 @@ async function lerDadoAte(db: Banco, job: JobRodada): Promise<LeituraDadoAte> {
       .limit(1)
       .abortSignal(AbortSignal.timeout(TEMPO_LIMITE_MS));
     if (error) {
-      console.error(`rodadas (${job.id}, dado_ate):`, error.message);
+      // A tabela que não existe (onda 14, integração, 12/10/2026: a `emd_execucao` antes da oport_39) já é "não lido"
+      // pela consulta principal; aqui não se registra de novo como erro, a cada tela e a cada e-mail.
+      if (!ehEsquemaAusente(error.code)) console.error(`rodadas (${job.id}, dado_ate):`, error.message);
       return { estado: "falha" };
     }
     const linha = ((data ?? []) as { id: number; dado_ate: string | null }[])[0];
@@ -84,18 +87,11 @@ async function lerJob(db: Banco, job: JobRodada): Promise<LeituraRodada> {
       abertas.order("iniciada_em", { ascending: false }).limit(ABERTAS).abortSignal(AbortSignal.timeout(TEMPO_LIMITE_MS)),
       job.dado?.origem === "coluna" ? lerDadoAte(db, job) : Promise.resolve(undefined),
     ]);
-    const erro = c.error ?? a.error;
-    if (erro) {
-      if (ehEsquemaAusente(erro.code)) return { estado: "nao_lido", motivo: "ausente" };
-      console.error(`rodadas (${job.id}):`, erro.message);
-      return { estado: "nao_lido", motivo: "falha" };
-    }
-    return {
-      estado: "ok",
-      ultima: ((c.data ?? []) as ExecucaoConcluida[])[0] ?? null,
-      abertas: (a.data ?? []) as ExecucaoAberta[],
-      dadoAte,
-    };
+    // A tabela que não existe vira "não lido" (ausente), sem log; o outro erro, "não lido" (falha), com log. A regra
+    // mora em `leituraDasConsultas`, que o teste exercita (onda 14, integração, 12/10/2026).
+    const leitura = leituraDasConsultas(c, a, dadoAte);
+    if (leitura.estado === "nao_lido" && leitura.motivo === "falha") console.error(`rodadas (${job.id}):`, (c.error ?? a.error)?.message);
+    return leitura;
   } catch (e) {
     console.error(`rodadas (${job.id}):`, e instanceof Error ? e.message : "falha na leitura");
     return { estado: "nao_lido", motivo: "falha" };

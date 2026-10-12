@@ -155,7 +155,10 @@ export function linhaRodada(l: RodadaNoResumo): string {
   return `${MARCA_ESTADO[l.estado]} ${l.job.nome}: ${ROTULO_ESTADO[l.estado]}${dado ? ` · ${dado}` : ""} · ${quandoConcluiu(l)}`;
 }
 
-/** O título do bloco: "1 de 14 rodadas pede atenção", "2 de 14 rodadas pedem atenção". */
+/**
+ * O título do bloco: "1 de 15 rodadas pede atenção", "2 de 15 rodadas pedem atenção". O total é o número de linhas lidas
+ * (`escolherRodadas`), nunca um número fixo: com as emendas, 15 (onda 14, integração, 12/10/2026).
+ */
 export function tituloRodadas(b: Extract<BlocoRodadas, { tipo: "com_problema" }>): string {
   const k = b.problemas.length;
   return `${n(k)} de ${n(b.total)} rodadas ${k === 1 ? "pede" : "pedem"} atenção`;
@@ -166,7 +169,7 @@ export function fraseNaoLidas(nomes: readonly string[]): string {
   return nomes.length ? `${nomes.length === 1 ? "Não lida" : "Não lidas"} agora: ${nomes.join(", ")}.` : "";
 }
 
-/** A linha do pé: "As 14 rodadas em dia.", ou "12 de 14 rodadas em dia; 2 não lidas agora: …", ou a nota da falha. */
+/** A linha do pé: "As 15 rodadas em dia.", ou "13 de 15 rodadas em dia; 2 não lidas agora: …", ou a nota da falha. */
 export function fraseRodadasNoPe(b: Exclude<BlocoRodadas, { tipo: "com_problema" }>): string {
   if (b.tipo === "falhou") return "A saúde das rodadas não pôde ser lida agora.";
   const k = b.naoLidas.length;

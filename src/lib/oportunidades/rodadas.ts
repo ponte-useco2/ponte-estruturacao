@@ -26,6 +26,7 @@
  */
 import { REPOSITORIO } from "./agendamento.ts";
 import { dataBrasilia, diaBrasilia } from "./datas.ts";
+import { ehEsquemaAusente } from "./esquema.ts";
 
 // ================================================================ cadência e folga
 
@@ -158,6 +159,22 @@ export const DEFASAGEM_TCE_PB_DIAS = DIAS_ANO_CORRENTE_TCE_PB + 1;
  * meia-noite. Fonte: `sancoes/executar.py` e `tce_tcu/executar.py` (`dado_ate=agora`).
  */
 export const DEFASAGEM_CONSULTA_DIAS = 1;
+
+/**
+ * Emendas parlamentares (semanal, onda 14): o `dado_ate` é o Last-Modified do zip de emendas do Portal da Transparência.
+ * O arquivo sai de madrugada e não sai todo dia: o de sábado, 10/10/2026 (02h57 UTC), seguia sendo o último na segunda,
+ * 12/10, feriado. O de sábado 02h57 UTC é sexta 23h57 em Brasília: a rodada de terça já o lê com 4 dias; 5 cobrem o
+ * fim de semana com um feriado na segunda (integração da onda 14). Semana em que o zip não muda: a rodada relê a
+ * anterior e o `dado_ate` fica o mesmo — aí o dado velho é o Portal parado de verdade. Fonte: `emendas/portal.py` e o
+ * HEAD do zip em 12/10/2026.
+ */
+export const DEFASAGEM_PORTAL_EMENDAS_DIAS = 5;
+
+/**
+ * A folga das emendas: o atraso do GitHub (5 h), o tempo-limite do `emendas.yml` (3 h, para caber a carga do FNS) e 1 h
+ * de margem. A `FOLGA_PADRAO_H` conta 2 h de workflow e deixaria a rodada que dura o limite "atrasada".
+ */
+export const FOLGA_EMENDAS_H = ATRASO_GITHUB_H + 3 + 1;
 
 /**
  * As OSC (Mapa das OSC, Ipea): `contagens.versao_fonte`, a data no nome do arquivo (AAAAMMDD), que dá o mês do arquivo.
@@ -512,6 +529,11 @@ const DADO_MUNICIPIOS: RegraDado = {
 /**
  * Os jobs com tabela de execução no banco, na ordem da tela: diários, semanais, mensais, assistidos. Conferidos em
  * 09/10/2026 contra os workflows e contra o catálogo do banco (12 tabelas `*_execucao`, 14 linhas com os recortes).
+ *
+ * As emendas parlamentares (`emd`) entraram na onda 14 (onda 14, integração, 12/10/2026), com a tabela `emd_execucao`
+ * criada pela `oport_39`: 13 tabelas e 15 linhas. Em 12/10/2026 a oport_39 ainda não estava aplicada (conferido pelo
+ * MCP). Até ser aplicada, a linha diz "não lido" (a tabela não existe; `leituraDasConsultas`); aplicada, fica
+ * "atrasada" até a primeira rodada concluída, como toda agendada que nunca concluiu (`avaliarRodada`).
  */
 export const JOBS_RODADAS: readonly JobRodada[] = [
   // radar-propostas.yml: quatro passos no mesmo job, cada um com a sua execução.
@@ -711,6 +733,37 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     ],
   },
   {
+    // Onda 14 (12/10/2026): catálogo do Portal + saúde fundo a fundo do FNS + convênio e Pix do banco.
+    id: "emd",
+    nome: "Emendas parlamentares",
+    tabela: "emd_execucao",
+    recorte: null,
+    cadencia: "semanal",
+    workflow: "emendas.yml",
+    cron: "15 9 * * 2",
+    folgaH: FOLGA_EMENDAS_H,
+    dado: {
+      onde: "coluna dado_ate: o Last-Modified do zip de emendas do Portal da Transparência",
+      rotulo: "arquivo de emendas do Portal",
+      origem: "coluna",
+      ler: colunaDadoAte,
+      limite: DEFASAGEM_PORTAL_EMENDAS_DIAS,
+      unidade: "dias",
+    },
+    linhas: (c) => numero(c, "emd_catalogo_codigos"),
+    rotuloLinhas: "emendas da PB no catálogo",
+    // `emd_fns_erro`: o motivo de o FNS não ter vindo inteiro (texto, não lido aqui; só se existe).
+    falhas: (c) => (textoDe(c, "emd_fns_erro") ? 1 : 0),
+    avisos: (c) => {
+      const origem = textoDe(c, "emd_fns_origem");
+      return [
+        ...(origem === "parcial" ? ["o FNS desta rodada veio pela metade"] : []),
+        ...(origem === "anterior" ? ["o FNS desta rodada é o da rodada anterior"] : []),
+        ...seMaior(numero(c, "emd_fns_detalhes_pendentes"), (x) => `${plural(x, "proposta do FNS ficou", "propostas do FNS ficaram")} sem o detalhe, para a próxima rodada`),
+      ];
+    },
+  },
+  {
     id: "mun",
     nome: "Indicadores dos municípios",
     tabela: "mun_execucao",
@@ -903,6 +956,29 @@ export type LeituraRodada =
       dadoAte?: LeituraDadoAte;
     }
   | { estado: "nao_lido"; motivo: MotivoNaoLido };
+
+/** O que uma consulta do PostgREST devolve, só o que a leitura usa (onda 14, integração, 12/10/2026). */
+export interface RespostaConsulta {
+  data: readonly unknown[] | null;
+  error: { code?: string | null; message: string } | null;
+}
+
+/**
+ * A leitura de uma linha a partir das duas consultas de `rodadas.server.ts` (a última concluída e as abertas), à parte
+ * para o teste (onda 14, integração, 12/10/2026). A tabela que não existe — 42P01 do Postgres ou PGRST205 do PostgREST,
+ * como a `emd_execucao` antes da oport_39 — é "não lido" com motivo "ausente"; qualquer outro erro, "falha". Nos dois,
+ * só aquela linha: a tela e o e-mail seguem com as outras.
+ */
+export function leituraDasConsultas(concluida: RespostaConsulta, abertas: RespostaConsulta, dadoAte?: LeituraDadoAte): LeituraRodada {
+  const erro = concluida.error ?? abertas.error;
+  if (erro) return { estado: "nao_lido", motivo: ehEsquemaAusente(erro.code) ? "ausente" : "falha" };
+  return {
+    estado: "ok",
+    ultima: ((concluida.data ?? []) as ExecucaoConcluida[])[0] ?? null,
+    abertas: (abertas.data ?? []) as ExecucaoAberta[],
+    dadoAte,
+  };
+}
 
 /**
  * A data do dado de uma linha (10/10/2026, onda 11, B).

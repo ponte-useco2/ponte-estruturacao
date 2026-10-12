@@ -181,6 +181,12 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
           <strong>Não lido</strong>: a tabela do job não existe no banco (migração não aplicada) ou não respondeu. As outras linhas não
           dependem dela.
         </p>
+        {/* Onda 14, integração (12/10/2026): as emendas entraram antes da migração e da primeira rodada. */}
+        <p className="pa-nota">
+          Um <strong>job novo</strong> passa pelos dois: fica não lido até a migração da tabela ser aplicada e, aplicada, atrasado até a
+          primeira rodada concluir, como todo job agendado que nunca concluiu. No resumo diário, o não lido é só citado pelo nome; o
+          atrasado entra no bloco do topo, que pede atenção.
+        </p>
         <p className="pa-nota">
           As coletas do Acesso Livre (prestação de contas, obras e exigências) são assistidas, conduzidas no navegador: não têm agendamento e
           não ficam atrasadas. A idade delas está na coluna da última concluída.

@@ -145,7 +145,7 @@ test("urlMudancas e urlDoItem escrevem o que o painel e a busca leem", () => {
 });
 
 // ================================================================ a saúde das rodadas (09/10/2026, onda 10, B)
-// As linhas saem de `avaliarRodada` com os 14 jobs reais: o e-mail usa a regra da tela, sem cópia.
+// As linhas saem de `avaliarRodada` com os 15 jobs reais (as emendas desde a onda 14): o e-mail usa a regra da tela, sem cópia.
 
 /** 09/10/2026, 12h00 UTC (09h00 em Brasília): a hora em que o resumo costuma sair. */
 const AGORA = Date.parse("2026-10-09T12:00:00Z");
@@ -156,7 +156,7 @@ function concluida(h: number, contagens: Record<string, unknown> = {}, abertas: 
   return { estado: "ok", ultima: { id: 1, iniciada_em: horasAntes(h + 0.2), concluida_em: horasAntes(h), contagens }, abertas };
 }
 
-/** As 14 linhas: todas concluídas há 1 h, menos as trocadas. */
+/** As 15 linhas: todas concluídas há 1 h, menos as trocadas. */
 function rodadas(trocas: Record<string, LeituraRodada> = {}): LinhaRodada[] {
   return JOBS_RODADAS.map((j) => avaliarRodada(j, trocas[j.id] ?? concluida(1), AGORA));
 }
@@ -170,13 +170,13 @@ test("rodadas: sem o campo, o e-mail é o de antes", () => {
   assert.equal(urlRodadas("https://x"), "https://x/mapa/painel/rodadas");
 });
 
-test("rodadas: as 14 em dia viram uma linha só, no pé, depois dos botões", () => {
+test("rodadas: as 15 em dia viram uma linha só, no pé, depois dos botões", () => {
   const bloco = escolherRodadas(rodadas());
-  assert.deepEqual(bloco, { tipo: "em_dia", total: 14, naoLidas: [] });
+  assert.deepEqual(bloco, { tipo: "em_dia", total: 15, naoLidas: [] });
   const r = montarResumoDiario({ ...BASE, rodadas: bloco });
-  assert.ok(r.texto.includes(`\n✓ As 14 rodadas em dia.\n  ${URL_RODADAS}\n\n—\n`), r.texto);
-  assert.match(r.html, /✓<\/span> As 14 rodadas em dia\. <a href="https:\/\/ponteprojetos\.com\.br\/mapa\/painel\/rodadas"[^>]*>Ver as rodadas<\/a>/);
-  const i = r.html.indexOf("As 14 rodadas em dia");
+  assert.ok(r.texto.includes(`\n✓ As 15 rodadas em dia.\n  ${URL_RODADAS}\n\n—\n`), r.texto);
+  assert.match(r.html, /✓<\/span> As 15 rodadas em dia\. <a href="https:\/\/ponteprojetos\.com\.br\/mapa\/painel\/rodadas"[^>]*>Ver as rodadas<\/a>/);
+  const i = r.html.indexOf("As 15 rodadas em dia");
   assert.ok(i > r.html.indexOf("Abrir no painel (PB)") && i < r.html.indexOf("Resumo automático do Painel"));
   assert.equal(r.html.includes("atenção"), false);
   // O assunto não muda: no celular, o fim dele já fica cortado.
@@ -199,13 +199,13 @@ test("rodadas: atrasadas e com aviso, uma por linha, atrasadas primeiro, no topo
     bloco.problemas.map((l) => l.job.id),
     ["tce", "pix", "fiscal", "exigencia:suspensiva"],
   );
-  assert.equal(tituloRodadas(bloco), "4 de 14 rodadas pedem atenção");
+  assert.equal(tituloRodadas(bloco), "4 de 15 rodadas pedem atenção");
 
   const r = montarResumoDiario({ ...BASE, rodadas: bloco });
   assert.ok(
     r.texto.includes(
       [
-        "4 de 14 rodadas pedem atenção:",
+        "4 de 15 rodadas pedem atenção:",
         "- ▲ Dinheiro federal no TCE-PB: atrasada · última concluída em 07/10/2026 às 07:00, há 2 dias",
         "- ▲ Pix e fundo a fundo: atrasada · última concluída em 02/10/2026 às 00:00, há 7 dias",
         "- ! Capacidade fiscal (PB): com aviso · última concluída em 09/10/2026 às 07:00, há 2 h",
@@ -227,7 +227,7 @@ test("rodadas: atrasadas e com aviso, uma por linha, atrasadas primeiro, no topo
   assert.equal(r.html.includes("siconfi"), false);
   // Uma só: o verbo no singular.
   const um = escolherRodadas(rodadas({ tce: concluida(50) }));
-  assert.ok(um.tipo === "com_problema" && tituloRodadas(um) === "1 de 14 rodadas pede atenção");
+  assert.ok(um.tipo === "com_problema" && tituloRodadas(um) === "1 de 15 rodadas pede atenção");
 });
 
 test("rodadas: o e-mail segue o prazo da tela, minuto a minuto", () => {
@@ -258,7 +258,7 @@ test("rodadas: a 'gravando' parada e o erro mais novo entram, sem o texto do err
 test("rodadas: a leitura que falhou vira uma nota no pé, e o e-mail sai inteiro", () => {
   assert.deepEqual(escolherRodadas(null), { tipo: "falhou" });
   assert.deepEqual(escolherRodadas([]), { tipo: "falhou" });
-  // Nenhuma linha respondeu (o banco caiu no meio): é falha da leitura, não "14 não lidas".
+  // Nenhuma linha respondeu (o banco caiu no meio): é falha da leitura, não "15 não lidas".
   const nada = JOBS_RODADAS.map((j) => avaliarRodada(j, { estado: "nao_lido", motivo: "falha" }, AGORA));
   assert.deepEqual(escolherRodadas(nada), { tipo: "falhou" });
 
@@ -274,17 +274,17 @@ test("rodadas: a leitura que falhou vira uma nota no pé, e o e-mail sai inteiro
 
 test("rodadas: linha não lida é nomeada, sem virar problema nem falha", () => {
   const so = escolherRodadas(rodadas({ "exigencia:assinatura": { estado: "nao_lido", motivo: "falha" } }));
-  assert.deepEqual(so, { tipo: "em_dia", total: 14, naoLidas: ["Exigências antes da assinatura"] });
-  assert.equal(so.tipo !== "com_problema" && fraseRodadasNoPe(so), "13 de 14 rodadas em dia; 1 não lida agora: Exigências antes da assinatura.");
+  assert.deepEqual(so, { tipo: "em_dia", total: 15, naoLidas: ["Exigências antes da assinatura"] });
+  assert.equal(so.tipo !== "com_problema" && fraseRodadasNoPe(so), "14 de 15 rodadas em dia; 1 não lida agora: Exigências antes da assinatura.");
   const r = montarResumoDiario({ ...BASE, rodadas: so });
   // Com linha não lida, a marca é "?", não "✓".
-  assert.ok(r.texto.includes("\n? 13 de 14 rodadas em dia; 1 não lida agora: Exigências antes da assinatura.\n"), r.texto);
+  assert.ok(r.texto.includes("\n? 14 de 15 rodadas em dia; 1 não lida agora: Exigências antes da assinatura.\n"), r.texto);
 
   const junto = escolherRodadas(
     rodadas({ tce: concluida(50), "al:obras": { estado: "nao_lido", motivo: "ausente" } }),
   );
   const t = montarResumoDiario({ ...BASE, rodadas: junto }).texto;
-  assert.ok(t.includes("1 de 14 rodadas pede atenção:\n- ▲ Dinheiro federal no TCE-PB"), t);
+  assert.ok(t.includes("1 de 15 rodadas pede atenção:\n- ▲ Dinheiro federal no TCE-PB"), t);
   assert.ok(t.includes("\nNão lida agora: Acesso Livre: obras.\n"), t);
 });
 
@@ -294,7 +294,7 @@ test("rodadas: o dado velho entra no bloco, com a data do dado, depois das atras
   const so = escolherRodadas(rodadas({ fiscal }));
   assert.equal(so.tipo, "com_problema");
   if (so.tipo !== "com_problema") return;
-  assert.equal(tituloRodadas(so), "1 de 14 rodadas pede atenção");
+  assert.equal(tituloRodadas(so), "1 de 15 rodadas pede atenção");
   const linha =
     "↻ Capacidade fiscal (PB): dado velho · CAUC de 02/10/2026, 5 dias úteis antes da rodada (esperado: até 2 dias úteis) · última concluída em 09/10/2026 às 06:00, há 3 h";
   assert.equal(linhaRodada(so.problemas[0]), linha);
@@ -306,7 +306,7 @@ test("rodadas: o dado velho entra no bloco, com a data do dado, depois das atras
     ["tce atrasada", "fiscal dado_velho", "radar com_aviso"],
   );
   const r = montarResumoDiario({ ...BASE, rodadas: junto });
-  assert.ok(r.texto.includes(`3 de 14 rodadas pedem atenção:\n- ▲ Dinheiro federal no TCE-PB: atrasada · última`), r.texto);
+  assert.ok(r.texto.includes(`3 de 15 rodadas pedem atenção:\n- ▲ Dinheiro federal no TCE-PB: atrasada · última`), r.texto);
   assert.ok(r.texto.includes(`\n- ${linha}\n`), r.texto);
   // A data do dado só vai na linha do dado velho.
   assert.ok(r.texto.includes("- ! Radar de propostas: com aviso · última concluída"), r.texto);
@@ -331,7 +331,7 @@ test("rodadas: os municípios só entram no e-mail com o Caged velho, e a linha 
     sinisa: periodo("2024"),
   };
   const mun = (caged: string) => concluida(15, { linhas_por_fonte: { ibge: 2453 }, avisos: {}, periodo_por_fonte: { ...real, caged: periodo(caged) } });
-  assert.deepEqual(escolherRodadas(rodadas({ mun: mun("2026-08") })), { tipo: "em_dia", total: 14, naoLidas: [] });
+  assert.deepEqual(escolherRodadas(rodadas({ mun: mun("2026-08") })), { tipo: "em_dia", total: 15, naoLidas: [] });
   // Três meses (o MTE atrasou a publicação): ainda calado.
   assert.equal(escolherRodadas(rodadas({ mun: mun("2026-07") })).tipo, "em_dia");
   // Quatro meses: o MTE parou, ou o job não lê o Caged novo há duas rodadas.
@@ -370,16 +370,45 @@ test(
 test("rodadas: o SIOPE incompleto põe o fiscal 'com aviso' no e-mail, como os outros avisos (onda 12, C)", () => {
   const fiscal = (extra: Record<string, unknown>) => concluida(2, { municipios: 223, fontes_com_erro: {}, ...extra });
   // Ausente ou 0: nada muda.
-  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({}) })), { tipo: "em_dia", total: 14, naoLidas: [] });
-  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 0 }) })), { tipo: "em_dia", total: 14, naoLidas: [] });
+  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({}) })), { tipo: "em_dia", total: 15, naoLidas: [] });
+  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 0 }) })), { tipo: "em_dia", total: 15, naoLidas: [] });
   // 37 (os da execução 30, A3 da revisão D): o fiscal entra no bloco, com a palavra do estado; o detalhe fica na tela.
   const bloco = escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 37 }) }));
   assert.ok(bloco.tipo === "com_problema");
   assert.equal(linhaRodada(bloco.problemas[0]), "! Capacidade fiscal (PB): com aviso · última concluída em 09/10/2026 às 07:00, há 2 h");
   const r = montarResumoDiario({ ...BASE, rodadas: bloco });
-  assert.ok(r.texto.includes("1 de 14 rodadas pede atenção:\n- ! Capacidade fiscal (PB): com aviso"), r.texto);
+  assert.ok(r.texto.includes("1 de 15 rodadas pede atenção:\n- ! Capacidade fiscal (PB): com aviso"), r.texto);
   assert.equal(r.texto.includes("SIOPE"), false);
   assert.equal(r.html.includes("SIOPE"), false);
+});
+
+// ================================================================ as emendas antes da primeira rodada (onda 14, integração, 12/10/2026)
+
+test("rodadas: as emendas antes da primeira rodada — sem a tabela, só o nome no pé; com a tabela vazia, atrasada no topo", () => {
+  // Hoje (12/10/2026), sem a oport_39: a linha não é lida, e o e-mail só a cita pelo nome no pé, com a marca "?".
+  const semTabela = escolherRodadas(rodadas({ emd: { estado: "nao_lido", motivo: "ausente" } }));
+  assert.deepEqual(semTabela, { tipo: "em_dia", total: 15, naoLidas: ["Emendas parlamentares"] });
+  const pe = montarResumoDiario({ ...BASE, rodadas: semTabela });
+  assert.ok(pe.texto.includes("\n? 14 de 15 rodadas em dia; 1 não lida agora: Emendas parlamentares.\n"), pe.texto);
+  assert.equal(pe.texto.includes("atenção"), false);
+  // Com a oport_39 aplicada e nenhuma rodada concluída: a regra da tela (a agendada que nunca concluiu está atrasada)
+  // põe as emendas no bloco do topo, o vermelho das atrasadas, todo dia até a primeira rodada concluir.
+  const vazia: LeituraRodada = { estado: "ok", ultima: null, abertas: [], dadoAte: { estado: "ok", id: null, dadoAte: null } };
+  const topo = escolherRodadas(rodadas({ emd: vazia }));
+  assert.ok(topo.tipo === "com_problema");
+  assert.equal(tituloRodadas(topo), "1 de 15 rodadas pede atenção");
+  assert.equal(linhaRodada(topo.problemas[0]), "▲ Emendas parlamentares: atrasada · nenhuma execução concluída");
+  const r = montarResumoDiario({ ...BASE, rodadas: topo });
+  assert.ok(r.texto.includes("1 de 15 rodadas pede atenção:\n- ▲ Emendas parlamentares: atrasada · nenhuma execução concluída\n"), r.texto);
+  assert.ok(r.html.includes("border-left:4px solid #b91c1c"), "o bloco das atrasadas");
+  // Depois da primeira rodada, com o zip no prazo (1 dia): de volta à linha do pé.
+  const primeira: LeituraRodada = {
+    estado: "ok",
+    ultima: { id: 1, iniciada_em: horasAntes(1.2), concluida_em: horasAntes(1), contagens: { emd_catalogo_codigos: 4321, emd_fns_origem: "coletado" } },
+    abertas: [],
+    dadoAte: { estado: "ok", id: 1, dadoAte: horasAntes(30) },
+  };
+  assert.deepEqual(escolherRodadas(rodadas({ emd: primeira })), { tipo: "em_dia", total: 15, naoLidas: [] });
 });
 
 test("rodadas: a linha de um job diz nome, estado, quando concluiu e há quanto tempo", () => {
