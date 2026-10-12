@@ -6,6 +6,7 @@ import { REPOSITORIO, WORKFLOWS } from "./agendamento.ts";
 import {
   ATRASO_GITHUB_H,
   DEFASAGEM_API_ESPECIAIS_DIAS,
+  DEFASAGEM_CAGED_MESES,
   DEFASAGEM_CAUC_DIAS_UTEIS,
   DEFASAGEM_CONSULTA_DIAS,
   DEFASAGEM_OSC_MESES,
@@ -15,6 +16,7 @@ import {
   DIAS_ANO_CORRENTE_TCE_PB,
   ESTADOS,
   FOLGA_PADRAO_H,
+  FONTE_CAGED,
   INTERVALO_H,
   JOBS_RODADAS,
   LIMITE_GRAVANDO_H,
@@ -30,19 +32,24 @@ import {
   dataHoraBrasilia,
   defasagemEntre,
   descreverCron,
+  detalheMunicipios,
   diaDoDado,
   githubPedeAtencao,
   haQuanto,
   horaBrasilia,
+  periodosPorFonte,
   prazoH,
   rotuloEvento,
   rotuloGithub,
   textoDefasagem,
+  textoDiaDoDado,
   textoEsperado,
   textoFrescor,
+  textoPeriodo,
   textoPrazo,
   textoUnidade,
   ultimaNoGithub,
+  urlDoGithub,
   urlExecucoesGithub,
   type ExecucaoAberta,
   type ExecucaoConcluida,
@@ -493,7 +500,8 @@ test("onda 11, B: cada job diz onde grava a data do dado, ou que não grava", ()
     pix: `contagens:dias_uteis:${DEFASAGEM_PIX_DIAS_UTEIS}`,
     tcu: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
     sancao: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
-    mun: null,
+    // Onda 12, C (12/10/2026): o Caged, de `contagens.periodo_por_fonte`. Até aqui, null.
+    mun: `contagens:meses:${DEFASAGEM_CAGED_MESES}`,
     osc: `contagens:meses:${DEFASAGEM_OSC_MESES}`,
     "al:prestacao": "coluna:dias:null",
     "al:obras": "coluna:dias:null",
@@ -519,6 +527,7 @@ test("onda 11, B: as defasagens esperadas, com o porquê nas constantes", () => 
       DEFASAGEM_TCE_PB_DIAS,
       DEFASAGEM_CONSULTA_DIAS,
       DEFASAGEM_OSC_MESES,
+      DEFASAGEM_CAGED_MESES,
     },
     {
       DEFASAGEM_TRANSFEREGOV_DIAS: 2,
@@ -528,6 +537,8 @@ test("onda 11, B: as defasagens esperadas, com o porquê nas constantes", () => 
       DEFASAGEM_TCE_PB_DIAS: 8,
       DEFASAGEM_CONSULTA_DIAS: 1,
       DEFASAGEM_OSC_MESES: 2,
+      // Onda 12, C: M-2 na rodada do dia 5, mais um mês para a publicação do MTE que escorrega.
+      DEFASAGEM_CAGED_MESES: 3,
     },
   );
   assert.equal(DEFASAGEM_TCE_PB_DIAS, DIAS_ANO_CORRENTE_TCE_PB + 1, "a regra do job mais 1 dia para o download adiado");
@@ -711,6 +722,8 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     pix: "em_dia · no_prazo 2026-10-06 1",
     tcu: "em_dia · no_prazo 2026-10-07 0",
     sancao: "em_dia · no_prazo 2026-10-09 0",
+    // A execução 5 é de antes do `periodo_por_fonte` (onda 12, C): continua como era. Conferido de novo em 12/10/2026,
+    // ainda a última concluída.
     mun: "em_dia · nao_grava — —",
     // O arquivo de agosto (versão 20260806) lido em outubro: o de setembro não tinha saído em 07/10/2026. Com a
     // defasagem de 2 meses (integração da onda 11), é o Ipea atrasado, e não dado velho.
@@ -751,9 +764,11 @@ test("onda 11, B: a data que não pôde ser lida diz 'não lido' na coluna, e a 
   assert.equal(avaliarRodada(radar, { estado: "nao_lido", motivo: "falha" }, agora).dado.situacao, "sem_execucao");
   const nunca = avaliarRodada(job("tcu"), ok(null), agora);
   assert.deepEqual([nunca.estado, nunca.dado.situacao], ["atrasada", "sem_execucao"]);
-  // Os municípios não gravam a data do dado da rodada: nunca "dado velho", nunca "não lido".
+  // Os municípios de antes do `periodo_por_fonte` (onda 12, C) não gravam a data do dado: nunca "dado velho", nunca
+  // "não lido". Sem execução, como os outros jobs: "sem_execucao" (até a onda 11, o job não tinha regra e dava "nao_grava").
   assert.equal(avaliarRodada(job("mun"), ok(execucao(5, "2026-10-09T18:25:14Z", "2026-10-09T18:25:22Z", {})), agora).dado.situacao, "nao_grava");
-  assert.equal(avaliarDado(job("mun"), null, null).situacao, "nao_grava");
+  assert.equal(avaliarDado(job("mun"), null, null).situacao, "sem_execucao");
+  assert.equal(avaliarDado({ dado: null }, null, null).situacao, "nao_grava", "o job sem regra continua 'não grava'");
 });
 
 test("onda 11, B: atrasada vence o dado velho; o dado velho vence o aviso, e os avisos continuam listados", () => {
@@ -831,4 +846,266 @@ test("onda 11, B: os textos da defasagem", () => {
   assert.equal(textoEsperado(regra("dias_uteis")), "esperado: até 1 dia útil");
   assert.equal(textoEsperado(null), "");
   assert.equal(textoFrescor({ situacao: "nao_lido", dia: null, defasagem: null, regra: regra("dias"), motivo: "falha" }), "");
+});
+
+// ================================================================ os municípios (12/10/2026, onda 12, C)
+
+/**
+ * O `periodo_por_fonte` que a execução 5 (09/10/2026) teria gravado: os anos de `mun_indicador`, agregados por fonte
+ * pelo MCP em 12/10/2026, pela regra de `municipios/executar.py` (o mesmo caso de `test_os_formatos_reais_da_execucao_5`).
+ */
+const PERIODOS_EXECUCAO_5: Record<string, string> = {
+  ana_ish: "2021",
+  anatel: "2025-11",
+  aps: "2026-07",
+  atlas_desastres: "2025",
+  caged: "2026-08",
+  cnes: "2026-08",
+  creche: "2025",
+  ibge: "2026",
+  inep_ideb: "2025",
+  inep_tdi: "2025",
+  ipeadata: "2010",
+  mapbiomas: "2025",
+  mds_misocial: "2026-09",
+  pntp: "2025",
+  ripsa_icsap: "2024",
+  senatran_frota: "2026-08",
+  sim_sinasc: "2024",
+  sinesp: "2025",
+  sinisa: "2024",
+  tce_licitacoes: "2025",
+};
+
+/** As contagens de uma execução dos municípios com o `periodo_por_fonte` dado; `herdadas` levam a marca. */
+const comPeriodos = (periodos: Record<string, unknown>, herdadas: string[] = [], avisos: Record<string, string[]> = {}) => ({
+  linhas_por_fonte: { ibge: 2453, caged: 446 },
+  avisos,
+  periodo_por_fonte: Object.fromEntries(
+    Object.entries(periodos).map(([fonte, periodo]) => [fonte, herdadas.includes(fonte) ? { periodo, herdada: true } : { periodo }]),
+  ),
+});
+/** A rodada dos municípios que concluiu em `fim`, avaliada 1 h depois. */
+const rodadaMun = (fim: string, contagens: Record<string, unknown>) => avaliarRodada(job("mun"), ok(execucao(6, fim, fim, contagens)), depoisDe(fim, 1));
+/** O dia 5, 10h UTC do cron, mais as 5 h do atraso do GitHub. */
+const DIA_5_NOVEMBRO = "2026-11-05T15:10:00Z";
+
+test("onda 12, C: os municípios — a data do dado é a do Caged, e as outras fontes vão como detalhe", () => {
+  // A execução 5 real, como se já gravasse o campo: 09/10/2026, com o Caged de agosto.
+  const r = rodadaMun("2026-10-09T18:25:22Z", comPeriodos(PERIODOS_EXECUCAO_5));
+  assert.deepEqual([r.estado, r.dado.situacao, r.dado.dia, r.dado.defasagem], ["em_dia", "no_prazo", "2026-08-01", 2]);
+  assert.equal(r.dado.regra?.precisao, "mes");
+  assert.equal(textoFrescor(r.dado), "Caged de 08/2026, 2 meses antes da rodada (esperado: até 3 meses)");
+  assert.equal(r.dado.detalhe, "demais 19 fontes de 2010 (ipeadata) a 09/2026 (mds_misocial)");
+  assert.equal(textoDiaDoDado(r.dado.dia, r.dado.regra?.precisao), "08/2026");
+  // Os outros jobs continuam no dia, e sem detalhe.
+  assert.equal(textoDiaDoDado("2026-10-02"), "02/10/2026");
+  assert.equal(textoDiaDoDado(null, "mes"), "—");
+  const fim = "2026-10-09T12:26:54Z";
+  const fiscal = avaliarRodada(job("fiscal"), ok(execucao(27, fim, fim, { municipios: 223, cauc_data_pesquisa: "2026-10-02" })), depoisDe(fim, 1));
+  assert.equal(fiscal.dado.regra?.precisao, "dia");
+  assert.equal(fiscal.dado.detalhe ?? null, null);
+  assert.equal(textoFrescor(fiscal.dado), "CAUC de 02/10/2026, 5 dias úteis antes da rodada (esperado: até 2 dias úteis)");
+});
+
+test("onda 12, C: o Caged na rodada do dia 5 — M-2 e M-3 no esperado, M-4 é dado velho", () => {
+  const caged = (periodo: string, fim = DIA_5_NOVEMBRO) => rodadaMun(fim, comPeriodos({ ...PERIODOS_EXECUCAO_5, caged: periodo }));
+  // O de setembro (o MTE publica no fim de outubro): o normal.
+  assert.deepEqual([caged("2026-09").estado, caged("2026-09").dado.defasagem], ["em_dia", 2]);
+  // O de agosto: o MTE atrasou a publicação para depois do dia 5. Ainda no esperado: nada a fazer até ele publicar.
+  assert.deepEqual([caged("2026-08").estado, caged("2026-08").dado.defasagem], ["em_dia", 3]);
+  // O de julho: duas publicações sem chegar ao job.
+  const velho = caged("2026-07");
+  assert.deepEqual([velho.estado, velho.dado.situacao, velho.dado.defasagem], ["dado_velho", "velho", 4]);
+  assert.equal(textoFrescor(velho.dado), "Caged de 07/2026, 4 meses antes da rodada (esperado: até 3 meses)");
+  // A virada do ano: a rodada de 05/01/2027 com o de novembro, e com o de setembro.
+  assert.equal(caged("2026-11", "2027-01-05T15:10:00Z").dado.defasagem, 2);
+  assert.equal(caged("2026-09", "2027-01-05T15:10:00Z").estado, "dado_velho");
+});
+
+test("onda 12, C: as fontes anuais e censitárias nunca deixam o dado velho", () => {
+  // IDHM de 2010, ISH de 2021, Anatel mensal parada em 2024: só o Caged decide.
+  const r = rodadaMun(DIA_5_NOVEMBRO, comPeriodos({ ...PERIODOS_EXECUCAO_5, caged: "2026-09", anatel: "2024-01", ipeadata: "2010", ana_ish: "2021" }));
+  assert.deepEqual([r.estado, r.dado.situacao], ["em_dia", "no_prazo"]);
+  assert.equal(r.dado.detalhe, "demais 19 fontes de 2010 (ipeadata) a 09/2026 (mds_misocial)");
+  // Mesmo com todas as outras paradas há anos.
+  const antigas = Object.fromEntries(Object.keys(PERIODOS_EXECUCAO_5).map((f) => [f, f === FONTE_CAGED ? "2026-09" : "2000"]));
+  const s = rodadaMun(DIA_5_NOVEMBRO, comPeriodos(antigas));
+  assert.equal(s.estado, "em_dia");
+  assert.equal(s.dado.detalhe, "demais 19 fontes de 2000");
+});
+
+test("onda 12, C: o Caged herdado da rodada anterior diz isso no detalhe; a falha continua sendo aviso", () => {
+  // O Caged falhou e foi repetido da anterior (o de agosto, na rodada de novembro): no esperado, com aviso pela falha.
+  const r = rodadaMun(DIA_5_NOVEMBRO, comPeriodos({ ...PERIODOS_EXECUCAO_5, caged: "2026-08" }, ["caged", "pntp"], { caged: ["Caged: TimeoutError"] }));
+  assert.deepEqual([r.estado, r.dado.situacao, r.dado.defasagem], ["com_aviso", "no_prazo", 3]);
+  assert.deepEqual(r.avisos, ["fonte repetida da rodada anterior: caged"]);
+  assert.equal(r.dado.detalhe, "Caged repetido da rodada anterior; demais 19 fontes de 2010 (ipeadata) a 09/2026 (mds_misocial); uma repetida da rodada anterior");
+  // Falhou de novo em dezembro: o de agosto já tem 4 meses, e o dado velho vence o aviso.
+  const dezembro = rodadaMun("2026-12-05T15:10:00Z", comPeriodos({ ...PERIODOS_EXECUCAO_5, caged: "2026-08" }, ["caged"], { caged: ["x"] }));
+  assert.deepEqual([dezembro.estado, dezembro.dado.defasagem], ["dado_velho", 4]);
+  assert.deepEqual(dezembro.avisos, ["fonte repetida da rodada anterior: caged"]);
+});
+
+test("onda 12, C: o Caged sem período (falhou sem herança) é 'não lido' na coluna, sem mudar o estado", () => {
+  for (const caged of [null, "agosto", "2026-13", "2026", 202608]) {
+    const r = rodadaMun(DIA_5_NOVEMBRO, comPeriodos({ ...PERIODOS_EXECUCAO_5, caged }));
+    assert.deepEqual([r.estado, r.dado.situacao, r.dado.motivo], ["em_dia", "nao_lido", "sem_data"], String(caged));
+    assert.equal(r.dado.detalhe, "demais 19 fontes de 2010 (ipeadata) a 09/2026 (mds_misocial)", "o detalhe continua");
+  }
+  // Sem a chave do Caged, e com o campo vazio.
+  const semCaged = Object.fromEntries(Object.entries(PERIODOS_EXECUCAO_5).filter(([f]) => f !== FONTE_CAGED));
+  assert.equal(rodadaMun(DIA_5_NOVEMBRO, comPeriodos(semCaged)).dado.motivo, "sem_data");
+  const vazio = rodadaMun(DIA_5_NOVEMBRO, { linhas_por_fonte: { ibge: 1 }, avisos: {}, periodo_por_fonte: {} });
+  assert.deepEqual([vazio.estado, vazio.dado.situacao, vazio.dado.detalhe], ["em_dia", "nao_lido", null]);
+  // Outra fonte sem período entra no detalhe pelo nome.
+  assert.equal(
+    detalheMunicipios(comPeriodos({ caged: "2026-09", ipeadata: "2010", inep_tdi: null, mds_misocial: "2026-10" })),
+    "demais 3 fontes de 2010 (ipeadata) a 10/2026 (mds_misocial); sem período: inep_tdi",
+  );
+  assert.equal(detalheMunicipios(comPeriodos({ caged: "2026-09", ipeadata: "2010" })), "a outra fonte é de 2010 (ipeadata)");
+  assert.equal(detalheMunicipios(comPeriodos({ caged: "2026-09" })), null);
+});
+
+test("onda 12, C: a execução de antes do campo fica como hoje — 'não grava', sem erro e sem mudar o estado", () => {
+  // As chaves reais das contagens da execução 5 (lidas pelo MCP em 12/10/2026), sem periodo_por_fonte.
+  const real = { linhas_por_fonte: { ibge: 2453, caged: 446, mapbiomas: 892 }, indicadores_por_fonte: { caged: ["caged_saldo_12m"] }, indicadores: {}, grupos: 223, avisos: {} };
+  const r = rodadaMun("2026-10-09T18:25:22Z", real);
+  assert.deepEqual([r.estado, r.dado.situacao, r.dado.dia, r.dado.defasagem], ["em_dia", "nao_grava", null, null]);
+  assert.equal(r.dado.regra?.rotulo, "Caged", "a regra existe; a execução é que não gravou");
+  assert.equal(textoFrescor(r.dado), "");
+  // O campo em outro formato também não quebra: "não grava".
+  for (const estranho of [null, [], "2026-08", 7]) {
+    assert.equal(rodadaMun("2026-10-09T18:25:22Z", { ...real, periodo_por_fonte: estranho }).dado.situacao, "nao_grava", JSON.stringify(estranho));
+  }
+});
+
+test("onda 12, C: do periodo_por_fonte só passam nome de fonte e período; texto livre fica de fora", () => {
+  const p = periodosPorFonte({
+    periodo_por_fonte: {
+      "Fonte com espaço": { periodo: "2026-08" },
+      caged: { periodo: "<b>2026-08</b>", herdada: "sim" },
+      ipeadata: { periodo: "2010", herdada: true, nota: "texto livre que não aparece" },
+      sinisa: "2024",
+      "<script>": { periodo: "2026" },
+    },
+  });
+  assert.deepEqual(p, [
+    { fonte: "caged", periodo: null, herdada: false },
+    { fonte: "ipeadata", periodo: "2010", herdada: true },
+    { fonte: "sinisa", periodo: null, herdada: false },
+  ]);
+  assert.equal(periodosPorFonte({}), null);
+  assert.equal(periodosPorFonte({ periodo_por_fonte: [] }), null);
+  assert.equal(textoPeriodo("2026-09"), "09/2026");
+  assert.equal(textoPeriodo("2010"), "2010");
+  const detalhe = detalheMunicipios({ periodo_por_fonte: { caged: { periodo: "2026-08" }, ipeadata: { periodo: "2010", nota: "<b>x</b>" }, "Outra Fonte": { periodo: "2026" } } });
+  assert.equal(detalhe, "a outra fonte é de 2010 (ipeadata)");
+});
+
+const ECONOMIA_PY = path.join(import.meta.dirname, "..", "..", "..", "..", "municipios", "economia.py");
+
+test("onda 12, C: FONTE_CAGED é o nome que o job dá à leitura do Caged", { skip: !fs.existsSync(ECONOMIA_PY) }, () => {
+  assert.match(fs.readFileSync(ECONOMIA_PY, "utf-8"), new RegExp(`\\bLeitura\\("${FONTE_CAGED}"\\)`));
+});
+
+// ================================================================ o link do GitHub (12/10/2026, onda 12, C, M6)
+
+test("onda 12, C: só o endereço do próprio GitHub vira link", async () => {
+  const bom = `https://github.com/${REPOSITORIO}/actions/runs/1`;
+  assert.equal(urlDoGithub(bom), bom);
+  for (const ruim of [
+    "javascript:alert(1)",
+    "http://github.com/x/y",
+    "https://github.com.exemplo.net/x",
+    "https://exemplo.net/https://github.com/",
+    "//github.com/x",
+    "https://github.com",
+    " https://github.com/x",
+    "",
+    null,
+    42,
+  ]) {
+    assert.equal(urlDoGithub(ruim), null, String(ruim));
+  }
+  // Na leitura: a execução continua com os outros campos, sem o link.
+  const { buscar } = buscarFalso({ status: 200, corpo: { workflow_runs: [{ ...RUN, html_url: "javascript:alert(1)" }] } });
+  const r = await ultimaNoGithub("tok", "fiscal.yml", buscar);
+  assert.deepEqual([r.estado, r.conclusao, r.url], ["ok", "success", null]);
+});
+
+// ================================================================ pedidos do supervisor, revisão D (12/10/2026, onda 12, C)
+
+/** Uma rodada do fiscal que concluiu em `fim`, avaliada 1 h depois. */
+const rodadaFiscal = (fim: string, contagens: Record<string, unknown>) =>
+  avaliarRodada(job("fiscal"), ok(execucao(31, fim, fim, { municipios: 223, fontes_com_erro: {}, ...contagens })), depoisDe(fim, 1));
+/** 13/10/2026, terça, às 09h30 em Brasília: a rodada do dia seguinte ao feriado de 12/10. */
+const DIA_13 = "2026-10-13T12:30:00Z";
+const DIA_14 = "2026-10-14T12:30:00Z";
+
+test("onda 12, C (M1 da revisão D): o CAUC conta os dias úteis do fiscal, com o feriado de 12/10", () => {
+  // 13/10: o CAUC de 09/10 (sexta), e o fiscal conta 1 (o 12/10 não é útil). No prazo.
+  const treze = rodadaFiscal(DIA_13, { cauc_data_pesquisa: "2026-10-09", cauc_dias_uteis: 1 });
+  assert.deepEqual([treze.estado, treze.dado.situacao, treze.dado.defasagem], ["em_dia", "no_prazo", 1]);
+  assert.equal(textoFrescor(treze.dado), "CAUC de 09/10/2026, 1 dia útil antes da rodada (esperado: até 2 dias úteis)");
+  // Sem o campo (as rodadas de antes da regra 2026-10-10.1), a conta daqui: o 12/10 entra como útil.
+  assert.equal(rodadaFiscal(DIA_13, { cauc_data_pesquisa: "2026-10-09" }).dado.defasagem, 2);
+  // 14/10: o caso do M1. O fiscal conta 2, sem aviso; a conta daqui daria 3, "dado velho" na tela e no e-mail.
+  const quatorze = rodadaFiscal(DIA_14, { cauc_data_pesquisa: "2026-10-09", cauc_dias_uteis: 2 });
+  assert.deepEqual([quatorze.estado, quatorze.dado.defasagem], ["em_dia", 2]);
+  assert.deepEqual([rodadaFiscal(DIA_14, { cauc_data_pesquisa: "2026-10-09" }).estado, rodadaFiscal(DIA_14, { cauc_data_pesquisa: "2026-10-09" }).dado.defasagem], ["dado_velho", 3]);
+  // 15/10: o fiscal conta 3, o dia em que ele avisa e marca G7 "desatualizado". Aqui, "dado velho" no mesmo dia.
+  assert.equal(rodadaFiscal("2026-10-15T12:30:00Z", { cauc_data_pesquisa: "2026-10-09", cauc_dias_uteis: 3 }).estado, "dado_velho");
+  // Só o número inteiro de 0 em diante vale; o resto cai na conta daqui (2 em 13/10).
+  for (const ruim of ["1", -1, 1.5, null, Number.NaN]) {
+    assert.equal(rodadaFiscal(DIA_13, { cauc_data_pesquisa: "2026-10-09", cauc_dias_uteis: ruim }).dado.defasagem, 2, String(ruim));
+  }
+  // O `cauc_aviso`, texto do job, não é lido: não chega à linha.
+  const comAviso = rodadaFiscal("2026-10-15T12:30:00Z", { cauc_data_pesquisa: "2026-10-09", cauc_dias_uteis: 3, cauc_aviso: "texto do job que não aparece" });
+  assert.equal(JSON.stringify(comAviso).includes("texto do job"), false);
+  assert.deepEqual(comAviso.avisos, []);
+});
+
+test("onda 12, C (M3 da revisão D): a data do dado depois do dia da rodada é 'não lido', nunca 'no prazo'", () => {
+  // A posição do CAUC com o ano errado: o fiscal contaria 0 dia útil. Aqui, "não lido", e o estado não muda.
+  const anoErrado = rodadaFiscal(DIA_13, { cauc_data_pesquisa: "2027-10-09", cauc_dias_uteis: 0 });
+  assert.deepEqual([anoErrado.estado, anoErrado.dado.situacao, anoErrado.dado.motivo, anoErrado.dado.dia], ["em_dia", "nao_lido", "sem_data", null]);
+  assert.equal(textoFrescor(anoErrado.dado), "");
+  // O dia seguinte já é futuro; o mesmo dia, ainda que mais tarde, é o dado do dia.
+  assert.equal(rodadaFiscal(DIA_13, { cauc_data_pesquisa: "2026-10-14" }).dado.motivo, "sem_data");
+  assert.deepEqual([rodadaFiscal(DIA_13, { cauc_data_pesquisa: "2026-10-13" }).dado.situacao, rodadaFiscal(DIA_13, { cauc_data_pesquisa: "2026-10-13" }).dado.defasagem], ["no_prazo", 0]);
+  // Na coluna `dado_ate`: o arquivo do Transferegov carimbado em 14/10 (Brasília) lido pela rodada de 13/10.
+  const radar = execucao(50, "2026-10-13T11:49:06Z", "2026-10-13T11:49:12Z", { janelas_abertas: 3245 });
+  const futuro = avaliarRodada(job("radar"), comDadoAte(radar, "2026-10-15T01:34:18+00:00"), depoisDe("2026-10-13T11:49:12Z", 1));
+  assert.deepEqual([futuro.estado, futuro.dado.situacao, futuro.dado.motivo], ["em_dia", "nao_lido", "sem_data"]);
+  // O carimbo das 22h34 de 13/10 em Brasília (01h34 UTC de 14/10) é do mesmo dia da rodada: não é futuro.
+  assert.equal(avaliarRodada(job("radar"), comDadoAte(radar, "2026-10-14T01:34:18+00:00"), depoisDe("2026-10-13T11:49:12Z", 1)).dado.situacao, "no_prazo");
+  // O mês do Caged depois do mês da rodada também.
+  assert.equal(rodadaMun("2026-10-09T18:25:22Z", comPeriodos({ ...PERIODOS_EXECUCAO_5, caged: "2026-11" })).dado.motivo, "sem_data");
+  // As coletas assistidas, sem esperado, idem: a data errada não aparece como data.
+  const fim = "2026-09-21T04:07:07Z";
+  assert.equal(avaliarRodada(job("exigencia:suspensiva"), comDadoAte(execucao(2, fim, fim, {}), "2027-01-01T12:00:00+00:00"), depoisDe(fim, 1)).dado.situacao, "nao_lido");
+});
+
+test("onda 12, C: o SIOPE incompleto deixa o fiscal 'com aviso'; ausente ou 0, nada muda", () => {
+  const cauc = { cauc_data_pesquisa: "2026-10-13", cauc_dias_uteis: 0 };
+  for (const [caso, extra] of [
+    ["ausente", {}],
+    ["zero", { siope_incompletos: 0 }],
+    ["texto, não número", { siope_incompletos: "37" }],
+  ] as const) {
+    const r = rodadaFiscal(DIA_13, { ...cauc, ...extra });
+    assert.deepEqual([r.estado, r.avisos, r.falhas], ["em_dia", [], 0], caso);
+  }
+  const r = rodadaFiscal(DIA_13, { ...cauc, siope_incompletos: 37 });
+  assert.deepEqual([r.estado, r.avisos, r.falhas], ["com_aviso", ["SIOPE incompleto em 37 municípios"], 0]);
+  assert.deepEqual(contar("fiscal", { municipios: 223, fontes_com_erro: {}, siope_incompletos: 1 }).avisos, ["SIOPE incompleto em 1 município"]);
+  // Junto das fontes com erro, depois delas.
+  assert.deepEqual(contar("fiscal", { municipios: 223, fontes_com_erro: { siconfi_rreo1: 1 }, siope_incompletos: 37 }).avisos, [
+    "fonte com erro: siconfi_rreo1",
+    "SIOPE incompleto em 37 municípios",
+  ]);
+  // O dado velho vence o aviso, e o aviso continua listado.
+  const velho = rodadaFiscal(DIA_14, { cauc_data_pesquisa: "2026-10-08", cauc_dias_uteis: 3, siope_incompletos: 37 });
+  assert.deepEqual([velho.estado, velho.avisos], ["dado_velho", ["SIOPE incompleto em 37 municípios"]]);
 });

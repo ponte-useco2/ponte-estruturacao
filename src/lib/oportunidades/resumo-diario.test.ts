@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   LIMITE_DESTAQUES,
   dadoNoResumo,
@@ -312,6 +314,72 @@ test("rodadas: o dado velho entra no bloco, com a data do dado, depois das atras
   assert.ok(r.html.includes(">CAUC de 02/10/2026, 5 dias úteis antes da rodada (esperado: até 2 dias úteis)</div>"));
   assert.equal((r.html.match(/antes da rodada/g) ?? []).length, 1);
   assert.equal(dadoNoResumo({ estado: "com_aviso", dado: so.problemas[0].dado }), "");
+});
+
+// ================================================================ os municípios e o GitHub (12/10/2026, onda 12, C)
+
+test("rodadas: os municípios só entram no e-mail com o Caged velho, e a linha diz o mês", () => {
+  // Os períodos da execução 5 (09/10/2026): Caged de agosto, e as outras fontes de 2010 a 09/2026. Nenhum alarme.
+  const periodo = (p: string) => ({ periodo: p });
+  const real = {
+    ana_ish: periodo("2021"),
+    anatel: periodo("2025-11"),
+    caged: periodo("2026-08"),
+    ibge: periodo("2026"),
+    ipeadata: periodo("2010"),
+    mds_misocial: periodo("2026-09"),
+    sinisa: periodo("2024"),
+  };
+  const mun = (caged: string) => concluida(15, { linhas_por_fonte: { ibge: 2453 }, avisos: {}, periodo_por_fonte: { ...real, caged: periodo(caged) } });
+  assert.deepEqual(escolherRodadas(rodadas({ mun: mun("2026-08") })), { tipo: "em_dia", total: 14, naoLidas: [] });
+  // Três meses (o MTE atrasou a publicação): ainda calado.
+  assert.equal(escolherRodadas(rodadas({ mun: mun("2026-07") })).tipo, "em_dia");
+  // Quatro meses: o MTE parou, ou o job não lê o Caged novo há duas rodadas.
+  const velho = escolherRodadas(rodadas({ mun: mun("2026-06") }));
+  assert.ok(velho.tipo === "com_problema");
+  assert.equal(
+    linhaRodada(velho.problemas[0]),
+    "↻ Indicadores dos municípios: dado velho · Caged de 06/2026, 4 meses antes da rodada (esperado: até 3 meses) · última concluída em 08/10/2026 às 18:00, há 15 h",
+  );
+  const r = montarResumoDiario({ ...BASE, rodadas: velho });
+  assert.ok(r.html.includes(">Caged de 06/2026, 4 meses antes da rodada (esperado: até 3 meses)</div>"));
+  // O detalhe das outras fontes fica na tela.
+  assert.equal(r.texto.includes("ipeadata"), false);
+  assert.equal(r.html.includes("ipeadata"), false);
+});
+
+const PASTA_APP = path.join(import.meta.dirname, "..", "..", "app");
+const ROTA_RESUMO = path.join(PASTA_APP, "api", "painel", "resumo-diario", "route.ts");
+const LEITURA_RODADAS = path.join(import.meta.dirname, "rodadas.server.ts");
+const PAGINA_RODADAS = path.join(PASTA_APP, "mapa", "painel", "rodadas", "page.tsx");
+
+test(
+  "rodadas: o resumo diário lê as rodadas sem o GitHub, e a tela continua com ele (M6 da revisão da onda 11)",
+  { skip: ![ROTA_RESUMO, LEITURA_RODADAS, PAGINA_RODADAS].every((f) => fs.existsSync(f)) },
+  () => {
+    // A rota chama `lerRodadas` uma vez só, e sem o GitHub: o e-mail não usa a coluna, e o token não sai à toa.
+    const rota = fs.readFileSync(ROTA_RESUMO, "utf-8");
+    assert.deepEqual(rota.match(/lerRodadas\([^)]*\)/g), ["lerRodadas({ github: false })"]);
+    // `lerRodadas` só chama o GitHub quando pedem.
+    assert.match(fs.readFileSync(LEITURA_RODADAS, "utf-8"), /comGithub \? lerGithub\(\) : Promise\.resolve\(null\)/);
+    // A tela pede com o GitHub (o padrão).
+    assert.deepEqual(fs.readFileSync(PAGINA_RODADAS, "utf-8").match(/lerRodadas\([^)]*\)/g), ["lerRodadas()"]);
+  },
+);
+
+test("rodadas: o SIOPE incompleto põe o fiscal 'com aviso' no e-mail, como os outros avisos (onda 12, C)", () => {
+  const fiscal = (extra: Record<string, unknown>) => concluida(2, { municipios: 223, fontes_com_erro: {}, ...extra });
+  // Ausente ou 0: nada muda.
+  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({}) })), { tipo: "em_dia", total: 14, naoLidas: [] });
+  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 0 }) })), { tipo: "em_dia", total: 14, naoLidas: [] });
+  // 37 (os da execução 30, A3 da revisão D): o fiscal entra no bloco, com a palavra do estado; o detalhe fica na tela.
+  const bloco = escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 37 }) }));
+  assert.ok(bloco.tipo === "com_problema");
+  assert.equal(linhaRodada(bloco.problemas[0]), "! Capacidade fiscal (PB): com aviso · última concluída em 09/10/2026 às 07:00, há 2 h");
+  const r = montarResumoDiario({ ...BASE, rodadas: bloco });
+  assert.ok(r.texto.includes("1 de 14 rodadas pede atenção:\n- ! Capacidade fiscal (PB): com aviso"), r.texto);
+  assert.equal(r.texto.includes("SIOPE"), false);
+  assert.equal(r.html.includes("SIOPE"), false);
 });
 
 test("rodadas: a linha de um job diz nome, estado, quando concluiu e há quanto tempo", () => {

@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { paraCsv } from "@/lib/oportunidades/painel";
-import { PODE } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, ibgeDaUrl } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { COLUNAS_CSV_ACHADOS, relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -21,7 +21,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ibg
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return naoEncontrado();
   const { ibge } = await params;
-  if (!/^25\d{5}$/.test(ibge)) return naoEncontrado();
+  // Um dos 223 da PB, não só o formato (onda 12, M1 da revisão de segurança da onda 11): o resto não lê o banco.
+  if (!ibgeDaUrl(ibge)) return naoEncontrado();
   const hoje = diaBrasilia(new Date().toISOString());
   const [leitura, nivel] = await Promise.all([lerRelatorioMunicipio(ibge, hoje), nivelNoMunicipio(visitante, ibge)]);
   if (leitura.estado === "nao_encontrado") return naoEncontrado();

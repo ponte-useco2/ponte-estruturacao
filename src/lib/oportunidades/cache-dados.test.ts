@@ -10,8 +10,11 @@ import {
   VALIDADE_DADOS_S,
   VALIDADE_FALTA_MS,
   abrirEnvelope,
+  ambienteDe,
+  avisoDaPublicacao,
   chaveDoCache,
   criarCamadaCompartilhada,
+  criarPublicacao,
   decidirGuarda,
   etiquetasDoLeitor,
   implantacaoDe,
@@ -19,20 +22,25 @@ import {
   perdaNoJson,
   tamanhoNoCache,
   type Cachear,
+  type Envelope,
+  type Publicacao,
 } from "./cache-dados.ts";
 import { criarMemoria } from "./memoria.ts";
-import { relatorioDoNivel } from "./pagina-municipio.ts";
+import { carteiraPorSituacao, dinheiroPorOrgao } from "./pagina-entidade.ts";
+import { CAMPOS_DE_ANALISE_DO_INSTRUMENTO, colunasDoPublico, instrumentoDoPublico, leituraDoPublico, relatorioDoNivel } from "./pagina-municipio.ts";
 import type { MunicipioFiscal, VerificacaoFiscal } from "./fiscal.ts";
 import type { EntradaIndicadores, ItemCatalogo, LinhaIndicador, ReferenciaIndicador } from "./indicadores-municipio.ts";
 import type { PlanoLaudoPix } from "./pix-laudo.ts";
 import type { TceTcu } from "./tce-tcu.ts";
 import {
+  COLUNAS_INSTRUMENTO,
   FALTAS_DA_FONTE,
   FONTES_DO_PUBLICO,
   FONTES_RELATORIO,
   entradaDasFontes,
   fontesDoNivel,
   leituraGuardavel,
+  leituraGuardavelNoCacheComum,
   montarRelatorio,
   relatorioSemNomes,
   type EntradaRelatorio,
@@ -47,12 +55,14 @@ function relogio(inicio = 1_000_000) {
 
 // ================================================================ chaves, etiquetas e validade
 
-test("chave: versão, publicação, leitor e a chave do leitor; leitura pública e completa nunca se cruzam", () => {
-  const c = chaveDoCache("municipio", "2510808|2026-10-09|2026-10-01.2", "dpl_abc");
-  assert.equal(c, "mapa-dados|v1|dpl_abc|municipio|2510808|2026-10-09|2026-10-01.2");
-  assert.notEqual(chaveDoCache("municipio-publico", "2510808|2026-10-09", "dpl_abc"), chaveDoCache("municipio", "2510808|2026-10-09", "dpl_abc"));
-  assert.notEqual(chaveDoCache("municipio", "2510808|2026-10-09", "dpl_novo"), chaveDoCache("municipio", "2510808|2026-10-09", "dpl_abc"), "publicação nova, chave nova");
-  assert.notEqual(chaveDoCache("municipio", "2510808|2026-10-10", "x"), chaveDoCache("municipio", "2510808|2026-10-09", "x"), "dia novo, chave nova");
+const PRODUCAO = (implantacao: string): Publicacao => ({ ambiente: "production", implantacao });
+
+test("chave: versão, ambiente, publicação, leitor e a chave do leitor; leitura pública e completa nunca se cruzam", () => {
+  const c = chaveDoCache("municipio", "2510808|2026-10-09|2026-10-01.2", PRODUCAO("dpl_abc"));
+  assert.equal(c, "mapa-dados|v1|production|dpl_abc|municipio|2510808|2026-10-09|2026-10-01.2");
+  assert.notEqual(chaveDoCache("municipio-publico", "2510808|2026-10-09", PRODUCAO("dpl_abc")), chaveDoCache("municipio", "2510808|2026-10-09", PRODUCAO("dpl_abc")));
+  assert.notEqual(chaveDoCache("municipio", "2510808|2026-10-09", PRODUCAO("dpl_novo")), chaveDoCache("municipio", "2510808|2026-10-09", PRODUCAO("dpl_abc")), "publicação nova, chave nova");
+  assert.notEqual(chaveDoCache("municipio", "2510808|2026-10-10", PRODUCAO("x")), chaveDoCache("municipio", "2510808|2026-10-09", PRODUCAO("x")), "dia novo, chave nova");
 });
 
 test("publicação: o id da implantação da Vercel, senão o commit, senão 'local'", () => {
@@ -60,6 +70,42 @@ test("publicação: o id da implantação da Vercel, senão o commit, senão 'lo
   assert.equal(implantacaoDe({ VERCEL_GIT_COMMIT_SHA: "abc" }), "abc");
   assert.equal(implantacaoDe({}), "local");
   assert.equal(implantacaoDe({ VERCEL_DEPLOYMENT_ID: "" }), "local", "vazio não conta");
+});
+
+test("onda 12 (M2): o ambiente entra na chave — prévia e produção com a mesma publicação nunca dividem item", () => {
+  assert.equal(ambienteDe({ VERCEL_ENV: "preview" }), "preview");
+  assert.equal(ambienteDe({ VERCEL_ENV: "production" }), "production");
+  assert.equal(ambienteDe({}), "local");
+  assert.equal(ambienteDe({ VERCEL_ENV: "" }), "local", "vazio não conta");
+  for (const implantacao of ["dpl_abc", "local"]) {
+    const previa = chaveDoCache("municipio-publico", "2510808|2026-10-12", { ambiente: "preview", implantacao });
+    const producao = chaveDoCache("municipio-publico", "2510808|2026-10-12", { ambiente: "production", implantacao });
+    assert.notEqual(previa, producao, `publicação ${implantacao}`);
+  }
+  // do ambiente da Vercel à chave, pelo mesmo caminho do servidor (`criarPublicacao`)
+  const publicacao = criarPublicacao(() => undefined);
+  const daPrevia = publicacao({ VERCEL: "1", VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_SHA: "abc" });
+  const daProducao = publicacao({ VERCEL: "1", VERCEL_ENV: "production", VERCEL_GIT_COMMIT_SHA: "abc" });
+  assert.deepEqual(daPrevia, { ambiente: "preview", implantacao: "abc" });
+  assert.notEqual(chaveDoCache("entidade-publica", "09084815000170|2026-10-12", daPrevia), chaveDoCache("entidade-publica", "09084815000170|2026-10-12", daProducao));
+});
+
+test("onda 12 (M2): na Vercel, a publicação 'local' vira aviso, uma vez por instância; fora dela ou com o id, nada", () => {
+  const semId = { VERCEL: "1", VERCEL_ENV: "production" };
+  assert.match(avisoDaPublicacao(semId) ?? "", /saiu "local".*ambiente production.*Automatically expose System Environment Variables/);
+  assert.equal(avisoDaPublicacao({ VERCEL: "1", VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_1" }), null);
+  assert.equal(avisoDaPublicacao({ VERCEL: "1", VERCEL_GIT_COMMIT_SHA: "abc" }), null);
+  assert.equal(avisoDaPublicacao({}), null, "desenvolvimento e testes: 'local' é o esperado");
+
+  const avisos: string[] = [];
+  const publicacao = criarPublicacao((m) => avisos.push(m));
+  // os leitores pedem a publicação um a um, na carga do servidor: o aviso sai na primeira vez só
+  for (let i = 0; i < 10; i++) assert.deepEqual(publicacao(semId), { ambiente: "production", implantacao: "local" });
+  assert.equal(avisos.length, 1);
+  const outra = criarPublicacao((m) => avisos.push(m));
+  outra({ VERCEL: "1", VERCEL_ENV: "preview", VERCEL_DEPLOYMENT_ID: "dpl_2" });
+  outra({});
+  assert.equal(avisos.length, 1, "com o id da implantação, ou fora da Vercel, nenhum aviso");
 });
 
 test("etiquetas: a geral e a do leitor, sem vírgula; validade de 10 minutos, a da memória de hoje", () => {
@@ -154,7 +200,7 @@ const camadaDeTeste = <T,>(c: ReturnType<typeof cacheFalso>, r: { agora: () => n
   criarCamadaCompartilhada<T>({
     leitor: "municipio",
     cachear: c.cachear,
-    implantacao: "dpl_teste",
+    publicacao: PRODUCAO("dpl_teste"),
     guardavel: () => true,
     agora: r.agora,
     avisar: (m) => avisos.push(m),
@@ -178,7 +224,7 @@ test("camada: o que não se guarda volta ao chamador por fora e não fica (falha
   const r = relogio();
   const c = cacheFalso(r);
   const b = banco([{ estado: "ok", relatorio: { faltas: ["TCE-PB"] } }, { estado: "ok", relatorio: { faltas: [] } }]);
-  const camada = camadaDeTeste<{ estado: string; relatorio?: { faltas: string[] } }>(c, r, [], { guardavel: leituraGuardavel });
+  const camada = camadaDeTeste<{ estado: string; relatorio?: { faltas: string[] } }>(c, r, [], { guardavel: leituraGuardavelNoCacheComum });
   assert.deepEqual((await camada.obter("2510808", b.carregar)).valor.relatorio?.faltas, ["TCE-PB"]);
   assert.equal(c.itens.size, 0, "a leitura com falta não ficou");
   assert.deepEqual((await camada.obter("2510808", b.carregar)).valor.relatorio?.faltas, [], "a seguinte relê");
@@ -218,7 +264,7 @@ test("camada: sem cache (fora do Next, ou fora do ar), lê do banco e avisa; err
 test("camada: item de outro formato vai ao banco; o Map volta Map pelo codec; o que perde no JSON e o grande não ficam", async () => {
   const r = relogio();
   const c = cacheFalso(r);
-  c.itens.set(chaveDoCache("municipio", "pb", "dpl_teste"), { corpo: JSON.stringify({ formato: "antigo" }), em: r.agora() });
+  c.itens.set(chaveDoCache("municipio", "pb", PRODUCAO("dpl_teste")), { corpo: JSON.stringify({ formato: "antigo" }), em: r.agora() });
   const avisos: string[] = [];
   assert.deepEqual((await camadaDeTeste<{ novo: boolean }>(c, r, avisos).obter("pb", async () => ({ novo: true }))).valor, { novo: true });
   assert.match(avisos.join("\n"), /outro formato/);
@@ -263,7 +309,7 @@ test("memória + camada: duas instâncias, um cache comum — o banco é lido um
       maximo: 30,
       guardar: leituraGuardavel,
       agora: r.agora,
-      compartilhada: camadaDeTeste<Leitura>(c, r, [], { guardavel: leituraGuardavel }),
+      compartilhada: camadaDeTeste<Leitura>(c, r, [], { guardavel: leituraGuardavelNoCacheComum }),
     });
   const a = instancia();
   const z = instancia();
@@ -287,6 +333,51 @@ test("falta: o complemento exato de `leituraGuardavel` entre as leituras ok; 1 m
   assert.deepEqual(casos.map(leituraComFalta), [false, true, false, false, false, false]);
   for (const c of casos) assert.ok(!(leituraComFalta(c) && leituraGuardavel(c)), "nunca as duas");
   assert.equal(VALIDADE_FALTA_MS, 60_000);
+  // Onda 12, A (M1): a memória da instância guarda o "não encontrado"; o cache comum, só o "ok" sem faltas.
+  assert.deepEqual(casos.map(leituraGuardavel), [true, false, true, false, false, false]);
+  assert.deepEqual(casos.map(leituraGuardavelNoCacheComum), [true, false, false, false, false, false]);
+  for (const c of casos) assert.ok(!leituraGuardavelNoCacheComum(c) || leituraGuardavel(c), "o que vai ao cache comum também fica na memória");
+});
+
+/** As duas memórias de um leitor do relatório, como em `relatorio-municipio.server.ts` desde a onda 12 (A). */
+const instanciaDoRelatorio = <L extends { estado: string; relatorio?: { faltas: string[] } }>(c: ReturnType<typeof cacheFalso>, r: ReturnType<typeof relogio>) =>
+  criarMemoria<L>({
+    validadeMs: VALIDADE_DADOS_MS,
+    maximo: 30,
+    guardar: leituraGuardavel,
+    falta: { validadeMs: VALIDADE_FALTA_MS, e: leituraComFalta },
+    agora: r.agora,
+    compartilhada: camadaDeTeste<L>(c, r, [], { guardavel: leituraGuardavelNoCacheComum }),
+  });
+
+test("onda 12 (M1): o 'não encontrado' fica 10 minutos na instância e nunca vai ao cache comum; o 'ok' vai como antes", async () => {
+  const r = relogio();
+  const c = cacheFalso(r);
+  type Leitura = { estado: string; relatorio?: { faltas: string[] } };
+  const inventado = banco<Leitura>([{ estado: "nao_encontrado" }]);
+  const a = instanciaDoRelatorio<Leitura>(c, r);
+  for (let i = 0; i < 5; i++) assert.deepEqual(await a.obter("12ABC34501DE35|2026-10-12", inventado.carregar), { estado: "nao_encontrado" });
+  assert.equal(inventado.conta.leituras, 1, "cinco pedidos na instância, uma leitura: a memória guarda o 'não encontrado' como antes");
+  assert.equal(c.itens.size, 0, "nenhum item no cache comum");
+  assert.equal(c.conta.gravacoes, 0, "nenhuma gravação na cota do Runtime Cache");
+
+  // um robô em laço: cada chave nova é uma leitura, e nenhuma vira gravação no cache comum
+  for (let i = 0; i < 20; i++) await a.obter(`CNPJ${i}|2026-10-12`, inventado.carregar);
+  assert.equal(c.conta.gravacoes, 0);
+
+  // a outra instância não vê o "não encontrado" desta (relê); a leitura "ok" vai ao cache comum e serve as duas
+  await instanciaDoRelatorio<Leitura>(c, r).obter("12ABC34501DE35|2026-10-12", inventado.carregar);
+  assert.equal(inventado.conta.leituras, 22);
+  const existe = banco<Leitura>([{ estado: "ok", relatorio: { faltas: [] } }]);
+  await a.obter("09084815000170|2026-10-12", existe.carregar);
+  await instanciaDoRelatorio<Leitura>(c, r).obter("09084815000170|2026-10-12", existe.carregar);
+  assert.equal(existe.conta.leituras, 1, "a entidade que existe é lida uma vez para as duas instâncias");
+  assert.equal(c.itens.size, 1);
+
+  // depois dos 10 minutos, a instância relê o "não encontrado"
+  r.andar(VALIDADE_DADOS_MS);
+  await a.obter("12ABC34501DE35|2026-10-12", inventado.carregar);
+  assert.equal(inventado.conta.leituras, 23);
 });
 
 test("memória + camada: a falta fica 1 minuto só na instância e nunca vai ao cache comum; a outra instância relê", async () => {
@@ -294,7 +385,8 @@ test("memória + camada: a falta fica 1 minuto só na instância e nunca vai ao 
   const c = cacheFalso(r);
   type Leitura = { estado: string; relatorio: { faltas: string[] } };
   const b = banco<Leitura>([{ estado: "ok", relatorio: { faltas: ["fornecedores"] } }]);
-  // Como em `relatorio-municipio.server.ts`: a regra do cache comum e a da memória são `leituraGuardavel`.
+  // Como em `relatorio-municipio.server.ts`: a memória com `leituraGuardavel`, o cache comum com
+  // `leituraGuardavelNoCacheComum` (onda 12, A).
   const instancia = () =>
     criarMemoria<Leitura>({
       validadeMs: VALIDADE_DADOS_MS,
@@ -302,7 +394,7 @@ test("memória + camada: a falta fica 1 minuto só na instância e nunca vai ao 
       guardar: leituraGuardavel,
       falta: { validadeMs: VALIDADE_FALTA_MS, e: leituraComFalta },
       agora: r.agora,
-      compartilhada: camadaDeTeste<Leitura>(c, r, [], { guardavel: leituraGuardavel }),
+      compartilhada: camadaDeTeste<Leitura>(c, r, [], { guardavel: leituraGuardavelNoCacheComum }),
     });
   const a = instancia();
   const lida = await a.obter("2507507|2026-10-09", b.carregar);
@@ -531,6 +623,77 @@ test("nada vaza: a leitura leve não tem fiscal, controle, TCE-PB, Pix nem forne
   for (const segredo of ["EMPRESA X", "05476456000146", "EMPRESA INIDONEA", "11222333000144", "0703764/2024-0", "Relatório de gestão não entregue", "54,54"]) {
     assert.ok(!texto.includes(segredo), segredo);
   }
+});
+
+// ================================================================ o objeto público guardado (onda 12, A; M7)
+
+/** O que o cache comum guarda, como volta dele: o envelope em texto JSON, lido de novo. */
+function comoGuardado<T>(leitura: T): { valor: T; texto: string } {
+  const g = decidirGuarda(leitura, { guardavel: leituraGuardavelNoCacheComum as (v: T) => boolean, desde: 1 });
+  assert.equal(g.guardar, true, "a leitura pública inteira vai ao cache comum");
+  const texto = JSON.stringify((g as { envelope: Envelope }).envelope);
+  return { valor: (JSON.parse(texto) as Envelope).valor as T, texto };
+}
+
+/** As listas de análise dos convênios, que o nível 0 não vê. */
+const LISTAS_DE_ANALISE = ["vigenciaVencida", "semMovimento", "contasAtrasadas", "contasNegativas", "nuncaAssinados", "liminar", "pc33"] as const;
+
+test("onda 12 (M7): o objeto público guardado do município já é o relatório do público — sem as listas de análise", () => {
+  const e = patosCompleto();
+  // o relatório que a leitura leve monta (as fontes do público) ainda traz a análise dos convênios (senão o teste não prova nada)
+  const leve = montarRelatorio(entradaDasFontes(e, fontesDoNivel(0)), "2026-10-01");
+  assert.ok((leve.convenios?.contasAtrasadas.length ?? 0) > 0 && (leve.convenios?.liminar.length ?? 0) > 0, "a leve tem análise antes do recorte");
+  assert.ok(leve.destaques.length > 0);
+
+  // o que `lerRelatorioMunicipio(…, { publico: true })` entrega à memória e ao cache
+  const { valor, texto } = comoGuardado(leituraDoPublico({ estado: "ok" as const, relatorio: leve }));
+  for (const k of LISTAS_DE_ANALISE) assert.deepEqual(valor.relatorio.convenios?.[k], [], k);
+  assert.equal(valor.relatorio.convenios?.nuncaAssinadosVencidos, 0);
+  assert.deepEqual(valor.relatorio.destaques, []);
+  assert.deepEqual(valor.relatorio.passos, []);
+  assert.deepEqual(valor.relatorio.fontes, []);
+  for (const a of [...valor.relatorio.achados, ...valor.relatorio.emDia]) assert.ok(["social", "economia", "territorio", "governanca"].includes(a.dimensao), a.titulo);
+  for (const trecho of ["Liminar Judicial", "prazo terminou em", "terminou em", "último movimento", "Prestação de Contas Rejeitada"]) assert.ok(!texto.includes(trecho), trecho);
+
+  // e o que o nível 0 vê não muda: a página aplica `relatorioSemNomes` e o recorte do nível sobre o guardado
+  assert.deepEqual(relatorioDoNivel(relatorioSemNomes(valor.relatorio), 0), doNivel0(entradaDasFontes(e, fontesDoNivel(0))));
+  assert.deepEqual(relatorioDoNivel(relatorioSemNomes(valor.relatorio), 0), doNivel0(e), "nem com a leitura completa");
+});
+
+test("onda 12 (M7): o objeto público guardado da entidade não traz os campos de análise dos instrumentos", () => {
+  const base = patosCompleto();
+  const completos: InstrumentoRelatorio[] = [
+    ...(base.instrumentos ?? []),
+    instrumento({ nr_convenio: "955000", pc33_regime: "pc33", pc33_nivel: "conferir", pc33_pior: "alto", pc33_itens: [] }),
+  ];
+  const e: EntradaRelatorio = { ...base, nome: "MUNICIPIO DE PATOS", escopo: "entidade", janelas: null, indicadores: null, instrumentos: completos };
+  // a entrada tem os campos de análise (senão o teste não prova nada)
+  assert.ok(completos.some((i) => i.situacao_contratacao) && completos.some((i) => i.dt_limite_contas) && completos.some((i) => i.pc33_regime));
+
+  // o banco devolve só as colunas pedidas (`colunasDoPublico`), e o servidor põe os campos de análise em null
+  for (const k of Object.keys(instrumento({}))) assert.ok(COLUNAS_INSTRUMENTO.split(",").includes(k), `${k} está no select de sempre`);
+  const pedidas = new Set(colunasDoPublico(COLUNAS_INSTRUMENTO).split(","));
+  const doBanco = completos.map((i) => Object.fromEntries(Object.entries(i).filter(([k]) => pedidas.has(k))) as unknown as InstrumentoRelatorio);
+  const instrumentos = doBanco.map(instrumentoDoPublico);
+  const relatorio = montarRelatorio(entradaDasFontes({ ...e, instrumentos }, fontesDoNivel(0)), "2026-10-01");
+  const leitura = leituraDoPublico({ estado: "ok" as const, relatorio, instrumentos, propostas: e.propostas ?? [] });
+
+  const { valor, texto } = comoGuardado(leitura);
+  assert.equal(valor.instrumentos.length, completos.length);
+  for (const i of valor.instrumentos) for (const c of CAMPOS_DE_ANALISE_DO_INSTRUMENTO) assert.equal(i[c], null, `${i.nr_convenio}.${c}`);
+  for (const k of LISTAS_DE_ANALISE) assert.deepEqual(valor.relatorio.convenios?.[k], [], k);
+  // os valores (a chave "pc33" é o nome da lista vazia do relatório; o valor ":"pc33"" seria o regime do instrumento)
+  for (const trecho of ["Liminar Judicial", "2020-02-29", ':"pc33"', "conferir", "2026-08-20", "2025-01-10"]) assert.ok(!texto.includes(trecho), trecho);
+
+  // o que o nível 0 da entidade vê não muda: o relatório recortado e o que a página desenha dos instrumentos
+  assert.deepEqual(relatorioDoNivel(relatorioSemNomes(valor.relatorio), 0), doNivel0(entradaDasFontes(e, fontesDoNivel(0))));
+  assert.deepEqual(dinheiroPorOrgao(valor.instrumentos), dinheiroPorOrgao(completos));
+  const desenhado = (xs: InstrumentoRelatorio[]) =>
+    carteiraPorSituacao(xs).map((g) => ({
+      ...g,
+      itens: g.itens.map((i) => [i.nr_convenio, i.orgao_sup, i.objeto, i.vl_global, i.vl_desembolsado, i.dt_assinatura, i.dt_fim_vigencia]),
+    }));
+  assert.deepEqual(desenhado(valor.instrumentos), desenhado(completos));
 });
 
 test("a entrada da leitura: com todas as fontes, a mesma; com as do público, o resto null — e a recebida não muda", () => {

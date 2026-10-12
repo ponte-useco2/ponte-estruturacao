@@ -5,7 +5,7 @@ import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
-import { PODE, abaEscolhida, podeAbaMunicipio, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, abaEscolhida, ibgeDaUrl, podeAbaMunicipio, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -26,13 +26,16 @@ export const metadata: Metadata = {
  * C4a (09/10/2026; achado B1 da revisão R3): passa a conferir o nível, como o relatório da entidade e o da UF — quem
  * não alcança a aba "Relatório e dados" (`podeAbaMunicipio`) volta à página do município. Até aqui só o portão de
  * aprovados fechava a rota; com a versão pública, o nível 0 existe e não abre o relatório completo (D1).
+ *
+ * Onda 12, A (12/10/2026; M1 da revisão de segurança da onda 11): o IBGE tem de ser um dos 223 da PB (`ibgeDaUrl`),
+ * como na página do município; o que não é dá o 404 de sempre, sem ler o banco.
  */
 export default async function RelatorioMunicipioPage({ params }: { params: Promise<{ ibge: string }> }) {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
 
   const { ibge } = await params;
-  if (!/^25\d{5}$/.test(ibge)) notFound();
+  if (!ibgeDaUrl(ibge)) notFound();
   const [leitura, nivel] = await Promise.all([lerRelatorioMunicipio(ibge, diaBrasilia(new Date().toISOString())), nivelNoMunicipio(visitante, ibge)]);
   if (leitura.estado === "nao_encontrado") notFound();
   if (!podeAbaMunicipio("relatorio", nivel)) redirect(urlMunicipio(ibge));

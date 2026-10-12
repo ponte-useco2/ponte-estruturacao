@@ -87,6 +87,16 @@ export interface InstrumentoRelatorio extends ColunasPc33 {
   situacao_contratacao: string | null;
 }
 
+/**
+ * O `select` de `painel_instrumento` do relatório (`relatorio-municipio.server.ts`; `municipio` vem para o nome do
+ * município sem o fiscal). Mora aqui desde a onda 12 (A, 12/10/2026), ao lado do tipo, para o teste conferir a lista da
+ * leitura pública da entidade, que sai desta menos os campos de análise (`colunasDoPublico`, `pagina-municipio.ts`).
+ */
+export const COLUNAS_INSTRUMENTO =
+  "nr_convenio,municipio,modalidade,situacao,subsituacao,orgao_sup,programa,objeto,vl_global,vl_repasse,vl_desembolsado,vl_pago,vl_saldo_conta," +
+  "pct_fisico,dt_assinatura,dt_fim_vigencia,dt_limite_contas,dt_primeiro_desembolso,dt_ultimo_desembolso,dt_ultimo_pagamento,situacao_contratacao," +
+  "pc33_regime,pc33_nivel,pc33_pior,pc33_itens";
+
 export interface EmendaRelatorio {
   nr_convenio: string;
   parlamentar: string | null;
@@ -269,11 +279,18 @@ export interface SecaoFiscal {
   caucPendencias: string[];
   /**
    * Onda 11, A (10/10/2026): a posição do CAUC (evidência da G7), não a data da execução. De 03 a 09/10 o painel
-   * leu o CAUC de 02/10 e o cartão dizia "em" a data da execução. `caucParado`: a G7 ficou "desatualizado".
+   * leu o CAUC de 02/10 e o cartão dizia "em" a data da execução. `caucParado`: o Tesouro não publica relatório novo
+   * há `DIAS_UTEIS_CAUC` dias úteis ou mais (pela idade da evidência; onda 12, A, A1 da revisão D), ou a G7 ficou
+   * "desatualizado" (execução sem a idade na evidência).
    */
   caucData: string | null;
   caucParado: boolean;
   caucDiasUteis: number | null;
+  /**
+   * A posição do CAUC é posterior à rodada (evidência `data_estranha` da G7, regras 2026-10-12.1 do job; integração da
+   * onda 12): não é a de hoje nem "parada há N dias", e a frase diz isso.
+   */
+  caucDataEstranha: boolean;
   pessoal: number | null;
   serie: PontoSerie[];
   /** Períodos seguidos acima do limite máximo, contados do mais recente para trás. */
@@ -286,6 +303,15 @@ export interface SecaoFiscal {
 
 const LIMITE_MAXIMO_PADRAO = 54;
 const LIMITE_PRUDENCIAL_PADRAO = 51.3;
+
+/**
+ * Dias úteis sem relatório novo do Tesouro a partir dos quais o CAUC conta como parado (onda 12, A, 12/10/2026; A1 da
+ * revisão D da onda 11). É o `DIAS_UTEIS_CAUC` de `fiscal/regras.py`, e `relatorio-municipio.test.ts` confere os dois.
+ * O parado sai da idade, e não do estado da G7: na variante conservadora do job (`regras.py`, versão 2026-10-10.1), a
+ * G7 com pendência continua "não atendido" mesmo com o CAUC parado — só a G7 sem pendência vira "desatualizado". Pelo
+ * estado, ~185 dos 223 municípios (os com pendência) nunca recebiam a frase "O Tesouro não publica relatório novo".
+ */
+export const DIAS_UTEIS_CAUC = 3;
 
 /** Quantos períodos seguidos, do mais recente para trás, ficaram acima do limite máximo. */
 export function acimaDoLimite(serie: PontoSerie[]): { seguidos: number; desde: PontoSerie | null } {
@@ -311,6 +337,7 @@ function secaoFiscal(e: EntradaRelatorio): SecaoFiscal | null {
   const g7 = e.fiscal.verificacoes.find((v) => v.codigo === "G7");
   const posicaoCauc = g7?.evidencia?.data_pesquisa;
   const diasCauc = g7?.evidencia?.dias_uteis;
+  const caucDataEstranha = g7?.evidencia?.data_estranha === true;
   return {
     decisoes: (["A", "B", "C"] as const)
       .map((d) => conclusaoDe(m, d))
@@ -319,8 +346,13 @@ function secaoFiscal(e: EntradaRelatorio): SecaoFiscal | null {
     verificacoes: e.fiscal.verificacoes.map((v) => ({ codigo: v.codigo, nome: v.nome, estado: v.estado, resumo: v.resumo })),
     caucPendencias: m.indicadores.cauc_pendencias ?? [],
     caucData: typeof posicaoCauc === "string" && /^\d{4}-\d{2}-\d{2}/.test(posicaoCauc) ? posicaoCauc.slice(0, 10) : null,
-    caucParado: g7?.estado === "desatualizado",
+    // Onda 12, A (A1 da revisão D): pela idade; o estado fica para a execução sem `dias_uteis` na evidência.
+    // A data estranha não é "parado": a G7 sem pendência fica "desatualizado" por ela, e a frase é outra.
+    caucParado:
+      !caucDataEstranha &&
+      ((typeof diasCauc === "number" && Number.isFinite(diasCauc) && diasCauc >= DIAS_UTEIS_CAUC) || g7?.estado === "desatualizado"),
     caucDiasUteis: typeof diasCauc === "number" && Number.isFinite(diasCauc) ? diasCauc : null,
+    caucDataEstranha,
     pessoal: m.indicadores.pessoal_pct ?? null,
     serie,
     acimaSeguidos: seguidos,
@@ -340,14 +372,18 @@ const EM_DIA_FISCAL: Record<string, string> = {
 
 /** "5 dias úteis"; sem a contagem (execução anterior à onda 11), o limite da regra. */
 const diasSemCauc = (s: Pick<SecaoFiscal, "caucDiasUteis">) =>
-  s.caucDiasUteis !== null ? plural(s.caucDiasUteis, "dia útil", "dias úteis") : "3 dias úteis ou mais";
+  s.caucDiasUteis !== null ? plural(s.caucDiasUteis, "dia útil", "dias úteis") : `${DIAS_UTEIS_CAUC} dias úteis ou mais`;
 
 /** O CAUC na frase do achado, com a data da posição; parado, diz que é a última publicada (onda 11, A). */
 function fraseCauc(s: SecaoFiscal): string {
   const posicao = s.caucData ? ` na posição de ${data(s.caucData)}` : "";
-  const parado = s.caucParado ? `, a última publicada pelo Tesouro (sem relatório novo há ${diasSemCauc(s)})` : "";
+  const parado = s.caucDataEstranha
+    ? ", data posterior a esta rodada (data estranha, que não vale como a de hoje)"
+    : s.caucParado
+      ? `, a última publicada pelo Tesouro (sem relatório novo há ${diasSemCauc(s)})`
+      : "";
   if (s.caucPendencias.length) return ` O CAUC registra pendência nos itens ${lista(s.caucPendencias)}${posicao}${parado}.`;
-  return s.caucParado ? ` O CAUC não registra pendência${posicao}${parado}.` : "";
+  return s.caucParado || s.caucDataEstranha ? ` O CAUC não registra pendência${posicao}${parado}.` : "";
 }
 
 function achadosFiscais(s: SecaoFiscal): Achado[] {
@@ -1167,15 +1203,21 @@ function cartoes(r: Pick<Relatorio, "fiscal" | "convenios" | "controle">, e: Ent
     const p = f.caucPendencias;
     // Onda 11, A (10/10/2026): a data é a da posição do CAUC; a da execução fica só para execução sem ela na G7.
     const quando = f.caucData ? `na posição de ${data(f.caucData)}` : e.fiscal?.referencia ? `em ${data(e.fiscal.referencia)}` : "";
-    const parado = f.caucParado ? ` O Tesouro não publica relatório novo há ${diasSemCauc(f)}.` : "";
+    const parado = f.caucDataEstranha
+      ? " A data da posição é posterior a esta rodada: é estranha e não vale como a de hoje."
+      : f.caucParado
+        ? ` O Tesouro não publica relatório novo há ${diasSemCauc(f)}.`
+        : "";
     c.push({
       rotulo: "CAUC",
       valor: p.length ? plural(p.length, "pendência", "pendências") : "sem pendência",
       nota: p.length
         ? `Itens ${lista(p)}${quando ? `, ${quando}` : ""}.${parado}`
         : `Nenhum item pendente no relatório do Tesouro${f.caucData ? ` de ${data(f.caucData)}` : ""}.${parado}`,
-      // posição parada não é a de hoje: nem crítico nem em dia (a G7 está "desatualizado")
-      nivel: p.length ? (f.caucParado ? "alto" : "critico") : f.caucParado ? "moderado" : "em_dia",
+      // Onda 12, A (A1 da revisão D): com pendência, crítico mesmo com o CAUC parado — a G7 segue "não atendido" e a
+      // decisão B, bloqueada (variante conservadora do job); o cartão não diz menos que ela, e a frase do Tesouro diz
+      // que a posição é a última publicada. Sem pendência e parado, "moderado": não se sabe se segue sem pendência.
+      nivel: p.length ? "critico" : f.caucParado || f.caucDataEstranha ? "moderado" : "em_dia",
     });
   }
   const conv = r.convenios;
@@ -1387,9 +1429,23 @@ export function relatorioSemNomes(r: Relatorio): Relatorio {
  * minutos (achado da B12b, 08/10/2026). Erro e fonte não ativada também não ficam. Desde a onda 8 (B, 09/10/2026), a
  * leitura com falta fica no máximo 60 s, só no servidor que a leu e nunca no cache compartilhado (`memoria.ts`): uma
  * fonte fora do ar não multiplica as leituras.
+ *
+ * Onda 12 (A, 12/10/2026): esta é a regra da memória da instância, e só dela. O cache comum às instâncias tem a sua,
+ * mais estreita (`leituraGuardavelNoCacheComum`), que deixa o "não encontrado" de fora.
  */
 export function leituraGuardavel(l: { estado: string; relatorio?: Pick<Relatorio, "faltas"> }): boolean {
   return l.estado === "nao_encontrado" || (l.estado === "ok" && l.relatorio?.faltas.length === 0);
+}
+
+/**
+ * O que vai ao cache comum às instâncias (onda 12, A, 12/10/2026; M1 da revisão de segurança da onda 11): só a leitura
+ * inteira, "ok" e sem faltas. O "não encontrado" fica só na memória da instância (`leituraGuardavel`), como antes da
+ * onda 7: no cache comum, cada CNPJ ou IBGE inventado por um robô seria uma gravação nova na cota do Runtime Cache, e
+ * nunca um acerto (a chave muda a cada pedido). O município ou a entidade que existe chega sempre "ok" e continua
+ * indo ao cache comum como hoje.
+ */
+export function leituraGuardavelNoCacheComum(l: { estado: string; relatorio?: Pick<Relatorio, "faltas"> }): boolean {
+  return l.estado === "ok" && l.relatorio?.faltas.length === 0;
 }
 
 // ================================================================ as fontes que cada nível lê (onda 7, A)

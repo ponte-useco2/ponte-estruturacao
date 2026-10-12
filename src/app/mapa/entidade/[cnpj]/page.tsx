@@ -28,6 +28,9 @@ const NAO_INDEXAR: Metadata["robots"] = { index: false, follow: false };
  * (a conferência do acesso usa o caminho pedido); `cnpj`, o de 14 caracteres. A leitura é a leve quando a página atende
  * o público (`acesso.aprovado === null`, nível 0), com chave própria no cache; o aprovado recebe a completa de sempre.
  * O nível depende da identidade lida (`nivelDoVisitanteNaEntidade`): vem depois da leitura, como antes.
+ *
+ * Onda 12, A (12/10/2026; M1 da revisão de segurança da onda 11): `cnpjDaUrl` confere também os dígitos verificadores
+ * (numérico e alfanumérico). CNPJ que não fecha a conta dá o 404 de sempre, sem ler o banco.
  */
 const lerPagina = cache(async (bruto: string) => {
   const visitante = await visitanteAtual();

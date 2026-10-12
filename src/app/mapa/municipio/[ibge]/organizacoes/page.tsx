@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { areaDaUrl } from "@/lib/oportunidades/osc";
 import { lerOscDoMunicipio } from "@/lib/oportunidades/osc.server";
-import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import { ibgeDaUrl, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { lerEntidadesDoMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
@@ -31,7 +31,8 @@ export default async function OrganizacoesPage({
   if (!visitante || visitante.status !== "aprovado") return null;
 
   const [{ ibge }, sp] = await Promise.all([params, searchParams]);
-  if (!/^25\d{5}$/.test(ibge)) notFound();
+  // Um dos 223 da PB, não só o formato (onda 12, M1 da revisão de segurança da onda 11): o resto não lê o banco.
+  if (!ibgeDaUrl(ibge)) notFound();
   const [osc, linhas] = await Promise.all([lerOscDoMunicipio(ibge), lerEntidadesDoMunicipio(ibge)]);
 
   const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

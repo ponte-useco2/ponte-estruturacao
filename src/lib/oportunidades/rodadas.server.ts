@@ -11,9 +11,16 @@
  *
  * A data do dado (10/10/2026, onda 11, B): nos jobs que a gravam na coluna `dado_ate`, uma terceira consulta lê só
  * `id,dado_ate` da última concluída. Ela falha sozinha: a coluna "dado até" diz "não lido" e o resto da linha segue. Nos
- * que a gravam no `contagens` (fiscal, Pix, ciclo, OSC), a primeira consulta já a traz.
+ * que a gravam no `contagens` (fiscal, Pix, ciclo, OSC e, desde 12/10/2026, onda 12, C, os municípios), a primeira
+ * consulta já a traz. Nos municípios, das `contagens` a data sai só de `periodo_por_fonte`, filtrado em
+ * `periodosPorFonte` (nome de fonte e "AAAA" ou "AAAA-MM"; o resto é descartado): nem a coluna `erro` nem as mensagens
+ * dos `avisos` entram. Não há consulta a mais: o `id` é o da própria execução.
  *
- * Volume: 14 linhas, 37 consultas pequenas em paralelo (uma linha e até 20 linhas) e 7 chamadas ao GitHub.
+ * O GitHub é pedido por quem lê (12/10/2026, onda 12, C, M6 da revisão da onda 11): a tela pede, e o resumo diário
+ * (`/api/painel/resumo-diario`) chama `lerRodadas({ github: false })`, porque o e-mail não usa a coluna do GitHub.
+ * Fica de fora o `import "server-only"`: ele pede o pacote no `web/package.json`, que é de outra sessão.
+ *
+ * Volume: 14 linhas, 37 consultas pequenas em paralelo (uma linha e até 20 linhas) e, na tela, 7 chamadas ao GitHub.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
@@ -106,16 +113,24 @@ export interface PainelRodadas {
   /** O instante da leitura (ISO): "há quanto tempo" é contado até ele. */
   lidoEm: string;
   linhas: LinhaRodada[];
-  /** null: `GITHUB_DISPARO_TOKEN` não configurado. */
+  /** null: `GITHUB_DISPARO_TOKEN` não configurado, ou a leitura foi pedida sem o GitHub (`github: false`). */
   github: RodadaGithub[] | null;
 }
 
-export async function lerRodadas(): Promise<PainelRodadas> {
+export interface OpcoesRodadas {
+  /**
+   * false: não chama o GitHub, e `github` vem null (12/10/2026, onda 12, C). O resumo diário pede assim: o e-mail não
+   * usa a coluna, e o token não precisa sair para isso. Padrão: true (a tela).
+   */
+  github?: boolean;
+}
+
+export async function lerRodadas({ github: comGithub = true }: OpcoesRodadas = {}): Promise<PainelRodadas> {
   const agora = Date.now();
   const db = authConfigurada() ? clienteServidor() : null;
   const [leituras, github] = await Promise.all([
     Promise.all(JOBS_RODADAS.map((j): Promise<LeituraRodada> => (db ? lerJob(db, j) : Promise.resolve({ estado: "nao_lido", motivo: "falha" })))),
-    lerGithub(),
+    comGithub ? lerGithub() : Promise.resolve(null),
   ]);
   return {
     lidoEm: new Date(agora).toISOString(),

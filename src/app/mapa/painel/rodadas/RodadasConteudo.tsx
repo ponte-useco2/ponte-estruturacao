@@ -9,9 +9,11 @@
  *
  * A coluna "Dado até" (10/10/2026, onda 11, B): a data do dado da última concluída, quanto ela ficou para trás da
  * rodada e o esperado. Passou do esperado com a rodada em dia, a linha fica "dado velho".
+ *
+ * Os municípios (12/10/2026, onda 12, C): o mês do Caged, com as outras fontes como detalhe. O link do GitHub só é
+ * desenhado se for do próprio GitHub (`urlDoGithub`).
  */
 import { WORKFLOWS } from "@/lib/oportunidades/agendamento";
-import { dataBrasilia } from "@/lib/oportunidades/datas";
 import {
   ESTADOS,
   FOLGA_PADRAO_H,
@@ -31,9 +33,11 @@ import {
   rotuloEvento,
   rotuloGithub,
   textoDefasagem,
+  textoDiaDoDado,
   textoEsperado,
   textoPrazo,
   textoUnidade,
+  urlDoGithub,
   type EstadoRodada,
   type LinhaRodada,
   type RodadaGithub,
@@ -145,7 +149,8 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
           <strong>Dado velho</strong>: rodou no prazo, mas a data do dado que a rodada trouxe ficou mais para trás do que o esperado para aquela
           fonte. Rodar em dia não é ter dado novo: em 09/10/2026 o fiscal rodou no prazo com o CAUC de 02/10, cinco dias úteis para trás. A
           coluna <strong>Dado até</strong> diz o dia do dado, quanto ele ficou para trás do dia da rodada e o esperado. A idade da rodada é a
-          regra de atrasada; a do dado é medida no dia da rodada, e as duas não se misturam. O esperado de cada fonte:
+          regra de atrasada; a do dado é medida no dia da rodada, e as duas não se misturam. No CAUC, vale a idade que o próprio fiscal
+          contou, com os feriados nacionais; nas rodadas antigas, que não a gravavam, a conta é de segunda a sexta. O esperado de cada fonte:
         </p>
         <ul className="pa-nota">
           {ESPERADOS.map(([rotulo, ate]) => (
@@ -155,9 +160,17 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
           ))}
         </ul>
         <p className="pa-nota">
-          Na coluna Dado até, <strong>não lido</strong> quer dizer que a data não respondeu ou que a rodada não a gravou: a linha segue e o
-          estado não muda por isso. Os indicadores dos municípios não têm uma data do dado da rodada inteira (cada fonte tem o seu ano), e as
-          coletas assistidas mostram a data sem esperado.
+          Na coluna Dado até, <strong>não lido</strong> quer dizer que a data não respondeu, que a rodada não a gravou ou que gravou uma data
+          depois do dia da rodada, que só pode estar errada: a linha segue e o estado não muda por isso. As coletas assistidas mostram a data
+          sem esperado.
+        </p>
+        {/* Onda 12, C (12/10/2026): os municípios passam a ter data do dado, a do Caged. */}
+        <p className="pa-nota">
+          Nos <strong>indicadores dos municípios</strong>, cada fonte tem o seu período, e a data do dado é a do Caged: a única fonte de
+          cadência conhecida e curta (o Ministério do Trabalho publica o mês no fim do mês seguinte, e a rodada do dia 5 lê o de dois meses
+          antes). As outras fontes são anuais ou censitárias, com defasagem natural de anos (o IDHM é do Censo de 2010): aparecem como detalhe,
+          da mais antiga à mais nova, e nunca deixam a linha com dado velho. Rodada de antes de o job gravar o período de cada fonte fica sem
+          data, como antes.
         </p>
         <p className="pa-nota">
           <strong>Com aviso</strong>: rodou no prazo, mas uma execução está gravando há mais de {LIMITE_GRAVANDO_H} h (o job morreu sem marcar
@@ -207,10 +220,13 @@ function DadoAte({ l }: { l: LinhaRodada }) {
   const { dado } = l;
   if (l.estado === "nao_lido" || dado.situacao === "sem_execucao") return <>—</>;
   if (dado.situacao === "nao_grava") {
+    // Com regra, é a execução de antes de o job gravar a data (os municípios antes de 12/10/2026, onda 12, C).
     return (
       <>
         <span className="mp-tabela-principal">—</span>
-        <span className="mp-tabela-secundario">o job não grava uma data do dado da rodada: cada fonte tem o seu período</span>
+        <span className="mp-tabela-secundario">
+          {dado.regra ? "a rodada é de antes de o job gravar a data do dado" : "o job não grava uma data do dado da rodada"}
+        </span>
       </>
     );
   }
@@ -221,14 +237,16 @@ function DadoAte({ l }: { l: LinhaRodada }) {
           <span aria-hidden="true">{MARCA_ESTADO.nao_lido} </span>
           não lido
         </span>
-        <span className="mp-tabela-secundario">{dado.motivo === "falha" ? "a data do dado não respondeu" : "a rodada não gravou a data do dado"}</span>
+        {/* "sem_data" cobre também a data depois do dia da rodada (onda 12, C, M3 da revisão D). */}
+        <span className="mp-tabela-secundario">{dado.motivo === "falha" ? "a data do dado não respondeu" : "a rodada não gravou uma data do dado válida"}</span>
+        {dado.detalhe && <span className="mp-tabela-secundario">{dado.detalhe}</span>}
       </>
     );
   }
   const velho = dado.situacao === "velho";
   return (
     <>
-      <span className="mp-tabela-principal">{dataBrasilia(dado.dia)}</span>
+      <span className="mp-tabela-principal">{textoDiaDoDado(dado.dia, dado.regra?.precisao)}</span>
       {dado.regra && <span className="mp-tabela-secundario">{dado.regra.rotulo}</span>}
       <span className={velho ? "mp-tabela-principal" : "mp-tabela-secundario"}>
         {velho && <span aria-hidden="true">{MARCA_ESTADO.dado_velho} </span>}
@@ -236,6 +254,8 @@ function DadoAte({ l }: { l: LinhaRodada }) {
         {velho ? ", acima do esperado" : ""}
       </span>
       <span className="mp-tabela-secundario">{dado.situacao === "sem_prazo" ? "coleta assistida: sem esperado" : textoEsperado(dado.regra)}</span>
+      {/* As outras fontes dos municípios (onda 12, C): detalhe, sem mudar o estado. */}
+      {dado.detalhe && <span className="mp-tabela-secundario">{dado.detalhe}</span>}
     </>
   );
 }
@@ -370,6 +390,9 @@ function SecaoGithub({ github }: { github: RodadaGithub[] | null }) {
 function ExecucaoGithub({ workflow, r }: { workflow: string; r: RodadaGithub | null }) {
   if (!r) return <>—</>;
   const { marca, texto } = rotuloGithub(r);
+  // Só o endereço do próprio GitHub vira link (onda 12, C, M6 da revisão da onda 11), ainda que `ultimaNoGithub` já
+  // tenha conferido: a tela não confia no que recebe.
+  const url = urlDoGithub(r.url);
   return (
     <>
       <span className={`mp-tabela-principal${githubPedeAtencao(r) ? " mp-painel-urgente" : ""}`}>
@@ -381,8 +404,8 @@ function ExecucaoGithub({ workflow, r }: { workflow: string; r: RodadaGithub | n
           {dataHoraBrasilia(r.criadaEm)} · {rotuloEvento(r.evento)}
         </span>
       )}
-      {r.url && (
-        <a href={r.url} target="_blank" rel="noopener noreferrer">
+      {url && (
+        <a href={url} target="_blank" rel="noopener noreferrer">
           abrir no GitHub
           <span className="pa-sr"> (a execução de {workflow}, em nova aba)</span>
         </a>

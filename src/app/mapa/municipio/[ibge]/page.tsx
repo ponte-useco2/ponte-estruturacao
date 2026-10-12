@@ -6,7 +6,7 @@ import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { quemRecebe } from "@/lib/oportunidades/pagina-entidade";
-import { ABAS_MUNICIPIO, PODE, abaEscolhida, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import { ABAS_MUNICIPIO, PODE, abaEscolhida, ibgeDaUrl, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
@@ -27,11 +27,14 @@ const NAO_INDEXAR: Metadata["robots"] = { index: false, follow: false };
  * resultado entre o título (`generateMetadata`) e a página, sem leitura a mais. A leitura é a leve quando a página
  * atende o público (`acesso.aprovado === null`, nível 0): só as fontes que o nível 0 desenha, com chave própria no
  * cache (`relatorio-municipio.server.ts`). O aprovado, de qualquer nível, recebe a leitura completa de sempre.
+ *
+ * Onda 12, A (12/10/2026; M1 da revisão de segurança da onda 11): o IBGE tem de ser um dos 223 da PB (`ibgeDaUrl`), e
+ * não só casar com `^25\d{5}$`. O que não é dá o 404 de sempre, sem ler o banco.
  */
 const lerPagina = cache(async (ibge: string) => {
   const visitante = await visitanteAtual();
   const acesso = quemAPaginaAtende(visitante, chaveDoAmbiente(), `/mapa/municipio/${encodeURIComponent(ibge)}`);
-  if (!acesso || !/^25\d{5}$/.test(ibge)) return { acesso, leitura: null, nivel: null };
+  if (!acesso || !ibgeDaUrl(ibge)) return { acesso, leitura: null, nivel: null };
   const [leitura, nivel] = await Promise.all([
     lerRelatorioMunicipio(ibge, diaBrasilia(new Date().toISOString()), { publico: acesso.aprovado === null }),
     nivelNoMunicipio(acesso.aprovado, ibge),

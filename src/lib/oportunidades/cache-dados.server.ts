@@ -13,10 +13,16 @@
  *
  * Para limpar tudo de uma vez (por exemplo, ao fim da rodada do painel): `revalidateTag("mapa-dados", "max")` numa rota
  * protegida, ou "Purge Data Cache" no painel da Vercel. Sem isso, a validade de 10 minutos faz o resto.
+ *
+ * Onda 12 (A, 12/10/2026; M2 da revisão de segurança da onda 11): a chave leva o ambiente (`VERCEL_ENV`) além da
+ * publicação, e a publicação que cai em "local" dentro da Vercel vira um aviso no log, uma vez por instância.
  */
 import { unstable_cache } from "next/cache";
-import { criarCamadaCompartilhada, implantacaoDe } from "./cache-dados";
+import { criarCamadaCompartilhada, criarPublicacao } from "./cache-dados";
 import type { CamadaCompartilhada } from "./memoria";
+
+/** Uma por módulo, e o módulo é um por instância: o aviso da publicação "local" sai uma vez, e não uma por leitor. */
+const publicacaoDaInstancia = criarPublicacao();
 
 /** A camada de um leitor. `guardavel` é a regra do que vai ao cache comum; o resto, como em `criarCamadaCompartilhada`. */
 export function camadaDoCacheDeDados<T>(o: {
@@ -28,6 +34,6 @@ export function camadaDoCacheDeDados<T>(o: {
   return criarCamadaCompartilhada<T>({
     ...o,
     cachear: (ler, partes, opcoes) => unstable_cache(ler, partes, opcoes),
-    implantacao: implantacaoDe(process.env),
+    publicacao: publicacaoDaInstancia(process.env),
   });
 }

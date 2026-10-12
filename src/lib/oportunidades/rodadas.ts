@@ -19,6 +19,10 @@
  * no prazo, com o CAUC parado em 02/10, e a tela disse "em dia". Cada job diz agora onde a execução grava a data do
  * DADO (não a da rodada) e quanto ela pode ficar para trás da rodada que a leu; passou disso, com a rodada em dia, a
  * linha fica "dado velho".
+ *
+ * Os municípios (12/10/2026, onda 12, C): o job grava `contagens.periodo_por_fonte`, e a data do dado da linha é a do
+ * Caged, a única fonte de cadência curta; as outras, anuais ou censitárias, vão como detalhe e nunca deixam o dado
+ * velho. A execução sem o campo continua "o job não grava".
  */
 import { REPOSITORIO } from "./agendamento.ts";
 import { dataBrasilia, diaBrasilia } from "./datas.ts";
@@ -108,9 +112,14 @@ export const DEFASAGEM_TRANSFEREGOV_DIAS = 2;
  * volta das 11h10 UTC, e a rodada das 11h30 lê a do dia (0) ou, se a publicação atrasa, a da véspera (1); no fim de
  * semana fica a de sexta (27/09/2026, domingo: 25/09, 0). A única falha antes de outubro deu 2 (a rodada de 23/09 leu o
  * de 21/09). De 3 em diante é o mesmo limite de `DIAS_UTEIS_CAUC` (3) em `fiscal/regras.py` (onda 11, A), que deixa G7 e
- * G7A "desatualizado": a mesma regra na tela do fiscal e aqui (o teste confere). A diferença: aqui não há calendário de
- * feriados, e o dia depois de um feriado conta um dia útil a mais. Fonte: execuções 1 a 27 do fiscal; em 09/10/2026 o
- * CAUC de 02/10 tinha 5 dias úteis.
+ * G7A "desatualizado": a mesma regra na tela do fiscal e aqui (o teste confere). Fonte: execuções 1 a 27 do fiscal; em
+ * 09/10/2026 o CAUC de 02/10 tinha 5 dias úteis.
+ *
+ * Os feriados (12/10/2026, onda 12, C, M1 da revisão D): desde a regra 2026-10-10.1 o fiscal grava
+ * `contagens.cauc_dias_uteis`, contado com o calendário de `fiscal/calendario.py`, e é esse número que vale aqui
+ * (`RegraDado.defasagemPronta`). Sem ele, o painel contaria o 12/10/2026 como útil, e em 14/10 o CAUC de 09/10 daria 3
+ * ("dado velho") enquanto o fiscal dá 2, sem aviso. A conta daqui, de segunda a sexta, fica só para as execuções
+ * antigas, sem o campo.
  */
 export const DEFASAGEM_CAUC_DIAS_UTEIS = 2;
 
@@ -163,6 +172,27 @@ export const DEFASAGEM_CONSULTA_DIAS = 1;
  */
 export const DEFASAGEM_OSC_MESES = 2;
 
+/**
+ * Os indicadores dos municípios (12/10/2026, onda 12, C): `contagens.periodo_por_fonte`, o período de referência mais
+ * recente de cada fonte, que o job grava desde a onda 12. Das 20 fontes, só o Novo Caged tem cadência conhecida e
+ * curta: o MTE publica o mês M entre os dias 27 e 30 do mês seguinte (no FTP do PDET, lido em 12/10/2026: 05/2026 em
+ * 30/06, 06/2026 em 29/07, 07/2026 em 28/08 e 08/2026 em 29/09), e o job roda no dia 5. A rodada do dia 5 lê o mês M-2
+ * (em 09/10/2026, o de agosto). Mais um mês para a publicação que escorrega para depois do dia 5 (basta uma semana de
+ * atraso do MTE) e para a fonte que falhou numa rodada e foi repetida da anterior (essa já é aviso). De 4 meses em
+ * diante, o MTE deixou de publicar ou o job não lê o Caged novo há duas rodadas.
+ *
+ * Por que só o Caged: as outras fontes são anuais ou censitárias, com defasagem natural de anos (o IDHM é do Censo de
+ * 2010, o ISH da ANA de 2021, o PIB de 2023, o SINISA de 2024) e sem data de publicação fixa; uma régua para elas
+ * acenderia todo dia no e-mail, sem nada a fazer, como aconteceria com as OSC (integração da onda 11). As mensais de
+ * calendário incerto (Anatel em 11/2025 na rodada de 09/10/2026, Senatran, CNES, APS, MI Social) também ficam fora:
+ * aparecem como detalhe, nunca como "dado velho". Fonte: `municipios/economia.py` (doze meses até o último publicado)
+ * e `mun_indicador` da execução 5, agregado por fonte pelo MCP em 12/10/2026.
+ */
+export const DEFASAGEM_CAGED_MESES = 3;
+
+/** O nome da fonte do Caged em `periodo_por_fonte` (a `Leitura` de `municipios/economia.py`). */
+export const FONTE_CAGED = "caged";
+
 /** Onde a execução de um job grava a data do dado, e quanto ela pode ficar para trás da rodada. */
 export interface RegraDado {
   /** O lugar na execução, por extenso: "coluna dado_ate (…)", "contagens.cauc_data_pesquisa". */
@@ -179,6 +209,24 @@ export interface RegraDado {
   /** Quanto o dado pode ficar para trás da rodada; null: coleta assistida, sem defasagem esperada (nunca "velho"). */
   limite: number | null;
   unidade: UnidadeDefasagem;
+  /**
+   * "mes" (onda 12, C): o dado é de um mês, não de um dia (o Caged). `ler` devolve o dia 1 do mês, e a tela e o e-mail
+   * escrevem "08/2026". Ausente: "dia".
+   */
+  precisao?: "dia" | "mes";
+  /**
+   * Se a execução já grava a data (onda 12, C). Falso: a execução é de antes de o job gravá-la (os municípios antes da
+   * onda 12), e a coluna fica como era, "o job não grava", sem "não lido". Ausente: sempre grava.
+   */
+  grava?: (contagens: Contagens) => boolean;
+  /** O resto da data do dado, numa frase curta para a coluna (onda 12, C: as outras fontes dos municípios). */
+  detalhe?: (contagens: Contagens) => string | null;
+  /**
+   * A defasagem já contada pelo próprio job, na unidade da regra (onda 12, C, M1 da revisão D): o fiscal grava
+   * `cauc_dias_uteis` com os feriados. Inteiro de 0 em diante: vale ele. null (ausente, ou não é inteiro): a conta
+   * daqui, por `defasagemEntre`.
+   */
+  defasagemPronta?: (contagens: Contagens) => number | null;
 }
 
 const DIA_PURO = /^\d{4}-\d{2}-\d{2}$/;
@@ -211,8 +259,9 @@ const numeroDoDia = (dia: string) => Math.round(Date.parse(`${dia}T00:00:00Z`) /
 
 /**
  * Quanto o dia do dado ficou para trás do dia da rodada, na unidade dada (os dois "AAAA-MM-DD", em Brasília). O dado
- * mais novo que a rodada conta 0. Dias úteis: os de segunda a sexta depois do dia do dado, até o dia da rodada (o
- * domingo que lê o CAUC de sexta conta 0; a sexta que lê o da sexta anterior conta 5).
+ * mais novo que a rodada conta 0 aqui, mas `avaliarDado` o trata antes como "não lido" (onda 12, C, M3 da revisão D).
+ * Dias úteis: os de segunda a sexta depois do dia do dado, até o dia da rodada (o domingo que lê o CAUC de sexta conta
+ * 0; a sexta que lê o da sexta anterior conta 5).
  */
 export function defasagemEntre(diaDado: string, diaRodada: string, unidade: UnidadeDefasagem): number {
   if (unidade === "meses") {
@@ -245,6 +294,11 @@ export function textoUnidade(x: number, unidade: UnidadeDefasagem): string {
   return `${x.toLocaleString("pt-BR")} ${x === 1 ? um : varios}`;
 }
 
+/** O dia do dado por extenso: "02/10/2026"; com a precisão de mês (onda 12, C), "08/2026". Vazio: "—". */
+export function textoDiaDoDado(dia: string | null | undefined, precisao: "dia" | "mes" = "dia"): string {
+  return precisao === "mes" && dia && DIA_PURO.test(dia) ? `${dia.slice(5, 7)}/${dia.slice(0, 4)}` : dataBrasilia(dia);
+}
+
 // ================================================================ os jobs
 
 export type Contagens = Record<string, unknown>;
@@ -256,6 +310,12 @@ const plural = (x: number, um: string, varios: string) => `${n(x)} ${x === 1 ? u
 export function numero(c: Contagens, chave: string): number | null {
   const v = c[chave];
   return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** O inteiro de 0 em diante de uma chave do `contagens`, ou null (onda 12, C: a idade do CAUC contada pelo fiscal). */
+function inteiroNaoNegativo(c: Contagens, chave: string): number | null {
+  const v = numero(c, chave);
+  return v !== null && Number.isInteger(v) && v >= 0 ? v : null;
 }
 
 function objeto(c: Contagens, chave: string): Record<string, unknown> {
@@ -300,7 +360,8 @@ export interface JobRodada {
   folgaH: number;
   /**
    * Onde a execução grava a data do dado e a defasagem esperada (10/10/2026, onda 11, B). null: o job não grava uma data
-   * do dado que valha para a rodada inteira (os indicadores dos municípios: cada fonte tem o seu ano).
+   * do dado que valha para a rodada inteira. Até a onda 12 era o caso dos indicadores dos municípios; desde 12/10/2026
+   * (onda 12, C), todos os jobs têm regra, e o null fica para um job novo que não grave.
    */
   dado: RegraDado | null;
   /** A contagem principal do `contagens` e o que ela conta. */
@@ -353,6 +414,99 @@ const DADO_EXIGENCIAS: RegraDado = {
   ler: colunaDadoAte,
   limite: null,
   unidade: "dias",
+};
+
+// ---------------------------------------------------------------- os municípios (12/10/2026, onda 12, C)
+
+/** O período de uma fonte dos municípios, como o job grava em `contagens.periodo_por_fonte`. */
+export interface PeriodoFonte {
+  /** O nome da `Leitura` no job ("caged", "ipeadata", "inep_ideb"…). */
+  fonte: string;
+  /** "AAAA" ou "AAAA-MM"; null quando a fonte não trouxe período (falhou sem herança, ou só linhas sem valor). */
+  periodo: string | null;
+  /** Repetida da execução anterior (falhou nesta, ou ficou fora de um disparo parcial). */
+  herdada: boolean;
+}
+
+const NOME_DE_FONTE = /^[a-z][a-z0-9_]{0,39}$/;
+const PERIODO_DE_FONTE = /^\d{4}(-(0[1-9]|1[0-2]))?$/;
+
+/**
+ * O `periodo_por_fonte` da execução, por fonte, ou null quando a execução é de antes do campo (todas até a onda 12).
+ * Só esse campo das `contagens`, e só o que tem a forma esperada: nome de fonte em minúsculas e período "AAAA" ou
+ * "AAAA-MM". Qualquer outro texto é descartado, e nada de texto livre chega à tela ou ao e-mail.
+ */
+export function periodosPorFonte(c: Contagens): PeriodoFonte[] | null {
+  const bruto = c.periodo_por_fonte;
+  if (!bruto || typeof bruto !== "object" || Array.isArray(bruto)) return null;
+  return Object.entries(bruto as Record<string, unknown>)
+    .filter(([fonte]) => NOME_DE_FONTE.test(fonte))
+    .map(([fonte, v]) => {
+      const o = v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+      const periodo = typeof o.periodo === "string" && PERIODO_DE_FONTE.test(o.periodo) ? o.periodo : null;
+      return { fonte, periodo, herdada: o.herdada === true };
+    })
+    .sort((a, b) => a.fonte.localeCompare(b.fonte));
+}
+
+/** "2010", "09/2026". */
+export function textoPeriodo(periodo: string): string {
+  return periodo.length === 7 ? `${periodo.slice(5, 7)}/${periodo.slice(0, 4)}` : periodo;
+}
+
+/** Para ordenar: no mesmo ano, o ano sozinho vem antes dos meses. */
+const chavePeriodo = (p: string) => Number(p.slice(0, 4)) * 100 + (p.length === 7 ? Number(p.slice(5, 7)) : 0);
+
+/**
+ * As fontes dos municípios além do Caged, numa frase para a coluna "Dado até": "demais 19 fontes de 2010 (ipeadata) a
+ * 09/2026 (mds_misocial)", mais as repetidas da rodada anterior e as sem período. Não mudam o estado (ver
+ * `DEFASAGEM_CAGED_MESES`). null: a execução é de antes do campo.
+ */
+export function detalheMunicipios(c: Contagens): string | null {
+  const todas = periodosPorFonte(c);
+  if (!todas) return null;
+  const caged = todas.find((p) => p.fonte === FONTE_CAGED);
+  const demais = todas.filter((p) => p.fonte !== FONTE_CAGED);
+  const comPeriodo = demais
+    .filter((p): p is PeriodoFonte & { periodo: string } => p.periodo !== null)
+    .sort((a, b) => chavePeriodo(a.periodo) - chavePeriodo(b.periodo) || a.fonte.localeCompare(b.fonte));
+  const partes: string[] = [];
+  if (caged?.herdada) partes.push("Caged repetido da rodada anterior");
+  if (comPeriodo.length === 1 && demais.length === 1) {
+    partes.push(`a outra fonte é de ${textoPeriodo(comPeriodo[0].periodo)} (${comPeriodo[0].fonte})`);
+  } else if (comPeriodo.length) {
+    const velha = comPeriodo[0];
+    const nova = comPeriodo[comPeriodo.length - 1];
+    partes.push(
+      velha.periodo === nova.periodo
+        ? `demais ${n(demais.length)} fontes de ${textoPeriodo(velha.periodo)}`
+        : `demais ${n(demais.length)} fontes de ${textoPeriodo(velha.periodo)} (${velha.fonte}) a ${textoPeriodo(nova.periodo)} (${nova.fonte})`,
+    );
+  }
+  const herdadas = demais.filter((p) => p.herdada).length;
+  if (herdadas) partes.push(`${herdadas === 1 ? "uma repetida" : `${n(herdadas)} repetidas`} da rodada anterior`);
+  const sem = demais.filter((p) => p.periodo === null).map((p) => p.fonte);
+  if (sem.length) partes.push(`sem período: ${sem.join(", ")}`);
+  return partes.length ? partes.join("; ") : null;
+}
+
+/**
+ * A data do dado dos municípios é a do Caged, a única fonte de cadência conhecida e curta; as outras vão como
+ * detalhe. A execução sem `periodo_por_fonte` (todas até a onda 12) fica como antes: "o job não grava".
+ */
+const DADO_MUNICIPIOS: RegraDado = {
+  onde: "contagens.periodo_por_fonte.caged: o último mês dos doze do Novo Caged (as outras fontes, como detalhe)",
+  rotulo: "Caged",
+  origem: "contagens",
+  ler: ({ contagens }) => {
+    const p = periodosPorFonte(contagens)?.find((x) => x.fonte === FONTE_CAGED)?.periodo ?? null;
+    return p && p.length === 7 ? `${p}-01` : null;
+  },
+  limite: DEFASAGEM_CAGED_MESES,
+  unidade: "meses",
+  precisao: "mes",
+  grava: (c) => periodosPorFonte(c) !== null,
+  detalhe: detalheMunicipios,
 };
 
 /**
@@ -468,6 +622,9 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
       ler: ({ contagens }) => textoDe(contagens, "cauc_data_pesquisa"),
       limite: DEFASAGEM_CAUC_DIAS_UTEIS,
       unidade: "dias_uteis",
+      // A idade que o fiscal contou com os feriados (onda 12, C, M1 da revisão D). Só o número: o `cauc_aviso`, texto,
+      // não é lido.
+      defasagemPronta: (c) => inteiroNaoNegativo(c, "cauc_dias_uteis"),
     },
     linhas: (c) => numero(c, "municipios"),
     rotuloLinhas: "municípios",
@@ -475,7 +632,12 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     falhas: (c) => soma(objeto(c, "fontes_com_erro")),
     avisos: (c) => {
       const fontes = Object.keys(objeto(c, "fontes_com_erro"));
-      return fontes.length ? [`fonte${fontes.length === 1 ? "" : "s"} com erro: ${fontes.join(", ")}`] : [];
+      return [
+        ...(fontes.length ? [`fonte${fontes.length === 1 ? "" : "s"} com erro: ${fontes.join(", ")}`] : []),
+        // `siope_incompletos` (onda 12, C, pedido do supervisor; o campo é do agente E): os municípios cuja leitura do
+        // SIOPE voltou pela metade, com HTTP 200 e sem erro (A3 da revisão D). Ausente ou 0: nada.
+        ...seMaior(numero(c, "siope_incompletos"), (x) => `SIOPE incompleto em ${plural(x, "município", "municípios")}`),
+      ];
     },
   },
   {
@@ -558,8 +720,9 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     cron: "0 10 5 * *",
     folgaH: FOLGA_PADRAO_H,
     // O `dado_ate` é o instante da rodada, e cada fonte tem o seu período (`mun_indicador.ano`: MapBiomas anual, Caged
-    // mensal…). Não há uma data do dado da rodada inteira; a fonte que falha já vira aviso (repetida da anterior).
-    dado: null,
+    // mensal…). Desde 12/10/2026 (onda 12, C), o job grava `periodo_por_fonte`: a data do dado é a do Caged, e as outras
+    // fontes vão como detalhe (ver `DEFASAGEM_CAGED_MESES`). A fonte que falha continua sendo aviso.
+    dado: DADO_MUNICIPIOS,
     linhas: (c) => {
       const porFonte = objeto(c, "linhas_por_fonte");
       return Object.keys(porFonte).length ? soma(porFonte) : null;
@@ -745,8 +908,10 @@ export type LeituraRodada =
  * A data do dado de uma linha (10/10/2026, onda 11, B).
  * - "no_prazo" e "velho": a data foi lida, e a defasagem ficou dentro ou passou do limite da regra;
  * - "sem_prazo": a data foi lida, mas a coleta assistida não tem defasagem esperada;
- * - "nao_grava": o job não grava uma data do dado da rodada inteira (`JobRodada.dado` null);
- * - "nao_lido": a consulta da coluna falhou, ou a rodada não trouxe a data (`motivo`);
+ * - "nao_grava": o job não grava uma data do dado da rodada inteira (`JobRodada.dado` null), ou a execução é de antes
+ *   de gravá-la (`RegraDado.grava` falso: os municípios antes de 12/10/2026, onda 12, C);
+ * - "nao_lido": a consulta da coluna falhou, ou a rodada não trouxe a data, ou trouxe uma depois do dia da rodada
+ *   (onda 12, C, M3 da revisão D) (`motivo`);
  * - "sem_execucao": nenhuma execução concluída, ou a linha inteira não foi lida.
  */
 export type SituacaoDado = "no_prazo" | "velho" | "sem_prazo" | "nao_grava" | "nao_lido" | "sem_execucao";
@@ -758,9 +923,14 @@ export interface FrescorDado {
   /** Quanto o dado ficou para trás da rodada, na unidade da regra. */
   defasagem: number | null;
   /** O que a tela e o e-mail precisam da regra do job; null quando o job não grava a data. */
-  regra: Pick<RegraDado, "rotulo" | "limite" | "unidade"> | null;
-  /** Em "nao_lido": "falha" (a consulta não respondeu) ou "sem_data" (a rodada não gravou a data, ou não é data). */
+  regra: Pick<RegraDado, "rotulo" | "limite" | "unidade" | "precisao"> | null;
+  /**
+   * Em "nao_lido": "falha" (a consulta não respondeu) ou "sem_data" (a rodada não gravou a data, não é data, ou é depois
+   * do dia da rodada).
+   */
   motivo: "falha" | "sem_data" | null;
+  /** O resto da data do dado, quando a regra tem (`RegraDado.detalhe`; onda 12, C: as outras fontes dos municípios). */
+  detalhe?: string | null;
 }
 
 /**
@@ -776,8 +946,11 @@ export function avaliarDado(
   const regra = job.dado;
   const vazio: FrescorDado = { situacao: "sem_execucao", dia: null, defasagem: null, regra: null, motivo: null };
   if (!regra) return { ...vazio, situacao: "nao_grava" };
-  const base = { ...vazio, regra: { rotulo: regra.rotulo, limite: regra.limite, unidade: regra.unidade } };
+  const base = { ...vazio, regra: { rotulo: regra.rotulo, limite: regra.limite, unidade: regra.unidade, precisao: regra.precisao ?? "dia" } };
   if (!ultima || !concluidaEm) return base;
+  // A execução de antes de o job gravar a data (onda 12, C): como antes, "não grava", sem "não lido".
+  if (regra.grava && !regra.grava(ultima.contagens ?? {})) return { ...base, situacao: "nao_grava" };
+  const detalhe = regra.detalhe?.(ultima.contagens ?? {}) ?? null;
 
   let coluna: string | null = null;
   if (regra.origem === "coluna") {
@@ -787,11 +960,14 @@ export function avaliarDado(
   }
   const dia = diaDoDado(regra.ler({ contagens: ultima.contagens ?? {}, dadoAte: coluna }));
   const diaRodada = diaDoDado(concluidaEm);
-  if (!dia || !diaRodada) return { ...base, situacao: "nao_lido", motivo: "sem_data" };
+  // O dado depois do dia da rodada (onda 12, C, M3 da revisão D) é data errada (a posição do CAUC com o ano trocado),
+  // não dado fresco: "não lido", como a data que não veio, e nunca "no prazo".
+  if (!dia || !diaRodada || dia > diaRodada) return { ...base, situacao: "nao_lido", motivo: "sem_data", detalhe };
 
-  const defasagem = defasagemEntre(dia, diaRodada, regra.unidade);
+  // A idade que o job já contou, com os feriados (onda 12, C, M1 da revisão D); sem ela, a conta daqui.
+  const defasagem = regra.defasagemPronta?.(ultima.contagens ?? {}) ?? defasagemEntre(dia, diaRodada, regra.unidade);
   const situacao: SituacaoDado = regra.limite === null ? "sem_prazo" : defasagem > regra.limite ? "velho" : "no_prazo";
-  return { ...base, situacao, dia, defasagem };
+  return { ...base, situacao, dia, defasagem, detalhe };
 }
 
 /** "5 dias úteis antes da rodada", "do mesmo dia da rodada", "do mesmo mês da rodada". */
@@ -808,12 +984,13 @@ export function textoEsperado(regra: Pick<RegraDado, "limite" | "unidade"> | nul
 
 /**
  * A data do dado numa frase, para o e-mail e a tela: "CAUC de 02/10/2026, 5 dias úteis antes da rodada (esperado: até
- * 1 dia útil)". Vazio quando a data não foi lida.
+ * 1 dia útil)"; com a precisão de mês (onda 12, C), "Caged de 07/2026, 4 meses antes da rodada (esperado: até 3
+ * meses)". Vazio quando a data não foi lida.
  */
 export function textoFrescor(f: FrescorDado): string {
   if (!f.dia || !f.regra) return "";
   const esperado = textoEsperado(f.regra);
-  return `${f.regra.rotulo} de ${dataBrasilia(f.dia)}, ${textoDefasagem(f)}${esperado ? ` (${esperado})` : ""}`;
+  return `${f.regra.rotulo} de ${textoDiaDoDado(f.dia, f.regra.precisao)}, ${textoDefasagem(f)}${esperado ? ` (${esperado})` : ""}`;
 }
 
 export interface GravandoAgora {
@@ -965,6 +1142,11 @@ export function textoPrazo(horas: number): string {
  * A última execução de um workflow no GitHub, pelo token do agendador (`GITHUB_DISPARO_TOKEN`, fine-grained, só
  * Actions do ponte-oportunidades, "read and write": a leitura cabe). Quem chama é `rodadas.server.ts`, no servidor; sem
  * o token, a coluna diz "não configurado". O token nunca aparece no retorno, como em `agendamento.ts`.
+ *
+ * M6 da revisão de segurança da onda 11 (12/10/2026, onda 12, C): o token dispara workflows, e a tela só lê. Desde a
+ * onda 12 o e-mail diário não chama o GitHub (`lerRodadas({ github: false })`), e o link da execução só é desenhado
+ * se for do próprio GitHub (`urlDoGithub`). Falta um token só de leitura (Actions: read) para a tela, que é segredo
+ * novo na Vercel e fica com o titular.
  */
 export interface RodadaGithub {
   workflow: string;
@@ -989,6 +1171,21 @@ export function urlExecucoesGithub(workflow: string): string {
 }
 
 const texto = (v: unknown) => (typeof v === "string" && v ? v : null);
+
+/**
+ * O endereço da execução, só se for do próprio GitHub (M6 da revisão da onda 11; 12/10/2026, onda 12, C): começa por
+ * "https://github.com/" e a origem lida pelo `URL` é a mesma. Outro esquema ("javascript:", "http:"), outro domínio
+ * ("https://github.com.exemplo.net/") ou texto que não é endereço dão null, e a tela não desenha o link.
+ */
+export function urlDoGithub(v: unknown): string | null {
+  const u = texto(v);
+  if (!u || !u.startsWith("https://github.com/")) return null;
+  try {
+    return new URL(u).origin === "https://github.com" ? u : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function ultimaNoGithub(token: string, workflow: string, buscar: BuscarGithub = fetch): Promise<RodadaGithub> {
   const vazio = { workflow, status: null, conclusao: null, evento: null, criadaEm: null, url: null, http: null };
@@ -1015,7 +1212,8 @@ export async function ultimaNoGithub(token: string, workflow: string, buscar: Bu
       conclusao: texto(run.conclusion),
       evento: texto(run.event),
       criadaEm: texto(run.created_at),
-      url: texto(run.html_url),
+      // Só o endereço do próprio GitHub (onda 12, C).
+      url: urlDoGithub(run.html_url),
       http: null,
     };
   } catch {

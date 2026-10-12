@@ -32,6 +32,17 @@ test("CNPJ da URL: com ou sem máscara, alfanumérico aceito; fora do formato, n
   assert.equal(cnpjDaUrl(undefined), null);
 });
 
+test("CNPJ da URL (onda 12, A; M1): o dígito verificador conferido antes de ler — numérico e alfanumérico", () => {
+  // válido, numérico e alfanumérico (o exemplo da Receita, 12.ABC.345/01DE-35)
+  assert.equal(cnpjDaUrl("09084815000170"), "09084815000170");
+  assert.equal(cnpjDaUrl("12abc34501de35"), "12ABC34501DE35", "minúsculas da URL viram caixa alta");
+  // no formato, mas com o dígito errado: o mesmo null do que está fora do formato (a página dá o 404 de sempre)
+  assert.equal(cnpjDaUrl("09084815000171"), null);
+  assert.equal(cnpjDaUrl("09.084.815/0001-71"), null);
+  assert.equal(cnpjDaUrl("12ABC34501DE36"), null);
+  assert.equal(cnpjDaUrl("00000000000000"), null, "14 zeros fecham a conta e não são CNPJ");
+});
+
 test("espécie: pelo tipo do painel e pelo nome, que corrige o fundo municipal marcado como OSC", () => {
   assert.equal(especieDe("MUNICIPIO DE PATOS", "municipio"), "prefeitura");
   assert.equal(especieDe("PREFEITURA MUNICIPAL DE SOUSA", "municipio"), "prefeitura");
@@ -176,6 +187,8 @@ test("C1c: entidade sem instrumento nem proposta — as saídas (nome e Transfer
   assert.deepEqual(saidasEntidadeVazia({ cnpj: "09282237000187", nome: "09282237000187" }).map((x) => x.href), [TRANSFEREGOV_CONSULTA]);
   assert.deepEqual(saidasEntidadeVazia({ cnpj: "09282237000187", nome: "09.282.237/0001-87" }).map((x) => x.href), [TRANSFEREGOV_CONSULTA]);
   assert.deepEqual(saidasEntidadeVazia({ cnpj: "09282237000187", nome: "  " }).map((x) => x.href), [TRANSFEREGOV_CONSULTA]);
+  // Onda 12, A: a comparação do nome com o CNPJ é só de formato — um CNPJ de dígito errado no nome continua "sem nome".
+  assert.deepEqual(saidasEntidadeVazia({ cnpj: "09282237000188", nome: "09.282.237/0001-88" }).map((x) => x.href), [TRANSFEREGOV_CONSULTA]);
 });
 
 test("C1c: fontes da entidade — só as que ela lê; a OSC do Mapa ganha a linha do Ipea", () => {

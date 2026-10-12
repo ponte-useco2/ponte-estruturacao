@@ -38,6 +38,17 @@
  *   - **Fornecedores do município** (`lerInidoneosDoMunicipio`): o relatório lê só o que usa — a concentração e os
  *     inidôneos que receberam lá —, em 3 pedidos e 2 idas e voltas, no lugar da lista do painel (de 13 a 29 pedidos,
  *     com 4 contagens exatas, o CEIS/CNEP e todos os pares do município por OFFSET). O resultado é o mesmo.
+ *
+ * Onda 12, A (12/10/2026; M1 e M7 da revisão de segurança da onda 11): duas mudanças antes de ligar `MAPA_PUBLICO`, sem
+ * mudar o que se vê.
+ *   - **O "não encontrado" fica fora do cache comum** (`leituraGuardavelNoCacheComum`): só a leitura "ok" e sem faltas
+ *     vai a ele. A memória da instância guarda o que guardava (`leituraGuardavel`). As páginas, por sua vez, conferem o
+ *     IBGE contra os 223 da PB e o dígito do CNPJ antes de chamar estes leitores.
+ *   - **A leitura pública sai já recortada** (`leituraDoPublico`, de `pagina-municipio.ts`), antes de ir à memória e ao
+ *     cache: o relatório do público e, na entidade, os instrumentos sem os campos de análise, que ela nem pede ao banco
+ *     (`COLUNAS_INSTRUMENTO_PUBLICO`). A página continua aplicando o recorte do nível, e a função é idempotente. O import
+ *     de `pagina-municipio` não cria ciclo novo: este arquivo já o alcançava por `pagina-entidade`, e nenhum módulo do
+ *     ciclo `relatorio-municipio` → `busca` → `pagina-municipio` importa este; as funções importadas só rodam a pedido.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { VALIDADE_DADOS_MS, VALIDADE_FALTA_MS, leituraComFalta } from "./cache-dados";
@@ -51,6 +62,8 @@ import { ehEsquemaAusente } from "./esquema";
 import { lerFiscalMunicipio } from "./fiscal.server";
 import { criarMemoria } from "./memoria";
 import { areaExcetuadaDe, ehMunicipal, especieDe, type EspecieEntidade, type LinhaEntidadeMunicipio } from "./pagina-entidade";
+// Depois de `pagina-entidade`, que já carrega `pagina-municipio`: a ordem de carga dos módulos do ciclo não muda.
+import { colunasDoPublico, instrumentoDoPublico, leituraDoPublico } from "./pagina-municipio";
 import { cnpjDaMatriz, nomeOsc, type CadastroOsc } from "./osc";
 import { lerCadastroOsc, type LeituraCadastroOsc } from "./osc.server";
 import catalogoIndicadores from "./indicadores-municipio.json";
@@ -62,10 +75,12 @@ import type { PlanoFundo } from "./pix";
 import type { PlanoCicloPix } from "./pix-ciclo";
 import { lerLaudoEntePix } from "./pix-laudo.server";
 import {
+  COLUNAS_INSTRUMENTO,
   VERSAO_RELATORIO,
   entradaDasFontes,
   fontesDoNivel,
   leituraGuardavel,
+  leituraGuardavelNoCacheComum,
   montarRelatorio,
   type EmendaRelatorio,
   type EntradaRelatorio,
@@ -88,10 +103,12 @@ export type LeituraRelatorio =
   | { estado: "nao_encontrado" }
   | { estado: "ok"; relatorio: Relatorio };
 
-const COLUNAS_INSTRUMENTO =
-  "nr_convenio,municipio,modalidade,situacao,subsituacao,orgao_sup,programa,objeto,vl_global,vl_repasse,vl_desembolsado,vl_pago,vl_saldo_conta," +
-  "pct_fisico,dt_assinatura,dt_fim_vigencia,dt_limite_contas,dt_primeiro_desembolso,dt_ultimo_desembolso,dt_ultimo_pagamento,situacao_contratacao," +
-  "pc33_regime,pc33_nivel,pc33_pior,pc33_itens";
+// `COLUNAS_INSTRUMENTO` mora em `relatorio-municipio.ts` desde a onda 12 (A, 12/10/2026). A leitura pública da entidade
+// pede a mesma lista menos os campos de análise (`CAMPOS_DE_ANALISE_DO_INSTRUMENTO`, M7 da revisão da onda 11). Montada
+// na primeira leitura, e não na carga: as duas listas vêm de módulos do ciclo `relatorio-municipio` → `busca` →
+// `pagina-municipio`, e o que se calcula na carga é o que já deu "Cannot access before initialization".
+let colunasInstrumentoPublico: string | null = null;
+const COLUNAS_INSTRUMENTO_PUBLICO = () => (colunasInstrumentoPublico ??= colunasDoPublico(COLUNAS_INSTRUMENTO));
 const COLUNAS_PROPOSTA = "id_proposta,ano_envio,desfecho,orgao_sup,programa,valor_repasse,dias_sem_evento,dt_ultimo_evento,limbo";
 const LOTE = 150;
 
@@ -247,29 +264,35 @@ const NADA = Promise.resolve(null);
 const FALTA_CURTA = { validadeMs: VALIDADE_FALTA_MS, e: leituraComFalta };
 
 // Onda 7, A: cada memória ganha a camada comum às instâncias; a leitura pública tem memória e chave próprias.
+// Onda 12, A (M1): a memória guarda o que guardava (`leituraGuardavel`, com o "não encontrado"); o cache comum, só a
+// leitura "ok" e sem faltas (`leituraGuardavelNoCacheComum`).
 const memoria = criarMemoria<LeituraRelatorio>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
   falta: FALTA_CURTA,
-  compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio", guardavel: leituraGuardavel }),
+  compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio", guardavel: leituraGuardavelNoCacheComum }),
 });
 const memoriaPublica = criarMemoria<LeituraRelatorio>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
   falta: FALTA_CURTA,
-  compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio-publico", guardavel: leituraGuardavel }),
+  compartilhada: camadaDoCacheDeDados<LeituraRelatorio>({ leitor: "municipio-publico", guardavel: leituraGuardavelNoCacheComum }),
 });
 
 /**
  * O relatório do município, da memória ou do cache quando há (ver o cabeçalho). Não altere o objeto devolvido. A
  * chave leva a versão das regras do relatório: publicação com regra nova não lê o relatório montado pela antiga.
+ *
+ * Onda 12, A (M7): a leitura pública passa por `leituraDoPublico` antes de ir à memória e ao cache: o que fica guardado
+ * já é o relatório do público, sem as listas de análise dos convênios.
  */
 export function lerRelatorioMunicipio(ibge: string, hoje: string, opcoes: OpcoesLeitura = {}): Promise<LeituraRelatorio> {
   const chave = `${ibge}|${hoje}|${VERSAO_RELATORIO}`;
   const fontes = fontesDaLeitura(opcoes);
-  return (opcoes.publico ? memoriaPublica : memoria).obter(chave, () => lerDoBanco(ibge, hoje, fontes));
+  if (opcoes.publico) return memoriaPublica.obter(chave, async () => leituraDoPublico(await lerDoBanco(ibge, hoje, fontes)));
+  return memoria.obter(chave, () => lerDoBanco(ibge, hoje, fontes));
 }
 
 /** O nome da lista fixa dos 223 (`municipios-pb.ts`): a mesma semente do job fiscal, 223 de 223 iguais em 09/10/2026. */
@@ -461,29 +484,36 @@ async function lerInidoneosDosConvenios(db: Banco, execucaoId: number, numeros: 
 
 // Como a do município: leitura com fonte faltando não fica os 10 minutos (B12b, 08/10/2026). Onda 7, A: com a camada
 // comum às instâncias, e a leitura pública com memória e chave próprias. Onda 8, B: a falta fica 1 minuto, só aqui.
+// Onda 12, A (M1): o "não encontrado" fica só na memória da instância, como no município.
 const memoriaEntidade = criarMemoria<LeituraEntidade>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
   falta: FALTA_CURTA,
-  compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade", guardavel: leituraGuardavel }),
+  compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade", guardavel: leituraGuardavelNoCacheComum }),
 });
 const memoriaEntidadePublica = criarMemoria<LeituraEntidade>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: leituraGuardavel,
   falta: FALTA_CURTA,
-  compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade-publica", guardavel: leituraGuardavel }),
+  compartilhada: camadaDoCacheDeDados<LeituraEntidade>({ leitor: "entidade-publica", guardavel: leituraGuardavelNoCacheComum }),
 });
 
-/** O relatório de uma entidade (um CNPJ), da memória ou do cache quando há. Não altere o objeto devolvido. */
+/**
+ * O relatório de uma entidade (um CNPJ), da memória ou do cache quando há. Não altere o objeto devolvido.
+ *
+ * Onda 12, A (M7): a leitura pública pede ao banco os instrumentos sem os campos de análise e passa por
+ * `leituraDoPublico` antes de ir à memória e ao cache.
+ */
 export function lerRelatorioEntidade(cnpj: string, hoje: string, opcoes: OpcoesLeitura = {}): Promise<LeituraEntidade> {
   const chave = `${cnpj}|${hoje}|${VERSAO_RELATORIO}`;
   const fontes = fontesDaLeitura(opcoes);
-  return (opcoes.publico ? memoriaEntidadePublica : memoriaEntidade).obter(chave, () => lerEntidadeDoBanco(cnpj, hoje, fontes));
+  if (opcoes.publico) return memoriaEntidadePublica.obter(chave, async () => leituraDoPublico(await lerEntidadeDoBanco(cnpj, hoje, fontes, true)));
+  return memoriaEntidade.obter(chave, () => lerEntidadeDoBanco(cnpj, hoje, fontes, false));
 }
 
-async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly FonteRelatorio[]): Promise<LeituraEntidade> {
+async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly FonteRelatorio[], publico: boolean): Promise<LeituraEntidade> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const faltas: string[] = [];
@@ -499,10 +529,12 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
   if (!ex) return { estado: "sem_execucao" };
 
   // Os instrumentos, as propostas e o cadastro do Mapa das OSC dizem quem é a entidade e se a página existe: toda
-  // leitura os lê, a pública também (D1: a entidade e a lista dos instrumentos dela).
-  const [instrumentos, propostas, osc] = await Promise.all([
+  // leitura os lê, a pública também (D1: a entidade e a lista dos instrumentos dela). Onda 12, A (M7): a pública sem os
+  // campos de análise, que ela não pede e que ficam em null no objeto (o relatório é montado já sem eles).
+  const colunas = publico ? COLUNAS_INSTRUMENTO_PUBLICO() : COLUNAS_INSTRUMENTO;
+  const [lidos, propostas, osc] = await Promise.all([
     paginas<InstrumentoRelatorio & ComIdentidade>(faltas, "convênios", (a, b) =>
-      db.from("painel_instrumento").select(`${COLUNAS_INSTRUMENTO},${IDENTIDADE_INSTRUMENTO}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("nr_convenio").range(a, b),
+      db.from("painel_instrumento").select(`${colunas},${IDENTIDADE_INSTRUMENTO}`).eq("execucao_id", ex.id).eq("cnpj", cnpj).order("nr_convenio").range(a, b),
     ),
     // `nr_proposta` (onda 7, 09/10/2026; N07 da R1): a lista da entidade mostra o número que a pessoa conhece.
     paginas<PropostaRelatorio & ComIdentidade & { nr_proposta: string | null }>(faltas, "propostas", (a, b) =>
@@ -516,6 +548,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
     ),
     lerCadastroOsc(cnpj, cnpjDaMatriz(cnpj)),
   ]);
+  const instrumentos = publico && lidos ? lidos.map(instrumentoDoPublico) : lidos;
   if (!instrumentos && !propostas) return { estado: "erro" };
   // Sem nada na base, a página existe só para a OSC do cadastro do Mapa das OSC (E3).
   const naBase = (instrumentos ?? []).length > 0 || (propostas ?? []).length > 0;
@@ -580,11 +613,14 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
   return { estado: "ok", entidade: ent, relatorio, instrumentos: instrumentos ?? [], propostas: propostas ?? [], osc };
 }
 
+// Onda 12, A (M1): a lista vazia é o "não encontrado" deste leitor (IBGE sem instrumento): fica só na memória da
+// instância. A página das organizações também confere o IBGE contra os 223 da PB (`ibgeDaUrl`, integração da onda 12);
+// mesmo assim, o cache comum não grava a lista vazia.
 const memoriaEntidades = criarMemoria<LinhaEntidadeMunicipio[] | null>({
   validadeMs: VALIDADE_DADOS_MS,
   maximo: 30,
   guardar: (l) => l !== null,
-  compartilhada: camadaDoCacheDeDados({ leitor: "entidades-do-municipio", guardavel: (l) => l !== null }),
+  compartilhada: camadaDoCacheDeDados({ leitor: "entidades-do-municipio", guardavel: (l) => l !== null && l.length > 0 }),
 });
 
 /** Os instrumentos de um município, de todos os proponentes, para o bloco "Quem recebe no município". */

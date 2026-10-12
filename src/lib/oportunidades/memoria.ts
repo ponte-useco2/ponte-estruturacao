@@ -21,6 +21,11 @@
  * `guardavel` da camada, que a recusa; ela só entra no `Map` desta instância. Erro, "não ativado" e o que `falta.e` não
  * reconhece continuam fora, como antes, e a validade da falta nunca passa a da leitura inteira.
  *
+ * As duas regras são independentes (onda 12, A, 12/10/2026; M1 da revisão de segurança da onda 11): `guardar` decide o
+ * que fica nesta instância, e o `guardavel` da camada compartilhada, o que vai ao cache comum. O relatório usa uma regra
+ * mais larga aqui (`leituraGuardavel`, com o "não encontrado") e uma mais estreita lá (`leituraGuardavelNoCacheComum`,
+ * só "ok" sem faltas): o valor que a camada não guardou volta a esta memória do mesmo jeito, e fica se `guardar` aceita.
+ *
  * O valor devolvido é o mesmo objeto para todos: quem chama não pode alterá-lo.
  */
 export interface Memoria<T> {

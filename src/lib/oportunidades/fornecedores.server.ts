@@ -47,6 +47,15 @@ interface Execucao {
   referencia: string | null;
 }
 
+/**
+ * As colunas de `painel_fornecedor_municipio` que o código lê: as 11 de `ConcentracaoMunicipio`, sem `execucao_id`
+ * (o filtro já a fixa e ninguém a lê). Antes era `select("*")` nas 4 leituras: uma coluna nova de identificação
+ * chegaria ao relatório do nível 1 e 2 sem passar pelo `relatorioSemNomes`, que só zera `maior_nome` e `maior_cnpj`
+ * (M8 da revisão C da onda 11; onda 12, B, 12/10/2026; as 12 colunas conferidas pelo MCP).
+ */
+const COLUNAS_CONCENTRACAO =
+  "cod_ibge,municipio,convenios,n_fornecedores,pago_pj,pago_pf,maior_cnpj,maior_nome,maior_pago,maior_fatia,hhi";
+
 /** Linhas por página da lista. */
 export const POR_PAGINA = 100;
 /** Quantos CNPJs vão num `in (...)`: o endereço da consulta não pode crescer sem limite. */
@@ -162,7 +171,7 @@ export async function lerFornecedoresDoConvenio(
     db.from("painel_fornecedor_convenio").select(COLUNAS_FORNECEDOR_CONVENIO).eq("execucao_id", execucaoId).eq("nr_convenio", i.nr_convenio).limit(1000),
     db.from("painel_contrato").select(COLUNAS_CONTRATO).eq("execucao_id", execucaoId).eq("nr_convenio", i.nr_convenio).order("dt_assinatura").limit(1000),
     i.tipo_agente === "municipio" && i.cod_ibge
-      ? db.from("painel_fornecedor_municipio").select("*").eq("execucao_id", execucaoId).eq("cod_ibge", i.cod_ibge).limit(1)
+      ? db.from("painel_fornecedor_municipio").select(COLUNAS_CONCENTRACAO).eq("execucao_id", execucaoId).eq("cod_ibge", i.cod_ibge).limit(1)
       : Promise.resolve({ data: [], error: null } as Resposta),
   ]);
   const erro = linhas.error ?? contratos.error ?? municipio.error;
@@ -229,7 +238,7 @@ export type LeituraInidoneosMunicipio =
 export async function lerInidoneosDoMunicipio(db: Banco, execucaoId: number, ibge: string): Promise<LeituraInidoneosMunicipio> {
   const onde = "relatório do município (fornecedores)";
   const [municipio, inidoneos] = await Promise.all([
-    db.from("painel_fornecedor_municipio").select("*").eq("execucao_id", execucaoId).eq("cod_ibge", ibge).limit(1),
+    db.from("painel_fornecedor_municipio").select(COLUNAS_CONCENTRACAO).eq("execucao_id", execucaoId).eq("cod_ibge", ibge).limit(1),
     todas<Pick<Fornecedor, "cnpj" | "nome">>(`${onde}, inidôneos`, (a, b) =>
       db.from("painel_fornecedor").select("cnpj,nome").eq("execucao_id", execucaoId).eq("inidoneo_tcu", true).order("cnpj").range(a, b),
     ),
@@ -304,7 +313,7 @@ export async function lerPainelFornecedores(filtro: FiltroFornecedores): Promise
   type Contagem = ReturnType<typeof base>;
   const contar = (filtrar: (q: Contagem) => Contagem = (q) => q) => filtrar(base());
   const [municipios, nTotal, nInidoneos, nMei, nSemTcu, cgu] = await Promise.all([
-    db.from("painel_fornecedor_municipio").select("*").eq("execucao_id", id).order("pago_pj", { ascending: false }).limit(1000),
+    db.from("painel_fornecedor_municipio").select(COLUNAS_CONCENTRACAO).eq("execucao_id", id).order("pago_pj", { ascending: false }).limit(1000),
     contar(),
     contar((q) => q.eq("inidoneo_tcu", true)),
     contar((q) => q.eq("mei", true)),
@@ -453,7 +462,7 @@ export async function lerDossieFornecedor(cnpj: string): Promise<LeituraDossieFo
     todas<Contrato>("lerDossieFornecedor (contratos)", (a, b) =>
       db.from("painel_contrato").select(COLUNAS_CONTRATO).eq("execucao_id", id).eq("cnpj", cnpj).order("dt_assinatura").range(a, b),
     ),
-    db.from("painel_fornecedor_municipio").select("*").eq("execucao_id", id).eq("maior_cnpj", cnpj).order("maior_fatia", { ascending: false }).limit(300),
+    db.from("painel_fornecedor_municipio").select(COLUNAS_CONCENTRACAO).eq("execucao_id", id).eq("maior_cnpj", cnpj).order("maior_fatia", { ascending: false }).limit(300),
     lerSancoes(db, [cnpj], "lerDossieFornecedor"),
   ]);
   if (ehFalha(convenios)) return convenios;

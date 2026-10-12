@@ -9,6 +9,7 @@
  * (08/10/2026), também o acesso ao relatório para imprimir, o estado vazio e as fontes que a entidade lê. Sem banco.
  */
 import { GRUPOS_SITUACAO, grupoDaSituacao, parametrosBusca, urlBusca } from "./busca.ts";
+import { cnpjNoFormato, cnpjValidado } from "./cnpj.ts";
 import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
 import type { ColunaCsv } from "./painel.ts";
 import type { AreaExcetuada, InstrumentoRelatorio } from "./relatorio-municipio.ts";
@@ -17,10 +18,14 @@ import { TRANSFEREGOV_CONSULTA } from "./transferegov.ts";
 /**
  * O CNPJ como a base guarda: 14 posições, sem máscara. Aceita o alfanumérico (12 posições de letras e dígitos e 2
  * dígitos verificadores, em vigor desde 07/2026). Fora do formato, null (a página responde 404).
+ *
+ * Onda 12, A (12/10/2026; M1 da revisão de segurança da onda 11): confere também os dois dígitos verificadores
+ * (`cnpj.ts`, os dois formatos). CNPJ que não fecha a conta dá o mesmo 404 do que não existe, sem ler o banco. Valem
+ * aqui a página da entidade, o relatório para imprimir, o CSV e o explorador, que leem pelo mesmo `cnpjDaUrl`. Em
+ * 12/10/2026, os 18.009 CNPJ do painel e os 21.380 do Mapa das OSC fechavam a conta: nenhuma página que abre hoje some.
  */
 export function cnpjDaUrl(v: string | null | undefined): string | null {
-  const c = (v ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "");
-  return /^[0-9A-Z]{12}\d{2}$/.test(c) ? c : null;
+  return cnpjValidado(v);
 }
 
 export type EspecieEntidade =
@@ -295,7 +300,8 @@ export interface SaidaEntidadeVazia {
  */
 export function saidasEntidadeVazia(e: { cnpj: string; nome: string | null | undefined }): SaidaEntidadeVazia[] {
   const nome = (e.nome ?? "").trim();
-  const temNome = nome.length > 0 && cnpjDaUrl(nome) !== e.cnpj;
+  // Só o formato (onda 12, A, 12/10/2026): a pergunta é se o "nome" é o próprio CNPJ, e não se o CNPJ é válido.
+  const temNome = nome.length > 0 && cnpjNoFormato(nome) !== e.cnpj;
   const base = parametrosBusca({});
   return [
     ...(temNome

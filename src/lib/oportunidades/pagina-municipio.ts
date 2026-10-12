@@ -9,8 +9,21 @@
  * C4a (09/10/2026): o nível 0 passou a existir como caminho de código, atrás da chave `MAPA_PUBLICO` (desligada por
  * padrão; ver `publico.ts`). Aqui moram as regras dele que valem para mais de uma página: o nível onde não há cliente
  * (Brasil e UF), quem abre o relatório do município e o recorte do relatório para o público (`relatorioDoPublico`).
+ *
+ * Onda 12, A (12/10/2026; M1 e M7 da revisão de segurança da onda 11): também o IBGE da URL (`ibgeDaUrl`, só os 223 da
+ * PB) e o recorte da leitura pública antes de ela ir à memória e ao cache comum (`leituraDoPublico`, com os campos de
+ * análise do instrumento fora: `CAMPOS_DE_ANALISE_DO_INSTRUMENTO`).
  */
-import { FALTAS_DA_FONTE, FONTES_DO_PUBLICO, FONTES_RELATORIO, type Achado, type Dimensao, type Relatorio } from "./relatorio-municipio.ts";
+import { MUNICIPIOS_PB } from "./municipios-pb.ts";
+import {
+  FALTAS_DA_FONTE,
+  FONTES_DO_PUBLICO,
+  FONTES_RELATORIO,
+  type Achado,
+  type Dimensao,
+  type InstrumentoRelatorio,
+  type Relatorio,
+} from "./relatorio-municipio.ts";
 
 export type NivelAcesso = 0 | 1 | 2 | 3;
 
@@ -97,6 +110,23 @@ export function abaEscolhida(pedida: string | string[] | undefined, nivel: Nivel
 
 export function urlMunicipio(ibge: string, aba?: AbaMunicipio): string {
   return `/mapa/municipio/${encodeURIComponent(ibge)}${aba && aba !== "trava" ? `?aba=${aba}` : ""}`;
+}
+
+/**
+ * Os 223 códigos da PB (`municipios-pb.ts`), montados na primeira chamada, como as listas de baixo: este módulo está no
+ * ciclo `relatorio-municipio` → `busca` → `pagina-municipio`, e o que é calculado na carga fica de fora dele.
+ */
+let ibgesDaPb: Set<string> | null = null;
+
+/**
+ * O IBGE da URL da página do município, do relatório para imprimir e do CSV (onda 12, A, 12/10/2026; M1 da revisão de
+ * segurança da onda 11): só um dos 223 municípios da PB, exatamente como está na lista; senão null (a página responde o
+ * 404 de sempre, sem ler o banco). Antes bastava casar com `^25\d{5}$`: 100 mil chaves para 223 municípios, e cada
+ * chave inventada era uma leitura do banco. Em 12/10/2026, os 223 IBGE da PB no painel eram os 223 da lista.
+ */
+export function ibgeDaUrl(v: string | null | undefined): string | null {
+  ibgesDaPb ??= new Set(MUNICIPIOS_PB.map(([ibge]) => ibge));
+  return v && ibgesDaPb.has(v) ? v : null;
 }
 
 /** O que cada nível alcança dentro das abas. */
@@ -193,4 +223,68 @@ export function relatorioDoPublico(r: Relatorio): Relatorio {
 /** O relatório que o nível vê: o inteiro só no 1 em diante; o 0 recebe o recorte do público. */
 export function relatorioDoNivel(r: Relatorio, nivel: NivelAcesso): Relatorio {
   return PODE.cadastro(nivel) ? r : relatorioDoPublico(r);
+}
+
+// ================================================================ a leitura pública já recortada (onda 12, A)
+
+/**
+ * As colunas do instrumento que são de análise (onda 12, A, 12/10/2026; M7 da revisão de segurança da onda 11): a
+ * leitura pública da entidade não as pede ao banco, e o instrumento que ela guarda as traz em null. Cada uma só alimenta
+ * uma lista de análise do relatório, que o recorte do público tira, e nenhuma é desenhada no nível 0 da entidade (a
+ * carteira, "De onde vem o dinheiro", "Quem é" e o cartão "Convênios em execução" usam número, situação, órgão,
+ * objeto, valor, desembolsado, assinatura, vigência e físico):
+ *   - `pc33_*`: os pontos da Portaria Conjunta 33/2023 (o laudo);
+ *   - `vl_saldo_conta`: o saldo parado na conta dos de vigência vencida;
+ *   - `dt_limite_contas`: a prestação de contas atrasada;
+ *   - `situacao_contratacao`: a liminar judicial;
+ *   - `dt_primeiro_desembolso`, `dt_ultimo_desembolso`, `dt_ultimo_pagamento`: o "sem movimento".
+ * Ficam a modalidade, a subsituação, o programa, o repasse e o pago: não são análise (a página pública do instrumento os
+ * mostra) e não alimentam lista nenhuma que o nível 0 perca.
+ */
+export const CAMPOS_DE_ANALISE_DO_INSTRUMENTO = [
+  "vl_saldo_conta",
+  "dt_limite_contas",
+  "situacao_contratacao",
+  "dt_primeiro_desembolso",
+  "dt_ultimo_desembolso",
+  "dt_ultimo_pagamento",
+  "pc33_regime",
+  "pc33_nivel",
+  "pc33_pior",
+  "pc33_itens",
+] as const satisfies readonly (keyof InstrumentoRelatorio)[];
+
+/** A lista de colunas do `select` sem as de análise: o mesmo texto, na mesma ordem, menos elas. */
+export function colunasDoPublico(colunas: string): string {
+  const fora = new Set<string>(CAMPOS_DE_ANALISE_DO_INSTRUMENTO);
+  return colunas
+    .split(",")
+    .filter((c) => !fora.has(c.trim()))
+    .join(",");
+}
+
+/**
+ * O instrumento do público: os campos de análise em null (e não ausentes, para quem testa `!== null` não ler
+ * `undefined`). Objeto novo; o recebido não muda.
+ */
+export function instrumentoDoPublico<T extends InstrumentoRelatorio>(i: T): T {
+  const saida: T = { ...i };
+  for (const c of CAMPOS_DE_ANALISE_DO_INSTRUMENTO) (saida as InstrumentoRelatorio)[c] = null;
+  return saida;
+}
+
+/**
+ * A leitura pública já recortada, antes de ir à memória da instância e ao cache comum (onda 12, A, 12/10/2026; M7 da
+ * revisão de segurança da onda 11). O objeto guardado levava campos de nível 1 que só o desenho tirava: o relatório
+ * inteiro das fontes do público (as listas de análise dos convênios) e, na entidade, os instrumentos com todas as
+ * colunas. Agora sai o relatório do público (`relatorioDoPublico`) e os instrumentos sem os campos de análise
+ * (`instrumentoDoPublico`). A página continua aplicando o recorte do nível: a função é idempotente, e o que o nível 0
+ * vê não muda (`cache-dados.test.ts` prova). Leitura que não é "ok" volta como veio.
+ */
+export function leituraDoPublico<L extends { estado: string; relatorio?: Relatorio; instrumentos?: InstrumentoRelatorio[] }>(l: L): L {
+  if (l.estado !== "ok") return l;
+  const saida: { estado: string; relatorio?: Relatorio; instrumentos?: InstrumentoRelatorio[] } = { ...l };
+  if (l.relatorio) saida.relatorio = relatorioDoPublico(l.relatorio);
+  if (l.instrumentos) saida.instrumentos = l.instrumentos.map(instrumentoDoPublico);
+  return saida as L;
 }

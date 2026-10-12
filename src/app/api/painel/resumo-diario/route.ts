@@ -17,14 +17,17 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Teto da leitura das rodadas no e-mail (09/10/2026, onda 10, B). `lerRodadas` já corta cada consulta e cada chamada ao
- * GitHub em 8 s, todas em paralelo; isto é a reserva para o que não tem tempo-limite próprio.
+ * Teto da leitura das rodadas no e-mail (09/10/2026, onda 10, B). `lerRodadas` já corta cada consulta em 8 s, todas em
+ * paralelo; isto é a reserva para o que não tem tempo-limite próprio.
  */
 const LIMITE_RODADAS_MS = 12_000;
 
 /**
  * A saúde das rodadas para o e-mail (09/10/2026, onda 10, B). Falha sozinha: erro, demora ou nenhuma linha lida viram
  * "falhou", e o resumo sai com uma nota curta no lugar do bloco. Nunca rejeita, e o e-mail nunca deixa de sair por isso.
+ *
+ * Sem o GitHub (12/10/2026, onda 12, C, M6 da revisão da onda 11): o e-mail não usa a coluna do GitHub, e as 7
+ * chamadas com o token do agendador saíam à toa.
  */
 async function rodadasDoResumo(): Promise<BlocoRodadas> {
   let relogio: ReturnType<typeof setTimeout> | undefined;
@@ -32,7 +35,7 @@ async function rodadasDoResumo(): Promise<BlocoRodadas> {
     const limite = new Promise<null>((resolve) => {
       relogio = setTimeout(() => resolve(null), LIMITE_RODADAS_MS);
     });
-    const painel = await Promise.race([lerRodadas(), limite]);
+    const painel = await Promise.race([lerRodadas({ github: false }), limite]);
     if (!painel) console.error("resumo-diario: a leitura das rodadas passou do tempo-limite");
     return escolherRodadas(painel?.linhas ?? null);
   } catch (e) {

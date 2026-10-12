@@ -2,13 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   ABAS_MUNICIPIO,
+  CAMPOS_DE_ANALISE_DO_INSTRUMENTO,
   CARTOES_DO_PUBLICO,
   DIMENSOES_DO_PUBLICO,
   NOME_ABA,
   ORDEM_DAS_ABAS,
   PODE,
   abaEscolhida,
+  colunasDoPublico,
   destinoConvenio,
+  ibgeDaUrl,
+  instrumentoDoPublico,
+  leituraDoPublico,
   nivelDeAcesso,
   nivelSemCliente,
   podeAbaMunicipio,
@@ -16,13 +21,14 @@ import {
   relatorioDoPublico,
   urlMunicipio,
 } from "./pagina-municipio.ts";
+import { MUNICIPIOS_PB } from "./municipios-pb.ts";
 import { ABAS_BRASIL } from "./pagina-brasil.ts";
 import { ABAS_ENTIDADE, abaDaEntidade } from "./pagina-entidade.ts";
 import { ABAS_UF, podeRelatorioUf } from "./pagina-uf.ts";
 import type { MunicipioFiscal, VerificacaoFiscal } from "./fiscal.ts";
 import type { PlanoLaudoPix } from "./pix-laudo.ts";
 import type { TceTcu } from "./tce-tcu.ts";
-import { montarRelatorio, relatorioSemNomes, type EntradaRelatorio, type InstrumentoRelatorio, type Relatorio } from "./relatorio-municipio.ts";
+import { COLUNAS_INSTRUMENTO, montarRelatorio, relatorioSemNomes, type EntradaRelatorio, type InstrumentoRelatorio, type Relatorio } from "./relatorio-municipio.ts";
 
 test("nível de acesso: público, cadastrado, cliente do próprio município e administrador", () => {
   assert.equal(nivelDeAcesso({ aprovado: false, administrador: true, clienteDoMunicipio: true }), 0, "sem aprovação não há nível, nem de administrador");
@@ -242,4 +248,50 @@ test("C4a: do nível 1 em diante o relatório não perde nada; o 0 recebe o reco
   const inteiro = montarRelatorio(entradaCompleta(), "2026-10-01");
   for (const n of [1, 2, 3] as const) assert.equal(relatorioDoNivel(inteiro, n), inteiro, `nível ${n}: o mesmo objeto`);
   assert.deepEqual(relatorioDoNivel(inteiro, 0), relatorioDoPublico(inteiro));
+});
+
+// ================================================================ onda 12, A (M1 e M7 da revisão de segurança da onda 11)
+
+test("onda 12 (M1): o IBGE da URL só vale se é um dos 223 da PB, exatamente como na lista", () => {
+  assert.equal(ibgeDaUrl("2510808"), "2510808", "Patos");
+  assert.equal(ibgeDaUrl("2507507"), "2507507", "João Pessoa");
+  assert.equal(MUNICIPIOS_PB.length, 223);
+  for (const [ibge] of MUNICIPIOS_PB) assert.equal(ibgeDaUrl(ibge), ibge, ibge);
+  // casava com o `^25\d{5}$` de antes, e não é município da PB: o 404 de sempre, sem ler o banco
+  for (const v of ["2599999", "2500000", "2510809"]) assert.equal(ibgeDaUrl(v), null, v);
+  for (const v of ["3550308", "251080", "25108080", " 2510808", "2510808 ", "", undefined, null]) assert.equal(ibgeDaUrl(v), null, String(v));
+});
+
+test("onda 12 (M7): os campos de análise do instrumento são colunas reais, e a lista pública é a de sempre menos eles", () => {
+  const todas = COLUNAS_INSTRUMENTO.split(",");
+  for (const c of CAMPOS_DE_ANALISE_DO_INSTRUMENTO) assert.ok(todas.includes(c), `${c} está no select de sempre`);
+  const publicas = colunasDoPublico(COLUNAS_INSTRUMENTO).split(",");
+  assert.deepEqual(publicas, todas.filter((c) => !(CAMPOS_DE_ANALISE_DO_INSTRUMENTO as readonly string[]).includes(c)), "mesma ordem, menos as de análise");
+  assert.equal(todas.length - publicas.length, CAMPOS_DE_ANALISE_DO_INSTRUMENTO.length);
+  // o que o nível 0 da entidade desenha (carteira, órgãos, cartão "Convênios em execução", "Quem é") continua pedido
+  for (const c of ["nr_convenio", "municipio", "situacao", "orgao_sup", "objeto", "vl_global", "vl_desembolsado", "pct_fisico", "dt_assinatura", "dt_fim_vigencia"]) {
+    assert.ok(publicas.includes(c), c);
+  }
+  for (const c of ["vl_saldo_conta", "dt_limite_contas", "situacao_contratacao", "pc33_regime", "pc33_nivel", "pc33_pior", "pc33_itens"]) assert.ok(!publicas.includes(c), c);
+});
+
+test("onda 12 (M7): o instrumento do público traz os campos de análise em null, e o recebido não muda", () => {
+  const i = { ...instrumento({ nr_convenio: "989358", situacao_contratacao: "Liminar Judicial", dt_limite_contas: "2020-02-29" }), proponente: "MUNICIPIO DE PATOS" };
+  const p = instrumentoDoPublico(i);
+  for (const c of CAMPOS_DE_ANALISE_DO_INSTRUMENTO) assert.equal(p[c], null, c);
+  assert.equal(p.proponente, "MUNICIPIO DE PATOS", "o resto do objeto (a identidade) fica");
+  assert.equal(p.vl_global, i.vl_global);
+  assert.equal(i.situacao_contratacao, "Liminar Judicial", "o recebido não muda");
+  assert.equal(i.vl_saldo_conta, 100_000);
+});
+
+test("onda 12 (M7): a leitura do público é idempotente e não mexe na leitura que não é 'ok'", () => {
+  const relatorio = montarRelatorio(entradaCompleta(), "2026-10-01");
+  const ok = { estado: "ok" as const, relatorio, instrumentos: entradaCompleta().instrumentos ?? [] };
+  const uma = leituraDoPublico(ok);
+  assert.deepEqual(leituraDoPublico(uma), uma, "aplicar de novo não muda nada");
+  assert.deepEqual(uma.relatorio, relatorioDoPublico(relatorio));
+  assert.deepEqual(relatorioDoNivel(uma.relatorio, 0), relatorioDoNivel(relatorio, 0), "o que o nível 0 vê é o mesmo");
+  assert.ok(relatorio.fiscal && ok.instrumentos.some((i) => i.situacao_contratacao), "a recebida não muda");
+  for (const l of [{ estado: "nao_encontrado" as const }, { estado: "erro" as const }]) assert.equal(leituraDoPublico(l), l);
 });

@@ -24,6 +24,9 @@ export const metadata: Metadata = {
  * página da entidade (`lerRelatorioEntidade`, da memória de 10 minutos quando há) e o mesmo acesso da aba "Relatório e
  * dados" (D1: todo aprovado com cadastro; quem não alcança a aba volta à página). Quem não é administrador recebe o
  * relatório sem nomes de fornecedor. A OSC só do cadastro do Mapa das OSC tem o relatório do cadastro.
+ *
+ * Onda 12, A (12/10/2026; M1 da revisão de segurança da onda 11): `cnpjDaUrl` confere também os dígitos verificadores;
+ * CNPJ que não fecha a conta dá o 404 de sempre, sem ler o banco.
  */
 export default async function RelatorioEntidadePage({ params }: { params: Promise<{ cnpj: string }> }) {
   const visitante = await visitanteAtual();

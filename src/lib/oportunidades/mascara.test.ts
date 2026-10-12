@@ -33,6 +33,47 @@ test("N3: o fixo de Brasília (20xx) só sai depois de palavra de contato", () =
   }
 });
 
+// M9 da revisão C da onda 11 (onda 12, B, 12/10/2026). Os mesmos casos estão em `exigencias/tests` e `pix_fundo/tests`.
+test("M9: fixo sem DDD com espaço ou ponto sai depois de palavra de contato", () => {
+  const sai: [string, string][] = [
+    ["Fone: 3218 0000", "Fone: [telefone]"],
+    ["Tel. 3218.0000", "Tel. [telefone]"],
+    ["Telefones: 3218 0000 / 3218.0001 e 3218-0002.", "Telefones: [telefone] / [telefone] e [telefone]."],
+    ["Contato do setor: 4321 1234; WhatsApp 3218 0000", "Contato do setor: [telefone]; WhatsApp [telefone]"],
+    ["Ramal 2101 1234 (Brasília, contato 2022 8800)", "Ramal [telefone] (Brasília, contato [telefone])"],
+    ["Celulares: 3218 0000 ou fax 3218.0001.", "Celulares: [telefone] ou fax [telefone]."],
+    ["Fone:\u00a03218\u00a00000", "Fone:\u00a0[telefone]"],
+    ["Telefone:\n3218\n0000", "Telefone:\n[telefone]"],
+    // O separador da lista não come a palavra seguinte (também no CONTATO_20).
+    ["Contato: 2022-8800; Telefone 2030-1234", "Contato: [telefone]; Telefone [telefone]"],
+  ];
+  for (const [antes, depois] of sai) assert.equal(semDadoPessoal(antes), depois, antes);
+});
+
+test("M9: sem palavra de contato, ou quando não é telefone, o número fica", () => {
+  const fica = [
+    "Processo SEI 23069.012345/2026-11",
+    "Contato: processo SEI 23069.012345/2026-11",
+    "Empenho 2026NE000123",
+    "Contato: empenho 2026NE000123",
+    "R$ 3.218,00",
+    "Contato: R$ 3.218,00 e R$3218 0000",
+    "12/10/2026, 12.10.2026 e contato em 12.10.2026",
+    "art. 3218",
+    "Contato: art. 3218 da Lei 14.133",
+    "lote 3218 0000",
+    "Lote 3218.0000",
+    "Telhas do lote 3218 0000",
+    "Hotel 3218 0000",
+    "Contato no período 2023 2026",
+    "Contatos 2023.2026",
+    "Fone 3218 00001",
+    "Tel. 3218.0000.5",
+    "PPA 2024 2027",
+  ];
+  for (const t of fica) assert.equal(semDadoPessoal(t), t);
+});
+
 test("R3: o que o job já mascarou não muda, e vazio continua vazio", () => {
   assert.equal(semDadoPessoal("Falar com [e-mail] ou [telefone]; CPF ***."), "Falar com [e-mail] ou [telefone]; CPF ***.");
   assert.equal(semDadoPessoal(null), null);

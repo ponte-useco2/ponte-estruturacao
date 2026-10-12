@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import type { MunicipioFiscal, VerificacaoFiscal } from "./fiscal.ts";
 import type { PlanoLaudoPix } from "./pix-laudo.ts";
 import type { TceTcu } from "./tce-tcu.ts";
 import { paraCsv } from "./painel.ts";
 import {
   COLUNAS_CSV_ACHADOS,
+  DIAS_UTEIS_CAUC,
   acimaDoLimite,
   filaDoMunicipio,
   leituraGuardavel,
@@ -474,19 +477,53 @@ test("CAUC (onda 11, A): o cartão e o achado dizem a posição do CAUC, não a 
   assert.match(r.achados[0].fato, /O CAUC registra pendência nos itens 1\.5 e 4\.2 na posição de 29\/09\/2026\. Saúde/);
 });
 
+const REGRAS_FISCAL = path.join(import.meta.dirname, "..", "..", "..", "..", "fiscal", "regras.py");
+
+test("CAUC parado (onda 12, A; A1 da revisão D): o limite do site é o DIAS_UTEIS_CAUC de fiscal/regras.py", { skip: !fs.existsSync(REGRAS_FISCAL) }, () => {
+  const m = fs.readFileSync(REGRAS_FISCAL, "utf-8").match(/^DIAS_UTEIS_CAUC\s*=\s*(\d+)/m);
+  assert.ok(m, "DIAS_UTEIS_CAUC existe nas regras do job fiscal");
+  assert.equal(DIAS_UTEIS_CAUC, Number(m[1]), "o fiscal mudou o limite do CAUC parado; atualize DIAS_UTEIS_CAUC em relatorio-municipio.ts");
+});
+
+test("CAUC parado com pendência (onda 12, A; A1 da revisão D): G7 'não atendido', crítico, e a frase do Tesouro no cartão e no achado", () => {
+  // A variante conservadora do job (`fiscal/regras.py`, 2026-10-10.1): com pendência, a G7 segue "não atendido" e a
+  // decisão B, bloqueada, mesmo com o CAUC parado há 5 dias úteis. O parado sai da idade, não do estado.
+  const r = montarRelatorio(patos({ fiscal: { municipio, verificacoes: [...verificacoes, g7("nao_atendido", { data_pesquisa: "2026-10-02", dias_uteis: 5 })], referencia: "2026-10-09" } }), HOJE);
+  const cartao = r.cartoes.find((c) => c.rotulo === "CAUC");
+  assert.equal(cartao?.nota, "Itens 1.5 e 4.2, na posição de 02/10/2026. O Tesouro não publica relatório novo há 5 dias úteis.");
+  assert.equal(cartao?.nivel, "critico", "a decisão B segue bloqueada: o cartão não diz menos que ela");
+  const travada = r.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados");
+  assert.match(
+    travada?.fato ?? "",
+    /O CAUC registra pendência nos itens 1\.5 e 4\.2 na posição de 02\/10\/2026, a última publicada pelo Tesouro \(sem relatório novo há 5 dias úteis\)\./,
+  );
+  assert.ok(!/irregular/i.test(travada?.fato ?? ""));
+
+  // 2 dias úteis: abaixo do limite, é a posição de hoje — sem a frase do Tesouro no cartão nem no achado
+  const recente = montarRelatorio(patos({ fiscal: { municipio, verificacoes: [...verificacoes, g7("nao_atendido", { data_pesquisa: "2026-10-07", dias_uteis: 2 })], referencia: "2026-10-09" } }), HOJE);
+  const c2 = recente.cartoes.find((c) => c.rotulo === "CAUC");
+  assert.deepEqual([c2?.nota, c2?.nivel], ["Itens 1.5 e 4.2, na posição de 07/10/2026.", "critico"]);
+  const t2 = recente.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados")?.fato ?? "";
+  assert.match(t2, /O CAUC registra pendência nos itens 1\.5 e 4\.2 na posição de 07\/10\/2026\. Saúde/);
+  assert.ok(!/Tesouro/.test(t2) && !/Tesouro/.test(c2?.nota ?? ""), "sem a frase do Tesouro");
+});
+
 test("CAUC parado (onda 11, A): a pendência fica, com a data e há quantos dias úteis o Tesouro não publica", () => {
   const comAlerta = {
     ...municipio,
     conclusoes: municipio.conclusoes.map((c) => ({ ...c, estado: "atencao" as const, bloqueantes: [], alertas: [c.decisao === "A" ? "G7A" : "G7"] })),
   };
-  const r = montarRelatorio(patos({ fiscal: { municipio: comAlerta, verificacoes: [...verificacoes, g7("desatualizado", { data_pesquisa: "2026-10-02", dias_uteis: 5 })], referencia: "2026-10-09" } }), HOJE);
+  // Onda 12, A (A1 da revisão D): G7 "desatualizado" com pendência não existe mais no job (a variante conservadora a
+  // deixa "não atendido"; ver o teste acima). Fica aqui como execução antiga, sem `dias_uteis`: o parado vem do estado,
+  // e a frase diz o limite da regra. Com pendência, o cartão é crítico.
+  const r = montarRelatorio(patos({ fiscal: { municipio: comAlerta, verificacoes: [...verificacoes, g7("desatualizado", { data_pesquisa: "2026-10-02" })], referencia: "2026-10-09" } }), HOJE);
   const cartao = r.cartoes.find((c) => c.rotulo === "CAUC");
-  assert.equal(cartao?.nota, "Itens 1.5 e 4.2, na posição de 02/10/2026. O Tesouro não publica relatório novo há 5 dias úteis.");
-  assert.equal(cartao?.nivel, "alto", "posição parada não é a de hoje: nem crítico nem em dia");
+  assert.equal(cartao?.nota, "Itens 1.5 e 4.2, na posição de 02/10/2026. O Tesouro não publica relatório novo há 3 dias úteis ou mais.");
+  assert.equal(cartao?.nivel, "critico");
   const alerta = r.achados.find((a) => a.titulo === "Transferência voluntária com alertas");
   assert.equal(
     alerta?.fato,
-    "O painel fiscal registra alertas na decisão de receber transferência voluntária. O CAUC registra pendência nos itens 1.5 e 4.2 na posição de 02/10/2026, a última publicada pelo Tesouro (sem relatório novo há 5 dias úteis).",
+    "O painel fiscal registra alertas na decisão de receber transferência voluntária. O CAUC registra pendência nos itens 1.5 e 4.2 na posição de 02/10/2026, a última publicada pelo Tesouro (sem relatório novo há 3 dias úteis ou mais).",
   );
   assert.ok(!/irregular/i.test(alerta?.fato ?? ""));
 
@@ -498,4 +535,35 @@ test("CAUC parado (onda 11, A): a pendência fica, com a data e há quantos dias
     ["sem pendência", "Nenhum item pendente no relatório do Tesouro de 02/10/2026. O Tesouro não publica relatório novo há 5 dias úteis.", "moderado"],
   );
   assert.match(s.achados.find((a) => a.titulo === "Transferência voluntária com alertas")?.fato ?? "", /O CAUC não registra pendência na posição de 02\/10\/2026, a última publicada pelo Tesouro/);
+});
+
+test("CAUC com data estranha (integração da onda 12; regras 2026-10-12.1): não é 'parado há N dias' nem a posição de hoje", () => {
+  // O job grava `dias_uteis: null` e `data_estranha: true` quando a posição é posterior à rodada (M3 da revisão D).
+  const comPendencia = montarRelatorio(
+    patos({ fiscal: { municipio, verificacoes: [...verificacoes, g7("nao_atendido", { data_pesquisa: "2062-10-02", dias_uteis: null, data_estranha: true })], referencia: "2026-10-09" } }),
+    HOJE,
+  );
+  const c1 = comPendencia.cartoes.find((c) => c.rotulo === "CAUC");
+  assert.deepEqual(
+    [c1?.nota, c1?.nivel],
+    ["Itens 1.5 e 4.2, na posição de 02/10/2062. A data da posição é posterior a esta rodada: é estranha e não vale como a de hoje.", "critico"],
+  );
+  assert.ok(!/Tesouro não publica/.test(c1?.nota ?? ""));
+  const t1 = comPendencia.achados.find((a) => a.titulo === "Transferência voluntária e crédito travados")?.fato ?? "";
+  assert.match(t1, /na posição de 02\/10\/2062, data posterior a esta rodada \(data estranha, que não vale como a de hoje\)\./);
+
+  const comAlerta = {
+    ...municipio,
+    indicadores: { pessoal_pct: 45, cauc_pendencias: [] },
+    conclusoes: municipio.conclusoes.map((c) => ({ ...c, estado: "atencao" as const, bloqueantes: [], alertas: [c.decisao === "A" ? "G7A" : "G7"] })),
+  };
+  const semPendencia = montarRelatorio(
+    patos({ fiscal: { municipio: comAlerta, verificacoes: [...verificacoes, g7("desatualizado", { data_pesquisa: "2062-10-02", dias_uteis: null, data_estranha: true })], referencia: "2026-10-09" } }),
+    HOJE,
+  );
+  const c2 = semPendencia.cartoes.find((c) => c.rotulo === "CAUC");
+  assert.deepEqual(
+    [c2?.valor, c2?.nota, c2?.nivel],
+    ["sem pendência", "Nenhum item pendente no relatório do Tesouro de 02/10/2062. A data da posição é posterior a esta rodada: é estranha e não vale como a de hoje.", "moderado"],
+  );
 });

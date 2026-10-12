@@ -13,12 +13,18 @@
  *   - **só leitura sem sessão**: o que se guarda é lido com a chave de serviço, sem cookie, e o recorte por nível
  *     (`relatorioSemNomes`, `relatorioDoNivel`) é aplicado depois, a cada pedido, sobre o que voltou do cache;
  *   - **falha não se guarda**: leitura com fonte faltando, erro ou "não ativado" voltam ao chamador sem ficar;
+ *   - **"não encontrado" não se guarda** (onda 12, A, 12/10/2026; M1 da revisão de segurança da onda 11): só a leitura
+ *     "ok" e sem faltas vai ao cache comum (`leituraGuardavelNoCacheComum`); o "não encontrado" fica na memória da
+ *     instância, como antes da onda 7. CNPJ ou IBGE inventado não grava item no Runtime Cache;
  *   - **o que não volta igual do JSON não se guarda**: o cache guarda texto JSON, e `Map`, `Set`, `Date`, `NaN` ou
  *     `Infinity` voltariam outra coisa (um `NaN` que volta `null` derruba um `toLocaleString`);
  *   - **item de até 2 MB**, medido como o Next mede: o que passa fica de fora (a página segue, lida do banco).
  *
  * A chave leva a implantação (a publicação da Vercel): o Runtime Cache sobrevive às publicações, e uma publicação nova
  * não pode ler objeto no formato da antiga. É o mesmo efeito da memória de hoje, que começa vazia a cada publicação.
+ * Desde a onda 12 (A, 12/10/2026; M2 da revisão de segurança da onda 11), leva também o ambiente (`VERCEL_ENV`): a
+ * prévia e a produção nunca dividem item, nem quando a publicação cai em "local" — e, na Vercel, esse "local" vira aviso
+ * no log (`criarPublicacao`).
  */
 import type { CamadaCompartilhada } from "./memoria.ts";
 
@@ -29,14 +35,16 @@ export const VALIDADE_DADOS_MS = VALIDADE_DADOS_S * 1000;
 /**
  * A falta com validade curta (onda 8, B, 09/10/2026; R2 de 09/10, §5.1 item 6): a leitura com uma fonte fora do ar fica
  * 1 minuto na memória da instância (`criarMemoria`, opção `falta`), e não zero, para que a fonte fora do ar não faça cada
- * visita reler o pacote inteiro. Nunca vai ao cache compartilhado: a regra dele (`leituraGuardavel`) continua a recusá-la.
+ * visita reler o pacote inteiro. Nunca vai ao cache compartilhado: a regra dele (`leituraGuardavelNoCacheComum` desde a
+ * onda 12; antes, `leituraGuardavel`) continua a recusá-la.
  * 1 minuto cabe no "tente de novo em alguns minutos" que a página já diz quando uma fonte falha.
  */
 export const VALIDADE_FALTA_MS = 60 * 1000;
 
 /**
  * A falta do relatório (município e entidade): a leitura chegou inteira, mas com uma fonte em `faltas`. É o complemento
- * exato de `leituraGuardavel` entre as leituras "ok"; erro, "não ativado" e "sem execução" não são falta e não ficam.
+ * exato de `leituraGuardavel` (e de `leituraGuardavelNoCacheComum`) entre as leituras "ok"; erro, "não ativado" e "sem
+ * execução" não são falta e não ficam.
  */
 export function leituraComFalta(l: { estado: string; relatorio?: { faltas: readonly string[] } }): boolean {
   return l.estado === "ok" && (l.relatorio?.faltas.length ?? 0) > 0;
@@ -73,13 +81,58 @@ export function implantacaoDe(env: Record<string, string | undefined>): string {
 }
 
 /**
- * A chave no cache compartilhado: a versão do envelope, a publicação, o leitor e a chave do leitor — a mesma da
- * memória da instância, que já separa as leituras (IBGE, CNPJ, UF, o dia de Brasília, a execução do painel quando ela
- * já está à mão, a leitura pública ou a completa). Nada de quem visita entra nela, porque nada de quem visita entra
- * na leitura.
+ * O ambiente da Vercel (`VERCEL_ENV`: "production", "preview" ou "development"), ou "local" fora dela (onda 12, A,
+ * 12/10/2026; M2 da revisão de segurança da onda 11). Recebe o ambiente para ficar pura.
  */
-export function chaveDoCache(leitor: string, chave: string, implantacao: string): string {
-  return [ETIQUETA_DADOS, `v${VERSAO_CACHE}`, implantacao, leitor, chave].join("|");
+export function ambienteDe(env: Record<string, string | undefined>): string {
+  return env.VERCEL_ENV || "local";
+}
+
+/** Onde o servidor roda, para a chave: o ambiente e a publicação. */
+export interface Publicacao {
+  ambiente: string;
+  implantacao: string;
+}
+
+/**
+ * O aviso de quando a publicação cai em "local" dentro da Vercel (`VERCEL === "1"`), ou null (onda 12, A; M2): sem
+ * `VERCEL_DEPLOYMENT_ID` nem `VERCEL_GIT_COMMIT_SHA` (a opção "Automatically expose System Environment Variables"
+ * desligada no projeto), toda publicação divide a mesma chave, e uma publicação nova lê por até 10 minutos o que a
+ * anterior montou. O ambiente na chave ainda separa a prévia da produção; o aviso diz o resto.
+ */
+export function avisoDaPublicacao(env: Record<string, string | undefined>): string | null {
+  if (env.VERCEL !== "1" || implantacaoDe(env) !== "local") return null;
+  return (
+    'cache de dados: na Vercel, sem VERCEL_DEPLOYMENT_ID nem VERCEL_GIT_COMMIT_SHA, a publicação na chave do cache saiu "local" ' +
+    `(ambiente ${ambienteDe(env)}): publicações diferentes dividem os itens por até 10 minutos. Ligue "Automatically expose System ` +
+    'Environment Variables" no projeto da Vercel.'
+  );
+}
+
+/**
+ * A publicação da instância, com o aviso uma vez só (onda 12, A; M2). O servidor guarda uma destas por módulo
+ * (`cache-dados.server.ts`): os dez leitores pedem a publicação na carga, e o log recebe o aviso uma vez, e não dez.
+ */
+export function criarPublicacao(avisar: (mensagem: string) => void = (m) => console.warn(m)): (env: Record<string, string | undefined>) => Publicacao {
+  let avisado = false;
+  return (env) => {
+    const aviso = avisoDaPublicacao(env);
+    if (aviso && !avisado) {
+      avisado = true;
+      avisar(aviso);
+    }
+    return { ambiente: ambienteDe(env), implantacao: implantacaoDe(env) };
+  };
+}
+
+/**
+ * A chave no cache compartilhado: a versão do envelope, o ambiente (onda 12, A), a publicação, o leitor e a chave do
+ * leitor — a mesma da memória da instância, que já separa as leituras (IBGE, CNPJ, UF, o dia de Brasília, a execução
+ * do painel quando ela já está à mão, a leitura pública ou a completa). Nada de quem visita entra nela, porque nada de
+ * quem visita entra na leitura.
+ */
+export function chaveDoCache(leitor: string, chave: string, publicacao: Publicacao): string {
+  return [ETIQUETA_DADOS, `v${VERSAO_CACHE}`, publicacao.ambiente, publicacao.implantacao, leitor, chave].join("|");
 }
 
 /**
@@ -128,8 +181,9 @@ export type Guarda =
   | { guardar: false; motivo: "grande"; tamanho: number };
 
 /**
- * Se a leitura vai para o cache compartilhado. `guardavel` é a regra do leitor (a de `leituraGuardavel`, ou "ok e sem
- * faltas"); `paraGuardar`, quando há, troca o que não cabe no JSON (o `Map` das janelas do Brasil) por algo que cabe.
+ * Se a leitura vai para o cache compartilhado. `guardavel` é a regra do leitor (a de `leituraGuardavelNoCacheComum` desde
+ * a onda 12, ou "ok e sem faltas"); `paraGuardar`, quando há, troca o que não cabe no JSON (o `Map` das janelas do
+ * Brasil) por algo que cabe.
  */
 export function decidirGuarda<T>(valor: T, o: { guardavel: (v: T) => boolean; desde: number; paraGuardar?: (v: T) => unknown; limite?: number }): Guarda {
   if (!o.guardavel(valor)) return { guardar: false, motivo: "falha" };
@@ -178,7 +232,8 @@ function ehNaoGuardar(e: unknown): boolean {
 export function criarCamadaCompartilhada<T>(o: {
   leitor: string;
   cachear: Cachear;
-  implantacao: string;
+  /** O ambiente e a publicação (onda 12, A: o ambiente entrou na chave). */
+  publicacao: Publicacao;
   guardavel: (valor: T) => boolean;
   paraGuardar?: (valor: T) => unknown;
   doGuardado?: (guardado: unknown) => T;
@@ -213,7 +268,7 @@ export function criarCamadaCompartilhada<T>(o: {
           if (g.tamanho > AVISO_ITEM) avisar(`cache de dados (${o.leitor} ${chave}): ${g.tamanho} caracteres guardados`);
           return g.envelope;
         },
-        [chaveDoCache(o.leitor, chave, o.implantacao)],
+        [chaveDoCache(o.leitor, chave, o.publicacao)],
         { revalidate: VALIDADE_DADOS_S, tags: etiquetasDoLeitor(o.leitor) },
       );
 
