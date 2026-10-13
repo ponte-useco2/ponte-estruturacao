@@ -11,8 +11,10 @@
 import { GRUPOS_SITUACAO, grupoDaSituacao, parametrosBusca, urlBusca } from "./busca.ts";
 import { cnpjNoFormato, cnpjValidado } from "./cnpj.ts";
 import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
-import type { ColunaCsv } from "./painel.ts";
-import type { AreaExcetuada, InstrumentoRelatorio } from "./relatorio-municipio.ts";
+import { tituloOrgao } from "./padroes.ts";
+import { ROTULO_DESFECHO, type ColunaCsv } from "./painel.ts";
+import type { AreaExcetuada, InstrumentoRelatorio, PropostaRelatorio } from "./relatorio-municipio.ts";
+import type { ColunaTabela, Ordem, ValorCelula } from "./tabela-filtro.ts";
 import { TRANSFEREGOV_CONSULTA } from "./transferegov.ts";
 
 /**
@@ -278,6 +280,122 @@ export function dinheiroPorOrgao(instrumentos: InstrumentoRelatorio[]): { orgao:
     m.set(k, g);
   }
   return [...m.values()].sort((a, b) => b.valor - a.valor || a.orgao.localeCompare(b.orgao, "pt-BR"));
+}
+
+// ================================================================ as tabelas com filtro (onda 15, fase 2, lote B, 13/10/2026)
+
+/*
+ * As três listas da entidade abertas ao público (a carteira, as propostas e "De onde vem o dinheiro") viram tabelas
+ * com filtro em cada coluna (`TabelaFiltravel`; regra do titular de 13/10/2026). São tabelas do nível 0: as colunas de
+ * valor (R$) e de contagem filtram, mas não ordenam (ranking público foi rejeitado). Aqui ficam as colunas, os valores
+ * crus e a ordem padrão; a tela monta as células.
+ */
+
+export const TABELA_CARTEIRA = "ent-carteira";
+export const TABELA_PROPOSTAS = "ent-propostas";
+export const TABELA_ORGAOS = "ent-orgaos";
+
+const COMPARA_NOME = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+
+/**
+ * A carteira: antes uma tabela por situação, cada uma num `<details>`; agora uma só, com a situação (o grupo de antes)
+ * como coluna de categoria, e a situação do SICONV numa coluna oculta, que filtra e vai ao CSV.
+ */
+export const COLUNAS_CARTEIRA: ColunaTabela[] = [
+  { id: "numero", titulo: "Número", tipo: "texto", textoNoCsv: true },
+  { id: "situacao", titulo: "Situação", tipo: "categoria" },
+  { id: "situacao-siconv", titulo: "Situação no SICONV", tipo: "categoria", oculta: true },
+  { id: "orgao", titulo: "Órgão", tipo: "categoria" },
+  { id: "objeto", titulo: "Objeto", tipo: "texto" },
+  { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita", ordenavel: false },
+  { id: "desembolsado", titulo: "Desembolsado", tipo: "numero", alinhar: "direita", ordenavel: false },
+  { id: "assinatura", titulo: "Assinatura", tipo: "data" },
+  { id: "vigencia", titulo: "Vigência até", tipo: "data" },
+];
+
+/**
+ * Os instrumentos na ordem padrão da carteira, cada um com o rótulo do grupo: a de antes, os grupos na ordem da busca
+ * (em execução primeiro) e, em cada um, da assinatura mais recente para a mais antiga. Não é ranking (nenhum valor
+ * entra na ordem), e a lista não perde a separação por situação que tinha.
+ */
+export function carteiraEmLinhas(instrumentos: InstrumentoRelatorio[]): { i: InstrumentoRelatorio; situacao: string }[] {
+  return carteiraPorSituacao(instrumentos).flatMap((g) => g.itens.map((i) => ({ i, situacao: g.rotulo })));
+}
+
+export function valoresDaCarteira(i: InstrumentoRelatorio, situacao: string): Record<string, ValorCelula> {
+  return {
+    numero: i.nr_convenio,
+    situacao,
+    "situacao-siconv": i.situacao || null,
+    orgao: i.orgao_sup ? tituloOrgao(i.orgao_sup) : null,
+    objeto: i.objeto || null,
+    valor: i.vl_global,
+    desembolsado: i.vl_desembolsado,
+    assinatura: i.dt_assinatura,
+    vigencia: i.dt_fim_vigencia,
+  };
+}
+
+/**
+ * O número que a pessoa conhece (`nr_proposta`) quando a leitura o traz; senão o id do SICONV, como a trilha e a busca
+ * fazem (`eloProposta`). A leitura da entidade (`COLUNAS_PROPOSTA`, em `relatorio-municipio.server.ts`) ainda não pede
+ * o `nr_proposta`: até pedir, a lista mostra o id, que é o que o endereço da página da proposta usa. (Veio de
+ * `EntidadeConteudo.tsx` na onda 15: a coluna "Proposta" filtra por ele.)
+ */
+export function numeroDaProposta(p: PropostaRelatorio): string {
+  const nr = "nr_proposta" in p && typeof p.nr_proposta === "string" ? p.nr_proposta.trim() : "";
+  return nr || p.id_proposta;
+}
+
+export const COLUNAS_PROPOSTAS: ColunaTabela[] = [
+  { id: "proposta", titulo: "Proposta", tipo: "texto", textoNoCsv: true },
+  { id: "ano", titulo: "Ano", tipo: "numero" },
+  { id: "programa", titulo: "Programa", tipo: "texto" },
+  { id: "orgao", titulo: "Órgão", tipo: "categoria" },
+  { id: "repasse", titulo: "Repasse", tipo: "numero", alinhar: "direita", ordenavel: false },
+  { id: "desfecho", titulo: "Desfecho", tipo: "categoria" },
+];
+
+/** A ordem padrão das propostas, a de antes: da mais recente para a mais antiga (pelo ano de envio, sem valor). */
+export const ORDEM_PROPOSTAS: Ordem = { coluna: "ano", sentido: "desc" };
+
+/** As propostas na ordem padrão; no mesmo ano, pelo número (o empate de qualquer ordem volta a esta). */
+export function propostasNaOrdem<T extends PropostaRelatorio>(propostas: readonly T[]): T[] {
+  return [...propostas].sort((a, b) => (b.ano_envio ?? 0) - (a.ano_envio ?? 0) || COMPARA_NOME.compare(numeroDaProposta(a), numeroDaProposta(b)));
+}
+
+export function valoresDaProposta(p: PropostaRelatorio): Record<string, ValorCelula> {
+  return {
+    proposta: numeroDaProposta(p),
+    ano: p.ano_envio,
+    programa: p.programa || null,
+    orgao: p.orgao_sup ? tituloOrgao(p.orgao_sup) : null,
+    repasse: p.valor_repasse,
+    desfecho: p.desfecho ? (ROTULO_DESFECHO[p.desfecho] ?? p.desfecho) : null,
+  };
+}
+
+/** "De onde vem o dinheiro": o órgão filtra e ordena; a contagem e os valores filtram, mas não ordenam. */
+export const COLUNAS_ORGAOS: ColunaTabela[] = [
+  { id: "orgao", titulo: "Órgão", tipo: "texto" },
+  { id: "instrumentos", titulo: "Instrumentos", tipo: "numero", alinhar: "direita", ordenavel: false },
+  { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita", ordenavel: false },
+  { id: "desembolsado", titulo: "Desembolsado", tipo: "numero", alinhar: "direita", ordenavel: false },
+];
+export const ORDEM_ORGAOS: Ordem = { coluna: "orgao", sentido: "asc" };
+
+/**
+ * Os órgãos em ordem alfabética, pelo nome como a tela o escreve. `dinheiroPorOrgao` (do maior valor para o menor)
+ * continua como é: o teste do objeto público o usa. Antes, a tabela pública seguia o valor: um ranking à vista.
+ */
+export function orgaosEmOrdem(instrumentos: InstrumentoRelatorio[]): { orgao: string; titulo: string; n: number; valor: number; desembolsado: number }[] {
+  return dinheiroPorOrgao(instrumentos)
+    .map((o) => ({ ...o, titulo: tituloOrgao(o.orgao) }))
+    .sort((a, b) => COMPARA_NOME.compare(a.titulo, b.titulo));
+}
+
+export function valoresDoOrgao(o: { titulo: string; n: number; valor: number; desembolsado: number }): Record<string, ValorCelula> {
+  return { orgao: o.titulo, instrumentos: o.n, valor: o.valor, desembolsado: o.desembolsado };
 }
 
 // ================================================================ vazio, fontes (C1c, 08/10/2026)

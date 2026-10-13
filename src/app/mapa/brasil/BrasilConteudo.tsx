@@ -5,6 +5,9 @@
  *
  * Desde a C1b (08/10/2026) cada aba é um bloco exportado, como no município: o relatório para imprimir
  * (`/mapa/brasil/relatorio`) junta os mesmos blocos, e a aba "Relatório e dados" ficou curta (o link, o CSV e as fontes).
+ *
+ * Onda 15, fase 2, lote A (13/10/2026): as 27 UFs e os órgãos do dinheiro federal viraram tabelas filtráveis, em ordem
+ * alfabética, sem ordem por valor nem por contagem para quem não é administrador.
  */
 import { dataBrasilia } from "@/lib/oportunidades/datas";
 import malhaBrasil from "@/lib/oportunidades/malhas/brasil-uf.json";
@@ -13,25 +16,30 @@ import {
   MACRORREGIAO,
   ORDEM_MACRORREGIAO,
   ROTULO_MACRORREGIAO,
+  TABELA_UFS,
   URL_CSV_BRASIL,
   URL_RELATORIO_BRASIL,
   anoDeReferencia,
+  colunasUfs,
   fontesDoBrasil,
   metodoDoBrasil,
   ufsLadoALado,
   urlBrasil,
+  valoresDaUfBrasil,
   type AbaBrasil,
   type AreaMapa,
   type Malha,
 } from "@/lib/oportunidades/pagina-brasil";
 import type { LeituraBrasilOk } from "@/lib/oportunidades/pagina-brasil.server";
 import { PODE, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
-import { NOME_UF, funil, porSituacao, totalTerritorio, urlUf } from "@/lib/oportunidades/pagina-uf";
+import { NOME_UF, funil, ordemLivre, porSituacao, totalTerritorio, urlUf } from "@/lib/oportunidades/pagina-uf";
 import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, medianaComparavel } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { MapaTerritorio } from "../_componentes/MapaTerritorio";
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import { Termo } from "../_componentes/Termo";
 import { Trilha } from "../_componentes/Trilha";
 import { BotaoImprimir } from "../fiscal/[ibge]/simular/BotaoImprimir";
@@ -171,12 +179,25 @@ export function Resumo({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; an
 }
 
 /**
- * A aba "As 27 UFs". `noRelatorio` (C1b): sem o botão do CSV, que no relatório fica no cabeçalho. `publico` (C4a,
- * 09/10/2026): o nível 0 também fica sem o botão, porque o CSV é do cadastro (D1; a rota responde 404 sem aprovação).
+ * A aba "As 27 UFs". Onda 15, fase 2, lote A (13/10/2026): tabela filtrável, em ordem alfabética. Tela pública: os
+ * números filtram, mas só o administrador ordena por eles (`ordemLivre`). O CSV da tabela (só o filtrado) segue a regra
+ * da C4a (09/10/2026): é do cadastro (D1), e o nível 0 fica sem o botão. Ele trocou o botão "Baixar as 27 UFs (CSV)"
+ * desta aba; a rota continua na aba "Relatório e dados" e no relatório. O nível vem de `nivel`, que trocou o `publico`;
+ * o `noRelatorio` saiu, porque o bloco já não tem botão próprio a esconder no relatório.
  */
-export function Estados({ l, ano, noRelatorio = false, publico = false }: { l: LeituraBrasilOk; ano: number; noRelatorio?: boolean; publico?: boolean }) {
+export function Estados({ l, ano, nivel }: { l: LeituraBrasilOk; ano: number; nivel: NivelAcesso }) {
   if (!l.territorio) return <p className="pa-cartao pa-cartao-plano">As somas por UF aparecem depois da próxima atualização diária dos dados.</p>;
   const ufs = ufsLadoALado(l.territorio, l.desfechos ?? [], l.pix ?? [], l.janelas, ano);
+  const livre = ordemLivre(nivel);
+  const linhas: LinhaTabela[] = ufs.map((u) => ({
+    chave: u.sigla,
+    valores: valoresDaUfBrasil(u),
+    celulas: {
+      uf: <LinkMapa href={urlUf(u.sigla)}>{u.nome}</LinkMapa>,
+      "valor-vivos": moedaCurta(u.valorVivos),
+      pix: u.pixPagoAno === null ? "—" : moedaCurta(u.pixPagoAno),
+    },
+  }));
   return (
     <Secao
       id="br-ufs"
@@ -185,52 +206,18 @@ export function Estados({ l, ano, noRelatorio = false, publico = false }: { l: L
         <>
           Em ordem alfabética. Instrumentos: só os <Termo slug="instrumento-vivo">vivos</Termo>, os únicos que a base guarda para todas as UFs. Propostas e{" "}
           <Termo slug="pix">Pix</Termo>: {ano}, até agora.
+          {livre ? "" : " Cada coluna filtra; os números não ordenam a lista, para ela não virar classificação."}
         </>
       }
     >
-      <TabelaRolagem rotulo="As 27 UFs lado a lado">
-        <table className="mp-tabela">
-          <thead>
-            <tr>
-              <th scope="col">UF</th>
-              <th scope="col">Região</th>
-              <th scope="col">Instrumentos vivos</th>
-              <th scope="col">Em execução</th>
-              <th scope="col">Prestando contas</th>
-              <th scope="col">Valor global dos vivos</th>
-              <th scope="col">Municípios com instrumento vivo</th>
-              <th scope="col">Propostas em {ano}</th>
-              <th scope="col">Pix pago em {ano}</th>
-              <th scope="col">Janelas abertas</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ufs.map((u) => (
-              <tr key={u.sigla}>
-                <th scope="row">
-                  <LinkMapa href={urlUf(u.sigla)}>{u.nome}</LinkMapa>
-                </th>
-                <td>{ROTULO_MACRORREGIAO[u.regiao]}</td>
-                <td className="mp-rel-num">{n(u.vivos)}</td>
-                <td className="mp-rel-num">{n(u.emExecucao)}</td>
-                <td className="mp-rel-num">{n(u.prestandoContas)}</td>
-                <td className="mp-rel-num">{moedaCurta(u.valorVivos)}</td>
-                <td className="mp-rel-num">{n(u.municipiosVivos)}</td>
-                <td className="mp-rel-num">{n(u.propostasAno)}</td>
-                <td className="mp-rel-num">{u.pixPagoAno === null ? "—" : moedaCurta(u.pixPagoAno)}</td>
-                <td className="mp-rel-num">{n(u.janelas)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TabelaRolagem>
-      {!noRelatorio && !publico && (
-        <p className="mp-nao-imprimir mp-laudo-acoes">
-          <a href={URL_CSV_BRASIL} className="pa-btn pa-btn-pequeno">
-            Baixar as 27 UFs (CSV)
-          </a>
-        </p>
-      )}
+      <TabelaFiltravel
+        id={TABELA_UFS}
+        rotulo="As 27 UFs lado a lado"
+        colunas={colunasUfs(ano, livre)}
+        linhas={linhas}
+        ordemPadrao={{ coluna: "uf", sentido: "asc" }}
+        csv={PODE.cadastro(nivel) ? { nome: `ufs-${ano}` } : undefined}
+      />
     </Secao>
   );
 }
@@ -413,7 +400,7 @@ export function BrasilConteudo({ l, aba, nivel }: { l: LeituraBrasilOk; aba: Aba
       <Abas aba={aba} nivel={nivel} />
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
       {aba === "resumo" && <Resumo l={l} ano={ano} />}
-      {aba === "estados" && <Estados l={l} ano={ano} publico={publico} />}
+      {aba === "estados" && <Estados l={l} ano={ano} nivel={nivel} />}
       {aba === "dinheiro" && <DinheiroDoBrasil l={l} nivel={nivel} />}
       {aba === "tempos" && <Tempos l={l} />}
       {aba === "relatorio" && <Relatorio l={l} ano={ano} />}

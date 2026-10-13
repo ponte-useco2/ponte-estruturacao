@@ -1,18 +1,31 @@
 /**
  * Dinheiro federal no TCE-PB: o Pix por município e a conciliação SICONV × TCE-PB, num ano.
  * Recebe a leitura pronta (lib/oportunidades/tce.server.ts); aqui só se apresenta.
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): as duas listas são a `TabelaFiltravel`, com filtro e ordem em cada coluna (a
+ * regra do titular; tela de administrador, toda coluna ordena). As células são as de antes; os valores crus e as colunas
+ * ocultas (IBGE, empresas, marcas, arquivo lido) estão em `tce.ts`. Os chips de ano ficam: o ano muda a leitura, e o
+ * filtro da tabela vale dentro do ano escolhido.
  */
 import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import {
   CAPITAL_MINIMO,
+  COLUNAS_TCE_CONCILIACAO,
+  COLUNAS_TCE_PIX,
   REGRAS_PIX,
+  ROTULO_MARCA_PIX,
+  TABELA_TCE_CONCILIACAO,
+  TABELA_TCE_PIX,
   VERSAO_REGRAS_PIX,
   descreverCobertura,
   marcasPix,
   pct,
   resumirConciliacao,
   urlTce,
+  valoresTceConciliacao,
+  valoresTcePix,
   type RegraPix,
   type TceFederalMunicipio,
   type TcePixMunicipio,
@@ -20,16 +33,17 @@ import {
 import type { LeituraPainelTce } from "@/lib/oportunidades/tce.server";
 import { Saidas, type Saida } from "../Pecas";
 import { LinkMapa } from "../../_componentes/LinkMapa";
-import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { Termo } from "../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraPainelTce, { estado: "ok" }>;
 
 /**
  * O nome curto de cada marca do Pix na tabela (onda 8, C, 09/10/2026): "dívida" com acento (a etiqueta mostrava o id da
- * regra, "divida"). A ordem é a de `REGRAS_PIX`, a mesma da legenda abaixo da tabela.
+ * regra, "divida"). A ordem é a de `REGRAS_PIX`, a mesma da legenda abaixo da tabela. Onda 15, fase 2, lote C
+ * (13/10/2026): o rótulo mudou para `tce.ts` (`ROTULO_MARCA_PIX`), porque é também o valor da coluna "Marcas".
  */
-const ROTULO_MARCA: Record<RegraPix, string> = { pessoal: "pessoal", divida: "dívida", capital: "capital < 70%" };
+const ROTULO_MARCA = ROTULO_MARCA_PIX;
 const ORDEM_MARCAS = Object.keys(REGRAS_PIX) as RegraPix[];
 
 // B14b (08/10/2026): "TCE" solto aqui é sempre o TCE-PB, e passa a ser escrito assim (H06).
@@ -111,29 +125,14 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
             <Saidas saidas={outroAno(leitura.pix.map((x) => x.ano))} />
           </p>
         ) : (
-          <TabelaRolagem rotuloId="tce-pix">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Município</th>
-                  <th scope="col" className="mp-num">
-                    Pago
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Capital
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pessoal e dívida
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {pixOrdenado.map((p) => (
-                  <LinhaPix key={p.ibge} p={p} />
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id={TABELA_TCE_PIX}
+            rotulo={`O Pix nas contas de ${ano}`}
+            colunas={COLUNAS_TCE_PIX}
+            linhas={pixOrdenado.map(linhaPix)}
+            descricaoOrdemPadrao="dos com mais marcas aos sem marca e, entre eles, do maior pago ao menor"
+            csv={{ nome: `tce-pb-pix-${ano}` }}
+          />
         )}
         {/* Onda 8, C (09/10/2026; N25 da auditoria R1, WCAG 1.3.1 e 3.3.2 como referência): o dispositivo legal de cada
             marca ficava só no `title` da etiqueta, que o toque, o teclado, o leitor de tela e o papel não mostram. Agora
@@ -168,35 +167,14 @@ export function TceConteudo({ leitura, anoPedido }: { leitura: LeituraOk; anoPed
             <Saidas saidas={outroAno(leitura.municipios.map((x) => x.ano))} />
           </p>
         ) : (
-          <TabelaRolagem rotuloId="tce-conciliacao">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Município</th>
-                  <th scope="col" className="mp-num">
-                    SICONV pagou
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Achado no TCE-PB
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Só no SICONV
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Convênio no TCE-PB
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Só no TCE-PB
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {concOrdenada.map((m) => (
-                  <LinhaConciliacao key={m.ibge} m={m} />
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id={TABELA_TCE_CONCILIACAO}
+            rotulo={`Convênios: SICONV × TCE-PB em ${ano}`}
+            colunas={COLUNAS_TCE_CONCILIACAO}
+            linhas={concOrdenada.map(linhaConciliacao)}
+            descricaoOrdemPadrao="do maior valor só no SICONV ao menor, depois só no TCE-PB e o pago no SICONV"
+            csv={{ nome: `tce-pb-conciliacao-${ano}` }}
+          />
         )}
         <p className="pa-nota">
           “SICONV pagou”: pagamentos a empresas nos convênios da administração municipal (prefeitura, fundos, autarquias), sem a OBTV para o
@@ -219,55 +197,72 @@ function Cartao({ titulo, numero, nota }: { titulo: string; numero: string; nota
   );
 }
 
-function LinhaPix({ p }: { p: TcePixMunicipio }) {
+/** Uma linha do Pix por município: os valores de `tce.ts` e as células de antes (onda 15, fase 2, lote C, 13/10/2026). */
+function linhaPix(p: TcePixMunicipio): LinhaTabela {
   const marcas = marcasPix(p);
   const divida = p.pago_pessoal + p.pago_juros + p.pago_amortizacao;
-  return (
-    <tr>
-      <th scope="row">
-        <LinkMapa href={urlTce(p.ibge)} className="mp-tabela-principal">
-          {p.municipio ?? `IBGE ${p.ibge}`}
-        </LinkMapa>
-        <span className="mp-tabela-secundario">
-          {n(p.n_credores_pj)} {p.n_credores_pj === 1 ? "empresa" : "empresas"}
-        </span>
-        {marcas.map((m) => (
-          <span key={m.regra} className={`pa-tag mp-laudo-nivel mp-laudo-${m.nivel}`} title={m.dispositivo}>
-            {ROTULO_MARCA[m.regra]}
+  return {
+    chave: p.ibge,
+    valores: valoresTcePix(p),
+    celulas: {
+      municipio: (
+        <>
+          <LinkMapa href={urlTce(p.ibge)} className="mp-tabela-principal">
+            {p.municipio ?? `IBGE ${p.ibge}`}
+          </LinkMapa>
+          <span className="mp-tabela-secundario">
+            {n(p.n_credores_pj)} {p.n_credores_pj === 1 ? "empresa" : "empresas"}
           </span>
-        ))}
-      </th>
-      <td className="mp-num">
-        {moedaCurta(p.pago)}
-        {p.pago_emenda_individual > 0 && <span className="mp-tabela-secundario">emenda individual: {moedaCurta(p.pago_emenda_individual)}</span>}
-      </td>
-      <td className="mp-num">{pct(p.pct_capital)}</td>
-      <td className="mp-num">{divida > 0 ? moedaCurta(divida) : "—"}</td>
-    </tr>
-  );
+          {marcas.map((m) => (
+            <span key={m.regra} className={`pa-tag mp-laudo-nivel mp-laudo-${m.nivel}`} title={m.dispositivo}>
+              {ROTULO_MARCA[m.regra]}
+            </span>
+          ))}
+        </>
+      ),
+      pago: (
+        <>
+          {moedaCurta(p.pago)}
+          {p.pago_emenda_individual > 0 && <span className="mp-tabela-secundario">emenda individual: {moedaCurta(p.pago_emenda_individual)}</span>}
+        </>
+      ),
+      capital: pct(p.pct_capital),
+      "pessoal-divida": divida > 0 ? moedaCurta(divida) : "—",
+    },
+  };
 }
 
-function LinhaConciliacao({ m }: { m: TceFederalMunicipio }) {
+/** Uma linha da conciliação: os valores de `tce.ts` e as células de antes (onda 15, fase 2, lote C, 13/10/2026). */
+function linhaConciliacao(m: TceFederalMunicipio): LinhaTabela {
   const verificado = m.siconv_pj - m.siconv_nao_verificado;
-  return (
-    <tr>
-      <th scope="row">
-        <LinkMapa href={urlTce(m.ibge)} className="mp-tabela-principal">
-          {m.municipio ?? `IBGE ${m.ibge}`}
-        </LinkMapa>
-        {!m.coberto && <span className="mp-tabela-secundario">arquivo do TCE-PB ainda não lido</span>}
-      </th>
-      <td className="mp-num">{m.siconv_pj > 0 ? moedaCurta(m.siconv_pj) : "—"}</td>
-      <td className="mp-num">{verificado > 0 ? pct(m.siconv_casado / verificado) : "—"}</td>
-      <td className="mp-num">
-        {m.siconv_so > 0 ? moedaCurta(m.siconv_so) : "—"}
-        {m.n_so_siconv > 0 && <span className="mp-tabela-secundario">{n(m.n_so_siconv)} {m.n_so_siconv === 1 ? "empresa" : "empresas"}</span>}
-      </td>
-      <td className="mp-num">{m.tce_convenio_pj > 0 ? moedaCurta(m.tce_convenio_pj) : "—"}</td>
-      <td className="mp-num">
-        {m.tce_convenio_so > 0 ? moedaCurta(m.tce_convenio_so) : "—"}
-        {m.n_so_tce > 0 && <span className="mp-tabela-secundario">{n(m.n_so_tce)} {m.n_so_tce === 1 ? "empresa" : "empresas"}</span>}
-      </td>
-    </tr>
-  );
+  const empresas = (k: number) => (k > 0 ? <span className="mp-tabela-secundario">{n(k)} {k === 1 ? "empresa" : "empresas"}</span> : null);
+  return {
+    chave: m.ibge,
+    valores: valoresTceConciliacao(m),
+    celulas: {
+      municipio: (
+        <>
+          <LinkMapa href={urlTce(m.ibge)} className="mp-tabela-principal">
+            {m.municipio ?? `IBGE ${m.ibge}`}
+          </LinkMapa>
+          {!m.coberto && <span className="mp-tabela-secundario">arquivo do TCE-PB ainda não lido</span>}
+        </>
+      ),
+      siconv: m.siconv_pj > 0 ? moedaCurta(m.siconv_pj) : "—",
+      achado: verificado > 0 ? pct(m.siconv_casado / verificado) : "—",
+      "so-siconv": (
+        <>
+          {m.siconv_so > 0 ? moedaCurta(m.siconv_so) : "—"}
+          {empresas(m.n_so_siconv)}
+        </>
+      ),
+      "convenio-tce": m.tce_convenio_pj > 0 ? moedaCurta(m.tce_convenio_pj) : "—",
+      "so-tce": (
+        <>
+          {m.tce_convenio_so > 0 ? moedaCurta(m.tce_convenio_so) : "—"}
+          {empresas(m.n_so_tce)}
+        </>
+      ),
+    },
+  };
 }

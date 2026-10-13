@@ -8,10 +8,17 @@
  *
  * C4a (09/10/2026; achados B1 e C5 da revisão R3): no nível 0 (a versão pública, atrás da chave `MAPA_PUBLICO`) somem o
  * botão de imprimir e o CSV dos municípios, que a D1 põe atrás do cadastro. Do nível 1 em diante, nada muda.
+ *
+ * Onda 15, fase 2, lote A (13/10/2026): as listas viraram tabelas filtráveis (`TabelaFiltravel`), pela regra do titular.
+ * Os municípios, o estado como proponente e os órgãos são públicos: cada coluna filtra, a ordem padrão é a alfabética,
+ * e o valor e a contagem não ordenam, salvo para o administrador (`ordemLivre`). Os órgãos do público perderam o corte
+ * nos 10 maiores. Os temas e os tempos por órgão são do cadastro e ordenam por qualquer coluna. O CSV de cada tabela
+ * (só o filtrado) segue a regra da C4a: só do cadastro em diante. As colunas e os valores moram em `pagina-uf.ts`.
  */
+import type { ReactNode } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
-import { ROTULO_DECISAO } from "@/lib/oportunidades/fiscal";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import { formatarValor } from "@/lib/oportunidades/indicadores-municipio";
 import malhaPb from "@/lib/oportunidades/malhas/pb-municipios.json";
@@ -21,38 +28,57 @@ import { ROTULO_ESPECIE, especieDe, lenteDe, urlEntidade } from "@/lib/oportunid
 import { PODE, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import {
   ABAS_UF,
+  COLUNAS_TEMAS,
   NOME_UF,
   ancoraRegiao,
   ROTULO_LENTE_UF,
+  TABELA_ESTADO_UF,
+  TABELA_MUNICIPIOS_UF,
+  TABELA_ORGAOS,
+  TABELA_TEMAS,
+  TABELA_TEMPOS_ORGAO,
+  colunasEntidades,
+  colunasMunicipiosUf,
+  colunasOrgaos,
+  colunasTemposOrgao,
+  emOrdemAlfabetica,
   etapasComparadas,
   fontesDaUf,
   funil,
+  idDaEtapa,
   intermediariasDaUf,
   lentesDaUf,
   metodoDaUf,
   municipiosPorRegiao,
   naUf,
+  ordemLivre,
   orgaosComparados,
   porChave,
-  porSinais,
   porSituacao,
   SUFIXO_VIVO_POR_TCE,
   textoSemMedicoes,
   textoSemOrgaoEstadual,
   totalTerritorio,
+  urlMunicipiosDaRegiao,
+  urlMunicipiosPorSinais,
   urlRelatorioUf,
   urlUf,
+  valoresDaEntidade,
+  valoresDoMunicipioUf,
+  valoresDoOrgaoComparado,
   type AbaUf,
   type MunicipioUf,
 } from "@/lib/oportunidades/pagina-uf";
 import type { LeituraUfOk } from "@/lib/oportunidades/pagina-uf.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
-import { CHAVE_TODOS, MINIMO_MEDICOES, ROTULO_ETAPA } from "@/lib/oportunidades/painel";
+import { CHAVE_TODOS, MINIMO_MEDICOES } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../_componentes/Carregando";
 import { MapaTerritorio } from "../../_componentes/MapaTerritorio";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
@@ -308,53 +334,6 @@ export function Resumo({ l, peca = false }: { l: LeituraUfOk; peca?: boolean }) 
 }
 
 /**
- * `rotuloId` (onda 7, C, 09/10/2026; N04 da auditoria R1): o id do resumo do grupo. Sem ele, as 15 tabelas da PB tinham
- * o mesmo nome ("Municípios: instrumentos e valores"), e a lista de regiões do leitor de tela não dizia qual era qual.
- */
-function TabelaMunicipios({ ms, completa, admin, rotuloId }: { ms: MunicipioUf[]; completa: boolean; admin: boolean; rotuloId?: string }) {
-  return (
-    <TabelaRolagem {...(rotuloId ? { rotuloId } : { rotulo: "Municípios: instrumentos e valores" })}>
-      <table className="mp-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Município</th>
-            {completa && <th scope="col">Porte na PB</th>}
-            {completa && <th scope="col">População</th>}
-            <th scope="col">Instrumentos</th>
-            <th scope="col">Em execução</th>
-            <th scope="col">Valor em execução</th>
-            {completa && <th scope="col">OSC ativas</th>}
-            {admin && <th scope="col">Transferência voluntária (fiscal)</th>}
-            {admin && <th scope="col">Sinais do painel</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {ms.map((m) => (
-            <tr key={m.ibge}>
-              {/* A09 (onda 7, C, 09/10/2026): cabeçalho de linha, para o leitor de tela dizer o município em cada célula. */}
-              <th scope="row" className="mp-th-celula">
-                <Link href={urlDoMunicipioNaUf(m.ibge, completa)} prefetch={false}>
-                  {m.nome}
-                  <Carregando />
-                </Link>
-              </th>
-              {completa && <td>{m.porte ?? "—"}</td>}
-              {completa && <td className="mp-rel-num">{n(m.populacao)}</td>}
-              <td className="mp-rel-num">{n(m.instrumentos)}</td>
-              <td className="mp-rel-num">{m.em_execucao ? n(m.em_execucao) : "—"}</td>
-              <td className="mp-rel-num">{m.valor_execucao ? moedaCurta(m.valor_execucao) : "—"}</td>
-              {completa && <td className="mp-rel-num">{n(m.osc_ativas)}</td>}
-              {admin && <td>{m.decisao_b ? (ROTULO_DECISAO[m.decisao_b as keyof typeof ROTULO_DECISAO] ?? m.decisao_b) : "—"}</td>}
-              {admin && <td className="mp-rel-num">{n(m.sinais)}</td>}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TabelaRolagem>
-  );
-}
-
-/**
  * O mapa dos municípios da PB (a única UF com a malha municipal), cor pela região intermediária do IBGE. `alternativa`
  * (C1a): onde está a lista com os mesmos links, quando não é logo abaixo do mapa (no relatório, é a aba Municípios).
  */
@@ -375,106 +354,144 @@ export function MapaDaUf({ municipios, alternativa }: { municipios: MunicipioUf[
   );
 }
 
+/** A frase que diz, ao público, que os números da tabela filtram mas não ordenam (onda 15, fase 2, lote A, 13/10/2026). */
+const SEM_RANKING = "Cada coluna filtra; os números não ordenam a lista, para ela não virar classificação.";
+
+/**
+ * Os municípios numa tabela só (onda 15, fase 2, lote A, 13/10/2026). Antes eram 15 tabelas, uma por região imediata,
+ * cada uma num `<details>`; agora a região imediata e a intermediária são colunas de categoria, que filtram, e a ordem
+ * padrão é a alfabética do nome. O que os grupos davam continua:
+ *   · a cor da intermediária, a mesma do mapa (H12, B11), vai na amostra da coluna "Região intermediária";
+ *   · as âncoras de cada região (`#regiao-…`, da trilha do município) ficam no índice das regiões, acima da tabela, em
+ *     que cada região é um link que filtra a tabela por ela.
+ * O administrador ordena por qualquer coluna, e o `?ordem=sinais` de antes vira a ordem da coluna "Sinais do painel".
+ */
 function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: NivelAcesso; ordenarPorSinais: boolean }) {
   if (!l.municipios) return <p className="pa-nota">A lista dos municípios não pôde ser lida agora.</p>;
   // o fiscal e os sinais do painel só existem para a Paraíba
-  const admin = nivel >= 3 && l.completa;
-  // A cor de cada região intermediária, a mesma do mapa: o título de cada grupo da tabela a repete (H12, B11).
+  const admin = PODE.interno(nivel) && l.completa;
+  // O endereço antigo (`?ordem=sinais`, só do administrador) continua abrindo a lista nesta ordem, agora a da tabela.
+  if (ordenarPorSinais && admin) redirect(urlMunicipiosPorSinais(l.sigla));
+  // A cor de cada região intermediária, a mesma do mapa: a coluna e o índice das regiões a repetem (H12, B11).
   const corDaIntermediaria = gruposDeCor(intermediariasDaUf(l.municipios));
-  const ordem: React.ReactNode = ordenarPorSinais ? (
-    "ordenados pelos sinais do painel (só o administrador vê esta ordem)"
-  ) : l.completa ? (
-    <>
-      em ordem alfabética dentro de cada <Termo slug="regiao-imediata">região imediata</Termo> do IBGE
-    </>
-  ) : (
-    "em ordem alfabética"
+  const amostra = (intermediaria: string) => (
+    <span className={`mp-mapa-amostra mp-mapa-g${corDaIntermediaria.get(intermediaria) ?? 0}`} aria-hidden="true" />
   );
+  const regioes = l.completa ? municipiosPorRegiao(l.municipios).filter((g) => g.municipios.some((m) => m.regiao)) : [];
+  const linhas: LinhaTabela[] = emOrdemAlfabetica(l.municipios, (m) => m.nome).map((m) => ({
+    chave: m.ibge,
+    valores: valoresDoMunicipioUf(m, l.completa, nivel),
+    celulas: {
+      municipio: <LinkMapa href={urlDoMunicipioNaUf(m.ibge, l.completa)}>{m.nome}</LinkMapa>,
+      ...(l.completa && m.intermediaria
+        ? {
+            intermediaria: (
+              <>
+                {amostra(m.intermediaria)} {m.intermediaria}
+              </>
+            ),
+          }
+        : {}),
+      "em-execucao": m.em_execucao ? n(m.em_execucao) : "—",
+      "valor-execucao": m.valor_execucao ? moedaCurta(m.valor_execucao) : "—",
+    },
+  }));
   const nota = l.completa ? (
     <>
-      Os {n(l.municipios.length)} municípios, {ordem}. Instrumentos: todos os da base desde 2008; porte: pequeno, médio ou grande, pelo{" "}
-      <Termo slug="tercil">terço da população</Termo> entre os 223; OSC: as <Termo slug="osc-ativa">ativas</Termo> no Mapa das OSC.
-      {!ordenarPorSinais && (
+      Os {n(l.municipios.length)} municípios, em ordem alfabética. Instrumentos: todos os da base desde 2008; porte: pequeno, médio ou grande, pelo{" "}
+      <Termo slug="tercil">terço da população</Termo> entre os 223; OSC: as <Termo slug="osc-ativa">ativas</Termo> no Mapa das OSC. A{" "}
+      <Termo slug="regiao-imediata">região imediata</Termo> e a <Termo slug="regiao-intermediaria">região intermediária</Termo> do IBGE são colunas que
+      filtram; no mapa, a cor é a da intermediária, a mesma da amostra na tabela.
+      {admin ? (
         <>
           {" "}
-          No mapa, a cor é a da <Termo slug="regiao-intermediaria">região intermediária</Termo>, que reúne várias imediatas: cada grupo da tabela diz a
-          sua e repete a cor, e os grupos da mesma cor vêm juntos.
+          A coluna da transferência voluntária diz se o município pode receber esse repasse, pelo <Termo slug="decisoes-fiscais">painel fiscal</Termo>. O
+          administrador ordena por qualquer coluna.
         </>
-      )}
-      {admin && (
-        <>
-          {" "}
-          A coluna da transferência voluntária diz se o município pode receber esse repasse, pelo <Termo slug="decisoes-fiscais">painel fiscal</Termo>.
-        </>
+      ) : (
+        ` ${SEM_RANKING}`
       )}
     </>
   ) : (
     <>
-      Os {n(l.municipios.length)} municípios com <Termo slug="instrumento-vivo">instrumento vivo</Termo> na base, {ordem}.
+      Os {n(l.municipios.length)} municípios com <Termo slug="instrumento-vivo">instrumento vivo</Termo> na base, em ordem alfabética.
+      {ordemLivre(nivel) ? "" : ` ${SEM_RANKING}`}
     </>
   );
   return (
     <Secao id="uf-municipios" titulo="Os municípios" nota={nota}>
-      {l.completa && !ordenarPorSinais && <MapaDaUf municipios={l.municipios} />}
+      {l.completa && <MapaDaUf municipios={l.municipios} />}
+      {regioes.length > 1 && (
+        <nav aria-label="Filtrar pela região imediata" className="mp-nao-imprimir">
+          <p className="pa-nota">Cada região imediata filtra a tabela; a amostra é a cor da região intermediária no mapa.</p>
+          <p className="mp-laudo-acoes">
+            {regioes.map((g) => (
+              <LinkMapa
+                key={g.regiao}
+                id={ancoraRegiao(g.regiao)}
+                href={urlMunicipiosDaRegiao(l.sigla, g.regiao)}
+                className="pa-chip"
+                scroll={false}
+              >
+                {g.intermediaria && <>{amostra(g.intermediaria)} </>}
+                {g.regiao} ({n(g.municipios.length)})
+              </LinkMapa>
+            ))}
+          </p>
+        </nav>
+      )}
       {admin && (
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <span className="pa-nota">Administrador: </span>
-          {/* Onda 8, C (09/10/2026; N26 da auditoria R1, WCAG 4.1.2): a ordem escolhida não era só a cor do chip; o
-              `aria-current` diz qual é, como nos chips do painel. */}
-          <LinkMapa
-            href={urlUf(l.sigla, "municipios")}
-            className={`pa-chip${!ordenarPorSinais ? " pa-ativo" : ""}`}
-            aria-current={!ordenarPorSinais ? "true" : undefined}
-          >
-            Por região
-          </LinkMapa>
-          <LinkMapa
-            href={`${urlUf(l.sigla, "municipios")}&ordem=sinais`}
-            className={`pa-chip${ordenarPorSinais ? " pa-ativo" : ""}`}
-            aria-current={ordenarPorSinais ? "true" : undefined}
-          >
-            Por sinais do painel
+          <LinkMapa href={urlMunicipiosPorSinais(l.sigla)} className="pa-chip" scroll={false}>
+            Ver primeiro os com mais sinais do painel
           </LinkMapa>
         </p>
       )}
-      {ordenarPorSinais ? (
-        <TabelaMunicipios ms={porSinais(l.municipios)} completa={l.completa} admin={admin} />
-      ) : (
-        municipiosPorRegiao(l.municipios).map((g) => (
-          <details key={g.regiao} id={ancoraRegiao(g.regiao)} className="mp-ent-grupo" open>
-            <summary id={`${ancoraRegiao(g.regiao)}-resumo`}>
-              {/* H12 (B11): o mapa pinta pela intermediária e a tabela agrupa pela imediata; o título casa os dois. */}
-              {l.completa && g.intermediaria && (
-                <>
-                  <span className={`mp-mapa-amostra mp-mapa-g${corDaIntermediaria.get(g.intermediaria) ?? 0}`} aria-hidden="true" />{" "}
-                </>
-              )}
-              <strong>{l.completa ? `Região imediata de ${g.regiao}` : g.regiao}</strong>
-              {l.completa && g.intermediaria && <> · região intermediária de {g.intermediaria}</>} · {n(g.municipios.length)}{" "}
-              {g.municipios.length === 1 ? "município" : "municípios"}
-            </summary>
-            <TabelaMunicipios ms={g.municipios} completa={l.completa} admin={admin} rotuloId={`${ancoraRegiao(g.regiao)}-resumo`} />
-          </details>
-        ))
-      )}
-      {/* C4a: o CSV é do cadastro (D1; a rota responde 404 a quem não é aprovado); no nível 0 o botão não aparece. */}
-      {PODE.cadastro(nivel) && (
-        <p className="mp-nao-imprimir mp-laudo-acoes">
-          <a href={`/mapa/uf/${l.sigla.toLowerCase()}/csv`} className="pa-btn pa-btn-pequeno">
-            Baixar os municípios (CSV)
-          </a>
-        </p>
-      )}
+      {/* C4a: o CSV é do cadastro (D1); no nível 0 a tabela fica sem o botão. Ele baixa só o que está filtrado. */}
+      <TabelaFiltravel
+        id={TABELA_MUNICIPIOS_UF}
+        rotulo={`Os municípios ${naUf(l.sigla)}`}
+        colunas={colunasMunicipiosUf(l.completa, nivel)}
+        linhas={linhas}
+        ordemPadrao={{ coluna: "municipio", sentido: "asc" }}
+        csv={PODE.cadastro(nivel) ? { nome: `municipios-${l.sigla.toLowerCase()}` } : undefined}
+      />
     </Secao>
   );
 }
 
-export function Estado({ l }: { l: LeituraUfOk }) {
+/**
+ * O estado como proponente (onda 15, fase 2, lote A, 13/10/2026): tabela filtrável, em ordem alfabética. Era do maior
+ * valor para o menor, numa tela pública; agora o valor e as contagens filtram, mas só o administrador ordena por eles.
+ */
+export function Estado({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   if (!l.proponentes) return <p className="pa-nota">A lista dos proponentes não pôde ser lida agora.</p>;
-  const estaduais = l.proponentes
-    .map((p) => ({ ...p, especie: especieDe(p.proponente, p.tipo_agente) }))
-    .filter((p) => lenteDe(p.especie) === "estado")
-    .sort((a, b) => b.valor - a.valor || (a.proponente ?? "").localeCompare(b.proponente ?? "", "pt-BR"));
+  const estaduais = emOrdemAlfabetica(
+    l.proponentes
+      .map((p) => ({ ...p, especie: especieDe(p.proponente, p.tipo_agente), nome: p.proponente ?? cnpjLegivel(p.cnpj) ?? p.cnpj }))
+      .filter((p) => lenteDe(p.especie) === "estado"),
+    (p) => p.nome,
+  );
+  const linhas: LinhaTabela[] = estaduais.map((p) => ({
+    chave: p.cnpj,
+    valores: valoresDaEntidade({
+      cnpj: p.cnpj,
+      nome: p.nome,
+      especie: ROTULO_ESPECIE[p.especie],
+      instrumentos: p.instrumentos,
+      emExecucao: p.em_execucao,
+      valor: p.valor,
+      ultimoAno: p.ultimo_ano,
+      sede: p.municipio ? tituloOrgao(p.municipio) : null,
+    }),
+    celulas: {
+      entidade: <LinkMapa href={urlEntidade(p.cnpj)}>{p.nome}</LinkMapa>,
+      "em-execucao": p.em_execucao ? n(p.em_execucao) : "—",
+      valor: moedaCurta(p.valor),
+      "mais-recente": p.ultimo_ano === null ? "—" : String(p.ultimo_ano),
+    },
+  }));
   return (
     <Secao
       id="uf-estado"
@@ -488,44 +505,19 @@ export function Estado({ l }: { l: LeituraUfOk }) {
               (só os <Termo slug="instrumento-vivo">vivos</Termo>)
             </>
           )}
-          , cada um com a sua página.
+          , em ordem alfabética, cada um com a sua página.{ordemLivre(nivel) ? "" : ` ${SEM_RANKING}`}
         </>
       }
     >
       {estaduais.length ? (
-        <TabelaRolagem rotulo="O estado como proponente">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Entidade</th>
-                <th scope="col">Espécie</th>
-                <th scope="col">Sede</th>
-                <th scope="col">Instrumentos</th>
-                <th scope="col">Em execução</th>
-                <th scope="col">Valor global</th>
-                <th scope="col">Mais recente</th>
-              </tr>
-            </thead>
-            <tbody>
-              {estaduais.map((p) => (
-                <tr key={p.cnpj}>
-                  <th scope="row" className="mp-th-celula">
-                    <Link href={urlEntidade(p.cnpj)} prefetch={false}>
-                      {p.proponente ?? cnpjLegivel(p.cnpj)}
-                      <Carregando />
-                    </Link>
-                  </th>
-                  <td>{ROTULO_ESPECIE[p.especie]}</td>
-                  <td>{p.municipio ? tituloOrgao(p.municipio) : "—"}</td>
-                  <td className="mp-rel-num">{n(p.instrumentos)}</td>
-                  <td className="mp-rel-num">{p.em_execucao ? n(p.em_execucao) : "—"}</td>
-                  <td className="mp-rel-num">{moedaCurta(p.valor)}</td>
-                  <td>{p.ultimo_ano ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id={TABELA_ESTADO_UF}
+          rotulo="O estado como proponente"
+          colunas={colunasEntidades({ sede: true, livre: ordemLivre(nivel) })}
+          linhas={linhas}
+          ordemPadrao={{ coluna: "entidade", sentido: "asc" }}
+          csv={PODE.cadastro(nivel) ? { nome: `estado-proponente-${l.sigla.toLowerCase()}` } : undefined}
+        />
       ) : (
         // B12 (C1a, 08/10/2026): o vazio diz o recorte da base; fora da PB, só entram os instrumentos vivos.
         <p>{textoSemOrgaoEstadual(l.sigla)}</p>
@@ -545,9 +537,34 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   const situacoes = porSituacao(t, l.sigla, !l.completa);
   // A4x: entre os vivos, a linha além de execução e contas é a da tomada de contas especial (o rótulo já diz; a nota explica).
   const vivoPorTce = !l.completa && situacoes.some((s) => s.rotulo.endsWith(SUFIXO_VIVO_POR_TCE));
-  const orgaos = porChave(t, l.sigla, "orgao");
+  // Onda 15, fase 2, lote A (13/10/2026): os órgãos vêm todos, para todos os níveis (o público via só os 10 maiores),
+  // em ordem alfabética; o valor e as contagens filtram, mas só o administrador ordena por eles.
+  const livre = ordemLivre(nivel);
+  const orgaos = emOrdemAlfabetica(
+    porChave(t, l.sigla, "orgao").map((o) => ({ ...o, nome: tituloOrgao(o.chave) })),
+    (o) => o.nome,
+  );
+  const linhasOrgaos: LinhaTabela[] = orgaos.map((o) => ({
+    chave: o.chave,
+    valores: { orgao: o.nome, instrumentos: o.n, "em-execucao": o.em_execucao, valor: o.valor, desembolsado: o.desembolsado },
+    celulas: { valor: moedaCurta(o.valor), desembolsado: moedaCurta(o.desembolsado) },
+  }));
+  // Os temas são do cadastro (a tabela não aparece ao público): a ordem padrão continua a do valor, com a barra.
   const temas = porChave(t, l.sigla, "tema");
   const maiorTema = Math.max(1, ...temas.map((x) => x.valor));
+  const linhasTemas: LinhaTabela[] = temas.map((x) => ({
+    chave: x.chave,
+    valores: { tema: ROTULO_TEMA[x.chave] ?? x.chave, instrumentos: x.n, valor: x.valor },
+    celulas: {
+      valor: (
+        <>
+          {moedaCurta(x.valor)}
+          {/* A barra é decoração: o número está ao lado. */}
+          <span className="mp-ent-barra" aria-hidden="true" style={{ width: `${Math.round((x.valor / maiorTema) * 100)}%`, marginLeft: "auto" }} />
+        </>
+      ),
+    },
+  }));
   const pix = (l.pix ?? []).filter((p) => p.recorte === l.sigla && p.ano !== null).sort((a, b) => (b.ano ?? 0) - (a.ano ?? 0));
   const fundoPorAno = new Map<number, { repasse: number; planos: number }>();
   for (const f of l.fundo ?? []) {
@@ -611,63 +628,34 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
         titulo="De onde vem o dinheiro"
         nota={
           <>
-            Os {l.completa ? <Termo slug="instrumento-vivo">instrumentos vivos</Termo> : "instrumentos vivos"} por órgão concedente, do maior valor para o
-            menor.
+            Os {l.completa ? <Termo slug="instrumento-vivo">instrumentos vivos</Termo> : "instrumentos vivos"} por órgão concedente, todos, em ordem
+            alfabética.{livre ? "" : ` ${SEM_RANKING}`}
           </>
         }
       >
-        <TabelaRolagem rotulo="De onde vem o dinheiro">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Órgão</th>
-                <th scope="col">Instrumentos vivos</th>
-                <th scope="col">Em execução</th>
-                <th scope="col">Valor global</th>
-                <th scope="col">Desembolsado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(nivel >= 1 ? orgaos : orgaos.slice(0, 10)).map((o) => (
-                <tr key={o.chave}>
-                  <th scope="row">{tituloOrgao(o.chave)}</th>
-                  <td className="mp-rel-num">{n(o.n)}</td>
-                  <td className="mp-rel-num">{n(o.em_execucao)}</td>
-                  <td className="mp-rel-num">{moedaCurta(o.valor)}</td>
-                  <td className="mp-rel-num">{moedaCurta(o.desembolsado)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id={TABELA_ORGAOS}
+          rotulo="De onde vem o dinheiro"
+          colunas={colunasOrgaos(livre)}
+          linhas={linhasOrgaos}
+          ordemPadrao={{ coluna: "orgao", sentido: "asc" }}
+          csv={PODE.cadastro(nivel) ? { nome: `orgaos-${l.sigla.toLowerCase()}` } : undefined}
+        />
       </Secao>
       {nivel >= 1 && temas.length > 0 && (
-        <Secao id="uf-temas" titulo="Por tema" nota="Os instrumentos vivos por tema do programa (um instrumento pode ter mais de um tema).">
-          <TabelaRolagem rotulo="Por tema">
-            <table className="mp-tabela mp-ent-areas">
-              {/* A09 (onda 7, C, 09/10/2026): sem `thead`, os dois números da linha não tinham nome para o leitor de tela. */}
-              <thead>
-                <tr>
-                  <th scope="col">Tema</th>
-                  <th scope="col">Instrumentos vivos</th>
-                  <th scope="col">Valor global</th>
-                  <th aria-hidden="true" />
-                </tr>
-              </thead>
-              <tbody>
-                {temas.map((x) => (
-                  <tr key={x.chave}>
-                    <th scope="row">{ROTULO_TEMA[x.chave] ?? x.chave}</th>
-                    <td className="mp-rel-num">{n(x.n)}</td>
-                    <td className="mp-rel-num">{moedaCurta(x.valor)}</td>
-                    <td className="mp-ent-barra-celula" aria-hidden="true">
-                      <span className="mp-ent-barra" style={{ width: `${Math.round((x.valor / maiorTema) * 100)}%` }} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+        <Secao
+          id="uf-temas"
+          titulo="Por tema"
+          nota="Os instrumentos vivos por tema do programa (um instrumento pode ter mais de um tema), do maior valor para o menor; cada coluna filtra e ordena."
+        >
+          <TabelaFiltravel
+            id={TABELA_TEMAS}
+            rotulo="Por tema"
+            colunas={COLUNAS_TEMAS}
+            linhas={linhasTemas}
+            ordemPadrao={{ coluna: "valor", sentido: "desc" }}
+            csv={{ nome: `temas-${l.sigla.toLowerCase()}` }}
+          />
         </Secao>
       )}
       {nivel >= 1 && pix.length > 0 && (
@@ -746,6 +734,24 @@ export function Tempos({ l }: { l: LeituraUfOk }) {
   const nome = NOME_UF[l.sigla];
   const todos = l.etapas ? etapasComparadas(l.etapas, l.sigla, CHAVE_TODOS) : [];
   const orgaos = l.etapas ? orgaosComparados(l.etapas, l.sigla) : [];
+  // Onda 15, fase 2, lote A (13/10/2026): a tabela por órgão é do cadastro e ordena por qualquer coluna. A ordem padrão é
+  // a de antes (mais etapas lentas primeiro), agora com a coluna "Etapas lentas" à vista; a mediana do Brasil de cada
+  // etapa, que a célula mostra entre parênteses, vai também numa coluna oculta, que filtra e vai ao CSV.
+  const linhasOrgaos: LinhaTabela[] = orgaos.map((o) => {
+    const celulas: Record<string, ReactNode> = {};
+    for (const e of o.etapas) {
+      celulas[`uf-${idDaEtapa(e.etapa)}`] =
+        e.uf === null ? (
+          "—"
+        ) : (
+          <>
+            {e.lento ? <strong>{dias(e.uf)}</strong> : dias(e.uf)}
+            {e.br !== null && <span className="pa-nota"> (Brasil {dias(e.br)})</span>}
+          </>
+        );
+    }
+    return { chave: o.chave, valores: valoresDoOrgaoComparado(o, tituloOrgao(o.rotulo)), celulas };
+  });
   const f = l.desfechos ? funil(l.desfechos, l.sigla) : [];
   const fBr = l.desfechos ? funil(l.desfechos, "BR") : [];
   return (
@@ -790,33 +796,14 @@ export function Tempos({ l }: { l: LeituraUfOk }) {
             <summary>
               <strong>Por órgão</strong> · {n(orgaos.length)} órgãos, os com mais etapas lentas primeiro
             </summary>
-            <TabelaRolagem rotulo={`Por órgão · ${n(orgaos.length)} órgãos, os com mais etapas lentas primeiro`}>
-              <table className="mp-tabela">
-                <thead>
-                  <tr>
-                    <th scope="col">Órgão</th>
-                    {orgaos[0].etapas.map((e) => (
-                      <th key={e.etapa} scope="col">
-                        {ROTULO_ETAPA[e.etapa] ?? e.etapa}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {orgaos.map((o) => (
-                    <tr key={o.chave}>
-                      <th scope="row">{tituloOrgao(o.rotulo)}</th>
-                      {o.etapas.map((e) => (
-                        <td key={e.etapa} className="mp-rel-num">
-                          {e.uf === null ? "—" : e.lento ? <strong>{dias(e.uf)}</strong> : dias(e.uf)}
-                          {e.br !== null && <span className="pa-nota"> (Brasil {dias(e.br)})</span>}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TabelaRolagem>
+            <TabelaFiltravel
+              id={TABELA_TEMPOS_ORGAO}
+              rotulo={`Por órgão · ${n(orgaos.length)} órgãos, os com mais etapas lentas primeiro`}
+              colunas={colunasTemposOrgao(orgaos[0].etapas.map((e) => e.etapa))}
+              linhas={linhasOrgaos}
+              ordemPadrao={{ coluna: "lentas", sentido: "desc" }}
+              csv={{ nome: `tempos-por-orgao-${l.sigla.toLowerCase()}` }}
+            />
           </details>
         )}
       </Secao>
@@ -934,7 +921,7 @@ export function UfConteudo({ l, aba, nivel, porSinais: ordenarPorSinais = false 
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
       {aba === "resumo" && <Resumo l={l} />}
       {aba === "municipios" && <Municipios l={l} nivel={nivel} ordenarPorSinais={ordenarPorSinais} />}
-      {aba === "estado" && <Estado l={l} />}
+      {aba === "estado" && <Estado l={l} nivel={nivel} />}
       {aba === "dinheiro" && <Dinheiro l={l} nivel={nivel} />}
       {aba === "tempos" && <Tempos l={l} />}
       {aba === "relatorio" && <Relatorio l={l} nivel={nivel} />}

@@ -9,16 +9,31 @@
  * C4a (09/10/2026; achado 4.1 da auditoria R1): a lista das organizações pede cadastro (fora da lista branca de
  * `publico.ts`, decisão do titular em aberto). No nível 0, as áreas ficam sem link e o botão diz "(pede cadastro)" e
  * leva à entrada, em vez de mandar ao login sem aviso.
+ *
+ * Onda 15, fase 2, lote A (13/10/2026): as entidades viraram uma tabela só, filtrável (eram uma tabela por lente, do
+ * maior valor para o menor, numa tela pública). A lente é a coluna "Grupo", de categoria; a ordem padrão é a alfabética;
+ * o valor e as contagens filtram, mas não ordenam (ranking público rejeitado). A explicação de cada grupo fica logo
+ * abaixo da tabela, e o resumo das OSC, que vinha dentro do grupo da sociedade civil, num bloco próprio. Este bloco não
+ * recebe o nível: a regra pública vale para todos aqui, e o CSV (só o filtrado) fica do cadastro em diante.
  */
 import Link from "next/link";
 import { ROTULO_AREA, rotuloArea, rotuloNatureza, versaoLegivel, type FonteOsc, type ResumoOscMunicipio } from "@/lib/oportunidades/osc";
 import { EXPLICA_LENTE, ROTULO_ESPECIE, ROTULO_LENTE, urlEntidade, type EntidadeNoMunicipio, type LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
+import { colunasEntidades, emOrdemAlfabetica, valoresDaEntidade } from "@/lib/oportunidades/pagina-uf";
 import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Carregando } from "../../_componentes/Carregando";
+import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { Termo } from "../../_componentes/Termo";
 import { Secao } from "./relatorio/RelatorioConteudo";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+
+/** O prefixo da tabela no endereço (`?t.quem-recebe.<coluna>=…`), único na página do município. */
+const TABELA_QUEM_RECEBE = "quem-recebe";
+/** A regra pública: as colunas de valor e de contagem filtram, mas não ordenam. */
+const COLUNAS_QUEM_RECEBE = colunasEntidades({ grupo: true, livre: false });
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 const plural = (x: number, um: string, varios: string) => `${n(x)} ${x === 1 ? um : varios}`;
@@ -121,61 +136,65 @@ export function QuemRecebe({
   if (!grupos) return <p className="pa-nota">A lista de quem recebe no município não pôde ser lida agora.</p>;
   if (!grupos.length && !osc) return null;
   const temSociedade = grupos.some((g) => g.lente === "sociedade");
+  const entidades = emOrdemAlfabetica(
+    grupos.flatMap((g) => g.entidades.map((e): { e: EntidadeNoMunicipio; lente: LenteEntidade } => ({ e, lente: g.lente }))),
+    (x) => x.e.nome,
+  );
+  const linhas: LinhaTabela[] = entidades.map(({ e, lente }) => ({
+    chave: e.cnpj,
+    valores: valoresDaEntidade({
+      cnpj: e.cnpj,
+      nome: e.nome,
+      especie: ROTULO_ESPECIE[e.especie],
+      instrumentos: e.instrumentos,
+      emExecucao: e.emExecucao,
+      valor: e.valor,
+      ultimoAno: e.ultimoAno,
+      grupo: ROTULO_LENTE[lente],
+    }),
+    celulas: {
+      entidade: <LinkMapa href={urlEntidade(e.cnpj)}>{e.nome}</LinkMapa>,
+      "em-execucao": e.emExecucao ? n(e.emExecucao) : "—",
+      valor: moedaCurta(e.valor),
+      "mais-recente": e.ultimoAno === null ? "—" : String(e.ultimoAno),
+    },
+  }));
   return (
     <Secao
       id="mun-quem-recebe"
       titulo="Quem recebe no município"
       nota={
         <>
-          Os <Termo slug="proponente">proponentes</Termo> com instrumento e sede em {municipio}, cada um com a sua página: carteira, fila e dinheiro.
+          Os <Termo slug="proponente">proponentes</Termo> com instrumento e sede em {municipio}, em ordem alfabética, cada um com a sua página: carteira,
+          fila e dinheiro. Cada coluna filtra (o grupo inclusive); os números não ordenam a lista, para ela não virar classificação.
         </>
       }
     >
-      {grupos.map((g) => (
-        <details key={g.lente} className="mp-ent-grupo" open>
-          <summary>
-            <strong>{ROTULO_LENTE[g.lente]}</strong> · {n(g.entidades.length)} {g.entidades.length === 1 ? "entidade" : "entidades"}
-          </summary>
-          <p className="pa-nota">{EXPLICA_LENTE[g.lente]}</p>
-          <TabelaRolagem rotulo={`${ROTULO_LENTE[g.lente]} · ${n(g.entidades.length)} ${g.entidades.length === 1 ? "entidade" : "entidades"}`}>
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Entidade</th>
-                  <th scope="col">Espécie</th>
-                  <th scope="col">Instrumentos</th>
-                  <th scope="col">Em execução</th>
-                  <th scope="col">Valor global</th>
-                  <th scope="col">Mais recente</th>
-                </tr>
-              </thead>
-              <tbody>
-                {g.entidades.map((e) => (
-                  <tr key={e.cnpj}>
-                    {/* A09 (onda 7, C, 09/10/2026): a entidade é o cabeçalho da linha, com a cara da célula comum. */}
-                    <th scope="row" className="mp-th-celula">
-                      <Link href={urlEntidade(e.cnpj)} prefetch={false}>
-                        {e.nome}
-                        <Carregando />
-                      </Link>
-                    </th>
-                    <td>{ROTULO_ESPECIE[e.especie]}</td>
-                    <td className="mp-rel-num">{n(e.instrumentos)}</td>
-                    <td className="mp-rel-num">{e.emExecucao ? n(e.emExecucao) : "—"}</td>
-                    <td className="mp-rel-num">{moedaCurta(e.valor)}</td>
-                    <td>{e.ultimoAno ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
-          {g.lente === "sociedade" && osc && <SociedadeCivil osc={osc} ibge={ibge} municipio={municipio} publico={publico} />}
-        </details>
-      ))}
-      {!temSociedade && osc && (
+      {linhas.length > 0 && (
+        <>
+          <TabelaFiltravel
+            id={TABELA_QUEM_RECEBE}
+            rotulo={`Quem recebe em ${municipio}`}
+            colunas={COLUNAS_QUEM_RECEBE}
+            linhas={linhas}
+            ordemPadrao={{ coluna: "entidade", sentido: "asc" }}
+            csv={publico ? undefined : { nome: `quem-recebe-${ibge}` }}
+          />
+          <ul className="pa-nota">
+            {grupos.map((g) => (
+              <li key={g.lente}>
+                <strong>{ROTULO_LENTE[g.lente]}</strong> ({n(g.entidades.length)} {g.entidades.length === 1 ? "entidade" : "entidades"}):{" "}
+                {EXPLICA_LENTE[g.lente]}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {osc && (
         <details className="mp-ent-grupo" open>
           <summary>
-            <strong>{ROTULO_LENTE.sociedade}</strong> · nenhuma com instrumento federal na base
+            <strong>{ROTULO_LENTE.sociedade}</strong> ·{" "}
+            {temSociedade ? "todas as organizações, com e sem instrumento federal" : "nenhuma com instrumento federal na base"}
           </summary>
           <SociedadeCivil osc={osc} ibge={ibge} municipio={municipio} publico={publico} />
         </details>

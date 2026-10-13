@@ -20,7 +20,8 @@
 import { formatarData } from "./central.ts";
 import type { Risco } from "./laudo.ts";
 import { moedaCurta } from "./radar.ts";
-import { tceDoFornecedor, type TceFederalPar } from "./tce.ts";
+import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
+import { ROTULO_SITUACAO, tceDoFornecedor, type TceFederalPar, type TcePixCredor } from "./tce.ts";
 
 // ================================================================ linhas do banco
 
@@ -589,5 +590,245 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
     tcuVerificado: e.fornecedores.length > 0 && e.fornecedores.every((f) => f.inidoneo_tcu !== null),
     ceisCnep,
     riscos,
+  };
+}
+
+// ================================================================ tabelas (onda 15, fase 2, lote D, 13/10/2026)
+//
+// A regra do titular (13/10/2026): toda tabela que lista coisas filtra e ordena por qualquer coluna. Fornecedores e
+// dossiê são telas de administrador: toda coluna ordena. A célula que junta vários dados mantém o desenho, e cada dado
+// dela filtra por uma coluna oculta (`oculta: true`). Fatias em percentual (0 a 100), para o filtro ler "50" como 50%.
+// Nome de empresa só aqui, no administrador; pessoa física não aparece (os contratos sem CNPJ não chegam ao dossiê).
+
+/** 0,534 → 53,4: a fatia como percentual com uma casa, para filtrar e ordenar. */
+export function emPercentual(fracao: number | null | undefined): number | null {
+  return fracao === null || fracao === undefined || !Number.isFinite(fracao) ? null : Math.round(fracao * 1000) / 10;
+}
+
+/** O nome curto de cada faixa, para a coluna de categoria. */
+export const ROTULO_CURTO_FAIXA: Record<FaixaConcentracao, string> = {
+  alta: "Alta",
+  moderada: "Moderada",
+  baixa: "Distribuída",
+  pouco_dado: "Pouco pago para ler",
+};
+
+/** Concentração nas prefeituras (`/mapa/fornecedores`, #80). */
+export const COLUNAS_CONCENTRACAO: ColunaTabela[] = [
+  { id: "prefeitura", titulo: "Prefeitura", tipo: "texto" },
+  { id: "ibge", titulo: "IBGE", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "fornecedores", titulo: "Fornecedores na prefeitura", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "convenios", titulo: "Convênios da prefeitura", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "maior", titulo: "Maior fornecedor", tipo: "texto" },
+  { id: "maior-cnpj", titulo: "CNPJ do maior fornecedor", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "fatia", titulo: "Fatia dele (%)", tipo: "numero", alinhar: "direita" },
+  { id: "maior-pago", titulo: "Pago ao maior fornecedor", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "pago-pj", titulo: "Pago a empresas", tipo: "numero", alinhar: "direita" },
+  { id: "indice", titulo: "Índice", tipo: "numero", alinhar: "direita" },
+  { id: "faixa", titulo: "Concentração", tipo: "categoria", oculta: true },
+];
+
+export function valoresDaConcentracao(m: ConcentracaoMunicipio): Record<string, ValorCelula> {
+  return {
+    prefeitura: m.municipio ?? `IBGE ${m.cod_ibge}`,
+    ibge: m.cod_ibge,
+    fornecedores: m.n_fornecedores,
+    convenios: m.convenios,
+    maior: m.maior_cnpj ? nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj }) : null,
+    "maior-cnpj": cnpjLegivel(m.maior_cnpj),
+    fatia: emPercentual(m.maior_fatia),
+    "maior-pago": m.maior_pago,
+    "pago-pj": m.pago_pj,
+    indice: m.hhi,
+    faixa: ROTULO_CURTO_FAIXA[faixaConcentracao(m)],
+  };
+}
+
+/** Onde a empresa é o maior fornecedor da prefeitura (dossiê, #81). */
+export const COLUNAS_LIDERA: ColunaTabela[] = [
+  { id: "prefeitura", titulo: "Prefeitura", tipo: "texto" },
+  { id: "fornecedores", titulo: "Fornecedores na prefeitura", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "fatia", titulo: "Fatia (%)", tipo: "numero", alinhar: "direita" },
+  { id: "recebeu", titulo: "Recebeu", tipo: "numero", alinhar: "direita" },
+  { id: "pago-pj", titulo: "Pago a empresas", tipo: "numero", alinhar: "direita" },
+];
+
+export function valoresDaLideranca(m: ConcentracaoMunicipio): Record<string, ValorCelula> {
+  return {
+    prefeitura: m.municipio ?? `IBGE ${m.cod_ibge}`,
+    fornecedores: m.n_fornecedores,
+    fatia: emPercentual(m.maior_fatia),
+    recebeu: m.maior_pago,
+    "pago-pj": m.pago_pj,
+  };
+}
+
+export interface MunicipioDoFornecedor {
+  chave: string;
+  nome: string;
+  convenios: number;
+  pago: number;
+}
+
+/** Soma por município do proponente, do que mais recebeu ao que menos (dossiê, #82; antes `porMunicipio` na tela). */
+export function municipiosDoFornecedor(cs: readonly Pick<FornecedorConvenio, "cod_ibge" | "municipio" | "pago">[]): MunicipioDoFornecedor[] {
+  const m = new Map<string, MunicipioDoFornecedor>();
+  for (const c of cs) {
+    const chave = c.cod_ibge ?? "?";
+    const x = m.get(chave) ?? { chave, nome: c.municipio ?? "Município não informado", convenios: 0, pago: 0 };
+    x.convenios += 1;
+    x.pago += c.pago;
+    m.set(chave, x);
+  }
+  return [...m.values()].sort((a, b) => b.pago - a.pago);
+}
+
+export const COLUNAS_MUNICIPIOS_DO_FORNECEDOR: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita" },
+  { id: "recebeu", titulo: "Recebeu", tipo: "numero", alinhar: "direita" },
+];
+
+export function valoresDoMunicipioDoFornecedor(m: MunicipioDoFornecedor): Record<string, ValorCelula> {
+  return { municipio: m.nome, convenios: m.convenios, recebeu: m.pago };
+}
+
+/** Os convênios em que a empresa recebeu ou contratou (dossiê, #83). */
+export const COLUNAS_CONVENIOS_DO_FORNECEDOR: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "municipio", titulo: "Município", tipo: "texto", oculta: true },
+  { id: "proponente", titulo: "Proponente", tipo: "texto", oculta: true },
+  { id: "programa", titulo: "Programa", tipo: "texto", oculta: true },
+  { id: "sancao", titulo: "Momento da sanção do TCU", tipo: "categoria", oculta: true },
+  { id: "orgao", titulo: "Órgão", tipo: "categoria" },
+  { id: "recebeu", titulo: "Recebeu", tipo: "numero", alinhar: "direita" },
+  { id: "fatia", titulo: "Fatia do pago a empresas (%)", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "pagamentos", titulo: "Pagamentos", tipo: "numero" },
+  { id: "primeiro-pagamento", titulo: "Primeiro pagamento", tipo: "data", oculta: true },
+  { id: "ultimo-pagamento", titulo: "Último pagamento", tipo: "data", oculta: true },
+  { id: "contratos", titulo: "Contratos", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "contratado", titulo: "Contratado", tipo: "numero", alinhar: "direita" },
+];
+
+/**
+ * Os valores de um convênio do dossiê. O proponente, o órgão e o programa chegam já escritos pela tela (o título do
+ * órgão é de `padroes.ts`, o programa vem do instrumento), e o momento da sanção é o de `momentoDaSancao`.
+ */
+export function valoresDoConvenioDoFornecedor(
+  c: FornecedorConvenio,
+  extra: { proponente: string | null; orgao: string | null; programa: string | null; momento: MomentoSancao | null },
+): Record<string, ValorCelula> {
+  return {
+    convenio: c.nr_convenio,
+    municipio: c.municipio,
+    proponente: extra.proponente,
+    programa: extra.programa,
+    sancao: extra.momento ? ROTULO_MOMENTO[extra.momento] : null,
+    orgao: extra.orgao,
+    recebeu: c.pago,
+    fatia: c.pago > 0 ? emPercentual(c.fatia) : null,
+    pagamentos: c.n_pagamentos,
+    "primeiro-pagamento": c.primeiro_pagamento,
+    "ultimo-pagamento": c.ultimo_pagamento,
+    contratos: c.n_contratos,
+    // Sem contrato, a tela mostra "—": o vazio, e não o zero, para o filtro e a ordem dizerem o mesmo.
+    contratado: c.n_contratos ? c.contratado : null,
+  };
+}
+
+/** Os contratos da empresa nos convênios da PB (dossiê, #84): até 77 por CNPJ em 13/10/2026. */
+export const COLUNAS_CONTRATOS_DO_FORNECEDOR: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "contrato", titulo: "Contrato", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "assinatura", titulo: "Assinatura", tipo: "data", oculta: true },
+  { id: "objeto", titulo: "Objeto", tipo: "texto" },
+  { id: "aquisicao", titulo: "Tipo de aquisição", tipo: "categoria", oculta: true },
+  { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita" },
+  { id: "inicio-vigencia", titulo: "Início da vigência", tipo: "data", oculta: true },
+  { id: "fim-vigencia", titulo: "Fim da vigência", tipo: "data" },
+];
+
+export function valoresDoContrato(k: Contrato): Record<string, ValorCelula> {
+  return {
+    convenio: k.nr_convenio,
+    contrato: k.nr_contrato ?? k.id_contrato,
+    assinatura: k.dt_assinatura,
+    objeto: k.objeto?.trim() || null,
+    aquisicao: k.tipo_aquisicao?.trim() || null,
+    valor: k.valor,
+    "inicio-vigencia": k.dt_inicio_vigencia,
+    "fim-vigencia": k.dt_fim_vigencia,
+  };
+}
+
+/** Uma linha município × ano do TCE-PB no dossiê (#85): o par com o SICONV, o Pix, ou os dois. */
+export interface LinhaTceFornecedor {
+  chave: string;
+  ibge: string;
+  municipio: string;
+  ano: number;
+  /** O total pago no TCE-PB: convênio + Pix + outras fontes do par; só o Pix, sem par. */
+  total: number;
+  convenio: number;
+  /** O Pix do credor (`tce_pix_credor`) quando há; senão, o do par. */
+  pix: number;
+  outras: number;
+  /** Null quando o SICONV não registra pagamento (a tela mostra "—"). */
+  siconv: number | null;
+  situacao: string;
+}
+
+/** As linhas do TCE-PB do dossiê, do ano mais recente para o mais antigo e, no ano, por município. */
+export function linhasTceDoFornecedor(
+  pares: readonly TceFederalPar[],
+  pix: readonly TcePixCredor[],
+  municipio: (ibge: string) => string,
+): LinhaTceFornecedor[] {
+  const pixPorChave = new Map(pix.map((x) => [`${x.ibge}-${x.ano}`, x]));
+  const linhas: LinhaTceFornecedor[] = pares.map((p) => {
+    const chave = `${p.ibge}-${p.ano}`;
+    return {
+      chave,
+      ibge: p.ibge,
+      municipio: municipio(p.ibge),
+      ano: p.ano,
+      total: p.tce_convenio + p.tce_pix + p.tce_outras,
+      convenio: p.tce_convenio,
+      pix: pixPorChave.get(chave)?.pago ?? p.tce_pix,
+      outras: p.tce_outras,
+      siconv: p.siconv > 0 ? p.siconv : null,
+      situacao: ROTULO_SITUACAO[p.situacao],
+    };
+  });
+  const vistos = new Set(linhas.map((l) => l.chave));
+  for (const x of pix) {
+    const chave = `${x.ibge}-${x.ano}`;
+    if (vistos.has(chave)) continue;
+    linhas.push({ chave, ibge: x.ibge, municipio: municipio(x.ibge), ano: x.ano, total: x.pago, convenio: 0, pix: x.pago, outras: 0, siconv: null, situacao: "Pix" });
+  }
+  return linhas.sort((a, b) => b.ano - a.ano || a.municipio.localeCompare(b.municipio, "pt-BR"));
+}
+
+export const COLUNAS_TCE_DO_FORNECEDOR: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "ano", titulo: "Ano", tipo: "numero" },
+  { id: "tce", titulo: "TCE-PB", tipo: "numero", alinhar: "direita" },
+  { id: "tce-convenio", titulo: "TCE-PB de convênio", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "tce-pix", titulo: "TCE-PB do Pix", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "tce-outras", titulo: "TCE-PB de outras fontes", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "siconv", titulo: "SICONV", tipo: "numero", alinhar: "direita" },
+  { id: "situacao", titulo: "Situação", tipo: "categoria" },
+];
+
+export function valoresDaLinhaTce(l: LinhaTceFornecedor): Record<string, ValorCelula> {
+  return {
+    municipio: l.municipio,
+    ano: l.ano,
+    tce: l.total > 0 ? l.total : null,
+    "tce-convenio": l.convenio,
+    "tce-pix": l.pix,
+    "tce-outras": l.outras,
+    siconv: l.siconv,
+    situacao: l.situacao,
   };
 }

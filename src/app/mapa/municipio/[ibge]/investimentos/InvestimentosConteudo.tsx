@@ -5,8 +5,16 @@
  * C4a (09/10/2026; item 8 da revisão R3 e 4.1 da auditoria R1): `publico`, o nível 0 da versão aberta, que vê esta
  * página (D1: a situação dos instrumentos). A busca pede cadastro: os links para ela dizem "(pede cadastro)" e levam à
  * entrada, e as linhas das barras ficam sem link. A estrela some porque a página não passa `seguindo`.
+ *
+ * Onda 15, fase 2, lote A (13/10/2026): "Convênios por tema" (até 19 linhas) virou tabela filtrável, em ordem
+ * alfabética do tema, com a barra dentro da célula do tema; tela pública, então o número de instrumentos, o repasse e o
+ * desembolsado filtram, mas não ordenam. O CSV (só o filtrado) fica do cadastro em diante. "Por situação" e "por
+ * modalidade" são resumos de 3 a 6 linhas e ficam como estavam.
  */
+import type { ReactNode } from "react";
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
+import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
+import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import {
   ROTULO_GRUPO_INVESTIMENTO,
@@ -24,7 +32,7 @@ import type { LeituraInvestimentos } from "@/lib/oportunidades/busca.server";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
 import { UF_DETALHE } from "@/lib/oportunidades/instrumentos-escopo";
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
-import { NOME_UF, urlUf } from "@/lib/oportunidades/pagina-uf";
+import { NOME_UF, colunaDeNumero, emOrdemAlfabetica, urlUf } from "@/lib/oportunidades/pagina-uf";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { trilha } from "@/lib/oportunidades/trilha";
@@ -121,12 +129,11 @@ export function InvestimentosConteudo({
             <p className="pa-nota">Especiais e fundo a fundo plano a plano existem só para a Paraíba.</p>
           )}
 
-          <Barras
-            titulo="Convênios por tema"
-            nota="Pelo nome do programa. Um convênio pode ter mais de um tema, então a soma das barras passa do total."
+          <PorTema
             linhas={temas}
             rotulo={(l) => (l.chave ? (ROTULO_TEMA[l.chave] ?? l.chave) : "Sem tema identificado")}
             link={(l) => aberto(l.chave ? urlBusca(parametrosBusca({}), { uf, municipio: ibge, tema: l.chave }) : null)}
+            csv={publico ? undefined : `temas-${ibge}`}
           />
           <Barras
             titulo="Convênios por situação"
@@ -189,6 +196,69 @@ function SemInvestimento({ ibge, uf, nome, completo, publico }: { ibge: string; 
       </p>
       <p className="pa-nota">A busca das propostas traz {recorte.propostas}.</p>
     </div>
+  );
+}
+
+/** O prefixo da tabela dos temas no endereço (`?t.temas.<coluna>=…`) e as colunas, pela regra pública (sem ranking). */
+const TABELA_TEMAS_MUNICIPIO = "temas";
+const COLUNAS_POR_TEMA: ColunaTabela[] = [
+  { id: "tema", titulo: "Tema", tipo: "categoria" },
+  colunaDeNumero("instrumentos", "Instrumentos", false),
+  colunaDeNumero("repasse", "Repasse", false),
+  colunaDeNumero("desembolsado", "Desembolsado", false),
+];
+
+/**
+ * "Convênios por tema" como tabela filtrável (onda 15, fase 2, lote A, 13/10/2026): o tema em ordem alfabética, com a
+ * barra do repasse (relativa ao maior) dentro da célula do tema, como antes; os números filtram, mas não ordenam.
+ */
+function PorTema({
+  linhas,
+  rotulo,
+  link,
+  csv,
+}: {
+  linhas: LinhaInvestimento[];
+  rotulo: (l: LinhaInvestimento) => string;
+  link: (l: LinhaInvestimento) => string | null;
+  /** O nome do CSV; sem ele (o nível 0), a tabela fica sem o botão. */
+  csv?: string;
+}) {
+  if (linhas.length === 0) return null;
+  const tabela: LinhaTabela[] = emOrdemAlfabetica(fracoesDaMaior(linhas, (l) => l.valor ?? 0), ({ item }) => rotulo(item)).map(({ item: l, fracao }) => {
+    const href = link(l);
+    const nome = rotulo(l);
+    const tema: ReactNode = (
+      <>
+        {href ? <LinkMapa href={href}>{nome}</LinkMapa> : nome}
+        {/* A barra é decoração: o número está na coluna ao lado. */}
+        <span className="mp-barra" aria-hidden="true">
+          <span className="mp-barra-cheia" style={{ width: `${Math.max(fracao * 100, 0.5)}%` }} />
+        </span>
+      </>
+    );
+    return {
+      chave: l.chave || "sem-tema",
+      valores: { tema: nome, instrumentos: l.n, repasse: l.valor, desembolsado: l.executado },
+      celulas: { tema, repasse: moedaCurta(l.valor), desembolsado: moedaCurta(l.executado) },
+    };
+  });
+  return (
+    <section className="mp-radar-recorte">
+      <h2 className="mp-radar-h3">Convênios por tema</h2>
+      <p className="pa-nota">
+        Pelo nome do programa, em ordem alfabética. Um convênio pode ter mais de um tema, então a soma das barras passa do total. Cada coluna filtra; os
+        números não ordenam a lista.
+      </p>
+      <TabelaFiltravel
+        id={TABELA_TEMAS_MUNICIPIO}
+        rotulo="Convênios por tema"
+        colunas={COLUNAS_POR_TEMA}
+        linhas={tabela}
+        ordemPadrao={{ coluna: "tema", sentido: "asc" }}
+        csv={csv ? { nome: csv } : undefined}
+      />
+    </section>
   );
 }
 

@@ -1,11 +1,17 @@
 /**
  * A lista dos fornecedores dos convênios da PB e o quadro de concentração nas prefeituras.
  * Recebe a leitura pronta (lib/oportunidades/fornecedores.server.ts); aqui só se apresenta.
+ *
+ * Onda 15, fase 2, lote D (13/10/2026): a concentração nas prefeituras virou `TabelaFiltravel` (colunas e valores em
+ * `fornecedores.ts`, com teste): toda coluna filtra e ordena (tela de administrador), e cada dado da célula que junta
+ * vários (fornecedores e convênios da prefeitura, o pago ao maior, a faixa) filtra por uma coluna oculta. A lista das
+ * empresas é paginada no banco (100 por página) e fica para a fase 3, com o formulário de busca, que vai ao banco.
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
 import { diaBrasilia } from "@/lib/oportunidades/datas";
 import {
+  COLUNAS_CONCENTRACAO,
   FATIA_ALTA,
   PAGO_MINIMO_CONCENTRACAO,
   ROTULO_FAIXA,
@@ -13,13 +19,17 @@ import {
   faixaConcentracao,
   nomeFornecedor,
   urlFornecedor,
+  valoresDaConcentracao,
   type ConcentracaoMunicipio,
+  type FaixaConcentracao,
   type LeituraCeisCnep,
 } from "@/lib/oportunidades/fornecedores";
 import { POR_PAGINA, type FiltroFornecedores, type LeituraPainelFornecedores, type LinhaPainel } from "@/lib/oportunidades/fornecedores.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Saidas, type Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPainelFornecedores, { estado: "ok" }>;
@@ -174,7 +184,8 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
         </h2>
         <p className="pa-nota">
           Nos convênios em que a prefeitura é a proponente, quanto o maior fornecedor levou do que foi pago a empresas. Entram as prefeituras com
-          pelo menos {moedaCurta(PAGO_MINIMO_CONCENTRACAO)} pagos a empresas e compra {ROTULO_FAIXA.moderada} ou com {ROTULO_FAIXA.alta}.
+          pelo menos {moedaCurta(PAGO_MINIMO_CONCENTRACAO)} pagos a empresas e compra {ROTULO_FAIXA.moderada} ou com {ROTULO_FAIXA.alta}, da maior
+          fatia para a menor. Cada coluna filtra e ordena, e a concentração (alta ou moderada) também.
         </p>
         {concentrados.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">
@@ -345,53 +356,44 @@ function Linha({ l }: { l: LinhaPainel }) {
   );
 }
 
-function TabelaConcentracao({ linhas, filtro }: { linhas: (ConcentracaoMunicipio & { faixa: string })[]; filtro: FiltroFornecedores }) {
+/**
+ * A concentração nas prefeituras (onda 15, fase 2, lote D, 13/10/2026): as linhas chegam da maior fatia para a menor
+ * (empate pelo pago a empresas), que é a ordem padrão. O nome da prefeitura leva à lista das empresas dela.
+ */
+function TabelaConcentracao({ linhas, filtro }: { linhas: (ConcentracaoMunicipio & { faixa: FaixaConcentracao })[]; filtro: FiltroFornecedores }) {
   return (
-    <TabelaRolagem rotuloId="forn-concentracao">
-      <table className="mp-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Prefeitura</th>
-            <th scope="col">Maior fornecedor</th>
-            <th scope="col" className="mp-num">
-              Fatia dele
-            </th>
-            <th scope="col" className="mp-num">
-              Pago a empresas
-            </th>
-            <th scope="col" className="mp-num">
-              Índice
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((m) => (
-            <tr key={m.cod_ibge}>
-              <th scope="row">
+    <TabelaFiltravel
+      id="conc"
+      rotulo="Concentração nas prefeituras"
+      colunas={COLUNAS_CONCENTRACAO}
+      linhas={linhas.map(
+        (m): LinhaTabela => ({
+          chave: m.cod_ibge,
+          valores: valoresDaConcentracao(m),
+          celulas: {
+            prefeitura: (
+              <>
                 <LinkMapa href={url(filtro, { municipio: m.cod_ibge, q: null, marca: null })} className="mp-tabela-principal">
                   {m.municipio ?? `IBGE ${m.cod_ibge}`}
                 </LinkMapa>
                 <span className="mp-tabela-secundario">
                   {n(m.n_fornecedores)} fornecedores · {n(m.convenios)} {m.convenios === 1 ? "convênio" : "convênios"}
                 </span>
-              </th>
-              <td>
-                {m.maior_cnpj ? (
-                  <LinkMapa href={urlFornecedor(m.maior_cnpj)}>{nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj })}</LinkMapa>
-                ) : (
-                  "—"
-                )}
-              </td>
-              <td className="mp-num">
+              </>
+            ),
+            maior: m.maior_cnpj ? <LinkMapa href={urlFornecedor(m.maior_cnpj)}>{nomeFornecedor({ nome: m.maior_nome, cnpj: m.maior_cnpj })}</LinkMapa> : "—",
+            fatia: (
+              <>
                 <span className={m.faixa === "alta" ? "mp-laudo-marca mp-laudo-informativo" : undefined}>{pct(m.maior_fatia)}</span>
                 <span className="mp-tabela-secundario">{moedaCurta(m.maior_pago)}</span>
-              </td>
-              <td className="mp-num">{moedaCurta(m.pago_pj)}</td>
-              <td className="mp-num">{m.hhi !== null ? m.hhi.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+              </>
+            ),
+            "pago-pj": moedaCurta(m.pago_pj),
+          },
+        }),
+      )}
+      ordemPadrao={{ coluna: "fatia", sentido: "desc" }}
+      csv={{ nome: "concentracao-prefeituras-pb" }}
+    />
   );
 }

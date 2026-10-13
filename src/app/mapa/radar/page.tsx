@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { parametrosRadar, urlRadar } from "@/lib/oportunidades/radar";
+import { enderecoDaOrdemAntiga, parametrosRadar, urlRadar } from "@/lib/oportunidades/radar";
 import { lerRadar } from "@/lib/oportunidades/radar.server";
 import { RadarConteudo, RadarIndisponivel } from "./RadarConteudo";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
@@ -30,6 +30,9 @@ export default async function RadarPage({
   if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
   const p = parametrosRadar(await searchParams);
+  // O link guardado com o `?ordem=` de antes da onda 15 vira a ordem da tabela nova ANTES de ler o banco (integração da
+  // onda 15, pedido do lote D): ler para depois redirecionar era leitura jogada fora.
+  if (p.ordemAntiga) redirect(enderecoDaOrdemAntiga(p));
   const leitura = await lerRadar(p);
 
   if (leitura.estado !== "ok") {

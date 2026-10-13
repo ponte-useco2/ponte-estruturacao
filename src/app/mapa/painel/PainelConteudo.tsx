@@ -1,6 +1,16 @@
 /**
  * A exibição do painel de execução. Recebe os dados já lidos e só desenha — é o
  * que permite conferir a tela com dados reais sem o portão de administrador.
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): as listas que chegam inteiras à página são a `TabelaFiltravel`, com filtro e
+ * ordem em cada coluna (a regra do titular; tela de administrador, toda coluna ordena):
+ *   · as mudanças por tipo (visão Mudanças);
+ *   · por órgão concedente (as 6 visões de convênio), sem o corte nos 15 primeiros: são todos os órgãos lidos;
+ *   · a matriz de tempos por órgão (visão Tempos), com as etapas como colunas de id estável (`idEtapa`);
+ *   · os desfechos por órgão (visão Aprovação), também sem o corte nos 15.
+ * O formulário do painel fica: ele vai ao banco (UF, município, órgão, período, movimentação), e a tabela filtra por cima
+ * do que foi lido. As listas paginadas ou cortadas pelo banco (as 7 de convênio, os municípios com sinais, a matriz e os
+ * desfechos por programa) ficam como estão: são da fase 3.
  */
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
@@ -73,6 +83,7 @@ import {
 } from "@/lib/oportunidades/painel";
 import type { LeituraPainel, LinhaOrgao, OpcaoMunicipio } from "@/lib/oportunidades/painel.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../_design/primitivos";
 import { CopiarNumero } from "./CopiarNumero";
 import {
@@ -91,6 +102,7 @@ import {
   type Saida,
 } from "./Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 import { Termo } from "../_componentes/Termo";
 
@@ -339,36 +351,14 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
       {contagens.length > 0 && (
         <div className="mp-radar-recorte">
           <h3 className="mp-radar-h3">Por tipo</h3>
-          <TabelaRolagem rotulo="Por tipo">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Mudança</th>
-                  <th scope="col">Grupo</th>
-                  <th scope="col" className="mp-num">Quantas</th>
-                  <th scope="col" className="mp-num">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contagens.map((l) => {
-                  const def = definicaoMudanca(l.tipo);
-                  const ativo = p.tipo === l.tipo;
-                  return (
-                    <tr key={l.tipo}>
-                      <th scope="row">
-                        <LinkMapa href={urlPainel(p, { tipo: ativo ? null : l.tipo })} aria-current={ativo ? "true" : undefined}>
-                          {ativo ? <strong>{def.rotulo}</strong> : def.rotulo}
-                        </LinkMapa>
-                      </th>
-                      <td>{ROTULO_GRUPO_MUDANCA[def.grupo]}</td>
-                      <td className="mp-num">{n(l.n)}</td>
-                      <td className="mp-num">{moedaCurta(l.valor)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id="mudancas-tipos"
+            rotulo="Mudanças por tipo"
+            colunas={COLUNAS_MUDANCAS}
+            linhas={contagens.map((l) => linhaMudanca(p, l))}
+            descricaoOrdemPadrao="os tipos na ordem de sempre: avanços, alertas e registro"
+            csv={{ nome: "painel-mudancas-por-tipo" }}
+          />
           {p.tipo && (
             <p className="pa-nota">
               <LinkMapa href={urlPainel(p, { tipo: null })}>Ver todos os tipos</LinkMapa>
@@ -956,6 +946,7 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
       </nav>
 
       <Lista
+        semRolagem={!porPrograma}
         titulo={
           porPrograma
             ? linhas.length > 0
@@ -979,7 +970,9 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           )
         }
       >
-        {linhas.length > 0 && (
+        {/* Uma expressão só: com a lista vazia, a `Lista` precisa receber `false` para mostrar o vazio. A tabela por programa,
+            cortada pelo banco, fica como estava (fase 3); a por órgão é a filtrável. */}
+        {linhas.length > 0 && (porPrograma ? (
           <table className="mp-tabela mp-painel-matriz">
             <thead>
               <tr>
@@ -1033,7 +1026,19 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
               ))}
             </tbody>
           </table>
-        )}
+        ) : (
+          // A classe de antes, num invólucro: o cabeçalho que quebra linha de `mp-painel-matriz` (mapa.css) vale dentro.
+          <div className="mp-painel-matriz">
+            <TabelaFiltravel
+              id="tempos"
+              rotulo="Mediana em dias, por órgão concedente"
+              colunas={colunasMatriz(colunas, porAno ? p.ano : null)}
+              linhas={linhas.map((l) => linhaMatriz(p, l, colunas, todos, porAno))}
+              ordemPadrao={{ coluna: "assinadas", sentido: "desc" }}
+              csv={{ nome: `painel-tempos-por-orgao${p.uf ? `-${p.uf.toLowerCase()}` : ""}${porAno ? `-${p.ano}` : ""}` }}
+            />
+          </div>
+        ))}
       </Lista>
       <p className="pa-nota">
         Com &ldquo;▲ lento&rdquo;, a mediana 1,5 vez ou mais a de {p.uf ? `todos os órgãos em ${onde}` : "todos os órgãos do Brasil"}.
@@ -1214,14 +1219,18 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
       {!p.orgao && orgaos.length > 0 && (
         <div className="mp-radar-recorte">
           <h3 className="mp-radar-h3">Por órgão concedente</h3>
-          <p className="pa-nota">Os {Math.min(ORGAOS_NA_TABELA, orgaos.length)} com mais propostas enviadas. O nome filtra os programas.</p>
-          <TabelaRolagem rotulo="Por órgão concedente">
-            <TabelaDesfechos
-              linhas={orgaos.slice(0, ORGAOS_NA_TABELA)}
-              cabeca="Órgão"
-              linha={(d) => <LinkMapa href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</LinkMapa>}
-            />
-          </TabelaRolagem>
+          <p className="pa-nota">
+            Os {n(orgaos.length)} órgãos, dos com mais propostas enviadas aos com menos; a porcentagem é das enviadas. O nome filtra os
+            programas.
+          </p>
+          <TabelaFiltravel
+            id="desfechos"
+            rotulo="Desfechos por órgão concedente"
+            colunas={COLUNAS_DESFECHOS_ORGAO}
+            linhas={orgaos.map((d) => linhaDesfechoOrgao(p, d))}
+            ordemPadrao={{ coluna: "enviadas", sentido: "desc" }}
+            csv={{ nome: `painel-desfechos-por-orgao-${ano}` }}
+          />
         </div>
       )}
 
@@ -1469,8 +1478,10 @@ function TabelaContagem({
   );
 }
 
-const ORGAOS_NA_TABELA = 15;
-
+/**
+ * Por órgão concedente, nas 6 visões de convênio (onda 15, fase 2, lote C, 13/10/2026): todos os órgãos lidos (a RPC lê
+ * até 60, e há 33), e não mais os 15 primeiros. O nome continua filtrando a lista de baixo, pelo banco.
+ */
 function PorOrgao({
   p,
   linhas,
@@ -1483,36 +1494,189 @@ function PorOrgao({
   colunaDestaque: string;
 }) {
   if (p.orgao || linhas.length === 0) return null;
+  // Os ids são fixos; só o título do valor e do destaque muda com a visão.
+  const colunas: ColunaTabela[] = [
+    { id: "orgao", titulo: "Órgão", tipo: "texto" },
+    { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita" },
+    { id: "valor", titulo: colunaValor, tipo: "numero", alinhar: "direita" },
+    { id: "destaque", titulo: colunaDestaque, tipo: "numero", alinhar: "direita" },
+  ];
   return (
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">Por órgão concedente</h3>
-      <p className="pa-nota">Os {Math.min(ORGAOS_NA_TABELA, linhas.length)} com mais convênios. O nome filtra a lista.</p>
-      <TabelaRolagem rotulo="Por órgão concedente">
-        <table className="mp-tabela">
-          <thead>
-            <tr>
-              <th scope="col">Órgão</th>
-              <th scope="col" className="mp-num">Convênios</th>
-              <th scope="col" className="mp-num">{colunaValor}</th>
-              <th scope="col" className="mp-num">{colunaDestaque}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {linhas.slice(0, ORGAOS_NA_TABELA).map((o) => (
-              <tr key={o.orgao}>
-                <th scope="row">
-                  <LinkMapa href={urlPainel(p, { orgao: o.orgao })}>{o.orgao}</LinkMapa>
-                </th>
-                <td className="mp-num">{n(o.n)}</td>
-                <td className="mp-num">{moedaCurta(o.valor)}</td>
-                <td className="mp-num">{n(o.destaque)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TabelaRolagem>
+      <p className="pa-nota">Os {n(linhas.length)} órgãos, dos com mais convênios aos com menos. O nome filtra a lista de baixo.</p>
+      <TabelaFiltravel
+        id="orgaos"
+        rotulo="Por órgão concedente"
+        colunas={colunas}
+        linhas={linhas.map((o) => ({
+          chave: o.orgao,
+          valores: { orgao: o.orgao, convenios: o.n, valor: o.valor, destaque: o.destaque },
+          celulas: {
+            orgao: <LinkMapa href={urlPainel(p, { orgao: o.orgao })}>{o.orgao}</LinkMapa>,
+            valor: moedaCurta(o.valor),
+          },
+        }))}
+        descricaoOrdemPadrao="dos órgãos com mais convênios aos com menos"
+        csv={{ nome: `painel-${p.visao}-por-orgao${p.uf ? `-${p.uf.toLowerCase()}` : ""}` }}
+      />
     </div>
   );
+}
+
+// ============================================================================ as tabelas filtráveis (onda 15, fase 2, lote C)
+
+const COLUNAS_MUDANCAS: ColunaTabela[] = [
+  { id: "mudanca", titulo: "Mudança", tipo: "texto" },
+  { id: "grupo", titulo: "Grupo", tipo: "categoria" },
+  { id: "quantas", titulo: "Quantas", tipo: "numero", alinhar: "direita" },
+  { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita" },
+];
+
+/** Um tipo de mudança: o nome é o link que filtra a lista de baixo, pelo banco (`?tipo=`), como antes. */
+function linhaMudanca(p: ParametrosPainel, l: { tipo: string; n: number; valor: number | null }): LinhaTabela {
+  const def = definicaoMudanca(l.tipo);
+  const ativo = p.tipo === l.tipo;
+  return {
+    chave: l.tipo,
+    valores: { mudanca: def.rotulo, grupo: ROTULO_GRUPO_MUDANCA[def.grupo], quantas: l.n, valor: l.valor },
+    celulas: {
+      mudanca: (
+        <LinkMapa href={urlPainel(p, { tipo: ativo ? null : l.tipo })} aria-current={ativo ? "true" : undefined}>
+          {ativo ? <strong>{def.rotulo}</strong> : def.rotulo}
+        </LinkMapa>
+      ),
+      valor: moedaCurta(l.valor),
+    },
+  };
+}
+
+/** O id da coluna de uma etapa: o nome da etapa com hífen ("envio_aprovacao" → "envio-aprovacao"), que cabe no endereço. */
+const idEtapa = (etapa: string) => etapa.replace(/_/g, "-");
+
+/** As colunas da matriz por órgão: as etapas mudam com o período (sem a "vez do concedente" por ano), os ids não. */
+function colunasMatriz(etapas: string[], ano: number | null): ColunaTabela[] {
+  return [
+    { id: "orgao", titulo: "Órgão", tipo: "texto" },
+    ...etapas.map((e): ColunaTabela => ({ id: idEtapa(e), titulo: ROTULO_ETAPA[e] ?? e, tipo: "numero", alinhar: "direita" })),
+    { id: "lentas", titulo: "Etapas marcadas “lento”", tipo: "numero", oculta: true },
+    { id: "assinadas", titulo: ano !== null ? `Assinadas em ${ano}` : "Assinadas em 36 meses", tipo: "numero", alinhar: "direita" },
+    ...(ano !== null ? [] : [{ id: "sem-desfecho", titulo: "Propostas sem desfecho", tipo: "numero", alinhar: "direita" } satisfies ColunaTabela]),
+  ];
+}
+
+/**
+ * Um órgão da matriz. A mediana vai arredondada, como a célula; com menos medições que o mínimo, vazia ("—"). O órgão
+ * do filtro tinha a linha em destaque (`mp-painel-foco`); a tabela filtrável não marca a linha, e a célula diz em
+ * palavras.
+ */
+function linhaMatriz(
+  p: ParametrosPainel,
+  l: ReturnType<typeof matrizEtapas>[number],
+  etapas: string[],
+  todos: ReturnType<typeof etapasDe>,
+  porAno: boolean,
+): LinhaTabela {
+  const valores: LinhaTabela["valores"] = { orgao: l.rotulo };
+  const celulas: LinhaTabela["celulas"] = {
+    orgao: (
+      <>
+        <LinkMapa href={urlPainel(p, { dimensao: "programa", orgao: l.chave })}>{l.rotulo}</LinkMapa>
+        {l.chave === p.orgao && <span className="mp-tabela-secundario">o órgão do filtro</span>}
+      </>
+    ),
+    assinadas: n(l.volume),
+  };
+  let lentas = 0;
+  for (const e of etapas) {
+    const m = medianaComparavel(l.etapas[e]);
+    const lento = maisLento(m, medianaComparavel(todos[e]));
+    if (lento) lentas += 1;
+    valores[idEtapa(e)] = m === null ? null : Math.round(m);
+    celulas[idEtapa(e)] =
+      m === null ? (
+        "—"
+      ) : lento ? (
+        // N09 (onda 8, C, 09/10/2026): o destaque tinha só a cor; agora leva "▲ lento" sob o número.
+        <span className="mp-painel-urgente">
+          {n(Math.round(m))}
+          <Urgente palavra="lento" />
+        </span>
+      ) : (
+        n(Math.round(m))
+      );
+  }
+  valores.lentas = lentas;
+  valores.assinadas = l.volume;
+  if (!porAno) {
+    const semDesfecho = l.etapas.envio_assinatura?.em_aberto ?? 0;
+    valores["sem-desfecho"] = semDesfecho;
+    celulas["sem-desfecho"] = n(semDesfecho);
+  }
+  return { chave: l.chave, valores, celulas };
+}
+
+const COLUNAS_DESFECHOS_ORGAO: ColunaTabela[] = [
+  { id: "orgao", titulo: "Órgão", tipo: "texto" },
+  { id: "enviadas", titulo: "Enviadas", tipo: "numero", alinhar: "direita" },
+  { id: "assinadas", titulo: "Assinadas (%)", tipo: "numero", alinhar: "direita" },
+  { id: "assinadas-n", titulo: "Assinadas (quantidade)", tipo: "numero", oculta: true },
+  { id: "reprovadas", titulo: "Reprovadas (%)", tipo: "numero", alinhar: "direita" },
+  { id: "reprovadas-n", titulo: "Reprovadas (quantidade)", tipo: "numero", oculta: true },
+  { id: "reprovadas-lote", titulo: "Reprovadas em lote", tipo: "numero", oculta: true },
+  { id: "impedimento", titulo: "Impedimento (%)", tipo: "numero", alinhar: "direita" },
+  { id: "impedimento-n", titulo: "Impedimento (quantidade)", tipo: "numero", oculta: true },
+  { id: "impedimento-lote", titulo: "Impedimento em lote", tipo: "numero", oculta: true },
+  { id: "sem-desfecho", titulo: "Sem desfecho (%)", tipo: "numero", alinhar: "direita" },
+  { id: "sem-desfecho-n", titulo: "Sem desfecho (quantidade)", tipo: "numero", oculta: true },
+];
+
+/** Fração das enviadas em percentual de 0 a 100, com uma casa: "de 50" no filtro é 50%. Sem enviadas, vazio. */
+const percentualDasEnviadas = (parte: number, d: LinhaDesfecho) => {
+  const f = fracao(parte, d.enviadas);
+  return f === null ? null : Math.round(f * 1000) / 10;
+};
+
+/** A célula de uma taxa: a porcentagem em cima e a contagem (e o lote) embaixo, como `TabelaDesfechos`. */
+function celulaTaxa(parte: number, d: LinhaDesfecho, lote?: number): ReactNode {
+  return (
+    <>
+      <span className="mp-tabela-principal">{percentual(fracao(parte, d.enviadas))}</span>
+      <span className="mp-tabela-secundario">
+        {n(parte)}
+        {lote ? ` · ${n(lote)} em lote` : ""}
+      </span>
+    </>
+  );
+}
+
+function linhaDesfechoOrgao(p: ParametrosPainel, d: LinhaDesfecho): LinhaTabela {
+  const sem = semDesfecho(d);
+  return {
+    chave: d.orgao_sup ?? "",
+    valores: {
+      orgao: d.orgao_sup,
+      enviadas: d.enviadas,
+      assinadas: percentualDasEnviadas(d.assinadas, d),
+      "assinadas-n": d.assinadas,
+      reprovadas: percentualDasEnviadas(d.reprovadas, d),
+      "reprovadas-n": d.reprovadas,
+      "reprovadas-lote": d.reprovadas_lote,
+      impedimento: percentualDasEnviadas(d.impedimento, d),
+      "impedimento-n": d.impedimento,
+      "impedimento-lote": d.impedimento_lote,
+      "sem-desfecho": percentualDasEnviadas(sem, d),
+      "sem-desfecho-n": sem,
+    },
+    celulas: {
+      orgao: <LinkMapa href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</LinkMapa>,
+      enviadas: n(d.enviadas),
+      assinadas: celulaTaxa(d.assinadas, d),
+      reprovadas: celulaTaxa(d.reprovadas, d, d.reprovadas_lote),
+      impedimento: celulaTaxa(d.impedimento, d, d.impedimento_lote),
+      "sem-desfecho": celulaTaxa(sem, d),
+    },
+  };
 }
 
 /**

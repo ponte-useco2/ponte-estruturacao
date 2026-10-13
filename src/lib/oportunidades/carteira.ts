@@ -15,6 +15,7 @@ import { diaBrasilia } from "./datas.ts";
 import { compararFila, type ClasseFila } from "./fila.ts";
 import { ROTULO_TIPO_ITEM, fraseDoAviso, urlDoItem, type AvisoItem, type FraseAviso, type TipoItem } from "./favoritos.ts";
 import { percentual } from "./painel.ts";
+import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
 
 export type Consequencia = "alto" | "moderado" | "informativo";
 
@@ -72,6 +73,19 @@ export interface ItemCarteira {
    * porque a janela aberta sem prazo não tem nenhuma.
    */
   aberta?: boolean;
+  /**
+   * Só no convênio (onda 15, fase 2, lote D, 13/10/2026): os dados crus do retrato que `numeros` já escreve, para a
+   * tabela dos convênios filtrar e ordenar pela situação, pelo fim da vigência e pelo físico (`valoresDoConvenioSeguido`).
+   */
+  instrumento?: {
+    situacao: string | null;
+    /** AAAA-MM-DD. */
+    fimVigencia: string | null;
+    /** O nível do prazo da vigência, o mesmo de `numeros` ("Vigência"). */
+    nivelVigencia: Consequencia | null;
+    /** Fração de 0 a 1, como no retrato. */
+    fisico: number | null;
+  };
 }
 
 export interface Carteira {
@@ -361,13 +375,25 @@ function numerosDaEntidade(e: Record<string, unknown>): ItemCarteira["numeros"] 
   return [{ rotulo: "Instrumentos", valor: String(num(e.instrumentos) ?? 0), nivel: null }, ...numerosDoMunicipio(e)];
 }
 
-function numerosDoInstrumento(e: Record<string, unknown>, hoje: string): ItemCarteira["numeros"] {
-  const n: ItemCarteira["numeros"] = [{ rotulo: "Situação", valor: txt(e.situacao) ?? "—", nivel: null }];
+/** O retrato do convênio, cru (onda 15, fase 2, lote D, 13/10/2026): a fonte de `numerosDoInstrumento` e da tabela. */
+function retratoDoInstrumento(e: Record<string, unknown>, hoje: string): NonNullable<ItemCarteira["instrumento"]> {
+  const situacao = txt(e.situacao);
   const fim = txt(e.dt_fim_vigencia);
   const d = diasAte(fim, hoje);
-  if (fim) n.push({ rotulo: "Vigência", valor: `até ${formatarData(fim)}`, nivel: d !== null && d < 0 && /execu/i.test(txt(e.situacao) ?? "") ? "alto" : d !== null && d <= 60 ? "moderado" : null });
-  const fisico = num(e.pct_fisico);
-  if (fisico !== null) n.push({ rotulo: "Físico", valor: percentual(fisico), nivel: null });
+  return {
+    situacao,
+    fimVigencia: fim ? fim.slice(0, 10) : null,
+    nivelVigencia: !fim ? null : d !== null && d < 0 && /execu/i.test(situacao ?? "") ? "alto" : d !== null && d <= 60 ? "moderado" : null,
+    fisico: num(e.pct_fisico),
+  };
+}
+
+function numerosDoInstrumento(e: Record<string, unknown>, hoje: string): ItemCarteira["numeros"] {
+  const r = retratoDoInstrumento(e, hoje);
+  const n: ItemCarteira["numeros"] = [{ rotulo: "Situação", valor: r.situacao ?? "—", nivel: null }];
+  const fim = txt(e.dt_fim_vigencia);
+  if (fim) n.push({ rotulo: "Vigência", valor: `até ${formatarData(fim)}`, nivel: r.nivelVigencia });
+  if (r.fisico !== null) n.push({ rotulo: "Físico", valor: percentual(r.fisico), nivel: null });
   return n;
 }
 
@@ -418,6 +444,7 @@ export function montarCarteira(
       mudancas,
       pior,
       ...(s.tipo === "janela" ? { aberta: janelaAberta(e, hoje) } : {}),
+      ...(s.tipo === "instrumento" ? { instrumento: retratoDoInstrumento(e, hoje) } : {}),
     };
   });
 
@@ -435,5 +462,42 @@ export function montarCarteira(
     porTipo,
     naoLidas: itens.reduce((t, i) => t + i.mudancas.filter((m) => !m.lida).length, 0),
     vazia: itens.length === 0,
+  };
+}
+
+// ================================================================ a tabela dos convênios (onda 15, fase 2, lote D, 13/10/2026)
+//
+// A regra do titular (13/10/2026): toda tabela que lista coisas filtra e ordena por qualquer coluna. A carteira é do
+// próprio usuário (tela de cadastrado): o filtro e a ordem são livres, e não há ranking de município para o público.
+// A célula "Situação e vigência" de antes virou três colunas (situação, fim da vigência e físico); o nível da próxima
+// ação e a descrição do item filtram por colunas ocultas.
+
+/** O nível da próxima ação como a tela escreve na etiqueta. */
+export const ROTULO_NIVEL: Record<Consequencia, string> = { alto: "alto", moderado: "moderado", informativo: "informação" };
+
+export const COLUNAS_CARTEIRA_CONVENIOS: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "descricao", titulo: "Descrição", tipo: "texto", oculta: true },
+  { id: "situacao", titulo: "Situação", tipo: "categoria" },
+  { id: "fim-vigencia", titulo: "Fim da vigência", tipo: "data" },
+  { id: "fisico", titulo: "Físico (%)", tipo: "numero", alinhar: "direita" },
+  { id: "acao", titulo: "Próxima ação", tipo: "texto" },
+  { id: "nivel", titulo: "Nível da próxima ação", tipo: "categoria", oculta: true },
+  { id: "mudancas", titulo: "Mudanças não lidas", tipo: "numero", alinhar: "direita" },
+];
+
+/** Os valores crus de um convênio seguido, por coluna de `COLUNAS_CARTEIRA_CONVENIOS`. O físico vai em percentual. */
+export function valoresDoConvenioSeguido(i: ItemCarteira): Record<string, ValorCelula> {
+  const r = i.instrumento;
+  const proxima = i.recomendacoes[0];
+  return {
+    convenio: i.chave,
+    descricao: i.titulo,
+    situacao: r?.situacao ?? null,
+    "fim-vigencia": r?.fimVigencia ?? null,
+    fisico: r?.fisico === null || r?.fisico === undefined ? null : Math.round(r.fisico * 100),
+    acao: proxima?.acao ?? null,
+    nivel: proxima ? ROTULO_NIVEL[proxima.nivel] : null,
+    mudancas: i.mudancas.filter((m) => !m.lida).length,
   };
 }

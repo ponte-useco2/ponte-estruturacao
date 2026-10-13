@@ -1,23 +1,46 @@
 /**
  * Padrões das cláusulas suspensivas da PB: o destino de quem entrou (histórico), as condições que
  * travam hoje, quem analisa e os documentos que voltam. Recebe as leituras prontas de padroes.ts.
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): as quatro listas são a `TabelaFiltravel`, com filtro e ordem em cada coluna (a
+ * regra do titular; tela de administrador, toda coluna ordena). As células são as de antes; as colunas e os valores crus
+ * estão em `padroes.ts`. Os documentos perderam o corte nos 20 primeiros: a tabela mostra todos, e o filtro resolve. A
+ * lista de quem analisa não tem CSV: são nomes de servidores, e a lista de nomes não sai do painel.
  */
+import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import {
+  COLUNAS_PADROES_ANALISTAS,
+  COLUNAS_PADROES_CONDICOES,
+  COLUNAS_PADROES_DOCUMENTOS,
+  COLUNAS_PADROES_ORGAOS,
   COORTE_DESDE,
   MINIMO_PADRAO,
+  TABELA_PADROES_ANALISTAS,
+  TABELA_PADROES_CONDICOES,
+  TABELA_PADROES_DOCUMENTOS,
+  TABELA_PADROES_ORGAOS,
   lerHistorico,
   perfilAnalistas,
+  perfilDecisao,
   porCondicao,
   porRequisito,
   tituloOrgao,
+  valoresDaCondicao,
+  valoresDoAnalista,
+  valoresDoOrgaoHistorico,
+  valoresDoRequisito,
+  type LinhaCondicao,
   type LinhaHistorico,
+  type LinhaRequisito,
+  type PerfilAnalista,
 } from "@/lib/oportunidades/padroes";
 import type { LeituraPadroes } from "@/lib/oportunidades/padroes.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { LinkMapa } from "../../_componentes/LinkMapa";
-import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { Termo } from "../../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraPadroes, { estado: "ok" }>;
@@ -36,7 +59,8 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
   const contexto = new Map(leitura.atuais.map((a) => [a.numero, a]));
   const analistas = perfilAnalistas(leitura.eventos, leitura.detalhes, contexto, referencia);
   const comPadrao = analistas.filter((a) => a.atos >= MINIMO_PADRAO);
-  const requisitos = porRequisito(leitura.documentos, hoje).slice(0, 20);
+  // Onda 15, fase 2, lote C (13/10/2026): sem o corte nos 20 primeiros (`slice(0, 20)`); o filtro da tabela resolve.
+  const requisitos = porRequisito(leitura.documentos, hoje);
   const orgaosAtuais = [...new Set(leitura.atuais.map((a) => a.orgao_sup).filter((o): o is string => !!o))];
 
   return (
@@ -90,38 +114,17 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
             <p className="pa-nota">{moedaCurta(t.destinos.segue.valor)} em execução, ainda em suspensiva</p>
           </article>
         </div>
-        <TabelaRolagem rotuloId="padroes-destino">
-          <table className="mp-tabela mp-padroes-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Órgão</th>
-                <th scope="col" className="mp-num">
-                  Convênios
-                </th>
-                <th scope="col" className="mp-num">
-                  Saíram
-                </th>
-                <th scope="col" className="mp-num">
-                  Tempo até sair (mediana)
-                </th>
-                <th scope="col" className="mp-num">
-                  Extintos
-                </th>
-                <th scope="col" className="mp-num">
-                  Perda entre os que terminaram
-                </th>
-                <th scope="col" className="mp-num">
-                  Seguem
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {historico.orgaos.map((o) => (
-                <LinhaOrgao key={o.orgao} o={o} temChecklist={orgaosAtuais.includes(o.orgao)} />
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        {/* A classe de antes, num invólucro: a largura de `mp-padroes-tabela` (mapa.css) vale para a tabela de dentro. */}
+        <div className="mp-padroes-tabela">
+          <TabelaFiltravel
+            id={TABELA_PADROES_ORGAOS}
+            rotulo="O destino de quem entrou em suspensiva, por órgão"
+            colunas={COLUNAS_PADROES_ORGAOS}
+            linhas={historico.orgaos.map((o) => linhaOrgao(o, orgaosAtuais.includes(o.orgao)))}
+            ordemPadrao={{ coluna: "convenios", sentido: "desc" }}
+            csv={{ nome: "suspensivas-destino-por-orgao" }}
+          />
+        </div>
         <p className="pa-nota">
           “Extintos”: anulados, rescindidos ou cancelados com a suspensiva pendente, ou encerrados sem a retirada — nenhum real desembolsado. O
           SICONV apaga o prazo na retirada, e é assim que se sabe quem saiu. Com menos de {MINIMO_PADRAO} convênios, o órgão aparece, mas a{" "}
@@ -136,38 +139,14 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
         <p className="pa-nota">
           Entre os {n(leitura.atuais.length)} convênios em execução que seguem em suspensiva. Um convênio conta em cada condição do termo.
         </p>
-        <TabelaRolagem rotuloId="padroes-condicoes">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Condição do termo</th>
-                <th scope="col" className="mp-num">
-                  Convênios
-                </th>
-                <th scope="col" className="mp-num">
-                  Repasse
-                </th>
-                <th scope="col" className="mp-num">
-                  Em suspensiva há (mediana)
-                </th>
-                <th scope="col" className="mp-num">
-                  Prazo vencido ou em até 30 dias
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {condicoes.map((c) => (
-                <tr key={c.condicao}>
-                  <th scope="row">{c.condicao}</th>
-                  <td className="mp-num">{n(c.convenios)}</td>
-                  <td className="mp-num">{moedaCurta(c.valor)}</td>
-                  <td className="mp-num">{dias(c.medianaEmSuspensiva)}</td>
-                  <td className="mp-num">{n(c.prazoApertado)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id={TABELA_PADROES_CONDICOES}
+          rotulo="As condições que travam hoje"
+          colunas={COLUNAS_PADROES_CONDICOES}
+          linhas={condicoes.map(linhaCondicao)}
+          ordemPadrao={{ coluna: "convenios", sentido: "desc" }}
+          csv={{ nome: "suspensivas-condicoes" }}
+        />
       </section>
 
       <section aria-labelledby="padroes-analistas" className="mp-radar-secao">
@@ -186,59 +165,16 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
             Nenhuma pessoa com {MINIMO_PADRAO} atos ou mais na coleta de {formatarPublicacao(leitura.coletadoEm)}.
           </p>
         ) : (
-        <TabelaRolagem rotuloId="padroes-analistas">
-          <table className="mp-tabela mp-padroes-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Pessoa</th>
-                <th scope="col">Onde mais atua</th>
-                <th scope="col" className="mp-num">
-                  Convênios (atos)
-                </th>
-                <th scope="col">O que decide</th>
-                <th scope="col">Maior lote</th>
-                <th scope="col">Última palavra</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comPadrao.map((a) => (
-                <tr key={a.nome}>
-                  <th scope="row">
-                    <span className="mp-tabela-principal">{a.nome}</span>
-                    {a.atribuicao && <span className="mp-tabela-secundario">{a.atribuicao}</span>}
-                  </th>
-                  <td>
-                    <span className="mp-tabela-principal">
-                      {a.orgao.valor ? tituloOrgao(a.orgao.valor) : "—"} · {pct(a.orgao.fatia)}
-                    </span>
-                    {a.programa.valor && (
-                      <span className="mp-tabela-secundario">
-                        {a.programa.valor} · {pct(a.programa.fatia)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="mp-num">
-                    {n(a.convenios)} ({n(a.atos)})
-                  </td>
-                  <td>{perfil(a.exigencias, a.atendimentos, a.recusas)}</td>
-                  <td>{a.maiorLote && a.maiorLote.convenios > 1 ? `${n(a.maiorLote.convenios)} em ${formatarData(a.maiorLote.dia)}` : "—"}</td>
-                  <td>
-                    {a.ultimaPalavra.convenios ? (
-                      <>
-                        <span className="mp-tabela-principal">
-                          {n(a.ultimaPalavra.convenios)} · há {dias(a.ultimaPalavra.medianaDias)}
-                        </span>
-                        <span className="mp-tabela-secundario">{moedaCurta(a.ultimaPalavra.valor)} de repasse</span>
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <div className="mp-padroes-tabela">
+          {/* Sem CSV: são nomes de servidores; a lista de nomes não sai do painel (onda 15, fase 2, lote C, 13/10/2026). */}
+          <TabelaFiltravel
+            id={TABELA_PADROES_ANALISTAS}
+            rotulo="Quem analisa"
+            colunas={COLUNAS_PADROES_ANALISTAS}
+            linhas={comPadrao.map(linhaAnalista)}
+            descricaoOrdemPadrao="dos com mais convênios aos com menos e, no empate, mais atos"
+          />
+        </div>
         )}
         <p className="pa-nota">
           Quem só exige e quem só atende pode ser divisão de trabalho — uma pessoa faz a triagem, outra homologa —, e não um traço pessoal. A atribuição
@@ -250,35 +186,18 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
         <h2 id="padroes-documentos" className="mp-radar-h2">
           Os documentos que mais aparecem
         </h2>
-        <p className="pa-nota">Os 20 requisitos anexados em mais convênios, e quantos dos que têm validade já estão vencidos em {formatarData(hoje)}.</p>
-        <TabelaRolagem rotuloId="padroes-documentos">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Documento</th>
-                <th scope="col" className="mp-num">
-                  Convênios
-                </th>
-                <th scope="col" className="mp-num">
-                  Com validade
-                </th>
-                <th scope="col" className="mp-num">
-                  Vencidos
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {requisitos.map((r) => (
-                <tr key={r.requisito}>
-                  <th scope="row">{r.requisito}</th>
-                  <td className="mp-num">{n(r.convenios)}</td>
-                  <td className="mp-num">{n(r.comValidade)}</td>
-                  <td className="mp-num">{r.comValidade ? `${n(r.vencidos)} (${pct(r.vencidos / r.comValidade)})` : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <p className="pa-nota">
+          Os {n(requisitos.length)} requisitos anexados, dos que aparecem em mais convênios aos que aparecem em menos, e quantos dos que têm
+          validade já estão vencidos em {formatarData(hoje)}.
+        </p>
+        <TabelaFiltravel
+          id={TABELA_PADROES_DOCUMENTOS}
+          rotulo="Os documentos que mais aparecem"
+          colunas={COLUNAS_PADROES_DOCUMENTOS}
+          linhas={requisitos.map(linhaRequisito)}
+          ordemPadrao={{ coluna: "convenios", sentido: "desc" }}
+          csv={{ nome: "suspensivas-documentos" }}
+        />
       </section>
 
       <p className="pa-nota">
@@ -289,32 +208,100 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
   );
 }
 
-function LinhaOrgao({ o, temChecklist }: { o: LinhaHistorico; temChecklist: boolean }) {
+// ================================================================ as linhas (onda 15, fase 2, lote C, 13/10/2026)
+
+/**
+ * O destino de um órgão. Com poucos casos, a linha toda ficava cinza (`mp-padroes-poucos` no `<tr>`); a tabela filtrável
+ * não marca a linha, e o cinza passa para cada célula.
+ */
+function linhaOrgao(o: LinhaHistorico, temChecklist: boolean): LinhaTabela {
   const poucos = o.total < MINIMO_PADRAO;
-  return (
-    <tr className={poucos ? "mp-padroes-poucos" : undefined}>
-      <th scope="row">
-        <span className="mp-tabela-principal">{tituloOrgao(o.orgao)}</span>
-        {temChecklist && (
-          <LinkMapa href={urlChecklist(o.orgao)} className="mp-tabela-secundario mp-nao-imprimir">
-            checklist preventivo
-          </LinkMapa>
-        )}
-      </th>
-      <td className="mp-num">{n(o.total)}</td>
-      <td className="mp-num">{n(o.destinos.saiu.n)}</td>
-      <td className="mp-num">{poucos ? "poucos casos" : dias(o.mediana)}</td>
-      <td className="mp-num">{n(o.destinos.morreu.n + o.destinos.encerrou.n)}</td>
-      <td className="mp-num">{pct(o.pctPerdido)}</td>
-      <td className="mp-num">{n(o.destinos.segue.n)}</td>
-    </tr>
-  );
+  const tom = (x: ReactNode): ReactNode => (poucos ? <span className="mp-padroes-poucos">{x}</span> : x);
+  return {
+    chave: o.orgao,
+    valores: valoresDoOrgaoHistorico(o),
+    celulas: {
+      orgao: (
+        <>
+          <span className={`mp-tabela-principal${poucos ? " mp-padroes-poucos" : ""}`}>{tituloOrgao(o.orgao)}</span>
+          {temChecklist && (
+            <LinkMapa href={urlChecklist(o.orgao)} className="mp-tabela-secundario mp-nao-imprimir">
+              checklist preventivo
+            </LinkMapa>
+          )}
+        </>
+      ),
+      convenios: tom(n(o.total)),
+      sairam: tom(n(o.destinos.saiu.n)),
+      mediana: tom(poucos ? "poucos casos" : dias(o.mediana)),
+      extintos: tom(n(o.destinos.morreu.n + o.destinos.encerrou.n)),
+      perda: tom(pct(o.pctPerdido)),
+      seguem: tom(n(o.destinos.segue.n)),
+    },
+  };
 }
 
-function perfil(exige: number, atende: number, recusa: number): string {
-  const total = exige + atende + recusa;
-  if (!total) return "—";
-  if (!atende && !recusa) return `só pede complementação (${exige})`;
-  if (!exige && !recusa) return `só dá por atendido (${atende})`;
-  return `pede complementação em ${Math.round((exige / total) * 100)}% (${exige} de ${total})`;
+function linhaCondicao(c: LinhaCondicao): LinhaTabela {
+  return {
+    chave: c.condicao,
+    valores: valoresDaCondicao(c),
+    celulas: {
+      convenios: n(c.convenios),
+      repasse: moedaCurta(c.valor),
+      "em-suspensiva": dias(c.medianaEmSuspensiva),
+      "prazo-apertado": n(c.prazoApertado),
+    },
+  };
+}
+
+function linhaAnalista(a: PerfilAnalista): LinhaTabela {
+  return {
+    chave: a.nome,
+    valores: valoresDoAnalista(a),
+    celulas: {
+      pessoa: (
+        <>
+          <span className="mp-tabela-principal">{a.nome}</span>
+          {a.atribuicao && <span className="mp-tabela-secundario">{a.atribuicao}</span>}
+        </>
+      ),
+      orgao: (
+        <>
+          <span className="mp-tabela-principal">
+            {a.orgao.valor ? tituloOrgao(a.orgao.valor) : "—"} · {pct(a.orgao.fatia)}
+          </span>
+          {a.programa.valor && (
+            <span className="mp-tabela-secundario">
+              {a.programa.valor} · {pct(a.programa.fatia)}
+            </span>
+          )}
+        </>
+      ),
+      convenios: `${n(a.convenios)} (${n(a.atos)})`,
+      decide: perfilDecisao(a.exigencias, a.atendimentos, a.recusas),
+      "maior-lote": a.maiorLote && a.maiorLote.convenios > 1 ? `${n(a.maiorLote.convenios)} em ${formatarData(a.maiorLote.dia)}` : "—",
+      "ultima-palavra": a.ultimaPalavra.convenios ? (
+        <>
+          <span className="mp-tabela-principal">
+            {n(a.ultimaPalavra.convenios)} · há {dias(a.ultimaPalavra.medianaDias)}
+          </span>
+          <span className="mp-tabela-secundario">{moedaCurta(a.ultimaPalavra.valor)} de repasse</span>
+        </>
+      ) : (
+        "—"
+      ),
+    },
+  };
+}
+
+function linhaRequisito(r: LinhaRequisito): LinhaTabela {
+  return {
+    chave: r.requisito,
+    valores: valoresDoRequisito(r),
+    celulas: {
+      convenios: n(r.convenios),
+      "com-validade": n(r.comValidade),
+      vencidos: r.comValidade ? `${n(r.vencidos)} (${pct(r.vencidos / r.comValidade)})` : "—",
+    },
+  };
 }

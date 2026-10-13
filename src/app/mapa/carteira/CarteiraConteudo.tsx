@@ -2,26 +2,39 @@
  * A carteira: os itens que a pessoa segue, o que mudou desde a última leitura e a próxima ação de cada um, com
  * o fato que a sustenta. Recebe a carteira montada (lib/oportunidades/carteira.ts); aqui só se apresenta.
  * Impressa, é o relatório da carteira.
+ *
+ * Onda 15, fase 2, lote D (13/10/2026): a tabela dos convênios virou `TabelaFiltravel` (colunas e valores em
+ * `carteira.ts`, com teste). A carteira é do próprio usuário: toda coluna filtra e ordena. "Situação e vigência" virou
+ * três colunas (situação, fim da vigência e físico), e no celular a tabela continua empilhando (`empilhar`). Os
+ * municípios e as entidades são cartões, e as propostas e as janelas, listas curtas: não são tabelas.
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { ROTULO_TIPO_ITEM, nomeDoItemSeguido, situacaoDaJanela, type SituacaoJanela } from "@/lib/oportunidades/favoritos";
 import { ROTULO_CLASSE } from "@/lib/oportunidades/fila";
-import type { Carteira, Consequencia, ItemCarteira, MudancaCarteira, Recomendacao } from "@/lib/oportunidades/carteira";
+import {
+  COLUNAS_CARTEIRA_CONVENIOS,
+  ROTULO_NIVEL,
+  valoresDoConvenioSeguido,
+  type Carteira,
+  type Consequencia,
+  type ItemCarteira,
+  type MudancaCarteira,
+  type Recomendacao,
+} from "@/lib/oportunidades/carteira";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { AvisoSeguir, EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { BotaoImprimir } from "../fiscal/[ibge]/simular/BotaoImprimir";
 import { MarcarLidas } from "./MarcarLidas";
 import { Urgente } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { Termo } from "../_componentes/Termo";
-import { TabelaRolagem } from "../_componentes/TabelaRolagem";
-
-const ROTULO: Record<Consequencia, string> = { alto: "alto", moderado: "moderado", informativo: "informação" };
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 
 function Nivel({ nivel, melhora }: { nivel: Consequencia; melhora?: boolean | null }) {
   if (melhora === true) return <span className="pa-tag mp-laudo-nivel mp-laudo-atendido">melhorou</span>;
-  return <span className={`pa-tag mp-laudo-nivel mp-laudo-${nivel}`}>{ROTULO[nivel]}</span>;
+  return <span className={`pa-tag mp-laudo-nivel mp-laudo-${nivel}`}>{ROTULO_NIVEL[nivel]}</span>;
 }
 
 function Secao({ id, titulo, nota, children }: { id: string; titulo: string; nota?: ReactNode; children: ReactNode }) {
@@ -276,53 +289,55 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
 
       {c.porTipo.instrumento.length > 0 && (
         <Secao id="cart-convenios" titulo="Convênios">
-          <TabelaRolagem rotulo="Convênios">
-            <table className="mp-tabela mp-cart-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Convênio</th>
-                  <th scope="col">Situação e vigência</th>
-                  <th scope="col">Próxima ação</th>
-                  <th scope="col" className="mp-num">Mudanças</th>
-                </tr>
-              </thead>
-              <tbody>
-                {c.porTipo.instrumento.map((i) => (
-                  <tr key={i.chave}>
-                    <td>
+          <TabelaFiltravel
+            id="cart-conv"
+            rotulo="Convênios seguidos"
+            colunas={COLUNAS_CARTEIRA_CONVENIOS}
+            linhas={c.porTipo.instrumento.map((i): LinhaTabela => {
+              const r = i.instrumento;
+              const proxima = i.recomendacoes[0];
+              const naoLidas = i.mudancas.filter((m) => !m.lida).length;
+              return {
+                chave: i.chave,
+                valores: valoresDoConvenioSeguido(i),
+                celulas: {
+                  convenio: (
+                    <>
                       <NomeComEstrela i={i} texto={i.chave} />
                       <span className="mp-tabela-secundario">{i.titulo}</span>
-                    </td>
-                    <td data-rotulo="Situação e vigência">
-                      {i.numeros.map((n) => (
-                        <span key={n.rotulo} className={`mp-tabela-secundario${n.nivel === "alto" ? " mp-painel-urgente" : ""}`}>
-                          {n.rotulo}: {n.valor}
-                          {/* Onda 8 (09/10/2026, N09 da R1): o "alto" não fica só na cor. */}
-                          {n.nivel === "alto" && (
-                            <>
-                              {" "}
-                              <Urgente palavra="alto" />
-                            </>
-                          )}
-                        </span>
-                      ))}
-                    </td>
-                    <td data-rotulo="Próxima ação">
-                      {i.recomendacoes[0] ? (
+                    </>
+                  ),
+                  "fim-vigencia": r?.fimVigencia ? (
+                    <span className={r.nivelVigencia === "alto" ? "mp-painel-urgente" : undefined}>
+                      até {formatarData(r.fimVigencia)}
+                      {/* Onda 8 (09/10/2026, N09 da R1): o "alto" não fica só na cor. */}
+                      {r.nivelVigencia === "alto" && (
                         <>
-                          <Nivel nivel={i.recomendacoes[0].nivel} /> {i.recomendacoes[0].acao}
-                          <span className="mp-tabela-secundario">{i.recomendacoes[0].fato}</span>
+                          {" "}
+                          <Urgente palavra="alto" />
                         </>
-                      ) : (
-                        <span className="mp-cart-mudo">nada a apontar</span>
                       )}
-                    </td>
-                    <td className="mp-num" data-rotulo="Mudanças não lidas">{i.mudancas.filter((m) => !m.lida).length || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+                    </span>
+                  ) : (
+                    "—"
+                  ),
+                  fisico: r?.fisico === null || r?.fisico === undefined ? "—" : `${Math.round(r.fisico * 100)}%`,
+                  acao: proxima ? (
+                    <>
+                      <Nivel nivel={proxima.nivel} /> {proxima.acao}
+                      <span className="mp-tabela-secundario">{proxima.fato}</span>
+                    </>
+                  ) : (
+                    <span className="mp-cart-mudo">nada a apontar</span>
+                  ),
+                  mudancas: naoLidas || "—",
+                },
+              };
+            })}
+            descricaoOrdemPadrao="pela próxima ação, da mais urgente, e pelo nome"
+            csv={{ nome: "carteira-convenios" }}
+            empilhar
+          />
         </Secao>
       )}
 

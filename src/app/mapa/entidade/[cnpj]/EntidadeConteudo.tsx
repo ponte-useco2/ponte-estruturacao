@@ -12,6 +12,11 @@
  * `MAPA_PUBLICO`), o relatório chega recortado (`relatorioDoNivel`: os cartões e o "em ordem" sem o fiscal do
  * município, que a prefeitura e os fundos leem), somem a estrela, o botão de imprimir e a porta do relatório, e as
  * saídas para a busca dizem "(pede cadastro)". Do nível 1 em diante, nada muda.
+ *
+ * Onda 15, fase 2, lote B (13/10/2026): a carteira, as propostas e "De onde vem o dinheiro" são tabelas com filtro e
+ * ordem em cada coluna (`TabelaFiltravel`; colunas e valores em `pagina-entidade.ts`). São tabelas do público: o valor e
+ * a contagem filtram, mas não ordenam, e nenhuma começa pelo valor. A carteira, que era uma tabela por situação, virou
+ * uma só, com a situação como coluna. O CSV filtrado de cada tabela é do cadastro (D1).
  */
 import type { ReactNode } from "react";
 import { urlProposta } from "@/lib/oportunidades/busca";
@@ -20,14 +25,28 @@ import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
 import {
   ABAS_ENTIDADE,
+  COLUNAS_CARTEIRA,
+  COLUNAS_ORGAOS,
+  COLUNAS_PROPOSTAS,
+  ORDEM_ORGAOS,
+  ORDEM_PROPOSTAS,
   ROTULO_ESPECIE,
+  TABELA_CARTEIRA,
+  TABELA_ORGAOS,
+  TABELA_PROPOSTAS,
+  carteiraEmLinhas,
   carteiraPorSituacao,
-  dinheiroPorOrgao,
   ehMunicipal,
   fontesDaEntidade,
+  numeroDaProposta,
+  orgaosEmOrdem,
+  propostasNaOrdem,
   saidasEntidadeVazia,
   urlEntidade,
   urlRelatorioEntidade,
+  valoresDaCarteira,
+  valoresDaProposta,
+  valoresDoOrgao,
   type AbaEntidade,
 } from "@/lib/oportunidades/pagina-entidade";
 import { PODE, destinoConvenio, relatorioDoNivel, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
@@ -42,11 +61,11 @@ import {
   versaoLegivel,
 } from "@/lib/oportunidades/osc";
 import type { LeituraCadastroOsc } from "@/lib/oportunidades/osc.server";
-import { ROTULO_DESFECHO } from "@/lib/oportunidades/painel";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { InstrumentoRelatorio, PropostaRelatorio, Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import type { IdentidadeEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { lugarDaEntidade, trilha } from "@/lib/oportunidades/trilha";
 import { RECORTE_DA_BASE } from "@/lib/oportunidades/vazios";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
@@ -68,7 +87,7 @@ import {
   Secao,
 } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
-import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 
 type Destino = (nr: string) => string;
 
@@ -332,61 +351,45 @@ export function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; 
   );
 }
 
-export function Carteira({ instrumentos, destino }: { instrumentos: InstrumentoRelatorio[]; destino: Destino }) {
+/**
+ * A carteira do CNPJ. Onda 15, fase 2, lote B (13/10/2026): antes, uma tabela por situação, cada uma num `<details>`
+ * (só "em execução" e "prestando contas" abertos na tela; no papel, todos); agora, uma tabela só, com a situação como
+ * coluna de categoria e o resumo por situação numa linha acima. É tabela do público: valor e desembolsado filtram, mas
+ * não ordenam. A ordem padrão é a de antes (por situação e, em cada uma, da assinatura mais recente para a mais antiga),
+ * que não passa pelo valor. `csv`: o nome do CSV filtrado, só para o cadastro (D1).
+ */
+export function Carteira({ instrumentos, destino, csv }: { instrumentos: InstrumentoRelatorio[]; destino: Destino; csv?: string }) {
   const grupos = carteiraPorSituacao(instrumentos);
   if (!grupos.length) return null;
+  const linhas: LinhaTabela[] = carteiraEmLinhas(instrumentos).map(({ i, situacao }) => ({
+    chave: i.nr_convenio,
+    valores: valoresDaCarteira(i, situacao),
+    celulas: {
+      // A09 (onda 7, C): o número é o cabeçalho da linha (o componente faz da primeira coluna o `<th scope="row">`).
+      numero: <LinkMapa href={destino(i.nr_convenio)}>{i.nr_convenio}</LinkMapa>,
+      valor: moedaCurta(i.vl_global ?? 0),
+      desembolsado: i.vl_desembolsado ? moedaCurta(i.vl_desembolsado) : "—",
+    },
+  }));
+  const titulo = `Os instrumentos (${n(instrumentos.length)})`;
   return (
-    <Secao id="ent-carteira" titulo={`Os instrumentos (${n(instrumentos.length)})`} nota="Todos os instrumentos do CNPJ, por situação, do mais recente para o mais antigo.">
-      {grupos.map((g) => (
-        <details key={g.id} className="mp-ent-grupo" open={g.id === "execucao" || g.id === "contas"}>
-          <summary>
-            <strong>{g.rotulo}</strong> · {n(g.itens.length)} · {moedaCurta(g.valor)} de valor global
-          </summary>
-          <TabelaRolagem rotulo={`${g.rotulo} · ${n(g.itens.length)} · ${moedaCurta(g.valor)} de valor global`}>
-            <table className="mp-tabela mp-tabela-empilha">
-              <thead>
-                <tr>
-                  <th scope="col">Número</th>
-                  <th scope="col">Órgão</th>
-                  <th scope="col">Objeto</th>
-                  <th scope="col">Valor</th>
-                  <th scope="col">Desembolsado</th>
-                  <th scope="col">Assinatura</th>
-                  <th scope="col">Vigência até</th>
-                </tr>
-              </thead>
-              <tbody>
-                {g.itens.map((i) => (
-                  <tr key={i.nr_convenio}>
-                    {/* A09 (onda 7, C, 09/10/2026): cabeçalho de linha, para o leitor de tela dizer o número em cada célula. */}
-                    <th scope="row" className="mp-th-celula">
-                      <LinkMapa href={destino(i.nr_convenio)}>{i.nr_convenio}</LinkMapa>
-                    </th>
-                    <td data-rotulo="Órgão">{i.orgao_sup ? tituloOrgao(i.orgao_sup) : "—"}</td>
-                    <td data-rotulo="Objeto">{i.objeto ?? "—"}</td>
-                    <td data-rotulo="Valor" className="mp-rel-num">{moedaCurta(i.vl_global ?? 0)}</td>
-                    <td data-rotulo="Desembolsado" className="mp-rel-num">{i.vl_desembolsado ? moedaCurta(i.vl_desembolsado) : "—"}</td>
-                    <td data-rotulo="Assinatura">{data(i.dt_assinatura)}</td>
-                    <td data-rotulo="Vigência até">{data(i.dt_fim_vigencia)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
-        </details>
-      ))}
+    <Secao
+      id="ent-carteira"
+      titulo={titulo}
+      nota="Todos os instrumentos do CNPJ, por situação e, em cada uma, do mais recente para o mais antigo. O valor filtra, mas não ordena."
+    >
+      <p className="pa-nota">{grupos.map((g) => `${g.rotulo}: ${n(g.itens.length)} (${moedaCurta(g.valor)} de valor global)`).join(" · ")}.</p>
+      <TabelaFiltravel
+        id={TABELA_CARTEIRA}
+        rotulo={titulo}
+        colunas={COLUNAS_CARTEIRA}
+        linhas={linhas}
+        descricaoOrdemPadrao="por situação e, em cada uma, da assinatura mais recente para a mais antiga"
+        csv={csv ? { nome: csv } : undefined}
+        empilhar
+      />
     </Secao>
   );
-}
-
-/**
- * O número que a pessoa conhece (`nr_proposta`) quando a leitura o traz; senão o id do SICONV, como a trilha e a busca
- * fazem (`eloProposta`). A leitura da entidade (`COLUNAS_PROPOSTA`, em `relatorio-municipio.server.ts`) ainda não pede
- * o `nr_proposta`: até pedir, a lista mostra o id, que é o que o endereço da página da proposta usa.
- */
-function numeroDaProposta(p: PropostaRelatorio): string {
-  const nr = "nr_proposta" in p && typeof p.nr_proposta === "string" ? p.nr_proposta.trim() : "";
-  return nr || p.id_proposta;
 }
 
 /**
@@ -397,47 +400,56 @@ function numeroDaProposta(p: PropostaRelatorio): string {
  * página dela pelo número, que é também o cabeçalho da linha (A09). A página da proposta pede cadastro: no nível 0
  * (`publico`), o link diz "(pede cadastro)" e leva à entrada (`linkNoPublico`).
  */
-export function ListaPropostas({ propostas, aberta = false, publico = false }: { propostas: PropostaRelatorio[]; aberta?: boolean; publico?: boolean }) {
+export function ListaPropostas({
+  propostas,
+  aberta = false,
+  publico = false,
+  csv,
+}: {
+  propostas: PropostaRelatorio[];
+  aberta?: boolean;
+  publico?: boolean;
+  /** Onda 15, fase 2, lote B (13/10/2026): o nome do CSV filtrado, só para o cadastro (D1). */
+  csv?: string;
+}) {
   if (!propostas.length) return null;
-  const xs = [...propostas].sort((a, b) => (b.ano_envio ?? 0) - (a.ano_envio ?? 0));
+  // Onda 15, fase 2, lote B (13/10/2026): tabela com filtro em cada coluna; o repasse filtra, mas não ordena (tabela do
+  // público). A ordem padrão é a de antes, pelo ano de envio, da mais recente para a mais antiga.
+  const linhas: LinhaTabela[] = propostasNaOrdem(propostas).map((p) => {
+    const link = linkNoPublico(urlProposta(p.id_proposta), publico);
+    return {
+      chave: p.id_proposta,
+      valores: valoresDaProposta(p),
+      celulas: {
+        proposta: (
+          <LinkMapa href={link.href}>
+            nº {numeroDaProposta(p)}
+            {link.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
+          </LinkMapa>
+        ),
+        // O ano tem célula própria: sem ela, o número sairia com ponto de milhar ("2.024").
+        ano: p.ano_envio !== null ? String(p.ano_envio) : "—",
+        repasse: moedaCurta(p.valor_repasse ?? 0),
+      },
+    };
+  });
   const tabela = (
-    <TabelaRolagem rotulo={`As propostas (${n(propostas.length)})`}>
-      <table className="mp-tabela mp-tabela-empilha">
-        <thead>
-          <tr>
-            <th scope="col">Proposta</th>
-            <th scope="col">Ano</th>
-            <th scope="col">Programa</th>
-            <th scope="col">Órgão</th>
-            <th scope="col">Repasse</th>
-            <th scope="col">Desfecho</th>
-          </tr>
-        </thead>
-        <tbody>
-          {xs.map((p) => {
-            const link = linkNoPublico(urlProposta(p.id_proposta), publico);
-            return (
-              <tr key={p.id_proposta}>
-                <th scope="row" className="mp-th-celula">
-                  <LinkMapa href={link.href}>
-                    nº {numeroDaProposta(p)}
-                    {link.pedeCadastro && ` ${MARCA_PEDE_CADASTRO}`}
-                  </LinkMapa>
-                </th>
-                <td data-rotulo="Ano">{p.ano_envio ?? "—"}</td>
-                <td data-rotulo="Programa">{p.programa ?? "—"}</td>
-                <td data-rotulo="Órgão">{p.orgao_sup ? tituloOrgao(p.orgao_sup) : "—"}</td>
-                <td data-rotulo="Repasse" className="mp-rel-num">{moedaCurta(p.valor_repasse ?? 0)}</td>
-                <td data-rotulo="Desfecho">{p.desfecho ? (ROTULO_DESFECHO[p.desfecho as keyof typeof ROTULO_DESFECHO] ?? p.desfecho) : "—"}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+    <TabelaFiltravel
+      id={TABELA_PROPOSTAS}
+      rotulo={`As propostas (${n(propostas.length)})`}
+      colunas={COLUNAS_PROPOSTAS}
+      linhas={linhas}
+      ordemPadrao={ORDEM_PROPOSTAS}
+      csv={csv ? { nome: csv } : undefined}
+      empilhar
+    />
   );
   return (
-    <Secao id="ent-propostas-lista" titulo={`As propostas (${n(propostas.length)})`} nota="Enviadas desde 2019 (fora da Paraíba, só as recentes e as que ainda se movem), da mais recente para a mais antiga.">
+    <Secao
+      id="ent-propostas-lista"
+      titulo={`As propostas (${n(propostas.length)})`}
+      nota="Enviadas desde 2019 (fora da Paraíba, só as recentes e as que ainda se movem), da mais recente para a mais antiga. O repasse filtra, mas não ordena."
+    >
       {aberta ? (
         tabela
       ) : (
@@ -511,37 +523,40 @@ export function EntidadeVazia({
   );
 }
 
-export function PorOrgao({ instrumentos }: { instrumentos: InstrumentoRelatorio[] }) {
-  const xs = dinheiroPorOrgao(instrumentos);
+/**
+ * "De onde vem o dinheiro", por órgão concedente. Onda 15, fase 2, lote B (13/10/2026): em ordem alfabética (antes, do
+ * maior valor para o menor, numa tabela do público); o órgão filtra e ordena; a contagem e os valores filtram, mas não
+ * ordenam. `csv`: o nome do CSV filtrado, só para o cadastro (D1).
+ */
+export function PorOrgao({ instrumentos, csv }: { instrumentos: InstrumentoRelatorio[]; csv?: string }) {
+  const xs = orgaosEmOrdem(instrumentos);
   if (!xs.length) return null;
+  const linhas: LinhaTabela[] = xs.map((o) => ({
+    chave: o.orgao,
+    valores: valoresDoOrgao(o),
+    celulas: { valor: moedaCurta(o.valor), desembolsado: o.desembolsado ? moedaCurta(o.desembolsado) : "—" },
+  }));
   return (
-    <Secao id="ent-orgaos" titulo="De onde vem o dinheiro" nota="Por órgão concedente: valor global dos instrumentos e o que já foi desembolsado.">
-      <TabelaRolagem rotulo="De onde vem o dinheiro">
-        <table className="mp-tabela">
-          <thead>
-            <tr>
-              <th scope="col">Órgão</th>
-              <th scope="col">Instrumentos</th>
-              <th scope="col">Valor</th>
-              <th scope="col">Desembolsado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {xs.map((o) => (
-              <tr key={o.orgao}>
-                <th scope="row" className="mp-th-celula">
-                  {tituloOrgao(o.orgao)}
-                </th>
-                <td className="mp-rel-num">{n(o.n)}</td>
-                <td className="mp-rel-num">{moedaCurta(o.valor)}</td>
-                <td className="mp-rel-num">{o.desembolsado ? moedaCurta(o.desembolsado) : "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TabelaRolagem>
+    <Secao
+      id="ent-orgaos"
+      titulo="De onde vem o dinheiro"
+      nota="Por órgão concedente, em ordem alfabética: valor global dos instrumentos e o que já foi desembolsado. Os números filtram, mas não ordenam."
+    >
+      <TabelaFiltravel
+        id={TABELA_ORGAOS}
+        rotulo="De onde vem o dinheiro"
+        colunas={COLUNAS_ORGAOS}
+        linhas={linhas}
+        ordemPadrao={ORDEM_ORGAOS}
+        csv={csv ? { nome: csv } : undefined}
+      />
     </Secao>
   );
+}
+
+/** O nome do CSV filtrado de uma tabela da entidade, só para o cadastro (D1: no nível 0 o botão não aparece). */
+export function csvDaEntidade(nivel: NivelAcesso, parte: string, cnpj: string): string | undefined {
+  return PODE.cadastro(nivel) ? `${parte}-${cnpj}` : undefined;
 }
 
 function Mais({ children }: { children: ReactNode }) {
@@ -606,18 +621,18 @@ export function EntidadeConteudo({
 
       {aba === "instrumentos" && (
         <>
-          {nivel >= 1 && <BlocoConvenios r={r} destino={destino} />}
-          <Carteira instrumentos={instrumentos} destino={destino} />
+          {nivel >= 1 && <BlocoConvenios r={r} destino={destino} nivel={nivel} />}
+          <Carteira instrumentos={instrumentos} destino={destino} csv={csvDaEntidade(nivel, "instrumentos", e.cnpj)} />
           {nivel >= 1 && <BlocoPropostas r={r} destino={destino} />}
-          <ListaPropostas propostas={propostas} publico={publico} />
+          <ListaPropostas propostas={propostas} publico={publico} csv={csvDaEntidade(nivel, "propostas", e.cnpj)} />
           {soCadastro && <EntidadeVazia e={e} publico={publico} />}
         </>
       )}
 
       {aba === "dinheiro" && (
         <>
-          <PorOrgao instrumentos={instrumentos} />
-          <BlocoEmendas r={r} />
+          <PorOrgao instrumentos={instrumentos} csv={csvDaEntidade(nivel, "orgaos", e.cnpj)} />
+          <BlocoEmendas r={r} nivel={nivel} />
           {nivel >= 1 && (
             <>
               <BlocoPix r={r} destino={destino} />

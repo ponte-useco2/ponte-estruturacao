@@ -196,7 +196,7 @@ export function RelatorioUfConteudo({ l, nivel, hoje }: { l: LeituraUfOk; nivel:
 
       <Resumo l={l} peca />
       <MunicipiosNoPapel l={l} nivel={nivel} />
-      <Estado l={l} />
+      <Estado l={l} nivel={nivel} />
       <Dinheiro l={l} nivel={nivel} />
       <Tempos l={l} />
       <FontesUf l={l} administrador={admin} />

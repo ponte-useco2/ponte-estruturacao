@@ -11,6 +11,10 @@
  * A OSC que só está no cadastro do Mapa das OSC (E3, sem instrumento nem proposta) tem o relatório do cadastro:
  * quem é, o cadastro (natureza, situação, fundação, áreas, CEBAS, município — sem endereço, dirigentes nem contatos)
  * e as fontes. Quem não é administrador recebe o relatório já sem nomes de fornecedor (`relatorioSemNomes`, na página).
+ *
+ * Onda 15, fase 2, lote B (13/10/2026): as listas são tabelas com filtro e ordem em cada coluna; no papel sai só o
+ * filtrado, com a linha "Filtro aplicado"; sem filtro, tudo, como antes. A carteira, que era uma tabela por situação em
+ * `<details>`, é uma tabela só. Os blocos recebem o nível, só para o CSV filtrado de cada tabela.
  */
 import { formatarData } from "@/lib/oportunidades/central";
 import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
@@ -48,6 +52,7 @@ import {
   PorOrgao,
   Sobre,
   comFontesDaEntidade,
+  csvDaEntidade,
   ehPb,
   entidadeLegivel,
   temAvisoFiscal,
@@ -191,14 +196,14 @@ export function RelatorioEntidadeConteudo({
       <PontosFiscais e={e} r={r} destino={destino} />
 
       {/* Instrumentos */}
-      <BlocoConvenios r={r} destino={destino} />
-      <Carteira instrumentos={instrumentos} destino={destino} />
+      <BlocoConvenios r={r} destino={destino} nivel={nivel} />
+      <Carteira instrumentos={instrumentos} destino={destino} csv={csvDaEntidade(nivel, "instrumentos", e.cnpj)} />
       <BlocoPropostas r={r} destino={destino} />
-      <ListaPropostas propostas={propostas} aberta />
+      <ListaPropostas propostas={propostas} aberta csv={csvDaEntidade(nivel, "propostas", e.cnpj)} />
 
       {/* Dinheiro federal */}
-      <PorOrgao instrumentos={instrumentos} />
-      <BlocoEmendas r={r} />
+      <PorOrgao instrumentos={instrumentos} csv={csvDaEntidade(nivel, "orgaos", e.cnpj)} />
+      <BlocoEmendas r={r} nivel={nivel} />
       <BlocoPix r={r} destino={destino} />
       <BlocoTcePb r={r} />
       <BlocoFornecedores r={r} destino={destino} />

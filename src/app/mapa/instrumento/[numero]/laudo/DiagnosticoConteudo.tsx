@@ -5,6 +5,13 @@
  *
  * Dois usos: a página inteira (`DiagnosticoConteudo`), para quem não tem dossiê da suspensiva; e o
  * complemento (`DiagnosticoComplemento`), que entra no fim do laudo da suspensiva quando há dossiê.
+ *
+ * Onda 15, fase 2, lote B (13/10/2026): as listas (as emendas do convênio, os eventos do SIAFI, as empresas e os
+ * contratos) são tabelas com filtro e ordem em cada coluna (`TabelaFiltravel`). O laudo é do cliente e do
+ * administrador: toda coluna ordena. As células que juntam vários dados (a empresa com CNPJ, MEI e marcas; o contrato
+ * com o fornecedor e a assinatura) ficam desenhadas como eram, e cada dado filtra numa coluna oculta. Os ids das tabelas
+ * levam o prefixo `laudo-`, únicos também no laudo da suspensiva, que junta o complemento. As empresas e os contratos
+ * só chegam ao administrador (a página do cliente não lê fornecedores). Resumos e comparações ficam sem filtro.
  */
 import { urlEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
@@ -12,7 +19,6 @@ import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { diaBrasilia } from "@/lib/oportunidades/datas";
 import {
   ROTULO_ETAPA_LAUDO,
-  ROTULO_TIPO_EMENDA,
   cnpjLegivel,
   nivelMaisAlto,
   nomeProponente,
@@ -39,10 +45,13 @@ import { rotuloDemaisPc33, secaoPc33 } from "@/lib/oportunidades/portaria33";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { descreverTce, tituloDebito, type SecaoTceTcu } from "@/lib/oportunidades/tce-tcu";
 import { moedaContas, type SecaoContasObras } from "@/lib/oportunidades/contas-obras";
+import { rotuloTipoParlamentar } from "@/lib/oportunidades/relatorio-municipio";
+import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { eloInstrumento, trilha } from "@/lib/oportunidades/trilha";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AnalistasSecao, DocumentosSecao, LinhaDoTempoSecao } from "./LaudoConteudo";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
 import { Termo } from "../../../_componentes/Termo";
 import { Trilha } from "../../../_componentes/Trilha";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
@@ -57,6 +66,71 @@ const n = (x: number) => x.toLocaleString("pt-BR");
 const dias = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "dia" : "dias"}`;
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso) : "—");
 const diasArredondados = (x: number) => dias(Math.round(x));
+const simOuNao = (x: boolean | null | undefined) => (x === null || x === undefined ? null : x ? "Sim" : "Não");
+
+// ================================================================ as tabelas com filtro (onda 15, fase 2, lote B, 13/10/2026)
+// Telas do cliente e do administrador: toda coluna filtra e ordena. Os ids são únicos no laudo da suspensiva, que junta o
+// complemento (`DiagnosticoComplemento`) às tabelas de `LaudoConteudo` ("laudo-analistas", "laudo-documentos").
+
+/** As emendas do convênio: o tipo (agora com a inicial maiúscula, como no relatório) e, numa coluna oculta, a impositiva. */
+const COLUNAS_EMENDAS_CONVENIO: ColunaTabela[] = [
+  { id: "emenda", titulo: "Emenda", tipo: "texto", textoNoCsv: true },
+  { id: "autor", titulo: "Autor", tipo: "texto" },
+  { id: "tipo", titulo: "Tipo", tipo: "categoria" },
+  { id: "impositiva", titulo: "Impositiva", tipo: "categoria", oculta: true },
+  { id: "valor", titulo: "Valor indicado", tipo: "numero", alinhar: "direita" },
+];
+
+/** Os eventos da prestação de contas no SIAFI: a situação do evento, que a célula junta ao nome, filtra à parte. */
+const COLUNAS_EVENTOS_SIAFI: ColunaTabela[] = [
+  { id: "evento", titulo: "Evento no SIAFI (sistema financeiro da União)", tipo: "categoria" },
+  { id: "situacao", titulo: "Situação do evento", tipo: "categoria", oculta: true },
+  { id: "data", titulo: "Data", tipo: "data" },
+  { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita" },
+];
+
+/**
+ * As empresas do convênio (só administrador). A célula da empresa junta o nome, o CNPJ, o MEI, o TCE-PB e as marcas de
+ * sanção; cada um filtra numa coluna oculta. O pagamento e o "na PB" também juntam dois números cada.
+ */
+const COLUNAS_EMPRESAS: ColunaTabela[] = [
+  { id: "empresa", titulo: "Empresa", tipo: "texto" },
+  { id: "cnpj", titulo: "CNPJ", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "mei", titulo: "MEI", tipo: "categoria", oculta: true },
+  { id: "tcu", titulo: "Lista de inidôneos do TCU", tipo: "categoria", oculta: true },
+  { id: "ceis-cnep", titulo: "CEIS e CNEP", tipo: "categoria", oculta: true },
+  { id: "tce", titulo: "No TCE-PB", tipo: "texto", oculta: true },
+  { id: "recebeu", titulo: "Recebeu aqui", tipo: "numero", alinhar: "direita" },
+  { id: "fatia", titulo: "Fatia do pago a empresas (%)", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "pagamentos", titulo: "Pagamentos", tipo: "numero" },
+  { id: "primeiro", titulo: "Primeiro pagamento", tipo: "data", oculta: true },
+  { id: "ultimo", titulo: "Último pagamento", tipo: "data", oculta: true },
+  { id: "contratado", titulo: "Contratado", tipo: "numero", alinhar: "direita" },
+  { id: "contratos", titulo: "Contratos", tipo: "numero", alinhar: "direita", oculta: true },
+  { id: "na-pb", titulo: "Na PB", tipo: "numero", alinhar: "direita" },
+  { id: "pb-convenios", titulo: "Convênios na PB", tipo: "numero", alinhar: "direita", oculta: true },
+];
+
+const ROTULO_TCU: Record<string, string> = { inidoneo: "Inidôneo", fora_da_lista: "Fora da lista", nao_verificado: "Não verificado" };
+const ROTULO_CEIS_CNEP: Record<string, string> = {
+  nao_consultado: "Não consultado",
+  sem_sancao: "Sem registro",
+  vigente: "Registro vigente",
+  encerrada: "Registro encerrado",
+};
+
+/** Os contratos do convênio (só administrador): o fornecedor e a assinatura, que a célula junta ao número, e a vigência. */
+const COLUNAS_CONTRATOS: ColunaTabela[] = [
+  { id: "contrato", titulo: "Contrato", tipo: "texto", textoNoCsv: true },
+  { id: "fornecedor", titulo: "Fornecedor", tipo: "texto", oculta: true },
+  { id: "assinatura", titulo: "Assinatura", tipo: "data", oculta: true },
+  { id: "objeto", titulo: "Objeto", tipo: "texto" },
+  { id: "aquisicao", titulo: "Tipo de aquisição", tipo: "categoria", oculta: true },
+  { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita" },
+  { id: "vigencia", titulo: "Vigência", tipo: "texto", filtravel: false, ordenavel: false, semCsv: true },
+  { id: "inicio-vigencia", titulo: "Início da vigência", tipo: "data", oculta: true },
+  { id: "fim-vigencia", titulo: "Fim da vigência", tipo: "data", oculta: true },
+];
 
 /**
  * `dossie`: a coleta do Acesso Livre no recorte da assinatura, para a lista de documentos.
@@ -256,8 +330,8 @@ export function DiagnosticoConteudo({
       {d.acessoLivre && d.acessoLivre.linha.length > 0 && (
         <>
           <LinhaDoTempoSecao linha={d.acessoLivre.linha} proponente="proponente" />
-          <AnalistasSecao analistas={d.acessoLivre.analistas} />
-          {dossie && <DocumentosSecao documentos={d.acessoLivre.documentos} lista={dossie.documentos} hoje={hoje} />}
+          <AnalistasSecao analistas={d.acessoLivre.analistas} numero={i.nr_convenio} />
+          {dossie && <DocumentosSecao documentos={d.acessoLivre.documentos} lista={dossie.documentos} hoje={hoje} numero={i.nr_convenio} />}
         </>
       )}
 
@@ -542,42 +616,30 @@ function Cruzamentos({ d, i, cliente = false }: { d: Diagnostico; i: Instrumento
           <h2 id="diag-emenda" className="mp-radar-h2">
             De onde veio o dinheiro
           </h2>
-          <TabelaRolagem rotuloId="diag-emenda">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Emenda</th>
-                  <th scope="col">Autor</th>
-                  <th scope="col">Tipo</th>
-                  <th scope="col" className="mp-num">
-                    Valor indicado
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.emendas.map((e) => (
-                  <tr key={e.nr_emenda}>
-                    <th scope="row">{e.nr_emenda}</th>
-                    <td>{e.parlamentar ?? "—"}</td>
-                    <td>
-                      {e.tipo_parlamentar ? (ROTULO_TIPO_EMENDA[e.tipo_parlamentar] ?? e.tipo_parlamentar.toLowerCase()) : "—"}
-                      {e.impositiva ? " · impositiva" : ""}
-                    </td>
-                    <td className="mp-num">{moedaCurta(e.valor)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id="laudo-emendas"
+            rotulo="De onde veio o dinheiro: as emendas do convênio"
+            colunas={COLUNAS_EMENDAS_CONVENIO}
+            linhas={d.emendas.map((e, k): LinhaTabela => {
+              const tipo = rotuloTipoParlamentar(e.tipo_parlamentar);
+              return {
+                chave: `${e.nr_emenda}-${k}`,
+                valores: { emenda: e.nr_emenda, autor: e.parlamentar, tipo, impositiva: simOuNao(e.impositiva), valor: e.valor },
+                celulas: { tipo: `${tipo ?? "—"}${e.impositiva ? " · impositiva" : ""}`, valor: moedaCurta(e.valor) },
+              };
+            })}
+            ordemPadrao={{ coluna: "emenda", sentido: "asc" }}
+            csv={{ nome: `emendas-convenio-${i.nr_convenio}` }}
+          />
           <p className="pa-nota">Emendas parlamentares ligadas à proposta, como registradas no SICONV.</p>
         </section>
       )}
 
-      <DestinoDoDinheiro d={d} />
+      <DestinoDoDinheiro d={d} numero={i.nr_convenio} />
 
       <ExecucaoPc33 i={i} />
       <ContasNoTcu s={d.tceTcu} />
-      <ContasEObra s={d.contasObras} cliente={cliente} />
+      <ContasEObra s={d.contasObras} cliente={cliente} numero={i.nr_convenio} />
 
       {!cliente && !d.fiscal && d.fiscalMotivo && (
         <section aria-labelledby="diag-fiscal" className="mp-radar-secao">
@@ -742,7 +804,7 @@ function ExecucaoPc33({ i }: { i: InstrumentoLaudo }) {
  * Prestação de contas e obra pelas coletas do Acesso Livre (onda 13C.2 e 13C.3). O nome do servidor que deu o
  * parecer só aparece para administrador.
  */
-function ContasEObra({ s, cliente }: { s: SecaoContasObras | null; cliente: boolean }) {
+function ContasEObra({ s, cliente, numero }: { s: SecaoContasObras | null; cliente: boolean; numero: string }) {
   if (!s) return null;
   const p = s.prestacao;
   const o = s.obra;
@@ -755,32 +817,31 @@ function ContasEObra({ s, cliente }: { s: SecaoContasObras | null; cliente: bool
         <>
           <p className="pa-sub">{p.frase}</p>
           {p.cumprimento && <p className="pa-nota">{p.cumprimento}</p>}
+          {/* Onda 15, fase 2, lote B (13/10/2026): filtro e ordem em cada coluna; a data é o dia em Brasília. Padrão: a cronológica. */}
           {p.eventos.length > 0 && (
-            <TabelaRolagem rotuloId="diag-contas-obra">
-              <table className="mp-tabela">
-                <thead>
-                  <tr>
-                    <th scope="col">Evento no SIAFI (sistema financeiro da União)</th>
-                    <th scope="col">Data</th>
-                    <th scope="col" className="mp-num">
-                      Valor
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {p.eventos.map((e) => (
-                    <tr key={e.ordem}>
-                      <td>
+            <TabelaFiltravel
+              id="laudo-siafi"
+              rotulo="Eventos da prestação de contas no SIAFI"
+              colunas={COLUNAS_EVENTOS_SIAFI}
+              linhas={p.eventos.map(
+                (e): LinhaTabela => ({
+                  chave: String(e.ordem),
+                  valores: { evento: e.evento, situacao: e.situacao, data: e.data_hora ? diaBrasilia(e.data_hora) : null, valor: e.valor },
+                  celulas: {
+                    evento: (
+                      <>
                         {e.evento ?? "—"}
                         {e.situacao && e.situacao !== "Enviada" ? <span className="mp-laudo-miudo"> · {e.situacao}</span> : null}
-                      </td>
-                      <td>{e.data_hora ? formatarData(diaBrasilia(e.data_hora)) : "—"}</td>
-                      <td className="mp-num">{e.valor !== null ? moedaContas(e.valor) : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TabelaRolagem>
+                      </>
+                    ),
+                    data: e.data_hora ? formatarData(diaBrasilia(e.data_hora)) : "—",
+                    valor: e.valor !== null ? moedaContas(e.valor) : "—",
+                  },
+                }),
+              )}
+              ordemPadrao={{ coluna: "data", sentido: "asc" }}
+              csv={{ nome: `eventos-siafi-${numero}` }}
+            />
           )}
           {p.pareceres.length > 0 && (
             <ul className="mp-laudo-lista">
@@ -887,7 +948,7 @@ function ItemPc33({ x }: { x: ItemLaudo }) {
   );
 }
 
-function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
+function DestinoDoDinheiro({ d, numero }: { d: Diagnostico; numero: string }) {
   const f = d.fornecedores;
   const din = d.dinheiro;
   const temEmpenho = din.empenhadoCorrente !== null || din.empenhadoCapital !== null;
@@ -949,7 +1010,7 @@ function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
         )}
       </ul>
 
-      {f && f.linhas.length > 0 && <TabelaFornecedores f={f} />}
+      {f && f.linhas.length > 0 && <TabelaFornecedores f={f} numero={numero} />}
       {/* D1: sem rodada do job de sanções, o laudo diz que não consultou (sem marca não é "sem registro"). */}
       {f && f.linhas.length > 0 && f.ceisCnep.estado === "nao_consultado" && (
         <p className="pa-nota">CEIS/CNEP não consultados: a marca de sanção da CGU não entra nesta leitura.</p>
@@ -957,7 +1018,7 @@ function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
       {f && f.linhas.length > 0 && f.ceisCnep.estado === "falhou" && (
         <p className="pa-nota">CEIS/CNEP não puderam ser lidos agora: sem marca não quer dizer sem registro.</p>
       )}
-      {f && f.contratos.length > 0 && <TabelaContratos f={f} />}
+      {f && f.contratos.length > 0 && <TabelaContratos f={f} numero={numero} />}
 
       {m && m.faixa !== "pouco_dado" && (
         <p className={`pa-cartao pa-cartao-plano${m.faixa === "alta" ? " mp-laudo-informativo" : ""}`}>
@@ -971,113 +1032,158 @@ function DestinoDoDinheiro({ d }: { d: Diagnostico }) {
   );
 }
 
-function TabelaFornecedores({ f }: { f: SecaoFornecedores }) {
+/**
+ * As empresas do convênio (só administrador: a página do cliente não lê fornecedores). Onda 15, fase 2, lote B
+ * (13/10/2026): o título, que era a legenda da tabela (`caption`, que o componente não tem), vira subtítulo; a célula da
+ * empresa fica como era, e o CNPJ, o MEI, as marcas e o TCE-PB filtram nas colunas ocultas. Padrão: do que mais recebeu
+ * para o que menos recebeu (a ordem da leitura).
+ */
+function TabelaFornecedores({ f, numero }: { f: SecaoFornecedores; numero: string }) {
+  const linhas: LinhaTabela[] = f.linhas.map((l) => ({
+    chave: l.cnpj,
+    valores: {
+      empresa: l.nome,
+      cnpj: cnpjLegivel(l.cnpj),
+      mei: simOuNao(l.mei),
+      tcu: l.tcu === "inidoneo" && l.momento ? `Inidôneo · ${ROTULO_MOMENTO[l.momento]}` : (ROTULO_TCU[l.tcu] ?? null),
+      "ceis-cnep": ROTULO_CEIS_CNEP[l.ceisCnep] ?? null,
+      tce: l.tce,
+      recebeu: l.pago,
+      fatia: l.fatia !== null && l.pago > 0 ? Math.round(l.fatia * 100) : null,
+      pagamentos: l.nPagamentos,
+      primeiro: l.primeiro,
+      ultimo: l.ultimo,
+      contratado: l.nContratos > 0 ? l.contratado : null,
+      contratos: l.nContratos,
+      "na-pb": l.pbMunicipios,
+      "pb-convenios": l.pbConvenios,
+    },
+    celulas: {
+      empresa: (
+        <>
+          <LinkMapa href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
+            {l.nome}
+          </LinkMapa>
+          <span className="mp-tabela-secundario">
+            CNPJ {cnpjLegivel(l.cnpj)}
+            {l.mei ? " · MEI" : ""}
+          </span>
+          {l.tce && <span className="mp-tabela-secundario">{l.tce}</span>}
+          {l.momento && (
+            <span className={`pa-tag mp-laudo-nivel mp-laudo-${NIVEL_MOMENTO[l.momento]}`}>inidôneo (TCU) · {ROTULO_MOMENTO[l.momento]}</span>
+          )}
+          {l.ceisCnep === "vigente" && (
+            <span className="pa-tag mp-laudo-nivel mp-laudo-alto">registro vigente no {cadastrosDe(l.sancoesCgu.filter((r) => r.vigente))}</span>
+          )}
+          {l.ceisCnep === "encerrada" && <span className="mp-tabela-secundario">registro encerrado no {cadastrosDe(l.sancoesCgu)}</span>}
+        </>
+      ),
+      recebeu: (
+        <>
+          {moedaCurta(l.pago)}
+          {l.fatia !== null && l.pago > 0 && <span className="mp-tabela-secundario">{pct(l.fatia)} do pago a empresas</span>}
+        </>
+      ),
+      pagamentos: (
+        <>
+          {l.nPagamentos > 0 ? n(l.nPagamentos) : "nenhum"}
+          {l.primeiro && (
+            <span className="mp-tabela-secundario">
+              <Periodo de={l.primeiro} ate={l.ultimo} />
+            </span>
+          )}
+        </>
+      ),
+      contratado: (
+        <>
+          {l.nContratos > 0 ? moedaCurta(l.contratado) : "—"}
+          {l.nContratos > 1 && <span className="mp-tabela-secundario">{n(l.nContratos)} contratos</span>}
+        </>
+      ),
+      "na-pb": (
+        <>
+          {l.pbMunicipios !== null ? `${n(l.pbMunicipios)} ${l.pbMunicipios === 1 ? "município" : "municípios"}` : "—"}
+          {l.pbConvenios !== null && (
+            <span className="mp-tabela-secundario">
+              {n(l.pbConvenios)} {l.pbConvenios === 1 ? "convênio" : "convênios"}
+            </span>
+          )}
+        </>
+      ),
+    },
+  }));
   return (
-    <TabelaRolagem rotulo="Empresas que receberam ou foram contratadas neste convênio">
-      <table className="mp-tabela">
-        <caption className="mp-laudo-legenda-tabela">Empresas que receberam ou foram contratadas neste convênio</caption>
-        <thead>
-          <tr>
-            <th scope="col">Empresa</th>
-            <th scope="col" className="mp-num">
-              Recebeu aqui
-            </th>
-            <th scope="col">Pagamentos</th>
-            <th scope="col" className="mp-num">
-              Contratado
-            </th>
-            <th scope="col" className="mp-num">
-              Na PB
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {f.linhas.map((l) => (
-            <tr key={l.cnpj}>
-              <th scope="row">
-                <LinkMapa href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
-                  {l.nome}
-                </LinkMapa>
-                <span className="mp-tabela-secundario">
-                  CNPJ {cnpjLegivel(l.cnpj)}
-                  {l.mei ? " · MEI" : ""}
-                </span>
-                {l.tce && <span className="mp-tabela-secundario">{l.tce}</span>}
-                {l.momento && (
-                  <span className={`pa-tag mp-laudo-nivel mp-laudo-${NIVEL_MOMENTO[l.momento]}`}>inidôneo (TCU) · {ROTULO_MOMENTO[l.momento]}</span>
-                )}
-                {l.ceisCnep === "vigente" && (
-                  <span className="pa-tag mp-laudo-nivel mp-laudo-alto">registro vigente no {cadastrosDe(l.sancoesCgu.filter((r) => r.vigente))}</span>
-                )}
-                {l.ceisCnep === "encerrada" && <span className="mp-tabela-secundario">registro encerrado no {cadastrosDe(l.sancoesCgu)}</span>}
-              </th>
-              <td className="mp-num">
-                {moedaCurta(l.pago)}
-                {l.fatia !== null && l.pago > 0 && <span className="mp-tabela-secundario">{pct(l.fatia)} do pago a empresas</span>}
-              </td>
-              <td>
-                {l.nPagamentos > 0 ? n(l.nPagamentos) : "nenhum"}
-                {l.primeiro && (
-                  <span className="mp-tabela-secundario">
-                    <Periodo de={l.primeiro} ate={l.ultimo} />
-                  </span>
-                )}
-              </td>
-              <td className="mp-num">
-                {l.nContratos > 0 ? moedaCurta(l.contratado) : "—"}
-                {l.nContratos > 1 && <span className="mp-tabela-secundario">{n(l.nContratos)} contratos</span>}
-              </td>
-              <td className="mp-num">
-                {l.pbMunicipios !== null ? `${n(l.pbMunicipios)} ${l.pbMunicipios === 1 ? "município" : "municípios"}` : "—"}
-                {l.pbConvenios !== null && (
-                  <span className="mp-tabela-secundario">
-                    {n(l.pbConvenios)} {l.pbConvenios === 1 ? "convênio" : "convênios"}
-                  </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+    <>
+      <h3 id="laudo-empresas-titulo" className="mp-rel-h3">
+        Empresas que receberam ou foram contratadas neste convênio
+      </h3>
+      <TabelaFiltravel
+        id="laudo-empresas"
+        rotulo="Empresas que receberam ou foram contratadas neste convênio"
+        colunas={COLUNAS_EMPRESAS}
+        linhas={linhas}
+        ordemPadrao={{ coluna: "recebeu", sentido: "desc" }}
+        csv={{ nome: `empresas-convenio-${numero}` }}
+      />
+    </>
   );
 }
 
-function TabelaContratos({ f }: { f: SecaoFornecedores }) {
+/**
+ * Os contratos do convênio (só administrador). Onda 15, fase 2, lote B (13/10/2026): o título vira subtítulo; o número
+ * leva o fornecedor (ou "pessoa física", nunca o nome) e a assinatura, que filtram nas colunas ocultas; a vigência
+ * ("de … a …") fica desenhada, e o início e o fim filtram à parte. Padrão: pela assinatura (a ordem da leitura).
+ */
+function TabelaContratos({ f, numero }: { f: SecaoFornecedores; numero: string }) {
+  const linhas: LinhaTabela[] = f.contratos.map((c, k) => {
+    const fornecedor = c.pessoa_fisica ? "pessoa física" : nomeFornecedor({ nome: c.fornecedor, cnpj: c.cnpj });
+    const vigencia = c.dt_inicio_vigencia || c.dt_fim_vigencia ? `${data(c.dt_inicio_vigencia)} a ${data(c.dt_fim_vigencia)}` : null;
+    return {
+      chave: `${c.id_licitacao}-${c.id_contrato}-${k}`,
+      valores: {
+        contrato: c.nr_contrato ?? c.id_contrato,
+        fornecedor,
+        assinatura: c.dt_assinatura,
+        objeto: c.objeto,
+        aquisicao: c.tipo_aquisicao,
+        valor: c.valor,
+        vigencia,
+        "inicio-vigencia": c.dt_inicio_vigencia,
+        "fim-vigencia": c.dt_fim_vigencia,
+      },
+      celulas: {
+        contrato: (
+          <>
+            nº {c.nr_contrato ?? c.id_contrato}
+            <span className="mp-tabela-secundario">
+              {fornecedor}
+              {c.dt_assinatura ? ` · assinado em ${data(c.dt_assinatura)}` : ""}
+            </span>
+          </>
+        ),
+        objeto: (
+          <>
+            {c.objeto ?? "—"}
+            {c.tipo_aquisicao && <span className="mp-tabela-secundario">{c.tipo_aquisicao}</span>}
+          </>
+        ),
+        valor: moedaCurta(c.valor),
+      },
+    };
+  });
   return (
-    <TabelaRolagem rotulo="Contratos do convênio">
-      <table className="mp-tabela">
-        <caption className="mp-laudo-legenda-tabela">Contratos do convênio</caption>
-        <thead>
-          <tr>
-            <th scope="col">Contrato</th>
-            <th scope="col">Objeto</th>
-            <th scope="col" className="mp-num">
-              Valor
-            </th>
-            <th scope="col">Vigência</th>
-          </tr>
-        </thead>
-        <tbody>
-          {f.contratos.map((c, k) => (
-            <tr key={`${c.id_licitacao}-${c.id_contrato}-${k}`}>
-              <th scope="row">
-                nº {c.nr_contrato ?? c.id_contrato}
-                <span className="mp-tabela-secundario">
-                  {c.pessoa_fisica ? "pessoa física" : nomeFornecedor({ nome: c.fornecedor, cnpj: c.cnpj })}
-                  {c.dt_assinatura ? ` · assinado em ${data(c.dt_assinatura)}` : ""}
-                </span>
-              </th>
-              <td>
-                {c.objeto ?? "—"}
-                {c.tipo_aquisicao && <span className="mp-tabela-secundario">{c.tipo_aquisicao}</span>}
-              </td>
-              <td className="mp-num">{moedaCurta(c.valor)}</td>
-              <td>{c.dt_inicio_vigencia || c.dt_fim_vigencia ? `${data(c.dt_inicio_vigencia)} a ${data(c.dt_fim_vigencia)}` : "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+    <>
+      <h3 id="laudo-contratos-titulo" className="mp-rel-h3">
+        Contratos do convênio
+      </h3>
+      <TabelaFiltravel
+        id="laudo-contratos"
+        rotulo="Contratos do convênio"
+        colunas={COLUNAS_CONTRATOS}
+        linhas={linhas}
+        ordemPadrao={{ coluna: "assinatura", sentido: "asc" }}
+        csv={{ nome: `contratos-convenio-${numero}` }}
+      />
+    </>
   );
 }

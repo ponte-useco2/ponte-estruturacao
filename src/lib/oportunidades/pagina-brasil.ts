@@ -7,9 +7,10 @@
  */
 import { diaBrasilia } from "./datas.ts";
 import { NOME_ABA, nivelSemCliente, type NivelAcesso } from "./pagina-municipio.ts";
-import { NOME_UF, totalTerritorio, porSituacao, type LinhaTerritorio } from "./pagina-uf.ts";
+import { NOME_UF, colunaDeNumero, totalTerritorio, porSituacao, type LinhaTerritorio } from "./pagina-uf.ts";
 import type { ColunaCsv, LinhaDesfecho } from "./painel.ts";
 import type { LinhaEspecialAno } from "./pix.ts";
+import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
 
 // ================================================================ regiões
 
@@ -166,6 +167,49 @@ export const COLUNAS_CSV_UFS: ColunaCsv<LinhaUfBrasil>[] = [
   { titulo: "Pix pago no ano (R$)", valor: (u) => u.pixPagoAno },
   { titulo: "Janelas abertas", valor: (u) => u.janelas },
 ];
+
+/** O prefixo da tabela das 27 UFs no endereço (`?t.ufs.<coluna>=…`; onda 15, fase 2, lote A, 13/10/2026). */
+export const TABELA_UFS = "ufs";
+
+/**
+ * As 27 UFs lado a lado como tabela filtrável (onda 15, fase 2, lote A, 13/10/2026). A UF é categoria (marcar três UFs
+ * para comparar é o uso natural) e a sigla vai oculta; a região é categoria. Tela pública: os números filtram, mas só
+ * o administrador (`livre`) ordena por eles, e a ordem padrão é a alfabética do nome, a de `ufsLadoALado`. As
+ * assinadas no ano não se desenham (a página nunca as mostrou), mas filtram e vão ao CSV, como no CSV da rota.
+ */
+export function colunasUfs(ano: number, livre: boolean): ColunaTabela[] {
+  return [
+    { id: "uf", titulo: "UF", tipo: "categoria" },
+    { id: "sigla", titulo: "Sigla", tipo: "texto", oculta: true },
+    { id: "regiao", titulo: "Região", tipo: "categoria" },
+    colunaDeNumero("vivos", "Instrumentos vivos", livre),
+    colunaDeNumero("em-execucao", "Em execução", livre),
+    colunaDeNumero("prestando-contas", "Prestando contas", livre),
+    colunaDeNumero("valor-vivos", "Valor global dos vivos", livre),
+    colunaDeNumero("municipios", "Municípios com instrumento vivo", livre),
+    colunaDeNumero("propostas", `Propostas em ${ano}`, livre),
+    { ...colunaDeNumero("assinadas", `Assinadas em ${ano}`, livre), oculta: true },
+    colunaDeNumero("pix", `Pix pago em ${ano}`, livre),
+    colunaDeNumero("janelas", "Janelas abertas", livre),
+  ];
+}
+
+export function valoresDaUfBrasil(u: LinhaUfBrasil): Record<string, ValorCelula> {
+  return {
+    uf: u.nome,
+    sigla: u.sigla,
+    regiao: ROTULO_MACRORREGIAO[u.regiao],
+    vivos: u.vivos,
+    "em-execucao": u.emExecucao,
+    "prestando-contas": u.prestandoContas,
+    "valor-vivos": u.valorVivos,
+    municipios: u.municipiosVivos,
+    propostas: u.propostasAno,
+    assinadas: u.assinadasAno,
+    pix: u.pixPagoAno,
+    janelas: u.janelas,
+  };
+}
 
 // ================================================================ o relatório para imprimir
 

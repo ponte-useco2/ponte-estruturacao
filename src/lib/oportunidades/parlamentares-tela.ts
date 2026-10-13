@@ -16,17 +16,21 @@
  */
 import {
   CANAIS,
+  ROTULO_CANAL,
   ROTULO_TIPO_AUTOR,
   TIPOS_AUTOR,
   ordenarAutores,
+  rotuloEnteTipo,
   type AnoCanalEmendas,
   type AutorEmendas,
   type CanalEmenda,
   type DestinoEmendas,
   type EnteTipoEmenda,
+  type ExecucaoNaSafra,
   type MunicipioPopulacao,
   type TipoAutor,
 } from "./emendas.ts";
+import { gravarEstado, lerEstado, type ColunaTabela, type ValorCelula } from "./tabela-filtro.ts";
 import { tituloDaPagina } from "./titulo-pagina.ts";
 
 /** Os municípios da PB: a base do "n de 223" e dos não atendidos. */
@@ -34,15 +38,45 @@ export const TOTAL_MUNICIPIOS_PB = 223;
 
 // ================================================================ a lista dos autores
 
-/** O tipo pedido no endereço (`?tipo=`), só se for um dos cinco; o resto vira "todos" (null). */
+/**
+ * O tipo pedido no endereço antigo (`?tipo=`), só se for um dos cinco; o resto vira "todos" (null). Desde a onda 15
+ * (A, 13/10/2026), o filtro de tipo é o da coluna "Tipo" da tabela (`?t.parl.tipo=`); o `?tipo=` antigo continua
+ * valendo porque a lista redireciona para a forma nova (`urlParlamentares`).
+ */
 export function tipoDaUrl(v: string | string[] | undefined | null): TipoAutor | null {
   const s = Array.isArray(v) ? v[0] : v;
   return typeof s === "string" && (TIPOS_AUTOR as readonly string[]).includes(s) ? (s as TipoAutor) : null;
 }
 
-/** O endereço da lista, com o filtro de tipo quando há. */
+/** O prefixo da tabela dos autores no endereço (`?t.parl.<coluna>=…`). */
+export const TABELA_PARLAMENTARES = "parl";
+
+/**
+ * O endereço da lista, com o filtro de tipo quando há (onda 15, A, 13/10/2026): o filtro de categoria da coluna "Tipo"
+ * da tabela, pelo rótulo ("?t.parl.tipo=Comiss%C3%A3o"), e não mais o `?tipo=comissao` de antes.
+ */
 export function urlParlamentares(tipo?: TipoAutor | null): string {
-  return tipo ? `/mapa/parlamentares?tipo=${tipo}` : "/mapa/parlamentares";
+  if (!tipo) return "/mapa/parlamentares";
+  const filtro = { tipo: { tipo: "categoria" as const, valores: [ROTULO_TIPO_AUTOR[tipo] ?? ROTULO_TIPO_AUTOR.outro] } };
+  return `/mapa/parlamentares?${gravarEstado(TABELA_PARLAMENTARES, { filtros: filtro, ordem: null }, new URLSearchParams()).toString()}`;
+}
+
+/**
+ * O tipo que o endereço pede, para o título da aba (integração da onda 15, 13/10/2026): o `?tipo=` antigo ou o filtro
+ * da coluna "Tipo" da tabela (`?t.parl.tipo=`) com UM tipo só. Dois tipos ou nenhum: null (o título genérico).
+ */
+export function tipoDoEndereco(sp: Record<string, string | string[] | undefined>): TipoAutor | null {
+  const antigo = tipoDaUrl(sp.tipo);
+  if (antigo) return antigo;
+  const parametros = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) if (typeof v === "string") parametros.set(k, v);
+  const filtro = lerEstado(TABELA_PARLAMENTARES, COLUNAS_PARLAMENTARES, parametros).filtros.tipo;
+  if (!filtro || filtro.tipo !== "categoria" || filtro.valores.length !== 1) return null;
+  const pedido = filtro.valores[0].normalize("NFD").replace(/\p{Mn}/gu, "").toLowerCase();
+  const achado = (Object.entries(ROTULO_TIPO_AUTOR) as [TipoAutor, string][]).find(
+    ([, rotulo]) => rotulo.normalize("NFD").replace(/\p{Mn}/gu, "").toLowerCase() === pedido,
+  );
+  return achado ? achado[0] : null;
 }
 
 /** Quantos autores de cada tipo (os cinco sempre presentes, com zero quando não há). */
@@ -124,6 +158,83 @@ export function listaDaTela<T extends Pick<AutorEmendas, "tipo" | "nome" | "codi
 ): GrupoDaLista<T>[] {
   const ordenados = ordenarAutores(tipo ? autores.filter((a) => a.tipo === tipo) : autores);
   return GRUPOS_DESTINO.map((g) => ({ ...g, autores: ordenados.filter((a) => grupoDeDestino(a) === g.id) }));
+}
+
+/** O nome curto de cada grupo: o título do cartão e o valor da coluna "Grupo" da tabela (onda 15, A, 13/10/2026). */
+export const ROTULO_CURTO_GRUPO: Readonly<Record<GrupoDestino, string>> = Object.freeze({
+  publico: "Destino público na PB",
+  convenio_sem_municipio: "Convênio sem município",
+  entidade: "Só entidade com sede na PB",
+  sem_canal: "Sem canal com valor",
+});
+
+/**
+ * As colunas da tabela dos autores (onda 15, A, 13/10/2026), uma por dado, para cada uma filtrar, ordenar e ir ao CSV:
+ * o válido e o pago de cada canal viram duas colunas, e os caducados, a quantidade e o valor. O código entra como
+ * coluna, como no estudo da onda 13 (seção 7.1), e sai no CSV como texto. É tela de administrador: toda coluna ordena.
+ * O catálogo com a PB na localidade só tem valor no grupo "sem canal" (ver `valoresDoAutor`).
+ */
+export const COLUNAS_PARLAMENTARES: ColunaTabela[] = [
+  { id: "autor", titulo: "Autor", tipo: "texto" },
+  { id: "codigo", titulo: "Código", tipo: "texto", textoNoCsv: true },
+  { id: "tipo", titulo: "Tipo", tipo: "categoria" },
+  { id: "grupo", titulo: "Grupo", tipo: "categoria" },
+  { id: "convenio-valido", titulo: "Convênio válido", tipo: "numero", alinhar: "direita" },
+  { id: "convenio-pago", titulo: "Convênio pago", tipo: "numero", alinhar: "direita" },
+  { id: "pix-valido", titulo: "Pix válido", tipo: "numero", alinhar: "direita" },
+  { id: "pix-pago", titulo: "Pix pago", tipo: "numero", alinhar: "direita" },
+  { id: "fns-valido", titulo: "FNS válido", tipo: "numero", alinhar: "direita" },
+  { id: "fns-pago", titulo: "FNS pago", tipo: "numero", alinhar: "direita" },
+  { id: "favorecido-pago", titulo: "Pago ao favorecido", tipo: "numero", alinhar: "direita" },
+  { id: "municipios", titulo: "Municípios atendidos", tipo: "numero", alinhar: "direita" },
+  { id: "caducados", titulo: "Caducados", tipo: "numero", alinhar: "direita" },
+  { id: "caducado-valor", titulo: "Valor caducado", tipo: "numero", alinhar: "direita" },
+  { id: "na-fila", titulo: "Na fila", tipo: "numero", alinhar: "direita" },
+  { id: "ano-inicial", titulo: "Ano inicial", tipo: "numero", alinhar: "direita" },
+  { id: "ano-final", titulo: "Ano final", tipo: "numero", alinhar: "direita" },
+  { id: "catalogo-empenhado", titulo: "Catálogo PB empenhado", tipo: "numero", alinhar: "direita" },
+  { id: "catalogo-pago", titulo: "Catálogo PB pago", tipo: "numero", alinhar: "direita" },
+];
+
+/** O nome publicado, ou o código quando o Portal não publica nome. */
+export function nomeDoAutor(a: Pick<AutorEmendas, "codigo" | "nome">): string {
+  return a.nome ?? `Autor ${a.codigo} (sem nome publicado)`;
+}
+
+/**
+ * Os valores crus de um autor, por coluna de `COLUNAS_PARLAMENTARES`: filtram, ordenam e vão ao CSV. O zero fica zero
+ * (é valor; a tela desenha "—"); o ano ausente é null. O catálogo com a PB só vale no grupo "sem canal", que não tem
+ * outro número: nos outros fica null, porque catálogo e canal são o mesmo dinheiro visto de dois lugares e a lista é
+ * dos canais (a ficha mostra o catálogo de todos, na aba Contexto).
+ */
+export function valoresDoAutor(a: AutorEmendas): Record<string, ValorCelula> {
+  const grupo = grupoDeDestino(a);
+  return {
+    autor: nomeDoAutor(a),
+    codigo: a.codigo,
+    tipo: ROTULO_TIPO_AUTOR[a.tipo] ?? ROTULO_TIPO_AUTOR.outro,
+    grupo: ROTULO_CURTO_GRUPO[grupo],
+    "convenio-valido": a.convenio_valido,
+    "convenio-pago": a.convenio_pago,
+    "pix-valido": a.pix_valido,
+    "pix-pago": a.pix_pago,
+    "fns-valido": a.fns_valido,
+    "fns-pago": a.fns_pago,
+    "favorecido-pago": a.favorecido_pago,
+    municipios: a.municipios,
+    caducados: a.caducados,
+    "caducado-valor": a.caducado_valor,
+    "na-fila": a.na_fila,
+    "ano-inicial": a.ano_min,
+    "ano-final": a.ano_max,
+    "catalogo-empenhado": grupo === "sem_canal" ? a.catalogo_empenhado_pb : null,
+    "catalogo-pago": grupo === "sem_canal" ? a.catalogo_pago_total_pb : null,
+  };
+}
+
+/** A ordem padrão da tabela: os quatro grupos na ordem fixa e, dentro de cada um, tipo e nome (`listaDaTela`). */
+export function autoresNaOrdemPadrao(autores: readonly AutorEmendas[]): AutorEmendas[] {
+  return listaDaTela(autores, null).flatMap((g) => g.autores);
 }
 
 /** "64 de 223"; sem município, "nenhum". */
@@ -374,4 +485,173 @@ export function reaisPorHabitante(v: number | null | undefined): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
   const casas = Math.abs(v) < 100 ? 2 : 0;
   return `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}`;
+}
+
+// ================================================================ as tabelas filtráveis da ficha e do município (onda 15, fase 2, lote A, 13/10/2026)
+//
+// A regra do titular (13/10/2026): cada coluna filtra e, nas telas de administrador (estas todas), ordena. A ordem padrão
+// continua a de antes (por ano, por nome, por canal) e o valor só ordena quando a pessoa pede: é leitura, não posição.
+// A célula que junta dois dados ("Ano e canal", "Canal e ente") mantém o desenho; o dado de baixo vai numa coluna
+// oculta, que filtra e vai ao CSV.
+
+const colunaNum = (id: string, titulo: string): ColunaTabela => ({ id, titulo, tipo: "numero", alinhar: "direita" });
+
+/** O nome curto de cada canal no título das colunas: "Pix válido", "FNS pago", como na lista dos autores. */
+const CANAL_CURTO: Readonly<Record<CanalEmenda, string>> = Object.freeze({
+  convenio: "Convênio",
+  pix: "Pix",
+  fns: "FNS",
+  favorecido: "Pago ao favorecido",
+});
+
+/**
+ * As colunas de um canal: o válido e o pago, com os ids da lista dos autores (`convenio-valido`, `pix-pago`...). O pago
+ * ao favorecido só tem o pago.
+ */
+export function colunasDoCanal(canal: CanalEmenda): ColunaTabela[] {
+  const curto = CANAL_CURTO[canal] ?? canal;
+  if (soPago(canal)) return [colunaNum(`${canal}-pago`, curto)];
+  return [colunaNum(`${canal}-valido`, `${curto} válido`), colunaNum(`${canal}-pago`, `${curto} pago`)];
+}
+
+/** "De onde vêm as emendas", na aba do dinheiro do município (só administrador): o prefixo e as colunas, por canal. */
+export const TABELA_EMENDAS_MUNICIPIO = "emendas-autor";
+/** A linha da saúde fundo a fundo cujo autor a carga do FNS ainda não trouxe. */
+export const SEM_AUTOR_FNS = "Saúde fundo a fundo ainda sem o autor";
+
+export function colunasEmendasDoMunicipio(canais: readonly CanalEmenda[]): ColunaTabela[] {
+  return [
+    { id: "autor", titulo: "Autor", tipo: "texto" },
+    { id: "codigo", titulo: "Código", tipo: "texto", textoNoCsv: true, oculta: true },
+    { id: "tipo", titulo: "Tipo", tipo: "categoria" },
+    ...canais.flatMap(colunasDoCanal),
+  ];
+}
+
+/** A forma de `AutorNoMunicipio` (`pagina-municipio.ts`) que a tabela lê. */
+export interface AutorDoMunicipioNaTabela {
+  codigo: string | null;
+  autor: Pick<AutorEmendas, "nome" | "tipo"> | null;
+  canais: readonly { canal: CanalEmenda; valido: number | null; pago: number }[];
+}
+
+/** Os valores crus de um autor no município: o canal sem valor fica vazio (null), o zero fica zero. */
+export function valoresDoAutorNoMunicipio(a: AutorDoMunicipioNaTabela, canais: readonly CanalEmenda[]): Record<string, ValorCelula> {
+  const v: Record<string, ValorCelula> = {
+    autor: a.codigo === null ? SEM_AUTOR_FNS : (a.autor?.nome ?? `Autor ${a.codigo}`),
+    codigo: a.codigo,
+    tipo: a.codigo === null ? null : (ROTULO_TIPO_AUTOR[a.autor?.tipo ?? "outro"] ?? ROTULO_TIPO_AUTOR.outro),
+  };
+  for (const canal of canais) {
+    const c = a.canais.find((x) => x.canal === canal);
+    if (!soPago(canal)) v[`${canal}-valido`] = c ? c.valido : null;
+    v[`${canal}-pago`] = c ? c.pago : null;
+  }
+  return v;
+}
+
+const rotuloDoCanal = (canal: CanalEmenda) => ROTULO_CANAL[canal] ?? canal;
+
+/** Acesso: a série por ano da emenda e canal. O ano é a coluna de cima da célula; o canal, oculto, filtra e vai ao CSV. */
+export const TABELA_SERIE_ACESSO = "serie";
+export const COLUNAS_SERIE_ACESSO: ColunaTabela[] = [
+  { id: "ano", titulo: "Ano", tipo: "numero" },
+  { id: "canal", titulo: "Canal", tipo: "categoria", oculta: true },
+  colunaNum("emendas", "Emendas"),
+  colunaNum("indicado", "Indicado"),
+  colunaNum("valido", "Válido"),
+  colunaNum("pago", "Pago"),
+  colunaNum("caducado", "Caducado"),
+];
+
+export function valoresDaSerie(l: AnoCanalEmendas): Record<string, ValorCelula> {
+  const so = soPago(l.canal);
+  return {
+    ano: l.ano,
+    canal: rotuloDoCanal(l.canal),
+    emendas: l.emendas,
+    indicado: so ? null : l.indicado,
+    valido: so ? null : l.valido,
+    pago: l.pago,
+    caducado: l.caducado,
+  };
+}
+
+/** Destinação: os municípios. A situação (atendido ou só proposta) e o IBGE vão ocultos; os canais, como texto. */
+export const TABELA_DESTINO_MUNICIPIOS = "destino";
+export const ROTULO_ATENDIDO = Object.freeze({ sim: "Com instrumento válido ou pago", nao: "Só proposta ou caducado" });
+export const COLUNAS_DESTINO_MUNICIPIOS: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "ibge", titulo: "IBGE", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "situacao", titulo: "Situação", tipo: "categoria", oculta: true },
+  colunaNum("populacao", "População"),
+  { id: "canais", titulo: "Canais", tipo: "texto" },
+  colunaNum("instrumentos", "Instrumentos"),
+  colunaNum("valido", "Válido"),
+  colunaNum("pago", "Pago"),
+  colunaNum("por-habitante", "Pago por habitante"),
+];
+
+export function valoresDoDestinoMunicipio(l: LinhaMunicipio): Record<string, ValorCelula> {
+  return {
+    municipio: l.nome,
+    ibge: l.ibge,
+    situacao: l.atendido ? ROTULO_ATENDIDO.sim : ROTULO_ATENDIDO.nao,
+    populacao: l.populacao,
+    canais: l.canais.map(rotuloDoCanal).join(" · "),
+    instrumentos: l.instrumentos,
+    valido: l.valido,
+    pago: l.pago,
+    "por-habitante": l.pagoPorHabitante,
+  };
+}
+
+/** Destinação, à parte: o estadual (`estadual`) e a entidade com sede (`entidade`), duas tabelas de colunas diferentes. */
+export function colunasAParte(comSede: boolean): ColunaTabela[] {
+  return [
+    { id: "ente", titulo: "Ente", tipo: "categoria" },
+    { id: "canal", titulo: "Canal", tipo: "categoria", oculta: true },
+    colunaNum("instrumentos", comSede ? "Instrumentos ou CNPJs" : "Instrumentos"),
+    ...(comSede ? [colunaNum("municipios-sede", "Municípios da sede")] : []),
+    colunaNum("valido", "Válido"),
+    colunaNum("pago", "Pago"),
+  ];
+}
+
+export function valoresDaLinhaAParte(l: LinhaResumo, comSede: boolean): Record<string, ValorCelula> {
+  const v: Record<string, ValorCelula> = {
+    ente: rotuloEnteTipo(l.ente_tipo),
+    canal: rotuloDoCanal(l.canal),
+    instrumentos: l.instrumentos,
+    valido: soPago(l.canal) ? null : l.valido,
+    pago: l.pago,
+  };
+  if (comSede) v["municipios-sede"] = l.municipiosSede;
+  return v;
+}
+
+/**
+ * Execução: pago ÷ válido na safra. As frações vão em pontos percentuais (92, e não 0,92), como a tela mostra: o filtro
+ * se digita como se lê ("a partir de 50").
+ */
+export const TABELA_SAFRA = "safra";
+export const COLUNAS_SAFRA: ColunaTabela[] = [
+  { id: "safra", titulo: "Safra", tipo: "numero" },
+  { id: "canal", titulo: "Canal", tipo: "categoria", oculta: true },
+  colunaNum("valido-autor", "Válido do autor"),
+  colunaNum("pago-autor", "Pago do autor"),
+  colunaNum("fracao-autor", "Pago ÷ válido do autor (%)"),
+  colunaNum("fracao-pb", "Pago ÷ válido da PB (%)"),
+];
+
+export function valoresDaSafra(l: ExecucaoNaSafra): Record<string, ValorCelula> {
+  const pontos = (x: number | null) => (x === null || !Number.isFinite(x) ? null : x * 100);
+  return {
+    safra: l.ano,
+    canal: rotuloDoCanal(l.canal),
+    "valido-autor": l.validoAutor,
+    "pago-autor": l.pagoAutor,
+    "fracao-autor": pontos(l.fracaoAutor),
+    "fracao-pb": pontos(l.fracaoPb),
+  };
 }

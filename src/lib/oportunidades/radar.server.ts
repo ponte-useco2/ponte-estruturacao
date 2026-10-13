@@ -88,9 +88,15 @@ export type LeituraRadar =
       municipiosPB: MunicipioPB[];
     };
 
-const LIMITE_PROGRAMAS = 25;
-const LIMITE_DISPUTA = 25;
-const LIMITE_ENVIOS_PB = 200;
+/**
+ * Todas as linhas na página (onda 15, fase 2, lote D, 13/10/2026): as tabelas filtram e ordenam no navegador, e o filtro
+ * só vê o que foi lido. Medido em 13/10/2026: a disputa tinha 238 programas abertos no Brasil e 114 na PB (antes, 25); a
+ * PB movimentou 338 propostas em 30 dias (antes, 200). 500 é o teto da própria `radar_disputa` (oport_17), e 1.000 fica
+ * dentro do teto de linhas do PostgREST. O "por programa" (até ~250 no Brasil em 30 dias) não é mais cortado nos 25
+ * primeiros: a ordem padrão (mais propostas primeiro) põe o importante em cima.
+ */
+const LIMITE_DISPUTA = 500;
+const LIMITE_ENVIOS_PB = 1000;
 
 export async function lerRadar(p: ParametrosRadar): Promise<LeituraRadar> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
@@ -147,7 +153,7 @@ export async function lerRadar(p: ParametrosRadar): Promise<LeituraRadar> {
     placar: (placar.data ?? []) as LinhaPlacar[],
     porCanal: (canal.data ?? []) as LinhaRecorte[],
     porTipo: (tipo.data ?? []) as LinhaRecorte[],
-    porPrograma: ((programa.data ?? []) as LinhaRecorte[]).slice(0, LIMITE_PROGRAMAS),
+    porPrograma: (programa.data ?? []) as LinhaRecorte[],
     disputa: (disputa.data ?? []) as LinhaDisputa[],
     enviaramPB: (envios.data ?? []) as EnvioPB[],
     municipiosPB: (municipios.data ?? []) as MunicipioPB[],

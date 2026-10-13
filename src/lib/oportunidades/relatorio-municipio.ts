@@ -15,7 +15,7 @@
  */
 import { formatarData } from "./central.ts";
 import { DIAS_SEM_MEDICAO_MODERADO, riscosContasObras, type EntradaContasObras } from "./contas-obras.ts";
-import { DIAS_SEM_MOVIMENTO, DIAS_VIGENCIA_CRITICA, PCT_FINANCEIRO_ALTO, PCT_FISICO_BAIXO } from "./diagnostico.ts";
+import { DIAS_SEM_MOVIMENTO, DIAS_VIGENCIA_CRITICA, PCT_FINANCEIRO_ALTO, PCT_FISICO_BAIXO, ROTULO_TIPO_EMENDA } from "./diagnostico.ts";
 import { NOME_CURTO, conclusaoDe, type ConclusaoFiscal, type MunicipioFiscal, type VerificacaoFiscal } from "./fiscal.ts";
 import { faixaConcentracao, type ConcentracaoMunicipio } from "./fornecedores.ts";
 import { pontosAConferir } from "./itens-laudo.ts";
@@ -41,6 +41,8 @@ import { riscoPc33, type ColunasPc33 } from "./portaria33.ts";
 import { moedaCurta } from "./radar.ts";
 import { marcasPix, resumirConciliacao, type TceFederalMunicipio, type TcePixMunicipio } from "./tce.ts";
 import { riscoTceTcu, type ConsultaTcu, type TceTcu } from "./tce-tcu.ts";
+import { tituloOrgao } from "./padroes.ts";
+import type { ColunaTabela, Ordem, ValorCelula } from "./tabela-filtro.ts";
 
 export const VERSAO_RELATORIO = "2026-10-01.2";
 
@@ -224,6 +226,21 @@ export interface LinhaConvenio {
   valor: number | null;
   desembolsado: number | null;
   nota: string;
+  /*
+   * Os dados crus que a nota junta (onda 15, fase 2, lote B, 13/10/2026): na tabela com filtro, a nota continua
+   * desenhada como era, e estes filtram, ordenam e vão ao CSV nas colunas ocultas (`valoresDoConvenio`). Opcionais:
+   * o objeto montado antes desta versão não os traz, e a coluna fica vazia.
+   */
+  /** O fim da vigência (AAAA-MM-DD). */
+  vigencia?: string | null;
+  /** A execução física, fração de 0 a 1. */
+  fisico?: number | null;
+  /** A situação no SICONV. */
+  situacao?: string | null;
+  /** Só na lista da vigência vencida, que o público não recebe: o saldo em conta. */
+  saldoConta?: number | null;
+  /** Só na lista das contas atrasadas, que o público não recebe: o prazo de prestar contas. */
+  prazoContas?: string | null;
 }
 
 export interface Relatorio {
@@ -508,8 +525,24 @@ export interface SecaoConvenios {
 
 const CONTAS_NEGATIVO = new Set(["Prestação de Contas Rejeitada", "Inadimplente"]);
 
-function linha(i: InstrumentoRelatorio, nota: string): LinhaConvenio {
-  return { nr_convenio: i.nr_convenio, orgao: i.orgao_sup, objeto: i.objeto, valor: i.vl_global, desembolsado: i.vl_desembolsado, nota };
+/**
+ * Uma linha das listas de convênio. Onda 15, fase 2, lote B (13/10/2026): leva também a vigência, o físico e a situação
+ * (campos que não são de análise: o público já os vê na nota dos em execução) e, por `extra`, o saldo em conta e o
+ * prazo das contas, que são de análise e só entram nas listas que o recorte do público esvazia.
+ */
+function linha(i: InstrumentoRelatorio, nota: string, extra: Pick<LinhaConvenio, "saldoConta" | "prazoContas"> = {}): LinhaConvenio {
+  return {
+    nr_convenio: i.nr_convenio,
+    orgao: i.orgao_sup,
+    objeto: i.objeto,
+    valor: i.vl_global,
+    desembolsado: i.vl_desembolsado,
+    nota,
+    vigencia: i.dt_fim_vigencia,
+    fisico: i.pct_fisico,
+    situacao: i.situacao,
+    ...extra,
+  };
 }
 
 function secaoConvenios(e: EntradaRelatorio, hoje: string): SecaoConvenios | null {
@@ -541,9 +574,11 @@ function secaoConvenios(e: EntradaRelatorio, hoje: string): SecaoConvenios | nul
     emExecucao: execucao.map((i) =>
       linha(i, `vigência até ${data(i.dt_fim_vigencia)}${i.pct_fisico !== null ? ` · físico ${Math.round(i.pct_fisico * 100)}%` : ""}`),
     ),
-    vigenciaVencida: vencida.map((i) => linha(i, `vigência terminou em ${data(i.dt_fim_vigencia)}; ${moedaCurta(i.vl_saldo_conta ?? 0)} em conta`)),
+    vigenciaVencida: vencida.map((i) =>
+      linha(i, `vigência terminou em ${data(i.dt_fim_vigencia)}; ${moedaCurta(i.vl_saldo_conta ?? 0)} em conta`, { saldoConta: i.vl_saldo_conta }),
+    ),
     semMovimento: semMovimento.map((i) => linha(i, `último movimento em ${data([i.dt_ultimo_pagamento, i.dt_ultimo_desembolso].filter(Boolean).sort().at(-1))}`)),
-    contasAtrasadas: atrasadas.map((i) => linha(i, `prazo terminou em ${data(i.dt_limite_contas)}`)),
+    contasAtrasadas: atrasadas.map((i) => linha(i, `prazo terminou em ${data(i.dt_limite_contas)}`, { prazoContas: i.dt_limite_contas })),
     contasNegativas: negativas.map((i) => linha(i, i.situacao ?? "")),
     nuncaAssinados: nunca.filter((i) => !i.dt_fim_vigencia || i.dt_fim_vigencia >= hoje).map((i) => linha(i, `vigência até ${data(i.dt_fim_vigencia)}`)),
     nuncaAssinadosVencidos: nunca.filter((i) => i.dt_fim_vigencia && i.dt_fim_vigencia < hoje).length,
@@ -1566,3 +1601,201 @@ export const COLUNAS_CSV_ACHADOS: ColunaCsv<Achado>[] = [
   { titulo: "O que fazer", valor: (a) => a.acao },
   { titulo: "Convênios", valor: (a) => (a.numeros ?? []).join(" ") },
 ];
+
+// ================================================================ as tabelas com filtro (onda 15, fase 2, lote B, 13/10/2026)
+
+/*
+ * As listas do relatório viram tabelas com filtro e ordem em cada coluna (regra permanente do titular, 13/10/2026; o
+ * componente é `TabelaFiltravel`, e o contrato, `tabela-filtro.ts`). Aqui ficam as colunas, os valores crus de cada
+ * linha e a ordem padrão; a tela monta as células (link, dinheiro curto).
+ *
+ * A regra do público vale para a TABELA que o nível 0 vê, e não para quem olha: os convênios em execução e as emendas
+ * filtram em toda coluna, mas as colunas de valor (R$) e de contagem não ordenam (ranking público foi rejeitado), a
+ * ordem padrão é a alfabética, pelo nome ou pelo número, e nenhum corte "os N maiores" fica. As listas de análise, que
+ * só o cadastro recebe (`relatorioDoPublico` as esvazia), ordenam por qualquer coluna.
+ *
+ * As linhas saem já na ordem padrão (`conveniosNaOrdem`, `emendasNaOrdem`): todo empate de uma ordem escolhida volta a
+ * ela, e uma lista que chegasse do maior valor para o menor devolveria o ranking pelo empate.
+ */
+
+/** Os seis recortes da tabela de convênios: colunas e regras de nível diferentes, por isso seis tabelas. */
+export type RecorteConvenios = "execucao" | "vencida" | "contas" | "liminar" | "nunca" | "pc33";
+
+/** O id de cada tabela no endereço (`?t.<id>.…`): único também no relatório para imprimir, que junta todas. */
+export const TABELA_CONVENIOS: Readonly<Record<RecorteConvenios, string>> = Object.freeze({
+  execucao: "rel-conv-execucao",
+  vencida: "rel-conv-vencida",
+  contas: "rel-conv-contas",
+  liminar: "rel-conv-liminar",
+  nunca: "rel-conv-nunca",
+  pc33: "rel-conv-pc33",
+});
+export const TABELA_TCE = "rel-tce";
+export const TABELA_EMENDAS = "rel-emendas";
+
+/** O recorte que o público vê; os outros cinco o recorte do público esvazia. */
+export const RECORTES_DO_PUBLICO: readonly RecorteConvenios[] = ["execucao"];
+
+const COMPARA_NOME = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+const maiusculaInicial = (s: string) => (s ? `${s.charAt(0).toUpperCase()}${s.slice(1)}` : s);
+/** A coluna de valor ou de contagem numa tabela pública: filtra, mas não ordena. */
+const semRanking = (publica: boolean): Pick<ColunaTabela, "ordenavel"> => (publica ? { ordenavel: false } : {});
+/** A execução física em pontos percentuais inteiros, como a nota escreve ("físico 45%"). */
+const pctInteiro = (x: number | null | undefined) => (x === null || x === undefined || !Number.isFinite(x) ? null : Math.round(x * 100));
+
+export function colunasConvenios(recorte: RecorteConvenios): ColunaTabela[] {
+  const publica = RECORTES_DO_PUBLICO.includes(recorte);
+  const base: ColunaTabela[] = [
+    { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+    { id: "orgao", titulo: "Órgão", tipo: "categoria" },
+    { id: "objeto", titulo: "Objeto", tipo: "texto" },
+    { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita", ...semRanking(publica) },
+    { id: "desembolsado", titulo: "Desembolsado", tipo: "numero", alinhar: "direita", ...semRanking(publica) },
+  ];
+  // A nota que junta dois dados fica desenhada como era; o filtro, a ordem e o CSV vão nas colunas ocultas logo depois.
+  const nota = (titulo: string): ColunaTabela => ({ id: "nota", titulo, tipo: "texto", filtravel: false, ordenavel: false, semCsv: true });
+  const vigencia: ColunaTabela = { id: "vigencia", titulo: "Fim da vigência", tipo: "data", oculta: true };
+  switch (recorte) {
+    case "execucao":
+      return [
+        ...base,
+        nota("Vigência e execução física"),
+        vigencia,
+        { id: "fisico", titulo: "Execução física (%)", tipo: "numero", alinhar: "direita", oculta: true },
+      ];
+    case "vencida":
+      return [...base, nota("Situação"), vigencia, { id: "saldo", titulo: "Saldo em conta", tipo: "numero", alinhar: "direita", oculta: true }];
+    case "contas":
+      return [
+        ...base,
+        nota("Situação"),
+        { id: "situacao", titulo: "Situação no SICONV", tipo: "categoria", oculta: true },
+        { id: "prazo-contas", titulo: "Prazo das contas", tipo: "data", oculta: true },
+      ];
+    case "liminar":
+      // A nota é um dado só (a situação da contratação): a coluna dela filtra como categoria.
+      return [...base, { id: "contratacao", titulo: "Situação", tipo: "categoria" }];
+    case "nunca":
+      // A nota é a vigência: a coluna é a data, desenhada como a nota ("vigência até …").
+      return [...base, { id: "vigencia", titulo: "Vigência", tipo: "data" }];
+    case "pc33":
+      return [...base, { id: "pontos", titulo: "Pontos", tipo: "texto" }, { id: "nivel", titulo: "Nível", tipo: "categoria", oculta: true }];
+  }
+}
+
+/** Uma linha de qualquer recorte: a dos pontos da PC 33 traz também o nível. */
+export type LinhaDoRecorte = LinhaConvenio & { nivel?: Nivel };
+
+/** Os valores crus de uma linha de convênio, por coluna de `colunasConvenios(recorte)`. */
+export function valoresDoConvenio(l: LinhaDoRecorte, recorte: RecorteConvenios): Record<string, ValorCelula> {
+  const base: Record<string, ValorCelula> = {
+    convenio: l.nr_convenio,
+    orgao: l.orgao ? tituloOrgao(l.orgao) : null,
+    objeto: l.objeto || null,
+    valor: l.valor,
+    desembolsado: l.desembolsado,
+  };
+  switch (recorte) {
+    case "execucao":
+      return { ...base, nota: l.nota, vigencia: l.vigencia ?? null, fisico: pctInteiro(l.fisico) };
+    case "vencida":
+      return { ...base, nota: l.nota, vigencia: l.vigencia ?? null, saldo: l.saldoConta ?? null };
+    case "contas":
+      return { ...base, nota: l.nota, situacao: l.situacao || null, "prazo-contas": l.prazoContas ?? null };
+    case "liminar":
+      return { ...base, contratacao: l.nota || null };
+    case "nunca":
+      return { ...base, vigencia: l.vigencia ?? null };
+    case "pc33":
+      return { ...base, pontos: l.nota || null, nivel: l.nivel ? maiusculaInicial(ROTULO_NIVEL_ACHADO[l.nivel]) : null };
+  }
+}
+
+/**
+ * A ordem padrão de cada recorte. A do público é pelo número do convênio (antes, do maior valor para o menor: um
+ * ranking à vista). As de análise ficam como eram: a vigência vencida do maior valor para o menor (o dinheiro parado
+ * que mais pesa no alto), as contas na ordem de chegada (as atrasadas, depois as rejeitadas e as inadimplentes) e as
+ * outras pelo número, a ordem da leitura.
+ */
+export function ordemPadraoConvenios(recorte: RecorteConvenios): { ordem: Ordem | null; descricao?: string } {
+  switch (recorte) {
+    case "vencida":
+      return { ordem: { coluna: "valor", sentido: "desc" } };
+    case "contas":
+      return { ordem: null, descricao: "as atrasadas primeiro, depois as rejeitadas e as inadimplentes; em cada grupo, pelo número" };
+    default:
+      return { ordem: { coluna: "convenio", sentido: "asc" } };
+  }
+}
+
+/** As linhas na ordem padrão do recorte (a tela passa a lista já assim ao componente). */
+export function conveniosNaOrdem<T extends LinhaDoRecorte>(linhas: readonly T[], recorte: RecorteConvenios): T[] {
+  const { ordem } = ordemPadraoConvenios(recorte);
+  if (!ordem) return [...linhas];
+  if (ordem.coluna === "valor") {
+    return [...linhas].sort((a, b) => (b.valor ?? -Infinity) - (a.valor ?? -Infinity) || COMPARA_NOME.compare(a.nr_convenio, b.nr_convenio));
+  }
+  return [...linhas].sort((a, b) => COMPARA_NOME.compare(a.nr_convenio, b.nr_convenio));
+}
+
+/** As tomadas de contas especiais do TCU (bloco de controle, só do cadastro): toda coluna ordena. */
+export const COLUNAS_TCE: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "processo", titulo: "Processo no TCU", tipo: "texto", textoNoCsv: true },
+  { id: "situacao", titulo: "Situação", tipo: "categoria" },
+  { id: "debito", titulo: "Débito original", tipo: "numero", alinhar: "direita" },
+  { id: "com-juros", titulo: "Com juros", tipo: "numero", alinhar: "direita" },
+];
+export const ORDEM_TCE: Ordem = { coluna: "convenio", sentido: "asc" };
+
+export function valoresDaTce(t: Pick<TceTcu, "nr_convenio" | "numero_processo" | "situacao" | "debito_original" | "debito_com_juros">): Record<string, ValorCelula> {
+  return {
+    convenio: t.nr_convenio,
+    processo: t.numero_processo || null,
+    situacao: t.situacao || null,
+    debito: t.debito_original,
+    "com-juros": t.debito_com_juros,
+  };
+}
+
+/**
+ * "De onde vieram as emendas" (aberto ao público no município e na entidade): o parlamentar e o tipo, que antes vinha
+ * entre parênteses, filtram; os convênios e o valor filtram, mas não ordenam. Todos os parlamentares, em ordem
+ * alfabética: saiu o corte nos 15 de maior valor.
+ */
+export const COLUNAS_EMENDAS: ColunaTabela[] = [
+  { id: "parlamentar", titulo: "Parlamentar", tipo: "texto" },
+  { id: "tipo", titulo: "Tipo", tipo: "categoria" },
+  { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita", ordenavel: false },
+  { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita", ordenavel: false },
+];
+export const ORDEM_EMENDAS: Ordem = { coluna: "parlamentar", sentido: "asc" };
+
+/** "INDIVIDUAL" → "Individual"; "RELATOR GERAL" → "Relator-geral" (os rótulos do laudo, com a inicial maiúscula). */
+export function rotuloTipoParlamentar(tipo: string | null | undefined): string | null {
+  const t = (tipo ?? "").trim();
+  if (!t) return null;
+  return maiusculaInicial(ROTULO_TIPO_EMENDA[t.toUpperCase()] ?? t.toLowerCase());
+}
+
+type EmendaDoRelatorio = NonNullable<Relatorio["emendas"]>[number];
+
+export function emendasNaOrdem<T extends Pick<EmendaDoRelatorio, "parlamentar">>(emendas: readonly T[]): T[] {
+  return [...emendas].sort((a, b) => COMPARA_NOME.compare(a.parlamentar, b.parlamentar));
+}
+
+export function valoresDaEmenda(e: EmendaDoRelatorio): Record<string, ValorCelula> {
+  return { parlamentar: e.parlamentar, tipo: rotuloTipoParlamentar(e.tipo), convenios: e.convenios, valor: e.valor };
+}
+
+/** "Patos" → "patos"; "João Pessoa" → "joao-pessoa": o pedaço do nome do arquivo do CSV. */
+export function trechoDoArquivo(nome: string): string {
+  const s = nome
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, "");
+  return s || "relatorio";
+}

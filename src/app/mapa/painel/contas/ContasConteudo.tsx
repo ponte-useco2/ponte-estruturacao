@@ -2,16 +2,23 @@
  * Contas e obras dos convênios da PB: as Tomadas de Contas Especiais no e-TCE do TCU (onda 13C.1), as
  * impugnações na prestação de contas (13C.2) e as obras paradas no acompanhamento (13C.3). Cada parte vem
  * de uma leitura própria e some sozinha quando falta. Recebe as leituras prontas; aqui só se apresenta.
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): as quatro listas são a `TabelaFiltravel`, com filtro e ordem em cada coluna (a
+ * regra do titular; tela de administrador, toda coluna ordena). As células são as de antes; as colunas ocultas levam o
+ * que a célula junta (a situação do convênio, o município, o órgão, o submotivo, a situação no TCU, a data do parecer,
+ * a obra paralisada ou atrasada). A ordem padrão de cada uma é a de antes.
  */
+import type { ReactNode } from "react";
 import { urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
-import { moedaContas, obrasParadas, DIAS_SEM_MEDICAO_MODERADO } from "@/lib/oportunidades/contas-obras";
+import { moedaContas, obrasParadas, DIAS_SEM_MEDICAO_MODERADO, type LinhaImpugnacao, type LinhaObraParada } from "@/lib/oportunidades/contas-obras";
 import type { PainelContasObras } from "@/lib/oportunidades/contas-obras.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import { moedaExata, porMunicipio } from "@/lib/oportunidades/tce-tcu";
+import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import { moedaExata, porMunicipio, type LinhaTcePainel, type MunicipioTce } from "@/lib/oportunidades/tce-tcu";
 import type { LeituraContas } from "@/lib/oportunidades/tce-tcu.server";
 import { LinkMapa } from "../../_componentes/LinkMapa";
-import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { Termo } from "../../_componentes/Termo";
 
 // B14b (08/10/2026): nesta página "TCE" era sempre a tomada de contas especial. Ela passa a ser escrita por extenso,
@@ -96,38 +103,14 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
             {execucao.referencia ? formatarData(execucao.referencia) : "—"}.
           </p>
         ) : (
-          <TabelaRolagem rotuloId="contas-tce">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Município</th>
-                  <th scope="col" className="mp-num">
-                    Convênios
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Tomadas de contas especiais
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Débito original
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Com juros
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {municipios.map((m) => (
-                  <tr key={m.municipio}>
-                    <td>{m.municipio}</td>
-                    <td className="mp-num">{n(m.convenios)}</td>
-                    <td className="mp-num">{n(m.tces)}</td>
-                    <td className="mp-num">{m.temOriginal ? moedaCurta(m.debitoOriginal) : "—"}</td>
-                    <td className="mp-num">{moedaCurta(m.debitoComJuros)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id="tce-municipios"
+            rotulo="Municípios com tomada de contas especial"
+            colunas={COLUNAS_MUNICIPIOS}
+            linhas={municipios.map(linhaMunicipio)}
+            ordemPadrao={{ coluna: "com-juros", sentido: "desc" }}
+            csv={{ nome: "contas-tce-municipios" }}
+          />
         )}
       </section>
 
@@ -136,67 +119,14 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
           <h2 id="contas-lista" className="mp-radar-h2">
             As tomadas de contas especiais, uma a uma
           </h2>
-          <TabelaRolagem rotuloId="contas-lista">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Convênio</th>
-                  <th scope="col">Proponente</th>
-                  <th scope="col">Instaurada</th>
-                  <th scope="col">Motivo</th>
-                  <th scope="col" className="mp-num">
-                    Débito original
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Com juros
-                  </th>
-                  <th scope="col">Processo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenadas.map((t, k) => (
-                  <tr key={`${t.nr_convenio}-${t.codigo ?? k}`}>
-                    <td>
-                      <LinkMapa href={`${urlInstrumento(t.nr_convenio)}/laudo`}>{t.nr_convenio}</LinkMapa>
-                      <br />
-                      <span className="mp-laudo-miudo">{t.situacao_convenio ?? ""}</span>
-                    </td>
-                    <td>
-                      {t.proponente ?? "—"}
-                      <br />
-                      <span className="mp-laudo-miudo">{[t.municipio, t.orgao_sup].filter(Boolean).join(" · ")}</span>
-                    </td>
-                    <td>{t.dt_instauracao ? formatarData(t.dt_instauracao) : (t.ano ?? "—")}</td>
-                    <td>
-                      {t.motivo ?? "—"}
-                      {t.submotivo ? <span className="mp-laudo-miudo"> · {t.submotivo}</span> : null}
-                    </td>
-                    <td className="mp-num">{t.debito_original !== null ? moedaExata(t.debito_original) : "—"}</td>
-                    <td className="mp-num">
-                      {t.debito_com_juros !== null ? moedaExata(t.debito_com_juros) : "—"}
-                      {t.dt_atualizacao_debito ? <span className="mp-laudo-miudo"> em {formatarData(t.dt_atualizacao_debito)}</span> : null}
-                    </td>
-                    <td>
-                      {t.numero_processo ? (
-                        t.url_processo ? (
-                          <a href={t.url_processo} target="_blank" rel="noopener noreferrer">
-                            TC {t.numero_processo}
-                            <span className="pa-sr"> (abre o processo no TCU em nova aba)</span>
-                          </a>
-                        ) : (
-                          `TC ${t.numero_processo}`
-                        )
-                      ) : (
-                        "—"
-                      )}
-                      <br />
-                      <span className="mp-laudo-miudo">{t.situacao ?? ""}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id="tce-lista"
+            rotulo="As tomadas de contas especiais, uma a uma"
+            colunas={COLUNAS_TCE}
+            linhas={ordenadas.map(linhaTce)}
+            ordemPadrao={{ coluna: "instaurada", sentido: "desc" }}
+            csv={{ nome: "contas-tomadas-de-contas-especiais" }}
+          />
           <p className="pa-nota">
             Fonte: API pública do sistema e-TCE do TCU (tce.apps.tcu.gov.br), uma consulta por convênio, toda semana. Entram os convênios
             assinados da PB na última atualização diária do painel, menos os anulados e cancelados. Tomada de contas especial com situação
@@ -222,46 +152,14 @@ function SecaoImpugnacoes({ linhas, referencia }: { linhas: PainelContasObras["i
         (coleta do Acesso Livre{referencia ? ` de ${formatarData(referencia)}` : ""}).
       </p>
       {linhas.length > 0 && (
-        <TabelaRolagem rotuloId="contas-impugnacao">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Convênio</th>
-                <th scope="col">Proponente</th>
-                <th scope="col" className="mp-num">
-                  Comprovado
-                </th>
-                <th scope="col" className="mp-num">
-                  Aprovado
-                </th>
-                <th scope="col" className="mp-num">
-                  Impugnado
-                </th>
-                <th scope="col">Último parecer</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l) => (
-                <tr key={l.nr_convenio}>
-                  <td>
-                    <LinkMapa href={`${urlInstrumento(l.nr_convenio)}/laudo`}>{l.nr_convenio}</LinkMapa>
-                    <br />
-                    <span className="mp-laudo-miudo">{l.situacao_convenio ?? ""}</span>
-                  </td>
-                  <td>
-                    {l.proponente ?? "—"}
-                    <br />
-                    <span className="mp-laudo-miudo">{l.municipio ?? ""}</span>
-                  </td>
-                  <td className="mp-num">{l.valor_comprovado !== null ? moedaContas(l.valor_comprovado) : "—"}</td>
-                  <td className="mp-num">{l.valor_aprovado !== null ? moedaContas(l.valor_aprovado) : "—"}</td>
-                  <td className="mp-num">{l.valor_impugnado !== null ? moedaContas(l.valor_impugnado) : "—"}</td>
-                  <td>{l.parecer_situacao ? `${l.parecer_situacao}${l.parecer_data ? ` (${formatarData(l.parecer_data)})` : ""}` : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id="impugnacoes"
+          rotulo="Impugnações na prestação de contas"
+          colunas={COLUNAS_IMPUGNACOES}
+          linhas={linhas.map(linhaImpugnacao)}
+          ordemPadrao={{ coluna: "impugnado", sentido: "desc" }}
+          csv={{ nome: "contas-impugnacoes" }}
+        />
       )}
     </section>
   );
@@ -282,55 +180,221 @@ function SecaoObras({ linhas, referencia }: { linhas: PainelContasObras["obras"]
         {referencia ? ` de ${formatarData(referencia)}` : ""}).
       </p>
       {paradas.length > 0 && (
-        <TabelaRolagem rotuloId="contas-obras">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Convênio</th>
-                <th scope="col">Proponente</th>
-                <th scope="col" className="mp-num">
-                  Sem medição
-                </th>
-                <th scope="col" className="mp-num">
-                  Medições
-                </th>
-                <th scope="col" className="mp-num">
-                  Atestado convenente
-                </th>
-                <th scope="col" className="mp-num">
-                  Atestado concedente
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {paradas.map((o) => (
-                <tr key={o.nr_convenio}>
-                  <td>
-                    <LinkMapa href={`${urlInstrumento(o.nr_convenio)}/laudo`}>{o.nr_convenio}</LinkMapa>
-                    {o.paralisado ? (
-                      <>
-                        <br />
-                        <span className="mp-laudo-miudo">paralisada</span>
-                      </>
-                    ) : null}
-                  </td>
-                  <td>
-                    {o.proponente ?? "—"}
-                    <br />
-                    <span className="mp-laudo-miudo">{o.municipio ?? ""}</span>
-                  </td>
-                  <td className="mp-num">{o.dias_sem_medicao !== null ? `${n(o.dias_sem_medicao)} dias` : "—"}</td>
-                  <td className="mp-num">{o.ultima_medicao ?? "—"}</td>
-                  <td className="mp-num">{pct(o.pct_convenente)}</td>
-                  <td className="mp-num">{pct(o.pct_concedente)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id="obras"
+          rotulo="Obras paradas no acompanhamento"
+          colunas={COLUNAS_OBRAS}
+          linhas={paradas.map(linhaObra)}
+          descricaoOrdemPadrao="as paralisadas primeiro, depois as há mais tempo sem medição"
+          csv={{ nome: "contas-obras-paradas" }}
+        />
       )}
     </section>
   );
+}
+
+// ================================================================ as tabelas (onda 15, fase 2, lote C, 13/10/2026)
+
+/** O convênio com o link do laudo e uma linha miúda embaixo, como as quatro listas sempre desenharam. */
+function celulaConvenio(nr: string, miudo: ReactNode): ReactNode {
+  return (
+    <>
+      <LinkMapa href={`${urlInstrumento(nr)}/laudo`}>{nr}</LinkMapa>
+      {miudo ? (
+        <>
+          <br />
+          <span className="mp-laudo-miudo">{miudo}</span>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+/** O proponente e, embaixo, o município (e o que mais a lista juntar). */
+function celulaProponente(proponente: string | null, miudo: string): ReactNode {
+  return (
+    <>
+      {proponente ?? "—"}
+      <br />
+      <span className="mp-laudo-miudo">{miudo}</span>
+    </>
+  );
+}
+
+const COLUNAS_MUNICIPIOS: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita" },
+  { id: "tces", titulo: "Tomadas de contas especiais", tipo: "numero", alinhar: "direita" },
+  { id: "debito-original", titulo: "Débito original", tipo: "numero", alinhar: "direita" },
+  { id: "com-juros", titulo: "Com juros", tipo: "numero", alinhar: "direita" },
+];
+
+function linhaMunicipio(m: MunicipioTce): LinhaTabela {
+  return {
+    chave: m.municipio,
+    valores: {
+      municipio: m.municipio,
+      convenios: m.convenios,
+      tces: m.tces,
+      // Sem nenhum débito original informado no município, vazio, como a célula ("—").
+      "debito-original": m.temOriginal ? m.debitoOriginal : null,
+      "com-juros": m.debitoComJuros,
+    },
+    celulas: {
+      "debito-original": m.temOriginal ? moedaCurta(m.debitoOriginal) : "—",
+      "com-juros": moedaCurta(m.debitoComJuros),
+    },
+  };
+}
+
+const COLUNAS_TCE: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "situacao-convenio", titulo: "Situação do convênio", tipo: "categoria", oculta: true },
+  { id: "proponente", titulo: "Proponente", tipo: "texto" },
+  { id: "municipio", titulo: "Município", tipo: "texto", oculta: true },
+  { id: "orgao", titulo: "Órgão superior", tipo: "categoria", oculta: true },
+  { id: "instaurada", titulo: "Instaurada", tipo: "data" },
+  { id: "ano", titulo: "Ano da tomada de contas", tipo: "numero", oculta: true },
+  { id: "motivo", titulo: "Motivo", tipo: "categoria" },
+  { id: "submotivo", titulo: "Submotivo", tipo: "texto", oculta: true },
+  { id: "debito-original", titulo: "Débito original", tipo: "numero", alinhar: "direita" },
+  { id: "com-juros", titulo: "Com juros", tipo: "numero", alinhar: "direita" },
+  { id: "atualizado", titulo: "Débito atualizado em", tipo: "data", oculta: true },
+  { id: "processo", titulo: "Processo", tipo: "texto", textoNoCsv: true },
+  { id: "situacao", titulo: "Situação no TCU", tipo: "categoria", oculta: true },
+];
+
+function linhaTce(t: LinhaTcePainel, k: number): LinhaTabela {
+  return {
+    chave: `${t.nr_convenio}-${t.codigo ?? k}`,
+    valores: {
+      convenio: t.nr_convenio,
+      "situacao-convenio": t.situacao_convenio,
+      proponente: t.proponente,
+      municipio: t.municipio,
+      orgao: t.orgao_sup,
+      instaurada: t.dt_instauracao,
+      ano: t.ano,
+      motivo: t.motivo,
+      submotivo: t.submotivo,
+      "debito-original": t.debito_original,
+      "com-juros": t.debito_com_juros,
+      atualizado: t.dt_atualizacao_debito,
+      processo: t.numero_processo ? `TC ${t.numero_processo}` : null,
+      situacao: t.situacao,
+    },
+    celulas: {
+      convenio: celulaConvenio(t.nr_convenio, t.situacao_convenio ?? ""),
+      proponente: celulaProponente(t.proponente, [t.municipio, t.orgao_sup].filter(Boolean).join(" · ")),
+      // Sem a data, o ano da tomada (célula própria: o ano não leva ponto de milhar).
+      instaurada: t.dt_instauracao ? formatarData(t.dt_instauracao) : t.ano !== null ? String(t.ano) : "—",
+      motivo: (
+        <>
+          {t.motivo ?? "—"}
+          {t.submotivo ? <span className="mp-laudo-miudo"> · {t.submotivo}</span> : null}
+        </>
+      ),
+      "debito-original": t.debito_original !== null ? moedaExata(t.debito_original) : "—",
+      "com-juros": (
+        <>
+          {t.debito_com_juros !== null ? moedaExata(t.debito_com_juros) : "—"}
+          {t.dt_atualizacao_debito ? <span className="mp-laudo-miudo"> em {formatarData(t.dt_atualizacao_debito)}</span> : null}
+        </>
+      ),
+      processo: (
+        <>
+          {t.numero_processo ? (
+            t.url_processo ? (
+              <a href={t.url_processo} target="_blank" rel="noopener noreferrer">
+                TC {t.numero_processo}
+                <span className="pa-sr"> (abre o processo no TCU em nova aba)</span>
+              </a>
+            ) : (
+              `TC ${t.numero_processo}`
+            )
+          ) : (
+            "—"
+          )}
+          <br />
+          <span className="mp-laudo-miudo">{t.situacao ?? ""}</span>
+        </>
+      ),
+    },
+  };
+}
+
+const COLUNAS_IMPUGNACOES: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "situacao-convenio", titulo: "Situação do convênio", tipo: "categoria", oculta: true },
+  { id: "proponente", titulo: "Proponente", tipo: "texto" },
+  { id: "municipio", titulo: "Município", tipo: "texto", oculta: true },
+  { id: "comprovado", titulo: "Comprovado", tipo: "numero", alinhar: "direita" },
+  { id: "aprovado", titulo: "Aprovado", tipo: "numero", alinhar: "direita" },
+  { id: "impugnado", titulo: "Impugnado", tipo: "numero", alinhar: "direita" },
+  { id: "parecer", titulo: "Último parecer", tipo: "texto" },
+  { id: "parecer-data", titulo: "Data do último parecer", tipo: "data", oculta: true },
+];
+
+function linhaImpugnacao(l: LinhaImpugnacao): LinhaTabela {
+  const moeda = (v: number | null) => (v !== null ? moedaContas(v) : "—");
+  return {
+    chave: l.nr_convenio,
+    valores: {
+      convenio: l.nr_convenio,
+      "situacao-convenio": l.situacao_convenio,
+      proponente: l.proponente,
+      municipio: l.municipio,
+      comprovado: l.valor_comprovado,
+      aprovado: l.valor_aprovado,
+      impugnado: l.valor_impugnado,
+      parecer: l.parecer_situacao,
+      "parecer-data": l.parecer_data,
+    },
+    celulas: {
+      convenio: celulaConvenio(l.nr_convenio, l.situacao_convenio ?? ""),
+      proponente: celulaProponente(l.proponente, l.municipio ?? ""),
+      comprovado: moeda(l.valor_comprovado),
+      aprovado: moeda(l.valor_aprovado),
+      impugnado: moeda(l.valor_impugnado),
+      parecer: l.parecer_situacao ? `${l.parecer_situacao}${l.parecer_data ? ` (${formatarData(l.parecer_data)})` : ""}` : "—",
+    },
+  };
+}
+
+const COLUNAS_OBRAS: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "situacao-obra", titulo: "Situação da obra", tipo: "categoria", oculta: true },
+  { id: "proponente", titulo: "Proponente", tipo: "texto" },
+  { id: "municipio", titulo: "Município", tipo: "texto", oculta: true },
+  { id: "sem-medicao", titulo: "Sem medição (dias)", tipo: "numero", alinhar: "direita" },
+  { id: "medicoes", titulo: "Medições", tipo: "numero", alinhar: "direita" },
+  { id: "convenente", titulo: "Atestado convenente (%)", tipo: "numero", alinhar: "direita" },
+  { id: "concedente", titulo: "Atestado concedente (%)", tipo: "numero", alinhar: "direita" },
+];
+
+function linhaObra(o: LinhaObraParada): LinhaTabela {
+  return {
+    chave: o.nr_convenio,
+    valores: {
+      convenio: o.nr_convenio,
+      // A lista só tem obra paralisada ou atrasada (`obrasParadas`).
+      "situacao-obra": o.paralisado ? "paralisada" : "atrasada",
+      proponente: o.proponente,
+      municipio: o.municipio,
+      "sem-medicao": o.dias_sem_medicao,
+      medicoes: o.ultima_medicao,
+      convenente: o.pct_convenente,
+      concedente: o.pct_concedente,
+    },
+    celulas: {
+      convenio: celulaConvenio(o.nr_convenio, o.paralisado ? "paralisada" : null),
+      proponente: celulaProponente(o.proponente, o.municipio ?? ""),
+      "sem-medicao": o.dias_sem_medicao !== null ? `${n(o.dias_sem_medicao)} dias` : "—",
+      medicoes: o.ultima_medicao ?? "—",
+      convenente: pct(o.pct_convenente),
+      concedente: pct(o.pct_concedente),
+    },
+  };
 }
 
 function Cartao({ titulo, numero, nota }: { titulo: string; numero: string; nota: string }) {

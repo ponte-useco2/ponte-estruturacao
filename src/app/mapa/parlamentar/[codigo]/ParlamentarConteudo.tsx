@@ -13,7 +13,14 @@
  *
  * Sem nota, sem posição e sem cor de "bom" ou "ruim". O que chama a atenção é "ponto para olhar". Nenhum nome de pessoa
  * física; nenhum nome de entidade (a leitura do destino não traz, e esta ficha não precisa dele).
+ *
+ * Onda 15, fase 2, lote A (13/10/2026): as listas da ficha viraram tabelas filtráveis (`TabelaFiltravel`): a série por
+ * ano e canal, os municípios de destino, o estadual e a entidade à parte (duas tabelas, de colunas diferentes) e a
+ * execução na safra. É tela de administrador: toda coluna filtra e ordena, e a ordem padrão é a de antes (o ano mais
+ * novo, o nome do município, o canal). A célula que junta dois dados ("ano e canal", "ente e canal") mantém o desenho;
+ * o dado de baixo vai numa coluna oculta, que filtra e vai ao CSV. Os caducados por ano ficam como resumo.
  */
+import type { ReactNode } from "react";
 import {
   CANAIS,
   FRASE_AUTORIA_COLETIVA,
@@ -37,8 +44,15 @@ import {
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import {
   ABAS_PARLAMENTAR,
+  COLUNAS_DESTINO_MUNICIPIOS,
+  COLUNAS_SAFRA,
+  COLUNAS_SERIE_ACESSO,
+  TABELA_DESTINO_MUNICIPIOS,
+  TABELA_SAFRA,
+  TABELA_SERIE_ACESSO,
   TOTAL_MUNICIPIOS_PB,
   caducadosPorAno,
+  colunasAParte,
   cortesDasFaixas,
   linhasPorMunicipio,
   naoAtendidos,
@@ -50,11 +64,17 @@ import {
   soPago,
   totaisPorCanal,
   urlParlamentar,
+  valoresDaLinhaAParte,
+  valoresDaSafra,
+  valoresDaSerie,
+  valoresDoDestinoMunicipio,
   type AbaParlamentar,
   type LinhaResumo,
 } from "@/lib/oportunidades/parlamentares-tela";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../../_design/primitivos";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 import { CarimboDoDado, CartaoNumero, NotaDeMetodo, dinheiro, n } from "../../parlamentares/PecasParlamentares";
 import { MapaDestino } from "./MapaDestino";
@@ -77,7 +97,7 @@ export function ParlamentarConteudo({ leitura, aba }: { leitura: LeituraOk; aba:
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
 
       {aba === "acesso" && <AbaAcesso autor={autor} anos={leitura.anos} />}
-      {aba === "destinacao" && <AbaDestinacao destino={leitura.destino} municipios={leitura.municipios} />}
+      {aba === "destinacao" && <AbaDestinacao codigo={autor.codigo} destino={leitura.destino} municipios={leitura.municipios} />}
       {aba === "execucao" && <AbaExecucao autor={autor} anos={leitura.anos} safra={leitura.safra} />}
       {aba === "contexto" && <AbaContexto autor={autor} execucao={execucao} />}
     </div>
@@ -174,45 +194,27 @@ function AbaAcesso({ autor, anos }: { autor: AutorEmendas; anos: AnoCanalEmendas
           <h2 id="parl-acesso-anos" className="mp-radar-h2">
             Por ano da emenda e canal
           </h2>
-          <TabelaRolagem rotuloId="parl-acesso-anos">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Ano e canal</th>
-                  <th scope="col" className="mp-num">
-                    Emendas
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Indicado
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Válido
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pago
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Caducado
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {serie.map((l) => (
-                  <tr key={`${l.ano}-${l.canal}`}>
-                    <th scope="row">
-                      <span className="mp-tabela-principal">{l.ano}</span>
-                      <span className="mp-tabela-secundario">{rotuloCanal(l.canal)}</span>
-                    </th>
-                    <td className="mp-num">{n(l.emendas)}</td>
-                    <td className="mp-num">{soPago(l.canal) ? "—" : dinheiro(l.indicado)}</td>
-                    <td className="mp-num">{soPago(l.canal) ? "—" : dinheiro(l.valido)}</td>
-                    <td className="mp-num">{dinheiro(l.pago)}</td>
-                    <td className="mp-num">{dinheiro(l.caducado)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id={TABELA_SERIE_ACESSO}
+            rotulo="Por ano da emenda e canal"
+            colunas={COLUNAS_SERIE_ACESSO}
+            linhas={serie.map(
+              (l): LinhaTabela => ({
+                chave: `${l.ano}-${l.canal}`,
+                valores: valoresDaSerie(l),
+                celulas: {
+                  ano: <AnoECanal ano={l.ano} canal={rotuloCanal(l.canal)} />,
+                  emendas: n(l.emendas),
+                  indicado: soPago(l.canal) ? "—" : dinheiro(l.indicado),
+                  valido: soPago(l.canal) ? "—" : dinheiro(l.valido),
+                  pago: dinheiro(l.pago),
+                  caducado: dinheiro(l.caducado),
+                },
+              }),
+            )}
+            ordemPadrao={{ coluna: "ano", sentido: "desc" }}
+            csv={{ nome: `autor-${autor.codigo}-por-ano-e-canal` }}
+          />
         </section>
       )}
 
@@ -246,11 +248,21 @@ function AbaAcesso({ autor, anos }: { autor: AutorEmendas; anos: AnoCanalEmendas
   );
 }
 
+/** A célula de duas linhas: o ano em cima e o canal embaixo (o canal também é coluna oculta, que filtra). */
+function AnoECanal({ ano, canal }: { ano: number; canal: string }) {
+  return (
+    <>
+      <span className="mp-tabela-principal">{ano}</span>
+      <span className="mp-tabela-secundario">{canal}</span>
+    </>
+  );
+}
+
 // ================================================================ Destinação
 
 const somaPago = (linhas: readonly LinhaResumo[]) => linhas.reduce((s, l) => s + l.pago, 0);
 
-function AbaDestinacao({ destino, municipios }: { destino: DestinoEmendas[]; municipios: MunicipioPopulacao[] }) {
+function AbaDestinacao({ codigo, destino, municipios }: { codigo: string; destino: DestinoEmendas[]; municipios: MunicipioPopulacao[] }) {
   const { municipal, estadual, entidadeComSede } = separarDestino(destino);
   const linhas = linhasPorMunicipio(municipal, municipios);
   const atendidos = linhas.filter((l) => l.atendido);
@@ -330,36 +342,25 @@ function AbaDestinacao({ destino, municipios }: { destino: DestinoEmendas[]; mun
         <h2 id="parl-dest-municipios" className="mp-radar-h2">
           Por município, em ordem alfabética
         </h2>
+        {linhas.length > 0 && (
+          <p className="pa-nota">
+            Cada coluna filtra e ordena; a situação (com instrumento válido ou só proposta) e o código do IBGE também filtram e vão ao CSV.
+          </p>
+        )}
         {linhas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhum destino em prefeitura ou fundo municipal da PB para este autor.</p>
         ) : (
-          <TabelaRolagem rotuloId="parl-dest-municipios">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Município</th>
-                  <th scope="col" className="mp-num">
-                    População
-                  </th>
-                  <th scope="col">Canais</th>
-                  <th scope="col" className="mp-num">
-                    Instrumentos
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Válido
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pago
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pago por habitante
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map((l) => (
-                  <tr key={l.ibge}>
-                    <th scope="row">
+          <TabelaFiltravel
+            id={TABELA_DESTINO_MUNICIPIOS}
+            rotulo="Por município"
+            colunas={COLUNAS_DESTINO_MUNICIPIOS}
+            linhas={linhas.map(
+              (l): LinhaTabela => ({
+                chave: l.ibge,
+                valores: valoresDoDestinoMunicipio(l),
+                celulas: {
+                  municipio: (
+                    <>
                       {nomes.has(l.ibge) ? (
                         <LinkMapa href={urlMunicipio(l.ibge, "dinheiro")} className="mp-tabela-principal">
                           {l.nome}
@@ -368,18 +369,17 @@ function AbaDestinacao({ destino, municipios }: { destino: DestinoEmendas[]; mun
                         <span className="mp-tabela-principal">{l.nome}</span>
                       )}
                       {!l.atendido && <span className="mp-tabela-secundario">só proposta ou caducado, sem instrumento válido</span>}
-                    </th>
-                    <td className="mp-num">{l.populacao !== null ? n(l.populacao) : "—"}</td>
-                    <td>{l.canais.map((c) => rotuloCanal(c)).join(" · ")}</td>
-                    <td className="mp-num">{n(l.instrumentos)}</td>
-                    <td className="mp-num">{dinheiro(l.valido)}</td>
-                    <td className="mp-num">{dinheiro(l.pago)}</td>
-                    <td className="mp-num">{reaisPorHabitante(l.pagoPorHabitante)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+                    </>
+                  ),
+                  valido: dinheiro(l.valido),
+                  pago: dinheiro(l.pago),
+                  "por-habitante": reaisPorHabitante(l.pagoPorHabitante),
+                },
+              }),
+            )}
+            ordemPadrao={{ coluna: "municipio", sentido: "asc" }}
+            csv={{ nome: `autor-${codigo}-municipios` }}
+          />
         )}
         <p className="pa-nota">
           Pago por habitante alto num município pequeno costuma ser uma obra só: é efeito do denominador, e não preferência. O município
@@ -389,6 +389,8 @@ function AbaDestinacao({ destino, municipios }: { destino: DestinoEmendas[]; mun
 
       <SecaoAParte
         id="parl-dest-estadual"
+        tabela="estadual"
+        csv={`autor-${codigo}-estadual`}
         titulo="Estadual, à parte"
         linhas={est}
         vazio="Nenhum destino no governo ou em fundo estadual da PB."
@@ -396,6 +398,8 @@ function AbaDestinacao({ destino, municipios }: { destino: DestinoEmendas[]; mun
       />
       <SecaoAParte
         id="parl-dest-entidade"
+        tabela="entidade"
+        csv={`autor-${codigo}-entidade-com-sede`}
         titulo="Pago a entidade com sede na PB, à parte"
         linhas={ent}
         comSede
@@ -412,8 +416,15 @@ function AbaDestinacao({ destino, municipios }: { destino: DestinoEmendas[]; mun
   );
 }
 
+/**
+ * O estadual e a entidade com sede, à parte (onda 15, fase 2, lote A, 13/10/2026): duas tabelas filtráveis, uma por
+ * seção, porque as colunas são diferentes (a da entidade conta os municípios da sede). A ordem padrão é a de
+ * `resumoPorCanalETipo`: o canal, depois o tipo do ente.
+ */
 function SecaoAParte({
   id,
+  tabela,
+  csv,
   titulo,
   linhas,
   vazio,
@@ -421,12 +432,28 @@ function SecaoAParte({
   comSede = false,
 }: {
   id: string;
+  /** O prefixo da tabela no endereço (`?t.<tabela>.…`). */
+  tabela: string;
+  /** O nome do CSV. */
+  csv: string;
   titulo: string;
   linhas: LinhaResumo[];
   vazio: string;
   nota: string;
   comSede?: boolean;
 }) {
+  const celulas = (l: LinhaResumo): Record<string, ReactNode> => ({
+    ente: (
+      <>
+        <span className="mp-tabela-principal">{rotuloEnteTipo(l.ente_tipo)}</span>
+        <span className="mp-tabela-secundario">{rotuloCanal(l.canal)}</span>
+      </>
+    ),
+    instrumentos: n(l.instrumentos),
+    ...(comSede ? { "municipios-sede": l.municipiosSede > 0 ? n(l.municipiosSede) : "—" } : {}),
+    valido: soPago(l.canal) ? "—" : dinheiro(l.valido),
+    pago: dinheiro(l.pago),
+  });
   return (
     <section aria-labelledby={id} className="mp-radar-secao">
       <h2 id={id} className="mp-radar-h2">
@@ -436,43 +463,14 @@ function SecaoAParte({
       {linhas.length === 0 ? (
         <p className="pa-cartao pa-cartao-plano">{vazio}</p>
       ) : (
-        <TabelaRolagem rotuloId={id}>
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Canal e ente</th>
-                <th scope="col" className="mp-num">
-                  {comSede ? "Instrumentos ou CNPJs" : "Instrumentos"}
-                </th>
-                {comSede && (
-                  <th scope="col" className="mp-num">
-                    Municípios da sede
-                  </th>
-                )}
-                <th scope="col" className="mp-num">
-                  Válido
-                </th>
-                <th scope="col" className="mp-num">
-                  Pago
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l) => (
-                <tr key={`${l.canal}-${l.ente_tipo ?? ""}`}>
-                  <th scope="row">
-                    <span className="mp-tabela-principal">{rotuloEnteTipo(l.ente_tipo)}</span>
-                    <span className="mp-tabela-secundario">{rotuloCanal(l.canal)}</span>
-                  </th>
-                  <td className="mp-num">{n(l.instrumentos)}</td>
-                  {comSede && <td className="mp-num">{l.municipiosSede > 0 ? n(l.municipiosSede) : "—"}</td>}
-                  <td className="mp-num">{soPago(l.canal) ? "—" : dinheiro(l.valido)}</td>
-                  <td className="mp-num">{dinheiro(l.pago)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id={tabela}
+          rotulo={titulo}
+          colunas={colunasAParte(comSede)}
+          linhas={linhas.map((l) => ({ chave: `${l.canal}-${l.ente_tipo ?? ""}`, valores: valoresDaLinhaAParte(l, comSede), celulas: celulas(l) }))}
+          descricaoOrdemPadrao="por canal e tipo de ente"
+          csv={{ nome: csv }}
+        />
       )}
       <p className="pa-nota">{nota}</p>
     </section>
@@ -501,41 +499,26 @@ function AbaExecucao({ autor, anos, safra }: { autor: AutorEmendas; anos: AnoCan
         {linhas.length === 0 ? (
           <p className="pa-cartao pa-cartao-plano">Nenhum valor válido em convênio, Pix ou saúde fundo a fundo para comparar.</p>
         ) : (
-          <TabelaRolagem rotuloId="parl-exec-safra">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Safra e canal</th>
-                  <th scope="col" className="mp-num">
-                    Válido do autor
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pago do autor
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pago ÷ válido do autor
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pago ÷ válido da PB
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map((l) => (
-                  <tr key={`${l.ano}-${l.canal}`}>
-                    <th scope="row">
-                      <span className="mp-tabela-principal">{l.ano}</span>
-                      <span className="mp-tabela-secundario">{rotuloCanal(l.canal)}</span>
-                    </th>
-                    <td className="mp-num">{dinheiro(l.validoAutor)}</td>
-                    <td className="mp-num">{dinheiro(l.pagoAutor)}</td>
-                    <td className="mp-num">{porcento(l.fracaoAutor)}</td>
-                    <td className="mp-num">{porcento(l.fracaoPb)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id={TABELA_SAFRA}
+            rotulo="Pago ÷ válido, na mesma safra e no mesmo canal"
+            colunas={COLUNAS_SAFRA}
+            linhas={linhas.map(
+              (l): LinhaTabela => ({
+                chave: `${l.ano}-${l.canal}`,
+                valores: valoresDaSafra(l),
+                celulas: {
+                  safra: <AnoECanal ano={l.ano} canal={rotuloCanal(l.canal)} />,
+                  "valido-autor": dinheiro(l.validoAutor),
+                  "pago-autor": dinheiro(l.pagoAutor),
+                  "fracao-autor": porcento(l.fracaoAutor),
+                  "fracao-pb": porcento(l.fracaoPb),
+                },
+              }),
+            )}
+            ordemPadrao={{ coluna: "safra", sentido: "desc" }}
+            csv={{ nome: `autor-${autor.codigo}-execucao-na-safra` }}
+          />
         )}
       </section>
 

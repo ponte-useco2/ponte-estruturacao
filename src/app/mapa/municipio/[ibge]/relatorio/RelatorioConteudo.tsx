@@ -7,8 +7,14 @@
  * município em abas (`/mapa/municipio/[ibge]`) usa os mesmos blocos em cada aba. `destino` diz para onde vai o
  * número de cada convênio: o laudo, para quem pode; a página do instrumento, para os outros. Quem não é
  * administrador recebe o relatório já sem nomes de fornecedor (`relatorioSemNomes`).
+ *
+ * Onda 15, fase 2, lote B (13/10/2026): as listas (os seis recortes dos convênios, as tomadas de contas especiais e as
+ * emendas) são tabelas com filtro e ordem em cada coluna (`TabelaFiltravel`); as colunas, os valores crus e a ordem
+ * padrão moram em `relatorio-municipio.ts`. As tabelas que o público vê (os em execução e as emendas) filtram, mas não
+ * ordenam por valor nem por contagem, e começam em ordem alfabética. No papel sai só o filtrado, com a linha "Filtro
+ * aplicado". O CSV filtrado é do cadastro (D1). Os resumos (por situação, por desfecho, as decisões fiscais e os
+ * indicadores) ficam sem filtro. Os links são `LinkMapa`.
  */
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
@@ -17,22 +23,38 @@ import { citacoesDosBlocos, rotuloRegic, type BlocoIndicadores, type IndicadorLi
 import { ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import type { SlugTermo } from "@/lib/oportunidades/glossario";
 import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
-import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
+  COLUNAS_EMENDAS,
+  COLUNAS_TCE,
+  ORDEM_EMENDAS,
+  ORDEM_TCE,
   ROTULO_DIMENSAO,
   ROTULO_NIVEL_ACHADO,
+  TABELA_CONVENIOS,
+  TABELA_EMENDAS,
+  TABELA_TCE,
+  colunasConvenios,
+  conveniosNaOrdem,
+  emendasNaOrdem,
   filaDoMunicipio,
+  ordemPadraoConvenios,
   rotuloPeriodo,
+  trechoDoArquivo,
+  valoresDaEmenda,
+  valoresDaTce,
+  valoresDoConvenio,
   type Achado,
-  type LinhaConvenio,
+  type LinhaDoRecorte,
   type NivelAchado,
+  type RecorteConvenios,
   type Relatorio,
 } from "@/lib/oportunidades/relatorio-municipio";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { trilha } from "@/lib/oportunidades/trilha";
-import { Carregando } from "../../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
+import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { GraficoPessoal } from "./GraficoPessoal";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
@@ -143,10 +165,8 @@ export function ListaAchados({ achados, destino, fila, hoje = "" }: { achados: A
               {a.numeros.map((nr, k) => (
                 <span key={nr}>
                   {k > 0 && " · "}
-                  <Link href={destino(nr)} prefetch={false}>
-                    {nr}
-                    <Carregando />
-                  </Link>
+                  {/* Onda 15, fase 2, lote B (13/10/2026): `LinkMapa`, o mesmo `Link` sem pré-carga e com o `Carregando`. */}
+                  <LinkMapa href={destino(nr)}>{nr}</LinkMapa>
                 </span>
               ))}
             </p>
@@ -158,45 +178,47 @@ export function ListaAchados({ achados, destino, fila, hoje = "" }: { achados: A
 }
 
 /**
- * `rotuloId` (onda 7, C, 09/10/2026; N04 da auditoria R1): o id do subtítulo do grupo ("Os 12 em execução", "Vigência
- * vencida…"). Sem ele, as tabelas da seção tinham todas o nome "Convênios do município".
+ * Um recorte dos convênios (onda 15, fase 2, lote B, 13/10/2026): filtro e ordem em cada coluna (`TabelaFiltravel`).
+ * As colunas, os valores crus e a ordem padrão de cada recorte moram em `relatorio-municipio.ts` (`colunasConvenios`);
+ * aqui ficam as células. A nota que junta dois dados ("vigência até … · físico …") continua desenhada como era, e a
+ * vigência, o físico, o saldo, a situação e o prazo filtram e ordenam nas colunas ocultas.
+ *
+ * O recorte "em execução" é o que o público vê: valor e desembolsado filtram, mas não ordenam, e a ordem padrão é pelo
+ * número (antes, do maior valor para o menor). `rotulo` é o subtítulo do grupo ("Os 12 em execução"), que nomeia a
+ * tabela (N04 da auditoria R1). `csv`: o nome do arquivo, só para o cadastro (D1); sem ele, o botão não aparece.
  */
-function TabelaConvenios({ linhas, destino, nota = "Situação", rotuloId }: { linhas: LinhaConvenio[]; destino: Destino; nota?: string; rotuloId?: string }) {
+function TabelaConvenios({ linhas, destino, recorte, rotulo, csv }: { linhas: LinhaDoRecorte[]; destino: Destino; recorte: RecorteConvenios; rotulo: string; csv?: string }) {
   if (!linhas.length) return null;
+  const { ordem, descricao } = ordemPadraoConvenios(recorte);
+  const dados: LinhaTabela[] = conveniosNaOrdem(linhas, recorte).map((l) => ({
+    chave: l.nr_convenio,
+    valores: valoresDoConvenio(l, recorte),
+    celulas: {
+      // A09 (onda 7, C): o número é o cabeçalho da linha (o componente faz da primeira coluna o `<th scope="row">`).
+      convenio: <LinkMapa href={destino(l.nr_convenio)}>{l.nr_convenio}</LinkMapa>,
+      valor: moedaCurta(l.valor ?? 0),
+      desembolsado: l.desembolsado ? moedaCurta(l.desembolsado) : "—",
+      // Nos nunca assinados a coluna é a data da vigência, desenhada como a nota de antes ("vigência até …").
+      ...(recorte === "nunca" ? { vigencia: l.nota } : {}),
+    },
+  }));
   return (
-    <TabelaRolagem {...(rotuloId ? { rotuloId } : { rotulo: "Convênios do município" })}>
-      <table className="mp-tabela mp-tabela-empilha">
-        <thead>
-          <tr>
-            <th scope="col">Convênio</th>
-            <th scope="col">Órgão</th>
-            <th scope="col">Objeto</th>
-            <th scope="col">Valor</th>
-            <th scope="col">Desembolsado</th>
-            <th scope="col">{nota}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((l) => (
-            <tr key={l.nr_convenio}>
-              {/* A09 (onda 7, C, 09/10/2026): o número é o cabeçalho da linha, com a cara da célula comum. */}
-              <th scope="row" className="mp-th-celula">
-                <Link href={destino(l.nr_convenio)} prefetch={false}>
-                  {l.nr_convenio}
-                  <Carregando />
-                </Link>
-              </th>
-              <td data-rotulo="Órgão">{l.orgao ? tituloOrgao(l.orgao) : "—"}</td>
-              <td data-rotulo="Objeto">{l.objeto ?? "—"}</td>
-              <td data-rotulo="Valor" className="mp-rel-num">{moedaCurta(l.valor ?? 0)}</td>
-              <td data-rotulo="Desembolsado" className="mp-rel-num">{l.desembolsado ? moedaCurta(l.desembolsado) : "—"}</td>
-              <td data-rotulo={nota}>{l.nota}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+    <TabelaFiltravel
+      id={TABELA_CONVENIOS[recorte]}
+      rotulo={rotulo}
+      colunas={colunasConvenios(recorte)}
+      linhas={dados}
+      ordemPadrao={ordem}
+      descricaoOrdemPadrao={descricao}
+      csv={csv ? { nome: csv } : undefined}
+      empilhar
+    />
   );
+}
+
+/** O nome do CSV de uma tabela do relatório, só para o cadastro (D1: no nível 0 o botão não aparece). */
+function csvDoNivel(nivel: NivelAcesso, parte: string, r: Pick<Relatorio, "nome">): string | undefined {
+  return PODE.cadastro(nivel) ? `${parte}-${trechoDoArquivo(r.nome)}` : undefined;
 }
 
 const ROTULO_NIVEL_INDICADOR = { alto: "alto", moderado: "moderado", em_dia: "em dia" } as const;
@@ -431,10 +453,9 @@ export function BlocoFila({ r, destino, linkIndicadores }: { r: Relatorio; desti
           {f.informativos > 0 && f.indicadores > 0 && "; "}
           {f.indicadores > 0 &&
             (linkIndicadores ? (
-              <Link href={linkIndicadores} prefetch={false}>
+              <LinkMapa href={linkIndicadores}>
                 {n(f.indicadores)} {f.indicadores === 1 ? "indicador pior que a PB" : "indicadores piores que a PB"}
-                <Carregando />
-              </Link>
+              </LinkMapa>
             ) : (
               `${n(f.indicadores)} ${f.indicadores === 1 ? "indicador pior que a PB" : "indicadores piores que a PB"}`
             ))}
@@ -516,9 +537,14 @@ export function BlocoFiscal({ r, destino }: { r: Relatorio; destino: Destino }) 
   );
 }
 
-export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino }) {
+/**
+ * `nivel` (onda 15, fase 2, lote B, 13/10/2026): só para o CSV filtrado de cada tabela, que é do cadastro (D1). O que
+ * cada nível vê continua no dado (`relatorioDoNivel`): no nível 0, só a tabela por situação e a dos em execução.
+ */
+export function BlocoConvenios({ r, destino, nivel }: { r: Relatorio; destino: Destino; nivel: NivelAcesso }) {
   const c = r.convenios;
   if (!c) return null;
+  const csv = (parte: string) => csvDoNivel(nivel, parte, r);
   return (
     <Secao id="rel-convenios" titulo="Convênios e contratos de repasse" nota={`${r.escopo === "entidade" ? "Desta entidade" : "Da prefeitura e dos fundos municipais"}, nos dados abertos do Transferegov de ${data(c.referencia)}.`}>
       <TabelaRolagem rotulo="Convênios e contratos de repasse">
@@ -545,27 +571,51 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
       </TabelaRolagem>
       {c.emExecucao.length > 0 && (
         <Sub titulo={`Os ${n(c.emExecucao.length)} em execução`} id="rel-convenios-execucao">
-          <TabelaConvenios rotuloId="rel-convenios-execucao" linhas={c.emExecucao} destino={destino} nota="Vigência e execução física" />
+          <TabelaConvenios
+            recorte="execucao"
+            rotulo={`Os ${n(c.emExecucao.length)} em execução`}
+            linhas={c.emExecucao}
+            destino={destino}
+            csv={csv("convenios-em-execucao")}
+          />
         </Sub>
       )}
       {c.vigenciaVencida.length > 0 && (
         <Sub titulo="Vigência vencida ainda em execução" id="rel-convenios-vencida">
-          <TabelaConvenios rotuloId="rel-convenios-vencida" linhas={c.vigenciaVencida} destino={destino} />
+          <TabelaConvenios
+            recorte="vencida"
+            rotulo="Vigência vencida ainda em execução"
+            linhas={c.vigenciaVencida}
+            destino={destino}
+            csv={csv("convenios-vigencia-vencida")}
+          />
         </Sub>
       )}
       {c.contasAtrasadas.length + c.contasNegativas.length > 0 && (
         <Sub titulo="Prestação de contas pendente" id="rel-convenios-contas">
-          <TabelaConvenios rotuloId="rel-convenios-contas" linhas={[...c.contasAtrasadas, ...c.contasNegativas]} destino={destino} />
+          <TabelaConvenios
+            recorte="contas"
+            rotulo="Prestação de contas pendente"
+            linhas={[...c.contasAtrasadas, ...c.contasNegativas]}
+            destino={destino}
+            csv={csv("convenios-contas-pendentes")}
+          />
         </Sub>
       )}
       {c.liminar.length > 0 && (
         <Sub titulo="Assinados por liminar" id="rel-convenios-liminar">
-          <TabelaConvenios rotuloId="rel-convenios-liminar" linhas={c.liminar} destino={destino} />
+          <TabelaConvenios recorte="liminar" rotulo="Assinados por liminar" linhas={c.liminar} destino={destino} csv={csv("convenios-liminar")} />
         </Sub>
       )}
       {c.nuncaAssinados.length + c.nuncaAssinadosVencidos > 0 && (
         <Sub titulo="Aprovados e nunca assinados" id="rel-convenios-nunca">
-          <TabelaConvenios rotuloId="rel-convenios-nunca" linhas={c.nuncaAssinados} destino={destino} nota="Vigência" />
+          <TabelaConvenios
+            recorte="nunca"
+            rotulo="Aprovados e nunca assinados"
+            linhas={c.nuncaAssinados}
+            destino={destino}
+            csv={csv("convenios-nunca-assinados")}
+          />
           {c.nuncaAssinadosVencidos > 0 && (
             <p className="pa-nota">
               {c.nuncaAssinados.length ? "Fora da lista, " : ""}
@@ -577,7 +627,13 @@ export function BlocoConvenios({ r, destino }: { r: Relatorio; destino: Destino 
       )}
       {c.pc33.length > 0 && (
         <Sub titulo="Pontos a conferir na norma de convênios (PC 33/2023 e anteriores)" id="rel-convenios-pc33">
-          <TabelaConvenios rotuloId="rel-convenios-pc33" linhas={c.pc33} destino={destino} nota="Pontos" />
+          <TabelaConvenios
+            recorte="pc33"
+            rotulo="Pontos a conferir na norma de convênios (PC 33/2023 e anteriores)"
+            linhas={c.pc33}
+            destino={destino}
+            csv={csv("convenios-pontos-pc33")}
+          />
         </Sub>
       )}
       <ListaAchados achados={dimensao(r, "convenios")} destino={destino} />
@@ -602,36 +658,30 @@ export function BlocoControle({ r, destino }: { r: Relatorio; destino: Destino }
         ) : undefined
       }
     >
+      {/*
+        Onda 15, fase 2, lote B (13/10/2026): as tomadas de contas especiais filtram e ordenam por qualquer coluna (o
+        bloco é do cadastro: o recorte do público tira o controle). Padrão: pelo número do convênio.
+      */}
       {ct.tces.length > 0 && (
-        <TabelaRolagem rotulo="Controle e prestação de contas">
-          <table className="mp-tabela mp-tabela-empilha">
-            <thead>
-              <tr>
-                <th scope="col">Convênio</th>
-                <th scope="col">Processo no TCU</th>
-                <th scope="col">Situação</th>
-                <th scope="col">Débito original</th>
-                <th scope="col">Com juros</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ct.tces.map((t) => (
-                <tr key={`${t.nr_convenio}-${t.numero_processo}`}>
-                  <th scope="row" className="mp-th-celula">
-                    <Link href={destino(t.nr_convenio)} prefetch={false}>
-                      {t.nr_convenio}
-                      <Carregando />
-                    </Link>
-                  </th>
-                  <td data-rotulo="Processo no TCU">{t.numero_processo ?? "—"}</td>
-                  <td data-rotulo="Situação">{t.situacao ?? "—"}</td>
-                  <td data-rotulo="Débito original" className="mp-rel-num">{t.debito_original !== null ? moedaCurta(t.debito_original) : "—"}</td>
-                  <td data-rotulo="Com juros" className="mp-rel-num">{t.debito_com_juros !== null ? moedaCurta(t.debito_com_juros) : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id={TABELA_TCE}
+          rotulo="Tomadas de contas especiais no TCU"
+          colunas={COLUNAS_TCE}
+          linhas={ct.tces.map(
+            (t, k): LinhaTabela => ({
+              chave: `${t.nr_convenio}-${t.numero_processo ?? ""}-${k}`,
+              valores: valoresDaTce(t),
+              celulas: {
+                convenio: <LinkMapa href={destino(t.nr_convenio)}>{t.nr_convenio}</LinkMapa>,
+                debito: t.debito_original !== null ? moedaCurta(t.debito_original) : "—",
+                "com-juros": t.debito_com_juros !== null ? moedaCurta(t.debito_com_juros) : "—",
+              },
+            }),
+          )}
+          ordemPadrao={ORDEM_TCE}
+          csv={{ nome: `tce-tcu-${trechoDoArquivo(r.nome)}` }}
+          empilhar
+        />
       )}
       <ListaAchados achados={achados} destino={destino} />
       {!ct.tces.length && !achados.length && <p>Nada a apontar nas fontes de controle lidas.</p>}
@@ -674,33 +724,34 @@ export function BlocoPropostas({ r, destino }: { r: Relatorio; destino: Destino 
   );
 }
 
-export function BlocoEmendas({ r }: { r: Relatorio }) {
+/**
+ * "De onde vieram as emendas" (aberto ao público no município e na entidade). Onda 15, fase 2, lote B (13/10/2026):
+ * saiu o corte nos 15 de maior valor e a ordem por valor (um ranking de parlamentares à vista do público). Agora vêm
+ * todos, em ordem alfabética; o parlamentar e o tipo (antes entre parênteses, agora coluna) filtram e ordenam; os
+ * convênios e o valor filtram, mas não ordenam. `nivel`: só para o CSV filtrado, que é do cadastro (D1).
+ */
+export function BlocoEmendas({ r, nivel }: { r: Relatorio; nivel: NivelAcesso }) {
   if (!r.emendas || !r.emendas.length) return null;
+  const linhas: LinhaTabela[] = emendasNaOrdem(r.emendas).map((e) => ({
+    chave: e.parlamentar,
+    valores: valoresDaEmenda(e),
+    celulas: { valor: moedaCurta(e.valor) },
+  }));
+  const nomeCsv = csvDoNivel(nivel, "emendas", r);
   return (
-    <Secao id="rel-emendas" titulo="De onde vieram as emendas dos convênios" nota={`Parlamentares como agentes públicos; valor indicado nas emendas ligadas aos convênios ${r.escopo === "entidade" ? "da entidade" : "do município"}.`}>
-      <TabelaRolagem rotulo="De onde vieram as emendas dos convênios">
-        <table className="mp-tabela">
-          <thead>
-            <tr>
-              <th scope="col">Parlamentar</th>
-              <th scope="col">Convênios</th>
-              <th scope="col">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {r.emendas.slice(0, 15).map((e) => (
-              <tr key={e.parlamentar}>
-                <th scope="row" className="mp-th-celula">
-                  {e.parlamentar}
-                  {e.tipo ? ` (${e.tipo})` : ""}
-                </th>
-                <td className="mp-rel-num">{n(e.convenios)}</td>
-                <td className="mp-rel-num">{moedaCurta(e.valor)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TabelaRolagem>
+    <Secao
+      id="rel-emendas"
+      titulo="De onde vieram as emendas dos convênios"
+      nota={`Parlamentares como agentes públicos; valor indicado nas emendas ligadas aos convênios ${r.escopo === "entidade" ? "da entidade" : "do município"}. Todos, em ordem alfabética: o valor filtra, mas não ordena, porque a lista não é ranking.`}
+    >
+      <TabelaFiltravel
+        id={TABELA_EMENDAS}
+        rotulo="De onde vieram as emendas dos convênios"
+        colunas={COLUNAS_EMENDAS}
+        linhas={linhas}
+        ordemPadrao={ORDEM_EMENDAS}
+        csv={nomeCsv ? { nome: nomeCsv } : undefined}
+      />
     </Secao>
   );
 }
@@ -917,10 +968,10 @@ export function RelatorioConteudo({ r, seguindo, nivel = 3 }: { r: Relatorio; se
       <BlocoPassos r={r} />
       <BlocoMunicipio r={r} />
       <BlocoFiscal r={r} destino={destino} />
-      <BlocoConvenios r={r} destino={destino} />
+      <BlocoConvenios r={r} destino={destino} nivel={nivel} />
       <BlocoControle r={r} destino={destino} />
       <BlocoPropostas r={r} destino={destino} />
-      <BlocoEmendas r={r} />
+      <BlocoEmendas r={r} nivel={nivel} />
       <BlocoPix r={r} destino={destino} />
       <BlocoTcePb r={r} />
       <BlocoFornecedores r={r} destino={destino} />

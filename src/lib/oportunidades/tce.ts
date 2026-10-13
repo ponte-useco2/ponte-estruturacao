@@ -19,6 +19,7 @@
  */
 import { formatarData } from "./central.ts";
 import { moedaCurta } from "./radar.ts";
+import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
 
 export interface TceExecucao {
   id: number;
@@ -223,3 +224,127 @@ export function descreverCobertura(c: TceCobertura[]): string {
 const n = (x: number) => x.toLocaleString("pt-BR");
 export const pct = (x: number | null | undefined) => (x === null || x === undefined ? "—" : `${Math.round(x * 100)}%`);
 const lista = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} e ${xs.at(-1)}`);
+
+// ================================================================ as tabelas das telas (onda 15, fase 2, lote C, 13/10/2026)
+
+/**
+ * As quatro listas do TCE-PB com filtro e ordem em cada coluna (a regra do titular de 13/10/2026; telas de
+ * administrador, toda coluna ordena). As células continuam as de antes; aqui ficam os valores crus. As colunas ocultas
+ * levam o que a célula junta (o IBGE, as empresas, as marcas, o CNPJ, os convênios). Percentual vai de 0 a 100, com
+ * uma casa: "de 50" no filtro é 50%.
+ *
+ * O nome da empresa e o CNPJ chegam prontos da tela (`nomeFornecedor`, que mascara o CPF que vem colado no nome do
+ * MEI, e `cnpjLegivel`): `fornecedores.ts` importa este arquivo, e importar de volta faria um ciclo.
+ */
+export const TABELA_TCE_PIX = "pix";
+export const TABELA_TCE_CONCILIACAO = "conciliacao";
+export const TABELA_TCE_EMPRESAS_PIX = "empresas-pix";
+export const TABELA_TCE_PARES = "pares";
+
+/** O nome curto de cada marca do Pix (a etiqueta da tabela e a legenda; saiu de `TceConteudo` para a coluna "Marcas"). */
+export const ROTULO_MARCA_PIX: Record<RegraPix, string> = { pessoal: "pessoal", divida: "dívida", capital: "capital < 70%" };
+
+/** Fração de 0 a 1 em percentual de 0 a 100, com uma casa; null fica null. */
+const emPercentual = (x: number | null | undefined) => (x === null || x === undefined || !Number.isFinite(x) ? null : Math.round(x * 1000) / 10);
+
+export const COLUNAS_TCE_PIX: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "ibge", titulo: "IBGE", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "empresas", titulo: "Empresas pagas", tipo: "numero", oculta: true },
+  { id: "marcas", titulo: "Marcas", tipo: "texto", oculta: true },
+  { id: "n-marcas", titulo: "Quantas marcas", tipo: "numero", oculta: true },
+  { id: "pago", titulo: "Pago", tipo: "numero", alinhar: "direita" },
+  { id: "emenda-individual", titulo: "Pago de emenda individual", tipo: "numero", oculta: true },
+  { id: "capital", titulo: "Capital (%)", tipo: "numero", alinhar: "direita" },
+  { id: "pessoal-divida", titulo: "Pessoal e dívida", tipo: "numero", alinhar: "direita" },
+];
+
+export function valoresTcePix(p: TcePixMunicipio): Record<string, ValorCelula> {
+  const marcas = marcasPix(p);
+  return {
+    municipio: p.municipio ?? `IBGE ${p.ibge}`,
+    ibge: p.ibge,
+    empresas: p.n_credores_pj,
+    marcas: marcas.length ? marcas.map((m) => ROTULO_MARCA_PIX[m.regra]).join(", ") : null,
+    "n-marcas": marcas.length,
+    pago: p.pago,
+    "emenda-individual": p.pago_emenda_individual,
+    capital: emPercentual(p.pct_capital),
+    "pessoal-divida": p.pago_pessoal + p.pago_juros + p.pago_amortizacao,
+  };
+}
+
+export const COLUNAS_TCE_CONCILIACAO: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "ibge", titulo: "IBGE", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "arquivo", titulo: "Arquivo do TCE-PB", tipo: "categoria", oculta: true },
+  { id: "siconv", titulo: "SICONV pagou", tipo: "numero", alinhar: "direita" },
+  { id: "achado", titulo: "Achado no TCE-PB (%)", tipo: "numero", alinhar: "direita" },
+  { id: "so-siconv", titulo: "Só no SICONV", tipo: "numero", alinhar: "direita" },
+  { id: "empresas-so-siconv", titulo: "Empresas só no SICONV", tipo: "numero", oculta: true },
+  { id: "convenio-tce", titulo: "Convênio no TCE-PB", tipo: "numero", alinhar: "direita" },
+  { id: "so-tce", titulo: "Só no TCE-PB", tipo: "numero", alinhar: "direita" },
+  { id: "empresas-so-tce", titulo: "Empresas só no TCE-PB", tipo: "numero", oculta: true },
+];
+
+/** O "achado no TCE-PB" é o casado sobre o verificado, como na célula; sem pagamento verificado, null ("—"). */
+export function valoresTceConciliacao(m: TceFederalMunicipio): Record<string, ValorCelula> {
+  const verificado = m.siconv_pj - m.siconv_nao_verificado;
+  return {
+    municipio: m.municipio ?? `IBGE ${m.ibge}`,
+    ibge: m.ibge,
+    arquivo: m.coberto ? "lido" : "ainda não lido",
+    siconv: m.siconv_pj,
+    achado: verificado > 0 ? emPercentual(m.siconv_casado / verificado) : null,
+    "so-siconv": m.siconv_so,
+    "empresas-so-siconv": m.n_so_siconv,
+    "convenio-tce": m.tce_convenio_pj,
+    "so-tce": m.tce_convenio_so,
+    "empresas-so-tce": m.n_so_tce,
+  };
+}
+
+/** O nome e o CNPJ como a tela escreve (ver a nota acima). */
+export interface IdentificacaoEmpresa {
+  nome: string;
+  cnpj: string;
+}
+
+export const COLUNAS_TCE_EMPRESAS_PIX: ColunaTabela[] = [
+  { id: "empresa", titulo: "Empresa", tipo: "texto" },
+  { id: "cnpj", titulo: "CNPJ", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "ano", titulo: "Ano", tipo: "numero" },
+  { id: "pago", titulo: "Pago", tipo: "numero", alinhar: "direita" },
+  { id: "investimentos", titulo: "Em investimentos", tipo: "numero", alinhar: "direita" },
+];
+
+export function valoresTceCredor(c: TcePixCredor, id: IdentificacaoEmpresa): Record<string, ValorCelula> {
+  return { empresa: id.nome, cnpj: id.cnpj, ano: c.ano, pago: c.pago, investimentos: c.pago_investimentos };
+}
+
+export const COLUNAS_TCE_PARES: ColunaTabela[] = [
+  { id: "empresa", titulo: "Empresa", tipo: "texto" },
+  { id: "cnpj", titulo: "CNPJ", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "convenios", titulo: "Convênios no SICONV", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "ano", titulo: "Ano", tipo: "numero" },
+  { id: "siconv", titulo: "SICONV", tipo: "numero", alinhar: "direita" },
+  { id: "tce", titulo: "TCE-PB", tipo: "numero", alinhar: "direita" },
+  { id: "tce-convenio", titulo: "TCE-PB de convênio", tipo: "numero", oculta: true },
+  { id: "tce-pix", titulo: "TCE-PB do Pix", tipo: "numero", oculta: true },
+  { id: "situacao", titulo: "Situação", tipo: "categoria" },
+];
+
+/** Os convênios vão todos, separados por vírgula (a célula mostra os 4 primeiros e "e mais N"). */
+export function valoresTcePar(p: TceFederalPar, id: IdentificacaoEmpresa): Record<string, ValorCelula> {
+  return {
+    empresa: id.nome,
+    cnpj: id.cnpj,
+    convenios: p.convenios.length ? p.convenios.join(", ") : null,
+    ano: p.ano,
+    siconv: p.siconv,
+    tce: p.tce_convenio + p.tce_pix + p.tce_outras,
+    "tce-convenio": p.tce_convenio,
+    "tce-pix": p.tce_pix,
+    situacao: ROTULO_SITUACAO[p.situacao],
+  };
+}

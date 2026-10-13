@@ -15,7 +15,13 @@
  *   · os canais somam entre si (o banco já tirou o que um canal cobre do outro); a execução orçamentária do Portal fica
  *     fora;
  *   · `sem_dado` e `falha` dão uma linha discreta e nunca derrubam a página.
+ *
+ * Onda 15, fase 2, lote A (13/10/2026): a tabela por autor virou tabela filtrável (`TabelaFiltravel`). É tela de
+ * administrador: toda coluna filtra e ordena. A ordem padrão continua a de tipo e nome; ordenar por valor é leitura,
+ * não posição. O válido e o pago de cada canal, que dividiam uma célula, viraram duas colunas (os ids da lista dos
+ * autores), para cada número filtrar, ordenar e ir ao CSV; o código do autor vai oculto.
  */
+import type { ReactNode } from "react";
 import {
   FRASE_AGENTE_PUBLICO,
   FRASE_AUTORIA_COLETIVA,
@@ -25,31 +31,26 @@ import {
   rotuloTipoAutor,
   type LeituraEmendasMunicipio,
 } from "@/lib/oportunidades/emendas";
-import { emendasNoMunicipio, type AutorNoMunicipio, type CanalNoMunicipio } from "@/lib/oportunidades/pagina-municipio";
-import { urlParlamentar } from "@/lib/oportunidades/parlamentares-tela";
+import { emendasNoMunicipio, type AutorNoMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import {
+  SEM_AUTOR_FNS,
+  TABELA_EMENDAS_MUNICIPIO,
+  colunasEmendasDoMunicipio,
+  urlParlamentar,
+  valoresDoAutorNoMunicipio,
+} from "@/lib/oportunidades/parlamentares-tela";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 import { Secao } from "./relatorio/RelatorioConteudo";
 
 const TITULO = "De onde vêm as emendas";
 const n = (x: number) => x.toLocaleString("pt-BR");
 
-/** O valor de um canal na célula: válido e pago; o pago ao favorecido só tem o pago. */
-function Valores({ c }: { c: CanalNoMunicipio | undefined }) {
-  if (!c) return <>—</>;
-  if (c.valido === null) return <>pago {moedaCurta(c.pago)}</>;
-  return (
-    <>
-      válido {moedaCurta(c.valido)}
-      <br />
-      pago {moedaCurta(c.pago)}
-    </>
-  );
-}
-
 function Autor({ a }: { a: AutorNoMunicipio }) {
-  if (a.codigo === null) return <>Saúde fundo a fundo ainda sem o autor</>;
+  if (a.codigo === null) return <>{SEM_AUTOR_FNS}</>;
   return <LinkMapa href={urlParlamentar(a.codigo)}>{a.autor?.nome ?? `Autor ${a.codigo}`}</LinkMapa>;
 }
 
@@ -72,6 +73,18 @@ export function EmendasDoMunicipio({ leitura, municipio }: { leitura: LeituraEme
   const comAutor = e.autores.filter((a) => a.codigo !== null).length;
   const semAutor = e.autores.some((a) => a.codigo === null);
   const coletiva = e.autores.some((a) => a.autor?.coletivo);
+  const canais = e.porCanal.map((c) => c.canal);
+  const colunas = colunasEmendasDoMunicipio(canais);
+  const linhas: LinhaTabela[] = e.autores.map((a) => {
+    const valores = valoresDoAutorNoMunicipio(a, canais);
+    const celulas: Record<string, ReactNode> = { autor: <Autor a={a} />, tipo: tipoDe(a) };
+    for (const c of colunas) {
+      if (c.tipo !== "numero") continue;
+      const v = valores[c.id];
+      celulas[c.id] = typeof v === "number" ? moedaCurta(v) : "—";
+    }
+    return { chave: a.codigo ?? "sem-autor", valores, celulas };
+  });
   return (
     <Secao
       id="mun-emendas-autores"
@@ -80,8 +93,9 @@ export function EmendasDoMunicipio({ leitura, municipio }: { leitura: LeituraEme
         <>
           Só para administrador. Quem indicou emenda com destino à prefeitura ou ao fundo municipal de {municipio}, por canal: o válido é o
           indicado em instrumento válido, e o pago é o que já saiu. Cada real conta uma vez entre os canais; a execução orçamentária do Portal
-          da Transparência fica fora. O governo do estado e o fundo estadual não entram, porque não têm município. A ordem é por tipo de autor e
-          nome, nunca por valor. Dado do Portal de {datas.dadoAte}, rodada de {datas.rodouEm}.
+          da Transparência fica fora. O governo do estado e o fundo estadual não entram, porque não têm município. Na ordem padrão, por tipo de
+          autor e nome; cada coluna filtra e ordena, e ordenar por valor é leitura, não posição. Dado do Portal de {datas.dadoAte}, rodada de{" "}
+          {datas.rodouEm}.
         </>
       }
     >
@@ -117,36 +131,14 @@ export function EmendasDoMunicipio({ leitura, municipio }: { leitura: LeituraEme
               </tbody>
             </table>
           </TabelaRolagem>
-          <TabelaRolagem rotulo={`${TITULO}: por autor`}>
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Autor</th>
-                  <th scope="col">Tipo</th>
-                  {e.porCanal.map((c) => (
-                    <th key={c.canal} scope="col">
-                      {rotuloCanal(c.canal)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {e.autores.map((a) => (
-                  <tr key={a.codigo ?? "sem-autor"}>
-                    <th scope="row" className="mp-th-celula">
-                      <Autor a={a} />
-                    </th>
-                    <td>{tipoDe(a)}</td>
-                    {e.porCanal.map((c) => (
-                      <td key={c.canal} className="mp-rel-num">
-                        <Valores c={a.canais.find((x) => x.canal === c.canal)} />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id={TABELA_EMENDAS_MUNICIPIO}
+            rotulo={`${TITULO}: por autor`}
+            colunas={colunas}
+            linhas={linhas}
+            descricaoOrdemPadrao="por tipo de autor e nome"
+            csv={{ nome: `emendas-por-autor-${municipio}` }}
+          />
         </>
       )}
       {aviso && <p className="pa-nota">{aviso}</p>}

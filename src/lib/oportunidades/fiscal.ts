@@ -6,6 +6,7 @@
  */
 import { formatarData } from "./central.ts";
 import { moedaCurta } from "./radar.ts";
+import { ESTADO_VAZIO, gravarEstado, type ColunaTabela, type EstadoTabela, type ValorCelula } from "./tabela-filtro.ts";
 
 export type EstadoFiscal = "atendido" | "nao_atendido" | "atencao" | "nao_verificavel" | "desatualizado";
 export type Decisao = "A" | "B" | "C";
@@ -240,6 +241,11 @@ export function conclusaoDe(m: Pick<MunicipioFiscal, "conclusoes">, d: Decisao):
   return m.conclusoes.find((c) => c.decisao === d);
 }
 
+/**
+ * O filtro do formulário antigo (`?q=`, `?decisao=`, `?estado=`). Desde a onda 15 (fase 2, lote C, 13/10/2026) a tela
+ * filtra pela tabela (`COLUNAS_FISCAL`) e o endereço antigo redireciona (`urlFiscalDoFiltroAntigo`); este fica como a
+ * referência que o teste usa para provar que o redirecionamento acha os mesmos municípios.
+ */
 export function filtrarMunicipios(ms: readonly MunicipioFiscal[], p: ParametrosFiscal): MunicipioFiscal[] {
   const termo = dobrar(p.q);
   return ms
@@ -251,6 +257,82 @@ export function filtrarMunicipios(ms: readonly MunicipioFiscal[], p: ParametrosF
 /** "Desatualizado" e "atenção" são o mesmo grupo na decisão (com alertas). */
 function estadoDaDecisao(e: EstadoFiscal | undefined): string | undefined {
   return e === "desatualizado" ? "atencao" : e;
+}
+
+// ============================ A TABELA (onda 15, fase 2, lote C, 13/10/2026) ============================
+
+/**
+ * A lista dos municípios com filtro e ordem em cada coluna (a regra do titular de 13/10/2026; tela de administrador,
+ * toda coluna ordena). O formulário GET de antes, que só filtrava colunas desta lista, saiu: o filtro da tabela o
+ * substitui, e o endereço antigo redireciona para o novo. A decisão leva o rótulo que a célula mostra ("Bloqueada",
+ * "Com alertas"…), o mesmo grupo das contagens: "desatualizado" e "atenção" são "Com alertas". As colunas ocultas levam
+ * o que a célula junta: o IBGE e a população (debaixo do nome), o que bloqueia cada decisão, o RGF e os itens do CAUC.
+ */
+export const TABELA_FISCAL = "fiscal";
+
+const idDecisao = (d: Decisao) => `decisao-${d.toLowerCase()}`;
+const idBloqueios = (d: Decisao) => `bloqueios-${d.toLowerCase()}`;
+
+export const COLUNAS_FISCAL: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "ibge", titulo: "IBGE", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "populacao", titulo: "População", tipo: "numero", oculta: true },
+  ...DECISOES.flatMap((d): ColunaTabela[] => [
+    { id: idDecisao(d.id), titulo: `${d.id} · ${d.curto}`, tipo: "categoria" },
+    { id: idBloqueios(d.id), titulo: `${d.id} · o que bloqueia`, tipo: "texto", oculta: true },
+  ]),
+  { id: "pessoal", titulo: "Pessoal (%)", tipo: "numero", alinhar: "direita" },
+  { id: "rgf", titulo: "RGF do pessoal", tipo: "categoria", oculta: true },
+  { id: "cauc", titulo: "Pendências no CAUC", tipo: "numero" },
+  { id: "cauc-itens", titulo: "Itens pendentes no CAUC", tipo: "texto", oculta: true },
+];
+
+/** O id da coluna de uma decisão: para a tela desenhar a célula e para os links das contagens. */
+export const colunaDaDecisao = idDecisao;
+
+export function valoresDoMunicipioFiscal(m: MunicipioFiscal): Record<string, ValorCelula> {
+  const valores: Record<string, ValorCelula> = {
+    municipio: m.nome,
+    ibge: m.ibge,
+    populacao: m.populacao,
+  };
+  for (const d of DECISOES) {
+    const cd = conclusaoDe(m, d.id);
+    valores[idDecisao(d.id)] = cd ? ROTULO_DECISAO[cd.estado] : null;
+    valores[idBloqueios(d.id)] = cd && cd.bloqueantes.length ? cd.bloqueantes.map((b) => NOME_CURTO[b] ?? b).join(" · ") : null;
+  }
+  const pendencias = m.indicadores.cauc_pendencias ?? [];
+  const pessoal = m.indicadores.pessoal_pct;
+  valores.pessoal = typeof pessoal === "number" && Number.isFinite(pessoal) ? pessoal : null;
+  valores.rgf = m.indicadores.rgf ?? null;
+  valores.cauc = pendencias.length;
+  valores["cauc-itens"] = pendencias.length ? pendencias.join("; ") : null;
+  return valores;
+}
+
+/** O endereço da lista com o filtro de uma decisão: o link de cada contagem dos cartões. */
+export function urlFiscalPorDecisao(decisao: Decisao, estado: EstadoFiscal): string {
+  const estadoTabela: EstadoTabela = { ...ESTADO_VAZIO, filtros: { [idDecisao(decisao)]: { tipo: "categoria", valores: [ROTULO_DECISAO[estado]] } } };
+  const s = gravarEstado(TABELA_FISCAL, estadoTabela, new URLSearchParams()).toString();
+  return `/mapa/fiscal${s ? `?${s}` : ""}`;
+}
+
+/**
+ * O endereço novo de um link antigo (`?q=`, `?decisao=`, `?estado=`), ou null quando não há filtro antigo. Decisão do
+ * lote C: o link guardado redireciona, como o `?tipo=` dos parlamentares, e o filtro passa a morar num lugar só.
+ *   · `q` só de dígitos é o código IBGE ("contém", e não mais "começa com": num código de 7 dígitos, dá o mesmo na
+ *     prática); com letra, é o nome;
+ *   · `decisao` com `estado` vira a categoria da decisão; `decisao` sem `estado` não filtrava e continua não filtrando.
+ * Os outros parâmetros não seguem: o link antigo não os tinha.
+ */
+export function urlFiscalDoFiltroAntigo(p: ParametrosFiscal): string | null {
+  const q = p.q.trim();
+  if (!q && !p.decisao && !p.estado) return null;
+  const filtros: EstadoTabela["filtros"] = {};
+  if (q) filtros[/^\d+$/.test(q) ? "ibge" : "municipio"] = { tipo: "texto", contem: q };
+  if (p.decisao && p.estado) filtros[idDecisao(p.decisao)] = { tipo: "categoria", valores: [ROTULO_DECISAO[p.estado]] };
+  const s = gravarEstado(TABELA_FISCAL, { ...ESTADO_VAZIO, filtros }, new URLSearchParams()).toString();
+  return `/mapa/fiscal${s ? `?${s}` : ""}`;
 }
 
 export function contarDecisoes(ms: readonly MunicipioFiscal[]): Record<Decisao, Record<string, number>> {

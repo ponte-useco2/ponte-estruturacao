@@ -1,16 +1,25 @@
 /**
  * Lista dos convênios em cláusula suspensiva da última coleta, do mais urgente ao menos.
  * O prazo da suspensiva manda na ordem (é ele que extingue o instrumento); o tempo parado desempata.
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): a lista é a `TabelaFiltravel`, com filtro e ordem em cada coluna (a regra do
+ * titular; tela de administrador, toda coluna ordena). Os chips de prazo e de órgão (GET) só filtravam colunas desta
+ * lista: o filtro da tabela os substitui. O prazo virou a coluna oculta "Urgência do prazo", com as mesmas faixas da cor
+ * da data, e o órgão é a coluna "Órgão". O link antigo (`?prazo=`, `?orgao=`) redireciona para a forma nova
+ * (`urlSuspensivasDoFiltroAntigo`, em `padroes.ts`, com as colunas e os valores crus). Os cartões contam a coleta
+ * inteira: o filtro mora na tabela, que diz quantos mostra.
  */
+import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { ORIGEM_SUSPENSIVAS } from "@/lib/oportunidades/abas";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
-import { compararUrgencia, diaBrasilia, diasEntre, nivelPrazo, type Nivel } from "@/lib/oportunidades/laudo";
+import { compararUrgencia, diaBrasilia, diasEntre, nivelPrazo } from "@/lib/oportunidades/laudo";
 import type { LeituraSuspensivas, LinhaSuspensiva } from "@/lib/oportunidades/laudo.server";
-import { tituloOrgao } from "@/lib/oportunidades/padroes";
+import { COLUNAS_SUSPENSIVAS, TABELA_SUSPENSIVAS, tituloOrgao, urlSuspensivasDoFiltroAntigo, valoresDaSuspensiva } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import { Saidas, type Saida } from "../painel/Pecas";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { LinkMapa } from "../_componentes/LinkMapa";
-import { TabelaRolagem } from "../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import { Termo } from "../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraSuspensivas, { estado: "ok" }>;
@@ -19,40 +28,22 @@ interface Filtro {
   orgao: string | null;
 }
 
-const FILTROS_PRAZO: { id: string | null; nome: string; niveis: Nivel[] | null }[] = [
-  { id: null, nome: "Todos", niveis: null },
-  { id: "urgente", nome: "Vencido ou em até 30 dias", niveis: ["critico"] },
-  { id: "90", nome: "Em até 90 dias", niveis: ["critico", "alto"] },
-];
-
 const n = (x: number) => x.toLocaleString("pt-BR");
 const dias = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "dia" : "dias"}`;
 // `de`: a origem mantém a aba Suspensivas acesa no laudo (lib/oportunidades/abas.ts).
 const urlLaudo = (nr: string) => `/mapa/instrumento/${encodeURIComponent(nr)}/laudo?de=${ORIGEM_SUSPENSIVAS}`;
 
-function url(f: Filtro, troca: Partial<Filtro>): string {
-  const p = new URLSearchParams();
-  const alvo = { ...f, ...troca };
-  if (alvo.prazo) p.set("prazo", alvo.prazo);
-  if (alvo.orgao) p.set("orgao", alvo.orgao);
-  const q = p.toString();
-  return `/mapa/suspensivas${q ? `?${q}` : ""}`;
-}
-
 export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: LeituraOk; hoje: string; filtro: Filtro }) {
   const referencia = diaBrasilia(leitura.referencia ?? leitura.coletadoEm ?? hoje);
   const todas = leitura.linhas;
 
-  // Filtro validado contra o próprio dado: valor desconhecido na URL vira "todos", não lista vazia.
-  const orgaos = contarOrgaos(todas);
-  const orgao = filtro.orgao && orgaos.some(([o]) => o === filtro.orgao) ? filtro.orgao : null;
-  const prazo = FILTROS_PRAZO.find((x) => x.id === filtro.prazo) ?? FILTROS_PRAZO[0];
-  const f: Filtro = { prazo: prazo.id, orgao };
+  // O link de antes (`?prazo=urgente&orgao=…`) vira o filtro da tabela (onda 15, fase 2, lote C, 13/10/2026). Como
+  // antes, valor desconhecido não filtra: o órgão só vale se estiver na coleta.
+  const orgaosDaColeta = [...new Set(todas.map((l) => l.contexto?.orgao_sup).filter((o): o is string => !!o))];
+  const novo = urlSuspensivasDoFiltroAntigo(filtro, orgaosDaColeta);
+  if (novo) redirect(novo);
 
-  const noPrazo = todas.filter((l) => !prazo.niveis || prazo.niveis.includes(nivelPrazo(urgencia(l), hoje)));
-  const linhas = noPrazo.filter((l) => !orgao || l.contexto?.orgao_sup === orgao).sort((a, b) => compararUrgencia(urgencia(a), urgencia(b), hoje));
-  // O número em cada botão de órgão segue o filtro de prazo; a ordem dos botões é a do total, para não pular.
-  const porOrgaoNoPrazo = new Map(contarOrgaos(noPrazo));
+  const linhas = [...todas].sort((a, b) => compararUrgencia(urgencia(a), urgencia(b), hoje));
   // Convênios da coleta cuja suspensiva foi retirada depois dela (o painel é diário, a coleta não).
   const retirados = linhas.filter((l) => l.contexto?.dt_retirada_suspensiva).length;
 
@@ -60,13 +51,6 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
   const vencidos = linhas.filter((l) => l.contexto?.dt_suspensiva && !l.contexto.dt_retirada_suspensiva && l.contexto.dt_suspensiva < hoje).length;
   const esperas = linhas.filter((l) => l.parado_desde).map((l) => diasEntre(l.parado_desde as string, referencia)).sort((a, b) => a - b);
   const mediana = esperas.length ? esperas[Math.floor(esperas.length / 2)] : null;
-  // B14b (08/10/2026): o vazio diz o filtro e dá um link para tirar cada um (antes: "Nenhum convênio neste filtro.
-  // Ver todos", sem dizer qual — B12, seção 5).
-  const filtros = [...(prazo.id ? [`prazo ${prazo.nome.toLowerCase()}`] : []), ...(orgao ? [tituloOrgao(orgao)] : [])];
-  const saidas: Saida[] = [
-    ...(prazo.id ? [{ rotulo: "Ver todos os prazos", href: url(f, { prazo: null }) }] : []),
-    ...(orgao ? [{ rotulo: "Ver todos os órgãos", href: url(f, { orgao: null }) }] : []),
-  ];
 
   return (
     <div className="pa-pagina mp-radar mp-suspensivas">
@@ -81,7 +65,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
           <LinkMapa href="/mapa/suspensivas/padroes" className="pa-btn pa-btn-pequeno">
             Ver os padrões: destino, tempo e quem analisa
           </LinkMapa>
-          <LinkMapa href={f.orgao ? `/mapa/suspensivas/checklist?orgao=${encodeURIComponent(f.orgao)}` : "/mapa/suspensivas/checklist"} className="pa-btn pa-btn-pequeno">
+          <LinkMapa href="/mapa/suspensivas/checklist" className="pa-btn pa-btn-pequeno">
             Abrir o checklist preventivo
           </LinkMapa>
         </p>
@@ -92,7 +76,7 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
           <h2 className="pa-mono">Convênios</h2>
           <p className="pa-numero">{n(linhas.length)}</p>
           <p className="pa-nota">
-            {linhas.length !== todas.length ? `de ${n(todas.length)} na coleta` : "na coleta"}
+            na coleta
             {retirados > 0 ? ` · ${n(retirados)} já com a retirada registrada depois dela` : ""}
           </p>
         </article>
@@ -108,77 +92,30 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
         </article>
       </div>
 
-      <div className="mp-filtros mp-radar-filtros mp-nao-imprimir">
-        <nav aria-label="Prazo da suspensiva" className="pa-chips">
-          <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Prazo</span>
-          {FILTROS_PRAZO.map((x) => (
-            <LinkMapa
-              key={x.nome}
-              href={url(f, { prazo: x.id })}
-              className={`pa-chip${x.id === f.prazo ? " pa-ativo" : ""}`}
-              aria-current={x.id === f.prazo ? "true" : undefined}
-            >
-              {x.nome}
-            </LinkMapa>
-          ))}
-        </nav>
-        <nav aria-label="Órgão" className="pa-chips">
-          <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Órgão</span>
-          <LinkMapa href={url(f, { orgao: null })} className={`pa-chip${!f.orgao ? " pa-ativo" : ""}`} aria-current={!f.orgao ? "true" : undefined}>
-            Todos
-          </LinkMapa>
-          {orgaos.map(([o]) => (
-            <LinkMapa
-              key={o}
-              href={url(f, { orgao: o })}
-              className={`pa-chip${o === f.orgao ? " pa-ativo" : ""}`}
-              aria-current={o === f.orgao ? "true" : undefined}
-            >
-              {tituloOrgao(o)} ({n(porOrgaoNoPrazo.get(o) ?? 0)})
-            </LinkMapa>
-          ))}
-        </nav>
-      </div>
-
       <section aria-labelledby="suspensivas-lista" className="mp-radar-secao">
         <h2 id="suspensivas-lista" className="mp-radar-h2">
-          {linhas.length === todas.length ? "Todos os convênios" : "Convênios no filtro"}
+          Todos os convênios
         </h2>
         {linhas.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">
-            {filtros.length > 0 ? (
-              <>
-                Nenhum dos {n(todas.length)} convênios da coleta neste filtro: <strong>{filtros.join(" · ")}</strong>.
-              </>
-            ) : (
-              <>Nenhum convênio em suspensiva na coleta.</>
-            )}
-            <Saidas saidas={saidas.length > 1 ? [...saidas, { rotulo: "Ver todos os convênios", href: "/mapa/suspensivas" }] : saidas} />
-          </p>
+          <p className="pa-cartao pa-cartao-plano">Nenhum convênio em suspensiva na coleta.</p>
         ) : (
-          <TabelaRolagem rotuloId="suspensivas-lista">
-            <table className="mp-tabela mp-suspensivas-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Convênio</th>
-                  <th scope="col">Órgão</th>
-                  <th scope="col" className="mp-num">
-                    Repasse
-                  </th>
-                  <th scope="col">Prazo da suspensiva</th>
-                  <th scope="col">A vez é do</th>
-                  <th scope="col" className="mp-num">
-                    Pedidos de complementação
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map((l) => (
-                  <Linha key={l.numero} l={l} hoje={hoje} referencia={referencia} />
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <>
+            <p className="pa-nota">
+              “Filtrar e ordenar” filtra por qualquer coluna, também pela urgência do prazo (vencido ou em até 30 dias, em 31 a 90 dias,
+              mais de 90 dias), pelo município, pelo programa e pelos dias parado; o CSV sai só com o que está filtrado.
+            </p>
+            {/* A classe de antes, num invólucro: as larguras de `mp-suspensivas-tabela` (mapa.css) valem para a tabela de dentro. */}
+            <div className="mp-suspensivas-tabela">
+              <TabelaFiltravel
+                id={TABELA_SUSPENSIVAS}
+                rotulo="Convênios em suspensiva"
+                colunas={COLUNAS_SUSPENSIVAS}
+                linhas={linhas.map((l) => linhaSuspensiva(l, hoje, referencia))}
+                descricaoOrdemPadrao="do prazo mais apertado ao mais folgado; no mesmo prazo, parado há mais tempo antes"
+                csv={{ nome: "suspensivas-pb" }}
+              />
+            </div>
+          </>
         )}
         <p className="pa-nota">
           Andamento: Acesso Livre do Transferegov, coleta de {leitura.coletadoEm ? formatarPublicacao(leitura.coletadoEm) : "data desconhecida"}. Valores e
@@ -190,42 +127,44 @@ export function SuspensivasConteudo({ leitura, hoje, filtro }: { leitura: Leitur
   );
 }
 
-function Linha({ l, hoje, referencia }: { l: LinhaSuspensiva; hoje: string; referencia: string }) {
+/** Uma linha da lista: os valores crus de `padroes.ts` e as células de antes (onda 15, fase 2, lote C, 13/10/2026). */
+function linhaSuspensiva(l: LinhaSuspensiva, hoje: string, referencia: string): LinhaTabela {
   const c = l.contexto;
   const nivel = nivelPrazo(urgencia(l), hoje);
   const prazoDias = c?.dt_suspensiva ? diasEntre(hoje, c.dt_suspensiva) : null;
   const parado = l.parado_desde ? diasEntre(l.parado_desde, referencia) : null;
-  return (
-    <tr>
-      <th scope="row">
+  const celulas: Record<string, ReactNode> = {
+    convenio: (
+      <>
         <LinkMapa href={urlLaudo(l.numero)} className="mp-tabela-principal">
           {c?.municipio ?? "Município não informado"} · nº {l.numero}
         </LinkMapa>
         <span className="mp-tabela-secundario">{c?.programa ?? "Programa não informado"}</span>
-      </th>
-      <td>{c?.orgao_sup ? tituloOrgao(c.orgao_sup) : "—"}</td>
-      <td className="mp-num">{moedaCurta(c?.vl_repasse)}</td>
-      <td>
-        {c?.dt_retirada_suspensiva ? (
-          <>retirada em {formatarData(c.dt_retirada_suspensiva)}</>
-        ) : c?.dt_suspensiva ? (
-          <>
-            <span className={`mp-laudo-marca mp-laudo-${nivel}`}>{formatarData(c.dt_suspensiva)}</span>
-            <span className="mp-tabela-secundario">
-              {prazoDias === null ? "" : prazoDias < 0 ? `vencido há ${dias(-prazoDias)}` : prazoDias === 0 ? "vence hoje" : `faltam ${dias(prazoDias)}`}
-            </span>
-          </>
-        ) : (
-          "sem prazo informado"
-        )}
-      </td>
-      <td>
+      </>
+    ),
+    orgao: c?.orgao_sup ? tituloOrgao(c.orgao_sup) : "—",
+    repasse: moedaCurta(c?.vl_repasse),
+    prazo: c?.dt_retirada_suspensiva ? (
+      <>retirada em {formatarData(c.dt_retirada_suspensiva)}</>
+    ) : c?.dt_suspensiva ? (
+      <>
+        <span className={`mp-laudo-marca mp-laudo-${nivel}`}>{formatarData(c.dt_suspensiva)}</span>
+        <span className="mp-tabela-secundario">
+          {prazoDias === null ? "" : prazoDias < 0 ? `vencido há ${dias(-prazoDias)}` : prazoDias === 0 ? "vence hoje" : `faltam ${dias(prazoDias)}`}
+        </span>
+      </>
+    ) : (
+      "sem prazo informado"
+    ),
+    vez: (
+      <>
         {l.vez_de === "concedente" ? "concedente" : l.vez_de === "proponente" ? "município" : "—"}
         {parado !== null && <span className="mp-tabela-secundario">há {dias(parado)}</span>}
-      </td>
-      <td className="mp-num">{n(l.rodadas_de_exigencia)}</td>
-    </tr>
-  );
+      </>
+    ),
+    pedidos: n(l.rodadas_de_exigencia),
+  };
+  return { chave: l.numero, valores: valoresDaSuspensiva(l, hoje, referencia), celulas };
 }
 
 function urgencia(l: LinhaSuspensiva) {
@@ -234,10 +173,4 @@ function urgencia(l: LinhaSuspensiva) {
     dt_retirada_suspensiva: l.contexto?.dt_retirada_suspensiva ?? null,
     parado_desde: l.parado_desde,
   };
-}
-
-function contarOrgaos(linhas: LinhaSuspensiva[]): [string, number][] {
-  const m = new Map<string, number>();
-  for (const l of linhas) if (l.contexto?.orgao_sup) m.set(l.contexto.orgao_sup, (m.get(l.contexto.orgao_sup) ?? 0) + 1);
-  return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }

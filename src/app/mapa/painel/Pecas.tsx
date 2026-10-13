@@ -65,6 +65,7 @@ export function Lista({
   vazio,
   children,
   csv,
+  semRolagem = false,
 }: {
   titulo: string;
   /**
@@ -75,6 +76,11 @@ export function Lista({
   children: ReactNode;
   /** Endereço do CSV com todos os convênios da lista, não só os mostrados. */
   csv?: string;
+  /**
+   * Onda 15, fase 2, lote C (13/10/2026): o filho já traz a própria caixa que rola (a `TabelaFiltravel`, que tem a
+   * `TabelaRolagem` dentro e a barra de filtro acima dela). Sem isto, a tabela ficaria em duas caixas de rolagem.
+   */
+  semRolagem?: boolean;
 }) {
   return (
     <div className="mp-radar-recorte">
@@ -82,7 +88,15 @@ export function Lista({
         <h3 className="mp-radar-h3">{titulo}</h3>
         {csv && children ? <BotaoCsv href={csv} /> : null}
       </div>
-      {children ? <TabelaRolagem rotulo={titulo}>{children}</TabelaRolagem> : <p className="pa-cartao pa-cartao-plano">{vazio}</p>}
+      {children ? (
+        semRolagem ? (
+          children
+        ) : (
+          <TabelaRolagem rotulo={titulo}>{children}</TabelaRolagem>
+        )
+      ) : (
+        <p className="pa-cartao pa-cartao-plano">{vazio}</p>
+      )}
     </div>
   );
 }

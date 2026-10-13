@@ -1390,3 +1390,57 @@ html:has(.pa-root.mp-root) { scroll-padding-top: calc(60px + 2.75rem + 1px + 1re
 .pa-root .mp-norma-link { color: var(--pa-brand-2); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
 .pa-root .mp-norma-link:hover { text-decoration-thickness: 2px; }
 .pa-root .mp-norma-link .mp-norma-seta { margin-left: 0.25em; text-decoration: none; display: inline-block; }
+
+/* ------------------------------------------------------------------------------------------------
+   Onda 15, A (13/10/2026): a tabela com filtro e ordem em cada coluna (`TabelaFiltravel`). No fim do arquivo pelo
+   mesmo motivo dos blocos acima. Nenhuma cor nova: só tokens que já existem. No celular (375 px), a barra quebra a
+   linha, o painel vira uma coluna só e nenhum campo passa da largura: a única rolagem de lado é a da caixa da tabela.
+   ------------------------------------------------------------------------------------------------ */
+.pa-root .mp-tf { margin-top: 0.75rem; min-width: 0; }
+
+/* A barra: os botões e o "Mostrando N de M", que desce para a própria linha quando falta espaço. */
+.pa-root .mp-tf-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.pa-root .mp-tf-barra .pa-btn { min-height: 44px; }
+.pa-root .mp-tf-abrir[aria-expanded="true"] { background: var(--pa-brand-soft); border-color: var(--pa-brand-2); }
+.pa-root .mp-tf-contagem { flex: 1 1 18rem; min-width: 0; margin: 0; font-size: 0.86rem; color: var(--pa-muted); }
+
+/* Os filtros ativos, com o painel fechado: cada um é um botão que tira o filtro. Quebram a linha. */
+.pa-root .mp-tf-ativos { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0 0; padding: 0; list-style: none; }
+.pa-root .mp-tf-chip { min-height: 36px; max-width: 100%; text-align: left; overflow-wrap: anywhere; }
+
+/* O painel: uma grade de campos que cabe na largura (min(15rem, 100%)), uma coluna só no celular. */
+.pa-root .mp-tf-painel { margin-top: 0.6rem; padding: 0.9rem 1rem; border: 1px solid var(--pa-border); border-radius: var(--pa-r-lg); background: var(--pa-surface); }
+.pa-root .mp-tf-painel[hidden] { display: none; }
+.pa-root .mp-tf-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr)); gap: 1rem 1.2rem; margin-top: 0.8rem; }
+/* `fieldset` nasce com largura mínima do conteúdo: sem o `min-width: 0`, uma lista larga empurraria a página. */
+.pa-root .mp-tf-campo { display: flex; flex-direction: column; gap: 0.32rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.pa-root .mp-tf-rotulo {
+  padding: 0; font-family: var(--pa-mono); font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--pa-muted);
+}
+.pa-root .mp-tf-ordem { max-width: 32rem; }
+.pa-root .mp-tf-painel :is(.pa-input, .pa-select) { min-height: 44px; min-width: 0; }
+.pa-root .mp-tf-intervalo { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pa-root .mp-tf-intervalo > label { flex: 1 1 7rem; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; color: var(--pa-text); }
+.pa-root .mp-tf-opcoes { display: grid; gap: 0.15rem; max-height: 16rem; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.pa-root .mp-tf-opcoes .pa-check { min-height: 36px; align-items: center; overflow-wrap: anywhere; }
+.pa-root .mp-tf-opcoes .pa-check input { margin-top: 0; }
+.pa-root .mp-tf-dica { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--pa-muted); max-width: 80ch; }
+.pa-root .mp-tf-erro { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--pa-danger); }
+.pa-root .mp-tf-rodape { margin: 1rem 0 0; }
+.pa-root .mp-tf-rodape .pa-btn { min-height: 44px; }
+
+/* O título que ordena é um botão: herda a cara do cabeçalho (o navegador zera caixa alta e espaçamento no botão). */
+.pa-root .mp-tf-ordenar { font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: inherit; color: inherit; }
+.pa-root .mp-tabela thead th.mp-num .mp-tf-ordenar { justify-content: flex-end; width: 100%; }
+.pa-root .mp-tf-ordenar:hover { text-decoration: underline; }
+
+/* A linha de "nenhuma linha com estes filtros". */
+.pa-root .mp-tabela td.mp-tf-vazio { padding: 1rem; color: var(--pa-muted); white-space: normal; }
+
+/* No celular, o toque pede 44 px também nos filtros ativos e nas caixas de categoria. */
+@media screen and (max-width: 640px) {
+  .pa-root .mp-tf-chip, .pa-root .mp-tf-opcoes .pa-check { min-height: 44px; }
+  .pa-root .mp-tf-barra .pa-btn { flex: 1 1 auto; }
+  .pa-root .mp-tf-painel { padding: 0.8rem; }
+}

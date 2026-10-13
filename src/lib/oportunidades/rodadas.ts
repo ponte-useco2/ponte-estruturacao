@@ -27,6 +27,7 @@
 import { REPOSITORIO } from "./agendamento.ts";
 import { dataBrasilia, diaBrasilia } from "./datas.ts";
 import { ehEsquemaAusente } from "./esquema.ts";
+import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
 
 // ================================================================ cadência e folga
 
@@ -1332,4 +1333,66 @@ export function rotuloEvento(evento: string | null): string {
 export function githubPedeAtencao(r: Pick<RodadaGithub, "estado" | "status" | "conclusao">): boolean {
   if (r.estado === "falha") return true;
   return r.estado === "ok" && r.status === "completed" && (r.conclusao === "failure" || r.conclusao === "timed_out");
+}
+
+// ================================================================ a tabela da tela (onda 15, fase 2, lote C, 13/10/2026)
+
+/**
+ * A tabela dos jobs com filtro e ordem em cada coluna (a regra do titular de 13/10/2026; tela de administrador, toda
+ * coluna ordena). As células da tela continuam as de antes; aqui ficam os valores crus, que filtram, ordenam e vão ao
+ * CSV. As colunas ocultas levam o que a célula junta: a tabela do banco (debaixo do nome do job), as horas desde a
+ * concluída (o "há quanto"), a situação do dado e o workflow (debaixo da cadência).
+ *
+ * As datas são o dia em Brasília (`diaBrasilia`, UTC−3 fixo): a mesma conta em qualquer fuso do servidor.
+ */
+export const TABELA_RODADAS = "jobs";
+
+/** A situação do dado em palavras, como a célula "Dado até" diz. */
+export const ROTULO_SITUACAO_DADO: Record<SituacaoDado, string> = {
+  no_prazo: "no esperado",
+  velho: "dado velho",
+  sem_prazo: "coleta assistida, sem esperado",
+  nao_grava: "o job não grava a data",
+  nao_lido: "não lido",
+  sem_execucao: "sem execução",
+};
+
+export const COLUNAS_RODADAS: ColunaTabela[] = [
+  { id: "job", titulo: "Job", tipo: "texto" },
+  { id: "tabela", titulo: "Tabela no banco", tipo: "texto", oculta: true },
+  { id: "estado", titulo: "Estado", tipo: "categoria" },
+  { id: "concluida", titulo: "Última concluída", tipo: "data" },
+  { id: "horas", titulo: "Horas desde a última concluída", tipo: "numero", oculta: true },
+  { id: "dado-ate", titulo: "Dado até", tipo: "data" },
+  { id: "dado", titulo: "Situação do dado", tipo: "categoria", oculta: true },
+  { id: "cadencia", titulo: "Cadência", tipo: "categoria" },
+  { id: "workflow", titulo: "Workflow", tipo: "categoria", oculta: true },
+  { id: "linhas", titulo: "Linhas", tipo: "numero" },
+  { id: "falhas", titulo: "Falhas", tipo: "numero", alinhar: "direita" },
+  { id: "gravando", titulo: "Gravando", tipo: "categoria" },
+  { id: "avisos", titulo: "Avisos", tipo: "texto" },
+];
+
+/**
+ * Os valores crus de uma linha, por coluna de `COLUNAS_RODADAS`. A linha "não lido" fica só com o nome, o estado e a
+ * cadência: a tela mostra "—" no resto, e o vazio não entra em filtro nenhum.
+ */
+export function valoresDaRodada(l: LinhaRodada): Record<string, ValorCelula> {
+  const { job } = l;
+  const lida = l.estado !== "nao_lido";
+  return {
+    job: job.nome,
+    tabela: `${job.tabela}${job.recorte ? ` · recorte ${job.recorte}` : ""}`,
+    estado: ROTULO_ESTADO[l.estado],
+    concluida: lida && l.concluidaEm ? diaBrasilia(l.concluidaEm) : null,
+    horas: lida && l.idadeH !== null ? Math.round(l.idadeH * 10) / 10 : null,
+    "dado-ate": lida ? l.dado.dia : null,
+    dado: lida ? ROTULO_SITUACAO_DADO[l.dado.situacao] : null,
+    cadencia: ROTULO_CADENCIA[job.cadencia],
+    workflow: job.workflow,
+    linhas: l.linhas,
+    falhas: l.falhas,
+    gravando: !lida ? null : !l.gravando ? "não" : l.gravando.parada ? "parada" : "em curso",
+    avisos: l.avisos.length ? l.avisos.join("; ") : null,
+  };
 }

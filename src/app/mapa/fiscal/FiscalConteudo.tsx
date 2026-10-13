@@ -1,28 +1,41 @@
 /**
  * A lista dos 223 municípios da PB no Painel de Capacidade Fiscal. Recebe os dados já lidos e só desenha.
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): a lista é a `TabelaFiltravel`, com filtro e ordem em cada coluna (a regra do
+ * titular; tela de administrador, toda coluna ordena). O formulário GET de antes (nome ou IBGE, decisão e situação) só
+ * filtrava colunas desta lista: o filtro da tabela o substitui. O link antigo (`?q=`, `?decisao=`, `?estado=`)
+ * redireciona para a forma nova (`urlFiscalDoFiltroAntigo`), e as contagens dos cartões levam ao filtro da decisão
+ * (`urlFiscalPorDecisao`). As colunas e os valores crus estão em `fiscal.ts`; as células são as de antes.
  */
+import { redirect } from "next/navigation";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   AVISO_FIXO,
+  COLUNAS_FISCAL,
   DECISOES,
   MARCA_ESTADO,
   NOME_CURTO,
   ROTULO_DECISAO,
+  TABELA_FISCAL,
   TOM_ESTADO,
+  colunaDaDecisao,
   conclusaoDe,
   contarDecisoes,
-  filtrarMunicipios,
   pct,
-  urlFiscal,
+  urlFiscalDoFiltroAntigo,
+  urlFiscalPorDecisao,
   urlMunicipioFiscal,
+  valoresDoMunicipioFiscal,
   type EstadoFiscal,
+  type MunicipioFiscal,
   type ParametrosFiscal,
 } from "@/lib/oportunidades/fiscal";
 import type { LeituraFiscal } from "@/lib/oportunidades/fiscal.server";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../_design/primitivos";
-import { Saidas, type Saida } from "../painel/Pecas";
+import type { Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
-import { TabelaRolagem } from "../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import { Termo } from "../_componentes/Termo";
 
 type LeituraOk = Extract<LeituraFiscal, { estado: "ok" }>;
@@ -40,21 +53,15 @@ export function EstadoDecisao({ estado }: { estado: EstadoFiscal }) {
 }
 
 export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: LeituraOk }) {
+  // O link de antes (`?q=agua&decisao=B&estado=atencao`) vira o filtro da tabela: o link guardado continua abrindo a
+  // lista filtrada, e o filtro passa a morar num lugar só (onda 15, fase 2, lote C, 13/10/2026).
+  const novo = urlFiscalDoFiltroAntigo(p);
+  if (novo) redirect(novo);
+
   const contagem = contarDecisoes(leitura.municipios);
-  const visiveis = filtrarMunicipios(leitura.municipios, p);
   const c = leitura.execucao.contagens;
   const cauc = typeof c.cauc_data_pesquisa === "string" ? c.cauc_data_pesquisa : null;
-  // B14b (08/10/2026): o vazio diz o filtro em palavras e dá um link para tirar cada um (antes: "Nenhum município com
-  // esse filtro.", sem a saída — B12, seção 5). A situação só filtra junto com a decisão (`filtrarMunicipios`).
-  const decisaoFiltrada = p.decisao && p.estado ? DECISOES.find((d) => d.id === p.decisao) : undefined;
-  const filtros = [
-    ...(p.q ? [`“${p.q}” no nome ou no código IBGE`] : []),
-    ...(decisaoFiltrada && p.estado ? [`${decisaoFiltrada.curto}: ${ROTULO_DECISAO[p.estado].toLowerCase()}`] : []),
-  ];
-  const saidas: Saida[] = [
-    ...(p.q ? [{ rotulo: "Tirar a busca por nome", href: urlFiscal(p, { q: "" }) }] : []),
-    ...(decisaoFiltrada ? [{ rotulo: "Tirar o filtro da decisão", href: urlFiscal(p, { decisao: null, estado: null }) }] : []),
-  ];
+  const linhas = [...leitura.municipios].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map(linhaMunicipio);
 
   return (
     <div className="pa-pagina mp-radar mp-painel mp-fiscal">
@@ -65,7 +72,8 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
           Os {n(leitura.municipios.length)} municípios, lidos em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>
           {cauc ? <> · CAUC consultado em {formatarData(cauc)}</> : null}
           {typeof c.versao_regras === "string" ? <> · regras {c.versao_regras}</> : null}. Para cada uma das três{" "}
-          <Termo slug="decisoes-fiscais">decisões</Termo>, o que bloqueia e o que não deu para verificar.
+          <Termo slug="decisoes-fiscais">decisões</Termo>, o que bloqueia e o que não deu para verificar, e as pendências no{" "}
+          <Termo slug="cauc">CAUC</Termo>.
         </p>
         <p className="mp-fiscal-aviso">{AVISO_FIXO}</p>
       </div>
@@ -79,7 +87,7 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
             <ul className="mp-fiscal-contagem">
               {GRUPOS_DECISAO.map((e) => (
                 <li key={e}>
-                  <LinkMapa href={urlFiscal(p, { decisao: d.id, estado: e })} aria-current={p.decisao === d.id && p.estado === e ? "true" : undefined}>
+                  <LinkMapa href={urlFiscalPorDecisao(d.id, e)}>
                     <EstadoDecisao estado={e} /> <span className="mp-num">{n(contagem[d.id][e] ?? 0)}</span>
                   </LinkMapa>
                 </li>
@@ -89,126 +97,63 @@ export function FiscalConteudo({ p, leitura }: { p: ParametrosFiscal; leitura: L
         ))}
       </div>
 
-      <form method="get" action="/mapa/fiscal" className="mp-filtros mp-busca-form" role="search">
-        <div className="pa-linha mp-painel-filtros">
-        <span className="mp-busca-campo">
-          <label htmlFor="fiscal-q" className="pa-campo-rotulo">
-            Município
-          </label>
-          <input id="fiscal-q" name="q" type="search" defaultValue={p.q} className="pa-input" placeholder="nome ou IBGE" autoComplete="off" />
-        </span>
-        <span className="mp-busca-campo">
-          <label htmlFor="fiscal-decisao" className="pa-campo-rotulo">
-            Decisão
-          </label>
-          <select id="fiscal-decisao" name="decisao" defaultValue={p.decisao ?? ""} className="pa-select">
-            <option value="">Todas</option>
-            {DECISOES.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.id} · {d.curto}
-              </option>
-            ))}
-          </select>
-        </span>
-        <span className="mp-busca-campo">
-          <label htmlFor="fiscal-estado" className="pa-campo-rotulo">
-            Situação na decisão
-          </label>
-          <select id="fiscal-estado" name="estado" defaultValue={p.estado ?? ""} className="pa-select">
-            <option value="">Qualquer</option>
-            {GRUPOS_DECISAO.map((e) => (
-              <option key={e} value={e}>
-                {ROTULO_DECISAO[e]}
-              </option>
-            ))}
-          </select>
-        </span>
-        <button type="submit" className="pa-btn pa-btn-pequeno">
-          Filtrar os municípios
-        </button>
-        {(p.q || p.decisao) && (
-          <LinkMapa href="/mapa/fiscal" className="pa-btn pa-btn-pequeno">
-            Limpar os filtros
-          </LinkMapa>
-        )}
-        </div>
-      </form>
-
       <section aria-labelledby="fiscal-lista" className="mp-radar-secao">
-        <h2 id="fiscal-lista" className="mp-radar-h2" aria-live="polite">
-          {visiveis.length === leitura.municipios.length ? `${n(visiveis.length)} municípios` : `${n(visiveis.length)} de ${n(leitura.municipios.length)} municípios`}
+        <h2 id="fiscal-lista" className="mp-radar-h2">
+          Os {n(leitura.municipios.length)} municípios
         </h2>
-        {visiveis.length === 0 ? (
-          <p className="pa-cartao pa-cartao-plano">
-            Nenhum dos {n(leitura.municipios.length)} municípios
-            {filtros.length > 0 && (
-              <>
-                {" "}
-                com <strong>{filtros.join(" · ")}</strong>
-              </>
-            )}
-            .
-            <Saidas saidas={saidas.length > 1 ? [...saidas, { rotulo: "Limpar os filtros", href: "/mapa/fiscal" }] : saidas} />
-          </p>
-        ) : (
-          <TabelaRolagem rotuloId="fiscal-lista">
-            <table className="mp-tabela mp-fiscal-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Município</th>
-                  {DECISOES.map((d) => (
-                    <th key={d.id} scope="col">
-                      {d.id} · {d.curto}
-                    </th>
-                  ))}
-                  <th scope="col" className="mp-num">
-                    Pessoal
-                  </th>
-                  <th scope="col">
-                    <Termo slug="cauc">CAUC</Termo>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {visiveis.map((m) => {
-                  const pendencias = m.indicadores.cauc_pendencias ?? [];
-                  return (
-                    <tr key={m.ibge}>
-                      <th scope="row">
-                        <LinkMapa href={urlMunicipioFiscal(m.ibge)} className="mp-tabela-principal">
-                          {m.nome}
-                        </LinkMapa>
-                        <span className="mp-tabela-secundario">
-                          IBGE {m.ibge}
-                          {m.populacao ? ` · ${n(m.populacao)} hab.` : ""}
-                        </span>
-                      </th>
-                      {DECISOES.map((d) => {
-                        const cd = conclusaoDe(m, d.id);
-                        return (
-                          <td key={d.id}>
-                            {cd ? <EstadoDecisao estado={cd.estado} /> : "—"}
-                            {cd && cd.bloqueantes.length > 0 && (
-                              <span className="mp-tabela-secundario">{cd.bloqueantes.map((b) => NOME_CURTO[b] ?? b).join(" · ")}</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td className="mp-num">
-                        {pct(m.indicadores.pessoal_pct)}
-                        {m.indicadores.rgf && <span className="mp-tabela-secundario">RGF {m.indicadores.rgf}</span>}
-                      </td>
-                      <td>{pendencias.length ? `${pendencias.length} ${pendencias.length === 1 ? "pendência" : "pendências"}` : "sem pendência"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </TabelaRolagem>
-        )}
+        <p className="pa-nota">
+          Cada contagem dos cartões filtra a lista pela decisão. “Filtrar e ordenar” filtra e ordena por qualquer coluna, também pelo que
+          bloqueia cada decisão e pelos itens do CAUC; o CSV sai só com o que está filtrado.
+        </p>
+        {/* A classe de antes, num invólucro: as larguras mínimas de `mp-fiscal-tabela` (mapa.css) valem para a tabela de dentro. */}
+        <div className="mp-fiscal-tabela">
+          <TabelaFiltravel
+            id={TABELA_FISCAL}
+            rotulo="Os municípios da PB nas três decisões fiscais"
+            colunas={COLUNAS_FISCAL}
+            linhas={linhas}
+            ordemPadrao={{ coluna: "municipio", sentido: "asc" }}
+            csv={{ nome: "capacidade-fiscal-pb" }}
+          />
+        </div>
       </section>
     </div>
   );
+}
+
+/** Uma linha da lista: os valores crus de `fiscal.ts` e as células de antes (onda 15, fase 2, lote C, 13/10/2026). */
+function linhaMunicipio(m: MunicipioFiscal): LinhaTabela {
+  const pendencias = m.indicadores.cauc_pendencias ?? [];
+  const celulas: LinhaTabela["celulas"] = {
+    municipio: (
+      <>
+        <LinkMapa href={urlMunicipioFiscal(m.ibge)} className="mp-tabela-principal">
+          {m.nome}
+        </LinkMapa>
+        <span className="mp-tabela-secundario">
+          IBGE {m.ibge}
+          {m.populacao ? ` · ${n(m.populacao)} hab.` : ""}
+        </span>
+      </>
+    ),
+    pessoal: (
+      <>
+        {pct(m.indicadores.pessoal_pct)}
+        {m.indicadores.rgf && <span className="mp-tabela-secundario">RGF {m.indicadores.rgf}</span>}
+      </>
+    ),
+    cauc: pendencias.length ? `${pendencias.length} ${pendencias.length === 1 ? "pendência" : "pendências"}` : "sem pendência",
+  };
+  for (const d of DECISOES) {
+    const cd = conclusaoDe(m, d.id);
+    celulas[colunaDaDecisao(d.id)] = (
+      <>
+        {cd ? <EstadoDecisao estado={cd.estado} /> : "—"}
+        {cd && cd.bloqueantes.length > 0 && <span className="mp-tabela-secundario">{cd.bloqueantes.map((b) => NOME_CURTO[b] ?? b).join(" · ")}</span>}
+      </>
+    );
+  }
+  return { chave: m.ibge, valores: valoresDoMunicipioFiscal(m), celulas };
 }
 
 /**

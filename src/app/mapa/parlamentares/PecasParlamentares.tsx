@@ -1,7 +1,8 @@
 /**
  * Peças comuns à lista dos autores e à ficha do autor (onda 14, parte 2, B, 13/10/2026): o carimbo da data do dado,
- * a nota de método, a célula de dois valores (válido e pago) e a tela de "ainda não publicado". Só desenham o que
- * recebem; a leitura mora em `emendas.server.ts` (agente A).
+ * a nota de método e a tela de "ainda não publicado". Só desenham o que recebem; a leitura mora em `emendas.server.ts`
+ * (agente A). A célula de dois valores (válido e pago) saiu na onda 15 (A, 13/10/2026): na tabela com filtro em cada
+ * coluna, o válido e o pago são duas colunas.
  */
 import type { ReactNode } from "react";
 import { avisoFnsPendente, datasDaExecucao, type ExecucaoEmendas } from "@/lib/oportunidades/emendas";
@@ -14,23 +15,6 @@ export const n = (x: number) => x.toLocaleString("pt-BR");
 /** Dinheiro na tabela: zero e ausente viram "—", para a coluna vazia não parecer um valor. */
 export function dinheiro(v: number | null | undefined): string {
   return v !== null && v !== undefined && v > 0 ? moedaCurta(v) : "—";
-}
-
-/** A célula de dois valores: o válido em cima e o pago embaixo. Sem nenhum dos dois, "—". */
-export function CelulaValidoPago({ valido, pago, rotulo }: { valido: number; pago: number; rotulo?: string }) {
-  if (!(valido > 0) && !(pago > 0)) {
-    return (
-      <td className="mp-num" data-rotulo={rotulo}>
-        —
-      </td>
-    );
-  }
-  return (
-    <td className="mp-num" data-rotulo={rotulo}>
-      <span className="mp-tabela-principal">{dinheiro(valido)}</span>
-      <span className="mp-tabela-secundario">pago {dinheiro(pago)}</span>
-    </td>
-  );
 }
 
 /**
@@ -71,9 +55,9 @@ export function NotaDeMetodo({ titulo = "Como ler", id }: { titulo?: string; id:
           nunca a média das razões, que daria peso de cidade grande a uma obra única num município de 3 mil habitantes.
         </li>
         <li>
-          <strong>Sem posição, sem nota.</strong> A lista vai por tipo e nome. Execução só se compara na mesma safra (o ano da emenda) e
-          no mesmo canal, e depende também do município, da entidade e do órgão. O que chama a atenção é ponto para olhar, nunca
-          irregularidade.
+          <strong>Sem posição, sem nota.</strong> A lista abre por grupo, tipo e nome; ordenar por uma coluna de valor é leitura do
+          administrador, não posição. Execução só se compara na mesma safra (o ano da emenda) e no mesmo canal, e depende também do
+          município, da entidade e do órgão. O que chama a atenção é ponto para olhar, nunca irregularidade.
         </li>
       </ul>
     </section>

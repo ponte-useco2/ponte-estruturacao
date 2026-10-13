@@ -52,7 +52,7 @@ export function RelatorioBrasilConteudo({ l, nivel, hoje }: { l: LeituraBrasilOk
       </div>
 
       {partes.has("resumo") && <Resumo l={l} ano={ano} noRelatorio />}
-      {partes.has("estados") && <Estados l={l} ano={ano} noRelatorio />}
+      {partes.has("estados") && <Estados l={l} ano={ano} nivel={nivel} />}
       {partes.has("dinheiro") && <DinheiroDoBrasil l={l} nivel={nivel} />}
       {partes.has("tempos") && <Tempos l={l} />}
       <FontesDoBrasil l={l} ano={ano} />

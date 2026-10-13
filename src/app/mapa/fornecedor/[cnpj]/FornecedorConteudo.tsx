@@ -2,31 +2,51 @@
  * Dossiê de um fornecedor. Recebe a leitura pronta (lib/oportunidades/fornecedores.server.ts); aqui só se
  * apresenta. A sanção do TCU é confrontada com as datas de cada convênio: o laudo separa o que foi pago
  * dentro do período da sanção do que foi pago antes.
+ *
+ * Onda 15, fase 2, lote D (13/10/2026): as cinco listas (onde é o maior fornecedor, por município, convênios,
+ * contratos e TCE-PB) viraram `TabelaFiltravel`, com colunas e valores em `fornecedores.ts` (com teste). É tela de
+ * administrador: toda coluna filtra e ordena. As células que juntam vários dados ficam como eram, e cada dado delas
+ * filtra por uma coluna oculta. Os contratos chegam a 77 num CNPJ (13/10/2026); os 3.200 do inventário eram os
+ * contratos sem CNPJ, que não têm dossiê.
  */
 import { urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData } from "@/lib/oportunidades/central";
 import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { nomeProponente } from "@/lib/oportunidades/diagnostico";
 import {
+  COLUNAS_CONTRATOS_DO_FORNECEDOR,
+  COLUNAS_CONVENIOS_DO_FORNECEDOR,
+  COLUNAS_LIDERA,
+  COLUNAS_MUNICIPIOS_DO_FORNECEDOR,
+  COLUNAS_TCE_DO_FORNECEDOR,
   NIVEL_MOMENTO,
   ROTULO_MOMENTO,
   cnpjLegivel,
   descreverSancao,
   leituraCeisCnep,
+  linhasTceDoFornecedor,
   momentoDaSancao,
+  municipiosDoFornecedor,
   nomeFornecedor,
   situacaoSancao,
+  valoresDaLideranca,
+  valoresDaLinhaTce,
+  valoresDoContrato,
+  valoresDoConvenioDoFornecedor,
+  valoresDoMunicipioDoFornecedor,
   type EntradaSancoes,
   type FornecedorConvenio,
+  type LinhaTceFornecedor,
 } from "@/lib/oportunidades/fornecedores";
 import type { LeituraDossieFornecedor } from "@/lib/oportunidades/fornecedores.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import { ROTULO_SITUACAO, urlTce, type TceFederalPar, type TcePixCredor } from "@/lib/oportunidades/tce";
+import { urlTce } from "@/lib/oportunidades/tce";
 import type { TceDoFornecedor } from "@/lib/oportunidades/tce.server";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { LinkMapa } from "../../_componentes/LinkMapa";
-import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 
 type LeituraOk = Extract<LeituraDossieFornecedor, { estado: "ok" }>;
 
@@ -51,7 +71,9 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
   const contratouNa = convenios.filter((c) => momento(c) === "contratou").length;
   const pagouNa = convenios.filter((c) => momento(c) === "pagou").length;
   const ordenados = [...convenios].sort((a, b) => b.pago - a.pago || b.contratado - a.contratado);
-  const municipios = porMunicipio(convenios);
+  const municipios = municipiosDoFornecedor(convenios);
+  // O nome dos arquivos CSV: "fornecedor-12345678000190-contratos".
+  const csv = (o: string) => ({ nome: `fornecedor-${f.cnpj}-${o}` });
 
   return (
     <div className="pa-pagina mp-radar mp-laudo">
@@ -144,37 +166,30 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
           <h2 id="forn-lidera" className="mp-radar-h2">
             Onde é o maior fornecedor da prefeitura
           </h2>
-          <TabelaRolagem rotuloId="forn-lidera">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Prefeitura</th>
-                  <th scope="col" className="mp-num">
-                    Fatia
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Recebeu
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Pago a empresas
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {lidera.map((m) => (
-                  <tr key={m.cod_ibge}>
-                    <th scope="row">
+          <TabelaFiltravel
+            id="lidera"
+            rotulo="Onde é o maior fornecedor da prefeitura"
+            colunas={COLUNAS_LIDERA}
+            linhas={lidera.map(
+              (m): LinhaTabela => ({
+                chave: m.cod_ibge,
+                valores: valoresDaLideranca(m),
+                celulas: {
+                  prefeitura: (
+                    <>
                       <LinkMapa href={`/mapa/fornecedores?municipio=${m.cod_ibge}`}>{m.municipio ?? `IBGE ${m.cod_ibge}`}</LinkMapa>
                       <span className="mp-tabela-secundario">{n(m.n_fornecedores)} fornecedores</span>
-                    </th>
-                    <td className="mp-num">{pct(m.maior_fatia)}</td>
-                    <td className="mp-num">{moedaCurta(m.maior_pago)}</td>
-                    <td className="mp-num">{moedaCurta(m.pago_pj)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+                    </>
+                  ),
+                  fatia: pct(m.maior_fatia),
+                  recebeu: moedaCurta(m.maior_pago),
+                  "pago-pj": moedaCurta(m.pago_pj),
+                },
+              }),
+            )}
+            ordemPadrao={{ coluna: "fatia", sentido: "desc" }}
+            csv={csv("lidera")}
+          />
           <p className="pa-nota">Só os convênios em que a prefeitura é a proponente. Indicador para olhar, não irregularidade.</p>
         </section>
       )}
@@ -184,30 +199,20 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
           <h2 id="forn-municipios" className="mp-radar-h2">
             Por município
           </h2>
-          <TabelaRolagem rotuloId="forn-municipios">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Município</th>
-                  <th scope="col" className="mp-num">
-                    Convênios
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Recebeu
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {municipios.map((m) => (
-                  <tr key={m.chave}>
-                    <th scope="row">{m.nome}</th>
-                    <td className="mp-num">{n(m.convenios)}</td>
-                    <td className="mp-num">{m.pago > 0 ? moedaCurta(m.pago) : "só contrato"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id="municipios"
+            rotulo="Por município"
+            colunas={COLUNAS_MUNICIPIOS_DO_FORNECEDOR}
+            linhas={municipios.map(
+              (m): LinhaTabela => ({
+                chave: m.chave,
+                valores: valoresDoMunicipioDoFornecedor(m),
+                celulas: { recebeu: m.pago > 0 ? moedaCurta(m.pago) : "só contrato" },
+              }),
+            )}
+            ordemPadrao={{ coluna: "recebeu", sentido: "desc" }}
+            csv={csv("municipios")}
+          />
         </section>
       )}
 
@@ -215,106 +220,114 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
         <h2 id="forn-convenios" className="mp-radar-h2">
           Convênios
         </h2>
-        <TabelaRolagem rotuloId="forn-convenios">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Convênio</th>
-                <th scope="col">Órgão</th>
-                <th scope="col" className="mp-num">
-                  Recebeu
-                </th>
-                <th scope="col">Pagamentos</th>
-                <th scope="col" className="mp-num">
-                  Contratado
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {ordenados.map((c) => {
-                const i = porNr.get(c.nr_convenio);
-                const m = momento(c);
-                return (
-                  <tr key={c.nr_convenio}>
-                    <th scope="row">
-                      <LinkMapa href={urlLaudo(c.nr_convenio)} className="mp-tabela-principal">
-                        {c.municipio ?? "Município não informado"} · nº {c.nr_convenio}
-                      </LinkMapa>
+        <TabelaFiltravel
+          id="convenios"
+          rotulo="Convênios"
+          colunas={COLUNAS_CONVENIOS_DO_FORNECEDOR}
+          linhas={ordenados.map((c): LinhaTabela => {
+            const i = porNr.get(c.nr_convenio);
+            const m = momento(c);
+            return {
+              chave: c.nr_convenio,
+              valores: valoresDoConvenioDoFornecedor(c, {
+                proponente: c.proponente ? nomeProponente(c) : null,
+                orgao: c.orgao_sup ? tituloOrgao(c.orgao_sup) : null,
+                programa: i?.programa ?? null,
+                momento: m,
+              }),
+              celulas: {
+                convenio: (
+                  <>
+                    <LinkMapa href={urlLaudo(c.nr_convenio)} className="mp-tabela-principal">
+                      {c.municipio ?? "Município não informado"} · nº {c.nr_convenio}
+                    </LinkMapa>
+                    <span className="mp-tabela-secundario">
+                      {nomeProponente(c)}
+                      {i?.programa ? ` · ${i.programa}` : ""}
+                    </span>
+                    {m && m !== "antes" && <span className={`pa-tag mp-laudo-nivel mp-laudo-${NIVEL_MOMENTO[m]}`}>{ROTULO_MOMENTO[m]}</span>}
+                  </>
+                ),
+                recebeu: (
+                  <>
+                    {moedaCurta(c.pago)}
+                    {c.fatia !== null && c.pago > 0 && <span className="mp-tabela-secundario">{pct(c.fatia)} do pago a empresas</span>}
+                  </>
+                ),
+                pagamentos: (
+                  <>
+                    {c.n_pagamentos > 0 ? n(c.n_pagamentos) : "nenhum"}
+                    {c.primeiro_pagamento && (
                       <span className="mp-tabela-secundario">
-                        {nomeProponente(c)}
-                        {i?.programa ? ` · ${i.programa}` : ""}
+                        {c.ultimo_pagamento && c.ultimo_pagamento !== c.primeiro_pagamento ? (
+                          <>
+                            <span className="mp-nowrap">de {data(c.primeiro_pagamento)}</span>{" "}
+                            <span className="mp-nowrap">a {data(c.ultimo_pagamento)}</span>
+                          </>
+                        ) : (
+                          <span className="mp-nowrap">em {data(c.primeiro_pagamento)}</span>
+                        )}
                       </span>
-                      {m && m !== "antes" && <span className={`pa-tag mp-laudo-nivel mp-laudo-${NIVEL_MOMENTO[m]}`}>{ROTULO_MOMENTO[m]}</span>}
-                    </th>
-                    <td>{c.orgao_sup ? tituloOrgao(c.orgao_sup) : "—"}</td>
-                    <td className="mp-num">
-                      {moedaCurta(c.pago)}
-                      {c.fatia !== null && c.pago > 0 && <span className="mp-tabela-secundario">{pct(c.fatia)} do pago a empresas</span>}
-                    </td>
-                    <td>
-                      {c.n_pagamentos > 0 ? n(c.n_pagamentos) : "nenhum"}
-                      {c.primeiro_pagamento && (
-                        <span className="mp-tabela-secundario">
-                          {c.ultimo_pagamento && c.ultimo_pagamento !== c.primeiro_pagamento ? (
-                            <>
-                              <span className="mp-nowrap">de {data(c.primeiro_pagamento)}</span>{" "}
-                              <span className="mp-nowrap">a {data(c.ultimo_pagamento)}</span>
-                            </>
-                          ) : (
-                            <span className="mp-nowrap">em {data(c.primeiro_pagamento)}</span>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                    <td className="mp-num">{c.n_contratos ? moedaCurta(c.contratado) : "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+                    )}
+                  </>
+                ),
+                contratado: c.n_contratos ? moedaCurta(c.contratado) : "—",
+              },
+            };
+          })}
+          ordemPadrao={{ coluna: "recebeu", sentido: "desc" }}
+          csv={csv("convenios")}
+        />
       </section>
 
-      <NoTce tce={tce} nomes={new Map([...Object.entries(tce?.nomes ?? {}), ...convenios.map((c) => [c.cod_ibge ?? "", c.municipio ?? ""] as [string, string])])} />
+      <NoTce
+        tce={tce}
+        nomes={new Map([...Object.entries(tce?.nomes ?? {}), ...convenios.map((c) => [c.cod_ibge ?? "", c.municipio ?? ""] as [string, string])])}
+        csv={csv("tce-pb")}
+      />
 
       {contratos.length > 0 && (
         <section aria-labelledby="forn-contratos" className="mp-radar-secao">
           <h2 id="forn-contratos" className="mp-radar-h2">
             Contratos
           </h2>
-          <TabelaRolagem rotuloId="forn-contratos">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Contrato</th>
-                  <th scope="col">Objeto</th>
-                  <th scope="col" className="mp-num">
-                    Valor
-                  </th>
-                  <th scope="col">Vigência</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contratos.map((k, ordem) => (
-                  <tr key={`${k.id_licitacao}-${k.id_contrato}-${ordem}`}>
-                    <th scope="row">
+          <TabelaFiltravel
+            id="contratos"
+            rotulo="Contratos"
+            colunas={COLUNAS_CONTRATOS_DO_FORNECEDOR}
+            linhas={contratos.map(
+              (k, ordem): LinhaTabela => ({
+                chave: `${k.id_licitacao}-${k.id_contrato}-${ordem}`,
+                valores: valoresDoContrato(k),
+                celulas: {
+                  convenio: (
+                    <>
                       <LinkMapa href={urlInstrumento(k.nr_convenio)}>convênio nº {k.nr_convenio}</LinkMapa>
                       <span className="mp-tabela-secundario">
                         contrato nº {k.nr_contrato ?? k.id_contrato}
                         {k.dt_assinatura ? ` · assinado em ${data(k.dt_assinatura)}` : ""}
                       </span>
-                    </th>
-                    <td>
+                    </>
+                  ),
+                  objeto: (
+                    <>
                       {k.objeto ?? "—"}
                       {k.tipo_aquisicao && <span className="mp-tabela-secundario">{k.tipo_aquisicao}</span>}
-                    </td>
-                    <td className="mp-num">{moedaCurta(k.valor)}</td>
-                    <td>{k.dt_inicio_vigencia || k.dt_fim_vigencia ? `${data(k.dt_inicio_vigencia)} a ${data(k.dt_fim_vigencia)}` : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+                    </>
+                  ),
+                  valor: moedaCurta(k.valor),
+                  "fim-vigencia": (
+                    <>
+                      {data(k.dt_fim_vigencia)}
+                      {k.dt_inicio_vigencia && <span className="mp-tabela-secundario">desde {data(k.dt_inicio_vigencia)}</span>}
+                    </>
+                  ),
+                },
+              }),
+            )}
+            ordemPadrao={{ coluna: "assinatura", sentido: "asc" }}
+            csv={csv("contratos")}
+          />
         </section>
       )}
 
@@ -421,16 +434,9 @@ function SancoesCgu({ cnpj, sancoes }: { cnpj: string; sancoes: EntradaSancoes |
  * O que as despesas dos municípios no TCE-PB registram pago à empresa com dinheiro federal: fonte de
  * convênio, Pix e, onde há par no SICONV, o resto. Casado pelo CNPJ e pelo ano.
  */
-function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string, string> }) {
+function NoTce({ tce, nomes, csv }: { tce: TceDoFornecedor | null; nomes: Map<string, string>; csv: { nome: string } }) {
   const municipio = (ibge: string) => nomes.get(ibge) || `IBGE ${ibge}`;
-  const linhas: { chave: string; ibge: string; ano: number; par: TceFederalPar | null; pix: TcePixCredor | null }[] = [];
-  if (tce) {
-    const pix = new Map(tce.pix.map((x) => [`${x.ibge}-${x.ano}`, x]));
-    for (const p of tce.pares) linhas.push({ chave: `${p.ibge}-${p.ano}`, ibge: p.ibge, ano: p.ano, par: p, pix: pix.get(`${p.ibge}-${p.ano}`) ?? null });
-    const vistos = new Set(linhas.map((l) => l.chave));
-    for (const x of tce.pix) if (!vistos.has(`${x.ibge}-${x.ano}`)) linhas.push({ chave: `${x.ibge}-${x.ano}`, ibge: x.ibge, ano: x.ano, par: null, pix: x });
-  }
-  linhas.sort((a, b) => b.ano - a.ano || municipio(a.ibge).localeCompare(municipio(b.ibge), "pt-BR"));
+  const linhas = tce ? linhasTceDoFornecedor(tce.pares, tce.pix, municipio) : [];
   return (
     <section aria-labelledby="forn-tce" className="mp-radar-secao">
       <h2 id="forn-tce" className="mp-radar-h2">
@@ -445,38 +451,25 @@ function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string,
           O TCE-PB não registra pagamento a esta empresa com dinheiro federal (convênio ou Pix) nos arquivos lidos, desde 2024.
         </p>
       ) : (
-        <TabelaRolagem rotuloId="forn-tce">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Município</th>
-                <th scope="col">Ano</th>
-                <th scope="col" className="mp-num">
-                  TCE-PB
-                </th>
-                <th scope="col" className="mp-num">
-                  SICONV
-                </th>
-                <th scope="col">Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l) => (
-                <tr key={l.chave}>
-                  <th scope="row">
-                    <LinkMapa href={urlTce(l.ibge)}>{municipio(l.ibge)}</LinkMapa>
-                  </th>
-                  <td>{l.ano}</td>
-                  <td className="mp-num">
-                    <ValorTce par={l.par} pix={l.pix} />
-                  </td>
-                  <td className="mp-num">{l.par && l.par.siconv > 0 ? moedaCurta(l.par.siconv) : "—"}</td>
-                  <td>{l.par ? ROTULO_SITUACAO[l.par.situacao] : "Pix"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id="tce"
+          rotulo="Nas contas dos municípios no TCE-PB"
+          colunas={COLUNAS_TCE_DO_FORNECEDOR}
+          linhas={linhas.map(
+            (l): LinhaTabela => ({
+              chave: l.chave,
+              valores: valoresDaLinhaTce(l),
+              celulas: {
+                municipio: <LinkMapa href={urlTce(l.ibge)}>{l.municipio}</LinkMapa>,
+                ano: String(l.ano),
+                tce: <ValorTce l={l} />,
+                siconv: l.siconv !== null ? moedaCurta(l.siconv) : "—",
+              },
+            }),
+          )}
+          ordemPadrao={{ coluna: "ano", sentido: "desc" }}
+          csv={csv}
+        />
       )}
       <p className="pa-nota">
         Despesas abertas do TCE-PB desde 2024: fontes 700, 631 e 570 (convênios da União) e 706 (Pix). O TCE-PB não traz o número do
@@ -487,30 +480,14 @@ function NoTce({ tce, nomes }: { tce: TceDoFornecedor | null; nomes: Map<string,
 }
 
 /** O total pago pelo município à empresa no TCE-PB e, embaixo, quanto foi de convênio federal e de Pix. */
-function ValorTce({ par, pix }: { par: TceFederalPar | null; pix: TcePixCredor | null }) {
-  const convenio = par?.tce_convenio ?? 0;
-  const doPix = pix?.pago ?? par?.tce_pix ?? 0;
-  const total = par ? par.tce_convenio + par.tce_pix + par.tce_outras : doPix;
-  if (total <= 0) return <>—</>;
+function ValorTce({ l }: { l: LinhaTceFornecedor }) {
+  if (l.total <= 0) return <>—</>;
   return (
     <>
-      {moedaCurta(total)}
-      {convenio > 0 && <span className="mp-tabela-secundario">{moedaCurta(convenio)} de convênio</span>}
-      {doPix > 0 && <span className="mp-tabela-secundario">{moedaCurta(doPix)} do Pix</span>}
-      {par && par.tce_outras > 0 && <span className="mp-tabela-secundario">{moedaCurta(par.tce_outras)} de outras fontes</span>}
+      {moedaCurta(l.total)}
+      {l.convenio > 0 && <span className="mp-tabela-secundario">{moedaCurta(l.convenio)} de convênio</span>}
+      {l.pix > 0 && <span className="mp-tabela-secundario">{moedaCurta(l.pix)} do Pix</span>}
+      {l.outras > 0 && <span className="mp-tabela-secundario">{moedaCurta(l.outras)} de outras fontes</span>}
     </>
   );
-}
-
-/** Soma por município do proponente, do que mais recebeu ao que menos. */
-function porMunicipio(cs: FornecedorConvenio[]): { chave: string; nome: string; convenios: number; pago: number }[] {
-  const m = new Map<string, { chave: string; nome: string; convenios: number; pago: number }>();
-  for (const c of cs) {
-    const chave = c.cod_ibge ?? "?";
-    const x = m.get(chave) ?? { chave, nome: c.municipio ?? "Município não informado", convenios: 0, pago: 0 };
-    x.convenios += 1;
-    x.pago += c.pago;
-    m.set(chave, x);
-  }
-  return [...m.values()].sort((a, b) => b.pago - a.pago);
 }

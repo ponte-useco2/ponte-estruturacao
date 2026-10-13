@@ -2,10 +2,16 @@
  * O laudo de um convênio em cláusula suspensiva: situação em uma frase, riscos, estratégia, custo da
  * inação, causas, linha do tempo com o texto do concedente, quem analisou e os documentos.
  * Recebe a leitura pronta (lib/oportunidades/laudo.ts); aqui só se apresenta.
+ *
+ * Onda 15, fase 2, lote B (13/10/2026): "Quem analisou" e a lista dos documentos são tabelas com filtro e ordem em cada
+ * coluna (`TabelaFiltravel`; tela do cliente e do administrador, toda coluna ordena). O período e o documento juntam
+ * dois dados cada: ficam desenhados como eram, e o primeiro e o último ato, o arquivo e o "vencido" filtram nas colunas
+ * ocultas. O cliente não recebe nome de servidor (`dossieSemNomes`), e então a tabela dos analistas nem aparece.
  */
 import type { ReactNode } from "react";
 import { rotuloModalidade, urlDoMunicipio, urlInstrumento } from "@/lib/oportunidades/busca";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/datas";
 import {
   agruparLinha,
   diasEntre as diasEntreDias,
@@ -19,12 +25,13 @@ import {
 } from "@/lib/oportunidades/laudo";
 import type { ContextoPainel } from "@/lib/oportunidades/laudo.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { eloInstrumento, trilha } from "@/lib/oportunidades/trilha";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
 import { Termo } from "../../../_componentes/Termo";
 import { Trilha } from "../../../_componentes/Trilha";
-import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 
 const AVISO =
   "Leitura automática de registros públicos do Transferegov (Acesso Livre e dados abertos). Não substitui o termo assinado, " +
@@ -296,8 +303,8 @@ export function LaudoConteudo({
       </section>
 
       <LinhaDoTempoSecao linha={laudo.linha} />
-      <AnalistasSecao analistas={laudo.analistas} />
-      <DocumentosSecao documentos={laudo.documentos} lista={dossie.documentos} hoje={hoje} referencia={laudo.referencia} />
+      <AnalistasSecao analistas={laudo.analistas} numero={numero} />
+      <DocumentosSecao documentos={laudo.documentos} lista={dossie.documentos} hoje={hoje} referencia={laudo.referencia} numero={numero} />
 
       <section aria-labelledby="laudo-fonte" className="mp-radar-secao">
         <h2 id="laudo-fonte" className="mp-radar-h2">
@@ -376,46 +383,65 @@ export function LinhaDoTempoSecao({ linha, proponente = "município" }: { linha:
   );
 }
 
-/** Quem analisou do lado do concedente: nome e atribuição como registrados, sem contato pessoal. */
-export function AnalistasSecao({ analistas }: { analistas: Laudo["analistas"] }) {
+// ================================================================ as tabelas com filtro (onda 15, fase 2, lote B, 13/10/2026)
+
+/** Quem analisou: o período ("de … a …") fica desenhado; o primeiro e o último ato filtram e ordenam nas ocultas. */
+const COLUNAS_ANALISTAS: ColunaTabela[] = [
+  { id: "pessoa", titulo: "Pessoa", tipo: "texto" },
+  { id: "atribuicao", titulo: "Atribuição", tipo: "categoria" },
+  { id: "atos", titulo: "Atos", tipo: "numero", alinhar: "direita" },
+  { id: "complementacao", titulo: "Pediu complementação", tipo: "numero", alinhar: "direita" },
+  { id: "atendido", titulo: "Deu por atendido", tipo: "numero", alinhar: "direita" },
+  { id: "periodo", titulo: "Período", tipo: "texto", filtravel: false, ordenavel: false, semCsv: true },
+  { id: "primeiro", titulo: "Primeiro ato", tipo: "data", oculta: true },
+  { id: "ultimo", titulo: "Último ato", tipo: "data", oculta: true },
+];
+
+/** Os documentos: o arquivo, que a célula junta à descrição, e o "vencido", que pinta a validade, filtram à parte. */
+const COLUNAS_DOCUMENTOS: ColunaTabela[] = [
+  { id: "documento", titulo: "Documento", tipo: "texto" },
+  { id: "arquivo", titulo: "Arquivo", tipo: "texto", oculta: true },
+  { id: "grupo", titulo: "Grupo", tipo: "categoria" },
+  { id: "enviado", titulo: "Enviado em", tipo: "data" },
+  { id: "validade", titulo: "Validade", tipo: "data" },
+  { id: "vencido", titulo: "Vencido", tipo: "categoria", oculta: true },
+];
+
+/**
+ * Quem analisou do lado do concedente: nome e atribuição como registrados, sem contato pessoal. Só o administrador vê
+ * nomes (o cliente recebe o dossiê sem eles, e a lista sai vazia). Padrão: de quem mais agiu para quem menos (a ordem
+ * da leitura, `lerAnalistas`); empate pelo nome.
+ */
+export function AnalistasSecao({ analistas, numero }: { analistas: Laudo["analistas"]; numero?: string }) {
   if (!analistas.length) return null;
+  const linhas: LinhaTabela[] = analistas.map((a) => ({
+    chave: a.nome,
+    valores: {
+      pessoa: a.nome,
+      atribuicao: a.atribuicao,
+      atos: a.atos,
+      complementacao: a.exigencias,
+      atendido: a.atendimentos,
+      periodo: a.primeiro === a.ultimo ? data(a.primeiro) : `${data(a.primeiro)} a ${data(a.ultimo)}`,
+      primeiro: a.primeiro,
+      ultimo: a.ultimo,
+    },
+    celulas: {},
+  }));
   return (
     <section aria-labelledby="laudo-analistas" className="mp-radar-secao">
       <h2 id="laudo-analistas" className="mp-radar-h2">
         Quem analisou
       </h2>
-      <TabelaRolagem rotuloId="laudo-analistas">
-        <table className="mp-tabela mp-tabela-empilha">
-          <thead>
-            <tr>
-              <th scope="col">Pessoa</th>
-              <th scope="col">Atribuição</th>
-              <th scope="col" className="mp-num">
-                Atos
-              </th>
-              <th scope="col" className="mp-num">
-                Pediu complementação
-              </th>
-              <th scope="col" className="mp-num">
-                Deu por atendido
-              </th>
-              <th scope="col">Período</th>
-            </tr>
-          </thead>
-          <tbody>
-            {analistas.map((a) => (
-              <tr key={a.nome}>
-                <th scope="row">{a.nome}</th>
-                <td data-rotulo="Atribuição">{a.atribuicao ?? "—"}</td>
-                <td data-rotulo="Atos" className="mp-num">{n(a.atos)}</td>
-                <td data-rotulo="Pediu complementação" className="mp-num">{n(a.exigencias)}</td>
-                <td data-rotulo="Deu por atendido" className="mp-num">{n(a.atendimentos)}</td>
-                <td data-rotulo="Período">{a.primeiro === a.ultimo ? data(a.primeiro) : `${data(a.primeiro)} a ${data(a.ultimo)}`}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TabelaRolagem>
+      <TabelaFiltravel
+        id="laudo-analistas"
+        rotulo="Quem analisou"
+        colunas={COLUNAS_ANALISTAS}
+        linhas={linhas}
+        ordemPadrao={{ coluna: "atos", sentido: "desc" }}
+        csv={{ nome: numero ? `quem-analisou-${numero}` : "quem-analisou" }}
+        empilhar
+      />
       <p className="pa-nota">Nomes e atribuições como registrados no Transferegov. Contatos pessoais não são coletados.</p>
     </section>
   );
@@ -424,17 +450,24 @@ export function AnalistasSecao({ analistas }: { analistas: Laudo["analistas"] })
 /**
  * Os documentos anexados na aba de requisitos: o resumo e, aberta sob pedido, a lista.
  * `referencia`: o dia da coleta, para o vazio dizer até quando se olhou (o laudo da suspensiva passa; o diagnóstico, não).
+ *
+ * Onda 15, fase 2, lote B (13/10/2026): a lista é tabela com filtro e ordem em cada coluna; padrão, do envio mais
+ * recente ao mais antigo. O vencido, que antes pintava a linha inteira de vermelho (`mp-laudo-vencido`, que o componente
+ * não põe na linha), agora pinta só a validade (`mp-painel-urgente`, a mesma cor e o mesmo peso) e filtra numa coluna
+ * oculta. `numero`: o do convênio, para o nome do CSV.
  */
 export function DocumentosSecao({
   documentos,
   lista,
   hoje,
   referencia = null,
+  numero,
 }: {
   documentos: Laudo["documentos"];
   lista: ExigDocumento[];
   hoje: string;
   referencia?: string | null;
+  numero?: string;
 }) {
   return (
     <section aria-labelledby="laudo-documentos" className="mp-radar-secao">
@@ -461,34 +494,46 @@ export function DocumentosSecao({
           </p>
           <details className="mp-fiscal-detalhe">
             <summary>Ver a lista, do envio mais recente ao mais antigo</summary>
-            <TabelaRolagem rotuloId="laudo-documentos">
-              <table className="mp-tabela">
-                <thead>
-                  <tr>
-                    <th scope="col">Documento</th>
-                    <th scope="col">Grupo</th>
-                    <th scope="col">Enviado em</th>
-                    <th scope="col">Validade</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lista.map((d) => {
-                    const vencido = !!d.validade && d.validade < hoje;
-                    return (
-                      <tr key={d.ordem} className={vencido ? "mp-laudo-vencido" : undefined}>
-                        <th scope="row">
-                          <span className="mp-tabela-principal">{d.descricao ?? d.arquivo}</span>
-                          <span className="mp-tabela-secundario">{d.arquivo}</span>
-                        </th>
-                        <td>{d.grupo ?? "—"}</td>
-                        <td>{d.enviado_em ? formatarPublicacao(d.enviado_em) : "—"}</td>
-                        <td>{d.validade ? `${data(d.validade)}${vencido ? " · vencido" : ""}` : "sem validade"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </TabelaRolagem>
+            <TabelaFiltravel
+              id="laudo-documentos"
+              rotulo="Documentos anexados"
+              colunas={COLUNAS_DOCUMENTOS}
+              linhas={lista.map((d): LinhaTabela => {
+                const vencido = !!d.validade && d.validade < hoje;
+                return {
+                  chave: String(d.ordem),
+                  valores: {
+                    documento: d.descricao ?? d.arquivo,
+                    arquivo: d.arquivo,
+                    grupo: d.grupo,
+                    // O envio é um instante: o dia que filtra é o de Brasília, o mesmo que a célula mostra.
+                    enviado: d.enviado_em ? diaBrasilia(d.enviado_em) : null,
+                    validade: d.validade,
+                    vencido: d.validade ? (vencido ? "Sim" : "Não") : null,
+                  },
+                  celulas: {
+                    documento: (
+                      <>
+                        <span className="mp-tabela-principal">{d.descricao ?? d.arquivo}</span>
+                        <span className="mp-tabela-secundario">{d.arquivo}</span>
+                      </>
+                    ),
+                    enviado: d.enviado_em ? formatarPublicacao(d.enviado_em) : "—",
+                    validade: d.validade ? (
+                      vencido ? (
+                        <span className="mp-painel-urgente">{data(d.validade)} · vencido</span>
+                      ) : (
+                        data(d.validade)
+                      )
+                    ) : (
+                      "sem validade"
+                    ),
+                  },
+                };
+              })}
+              ordemPadrao={{ coluna: "enviado", sentido: "desc" }}
+              csv={{ nome: numero ? `documentos-${numero}` : "documentos" }}
+            />
           </details>
         </>
       )}

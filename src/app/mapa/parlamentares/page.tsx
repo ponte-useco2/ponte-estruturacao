@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { lerParlamentares } from "@/lib/oportunidades/emendas.server";
-import { tipoDaUrl, tituloParlamentares, urlParlamentares } from "@/lib/oportunidades/parlamentares-tela";
+import { tipoDaUrl, tipoDoEndereco, tituloParlamentares, urlParlamentares } from "@/lib/oportunidades/parlamentares-tela";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../busca/BuscaConteudo";
 import { ParlamentaresConteudo } from "./ParlamentaresConteudo";
@@ -11,11 +11,12 @@ const NAO_INDEXAR: Metadata["robots"] = { index: false, follow: false };
 
 /**
  * O título leva o tipo filtrado, que está no endereço (onda 14, parte 2, B, 13/10/2026): "Parlamentares · Comissão ·
- * Mapa de Oportunidades · PONTE". Não lê o banco nem a sessão.
+ * Mapa de Oportunidades · PONTE". Não lê o banco nem a sessão. Desde a onda 15, o tipo vem também do filtro da coluna
+ * "Tipo" da tabela (`tipoDoEndereco`).
  */
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
   const sp = await searchParams;
-  return { title: tituloParlamentares(tipoDaUrl(sp.tipo)), robots: NAO_INDEXAR };
+  return { title: tituloParlamentares(tipoDoEndereco(sp)), robots: NAO_INDEXAR };
 }
 
 /**

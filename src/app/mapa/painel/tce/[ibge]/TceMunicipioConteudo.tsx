@@ -1,6 +1,11 @@
 /**
  * Um município no TCE-PB: o Pix ano a ano (com as marcas do art. 166-A e as empresas) e a conciliação dos
  * convênios, empresa por empresa. Recebe a leitura pronta; aqui só se apresenta.
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): as empresas do Pix e os pares empresa × ano são a `TabelaFiltravel`, com filtro
+ * e ordem em cada coluna (a regra do titular; tela de administrador, toda coluna ordena). As células são as de antes; os
+ * valores crus e as colunas ocultas (o CNPJ, os convênios, o TCE-PB de convênio e do Pix) estão em `tce.ts`. O nome da
+ * empresa é o de `nomeFornecedor`, que mascara o CPF colado no nome do MEI. O Pix ano a ano é série curta e fica como está.
  */
 import { urlLaudo } from "@/lib/oportunidades/busca";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
@@ -8,12 +13,29 @@ import { cnpjLegivel, nomeFornecedor, urlFornecedor } from "@/lib/oportunidades/
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { urlFicha } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import { ROTULO_SITUACAO, marcasPix, pct, resumirConciliacao, urlTce, type SituacaoPar, type TceFederalPar } from "@/lib/oportunidades/tce";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import {
+  COLUNAS_TCE_EMPRESAS_PIX,
+  COLUNAS_TCE_PARES,
+  ROTULO_SITUACAO,
+  TABELA_TCE_EMPRESAS_PIX,
+  TABELA_TCE_PARES,
+  marcasPix,
+  pct,
+  resumirConciliacao,
+  urlTce,
+  valoresTceCredor,
+  valoresTcePar,
+  type SituacaoPar,
+  type TceFederalPar,
+  type TcePixCredor,
+} from "@/lib/oportunidades/tce";
 import type { LeituraTceMunicipio } from "@/lib/oportunidades/tce.server";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { AVISO_TCE } from "../TceConteudo";
 import { Saidas } from "../../Pecas";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 import { Termo } from "../../../_componentes/Termo";
 
@@ -132,38 +154,18 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
               ))}
             </ul>
             {leitura.credores.length > 0 && (
-              <TabelaRolagem rotulo="Empresas pagas com a fonte do Pix">
-                <table className="mp-tabela">
-                  <caption className="mp-laudo-legenda-tabela">Empresas pagas com a fonte do Pix</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Empresa</th>
-                      <th scope="col">Ano</th>
-                      <th scope="col" className="mp-num">
-                        Pago
-                      </th>
-                      <th scope="col" className="mp-num">
-                        Em investimentos
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...leitura.credores]
-                      .sort((a, b) => b.ano - a.ano || b.pago - a.pago)
-                      .map((c) => (
-                        <tr key={`${c.ano}-${c.cnpj}`}>
-                          <th scope="row">
-                            {nomeFornecedor(c)}
-                            <span className="mp-tabela-secundario">CNPJ {cnpjLegivel(c.cnpj)}</span>
-                          </th>
-                          <td>{c.ano}</td>
-                          <td className="mp-num">{moedaCurta(c.pago)}</td>
-                          <td className="mp-num">{c.pago_investimentos > 0 ? moedaCurta(c.pago_investimentos) : "—"}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </TabelaRolagem>
+              <>
+                {/* A legenda era o `<caption>` da tabela; com a tabela filtrável, vira o título da subseção. */}
+                <h3 className="mp-radar-h3">Empresas pagas com a fonte do Pix</h3>
+                <TabelaFiltravel
+                  id={TABELA_TCE_EMPRESAS_PIX}
+                  rotulo="Empresas pagas com a fonte do Pix"
+                  colunas={COLUNAS_TCE_EMPRESAS_PIX}
+                  linhas={[...leitura.credores].sort((a, b) => b.ano - a.ano || b.pago - a.pago).map(linhaCredor)}
+                  descricaoOrdemPadrao="do ano mais recente ao mais antigo e, no ano, do maior pago ao menor"
+                  csv={{ nome: `tce-pb-${leitura.ibge}-empresas-pix` }}
+                />
+              </>
             )}
           </>
         )}
@@ -184,28 +186,14 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
             <Saidas saidas={verTodos} />
           </p>
         ) : (
-          <TabelaRolagem rotuloId="tce-m-conc">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Empresa</th>
-                  <th scope="col">Ano</th>
-                  <th scope="col" className="mp-num">
-                    SICONV
-                  </th>
-                  <th scope="col" className="mp-num">
-                    TCE-PB
-                  </th>
-                  <th scope="col">Situação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pares.map((p) => (
-                  <LinhaPar key={`${p.ano}-${p.cnpj}`} p={p} />
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaFiltravel
+            id={TABELA_TCE_PARES}
+            rotulo="Convênios: SICONV × TCE-PB, empresa por empresa"
+            colunas={COLUNAS_TCE_PARES}
+            linhas={pares.map(linhaPar)}
+            descricaoOrdemPadrao="o que pede olhar primeiro (só no SICONV, só no TCE-PB, não verificado, os casados), depois o ano mais recente e o maior valor"
+            csv={{ nome: `tce-pb-${leitura.ibge}-conciliacao` }}
+          />
         )}
       </section>
 
@@ -235,40 +223,71 @@ export function TceMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
   );
 }
 
-function LinhaPar({ p }: { p: TceFederalPar }) {
+/** A empresa como a tela escreve: o nome sem CPF (`nomeFornecedor`) e o CNPJ com pontuação. */
+const identificacao = (x: { nome: string | null; cnpj: string }) => ({ nome: nomeFornecedor(x), cnpj: cnpjLegivel(x.cnpj) ?? x.cnpj });
+
+/** Uma empresa paga com o Pix: os valores de `tce.ts` e as células de antes (onda 15, fase 2, lote C, 13/10/2026). */
+function linhaCredor(c: TcePixCredor): LinhaTabela {
+  const id = identificacao(c);
+  return {
+    chave: `${c.ano}-${c.cnpj}`,
+    valores: valoresTceCredor(c, id),
+    celulas: {
+      empresa: (
+        <>
+          {id.nome}
+          <span className="mp-tabela-secundario">CNPJ {id.cnpj}</span>
+        </>
+      ),
+      ano: String(c.ano),
+      pago: moedaCurta(c.pago),
+      investimentos: c.pago_investimentos > 0 ? moedaCurta(c.pago_investimentos) : "—",
+    },
+  };
+}
+
+/** Um par empresa × ano da conciliação: os valores de `tce.ts` e as células de antes (onda 15, fase 2, lote C, 13/10/2026). */
+function linhaPar(p: TceFederalPar): LinhaTabela {
   const tce = p.tce_convenio + p.tce_pix + p.tce_outras;
   const nivel = NIVEL[p.situacao];
-  return (
-    <tr>
-      <th scope="row">
-        {p.siconv > 0 ? (
-          <LinkMapa href={urlFornecedor(p.cnpj)} className="mp-tabela-principal">
-            {nomeFornecedor(p)}
-          </LinkMapa>
-        ) : (
-          <span className="mp-tabela-principal">{nomeFornecedor(p)}</span>
-        )}
-        <span className="mp-tabela-secundario">CNPJ {cnpjLegivel(p.cnpj)}</span>
-        {p.convenios.length > 0 && (
-          <span className="mp-tabela-secundario">
-            {p.convenios.slice(0, 4).map((nr, k) => (
-              <span key={nr}>
-                {k > 0 ? ", " : ""}
-                <LinkMapa href={urlLaudo(nr)}>nº {nr}</LinkMapa>
-              </span>
-            ))}
-            {p.convenios.length > 4 ? ` e mais ${n(p.convenios.length - 4)}` : ""}
-          </span>
-        )}
-      </th>
-      <td>{p.ano}</td>
-      <td className="mp-num">{p.siconv > 0 ? moedaCurta(p.siconv) : "—"}</td>
-      <td className="mp-num">
-        {tce > 0 ? moedaCurta(tce) : "—"}
-        {p.tce_convenio > 0 && tce !== p.tce_convenio && <span className="mp-tabela-secundario">{moedaCurta(p.tce_convenio)} de convênio</span>}
-        {p.tce_pix > 0 && <span className="mp-tabela-secundario">{moedaCurta(p.tce_pix)} do Pix</span>}
-      </td>
-      <td>{nivel ? <span className={`pa-tag mp-laudo-nivel mp-laudo-${nivel}`}>{ROTULO_SITUACAO[p.situacao]}</span> : ROTULO_SITUACAO[p.situacao]}</td>
-    </tr>
-  );
+  const id = identificacao(p);
+  return {
+    chave: `${p.ano}-${p.cnpj}`,
+    valores: valoresTcePar(p, id),
+    celulas: {
+      empresa: (
+        <>
+          {p.siconv > 0 ? (
+            <LinkMapa href={urlFornecedor(p.cnpj)} className="mp-tabela-principal">
+              {id.nome}
+            </LinkMapa>
+          ) : (
+            <span className="mp-tabela-principal">{id.nome}</span>
+          )}
+          <span className="mp-tabela-secundario">CNPJ {id.cnpj}</span>
+          {p.convenios.length > 0 && (
+            <span className="mp-tabela-secundario">
+              {p.convenios.slice(0, 4).map((nr, k) => (
+                <span key={nr}>
+                  {k > 0 ? ", " : ""}
+                  <LinkMapa href={urlLaudo(nr)}>nº {nr}</LinkMapa>
+                </span>
+              ))}
+              {p.convenios.length > 4 ? ` e mais ${n(p.convenios.length - 4)}` : ""}
+            </span>
+          )}
+        </>
+      ),
+      ano: String(p.ano),
+      siconv: p.siconv > 0 ? moedaCurta(p.siconv) : "—",
+      tce: (
+        <>
+          {tce > 0 ? moedaCurta(tce) : "—"}
+          {p.tce_convenio > 0 && tce !== p.tce_convenio && <span className="mp-tabela-secundario">{moedaCurta(p.tce_convenio)} de convênio</span>}
+          {p.tce_pix > 0 && <span className="mp-tabela-secundario">{moedaCurta(p.tce_pix)} do Pix</span>}
+        </>
+      ),
+      situacao: nivel ? <span className={`pa-tag mp-laudo-nivel mp-laudo-${nivel}`}>{ROTULO_SITUACAO[p.situacao]}</span> : ROTULO_SITUACAO[p.situacao],
+    },
+  };
 }

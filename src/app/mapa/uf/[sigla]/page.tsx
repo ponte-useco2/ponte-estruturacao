@@ -57,8 +57,9 @@ export async function generateMetadata({ params, searchParams }: Parametros): Pr
  * (`?ordem=sinais`); para os outros, a lista é neutra (ranking público rejeitado em 02/10).
  *
  * C4a (09/10/2026): com a chave `MAPA_PUBLICO` ligada, também o público, com nível 0 (D1: a UF em resumo). As abas de
- * nível 1 somem pelo `minimo` de `ABAS_UF`, e o "Dinheiro federal" já mostra ao nível 0 só os 10 maiores órgãos. A
- * leitura é a de quem não é administrador: sem a decisão B do fiscal e sem os sinais do painel.
+ * nível 1 somem pelo `minimo` de `ABAS_UF`. Desde a onda 15 (13/10/2026), o "Dinheiro federal" mostra ao nível 0 todos
+ * os órgãos, em ordem alfabética e sem ordenar por valor (era "os 10 maiores"). A leitura é a de quem não é
+ * administrador: sem a decisão B do fiscal e sem os sinais do painel.
  */
 export default async function UfPage({ params, searchParams }: Parametros) {
   const [{ sigla: bruto }, sp] = await Promise.all([params, searchParams]);
@@ -96,7 +97,7 @@ export default async function UfPage({ params, searchParams }: Parametros) {
       <ConvitePublico
         sessao={acesso.sessao}
         caminho={urlUf(sigla, aba)}
-        acao={`ver também as abas ${abasSoComCadastro(ABAS_UF)} (com o relatório completo para imprimir ou salvar em PDF e o CSV) e o dinheiro federal completo, com todos os órgãos, os temas, o Pix e o fundo a fundo`}
+        acao={`ver também as abas ${abasSoComCadastro(ABAS_UF)} (com o relatório completo para imprimir ou salvar em PDF e o CSV) e, no dinheiro federal, os temas, o Pix e o fundo a fundo`}
       />
       <UfConteudo l={leitura} aba={aba} nivel={nivel} porSinais={porSinais} />
     </>

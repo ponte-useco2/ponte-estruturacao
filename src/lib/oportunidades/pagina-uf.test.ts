@@ -1,9 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  COLUNAS_TEMAS,
+  TABELA_MUNICIPIOS_UF,
   abaDaUf,
   ancoraRegiao,
+  colunaDeNumero,
+  colunasEntidades,
+  colunasMunicipiosUf,
+  colunasOrgaos,
+  colunasTemposOrgao,
+  emOrdemAlfabetica,
   etapasComparadas,
+  idDaEtapa,
+  ordemLivre,
+  urlMunicipiosDaRegiao,
+  urlMunicipiosPorSinais,
+  valoresDaEntidade,
+  valoresDoMunicipioUf,
+  valoresDoOrgaoComparado,
   fontesDaUf,
   funil,
   indicadoresDaUf,
@@ -30,7 +45,9 @@ import {
   type MunicipioUf,
 } from "./pagina-uf.ts";
 import type { ItemCatalogo } from "./indicadores-municipio.ts";
-import { MINIMO_MEDICOES, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
+import type { NivelAcesso } from "./pagina-municipio.ts";
+import { ETAPAS_CAMINHO, MINIMO_MEDICOES, type LinhaDesfecho, type LinhaEtapa } from "./painel.ts";
+import { aplicar, idValido, lerEstado, type ColunaTabela, type LinhaTabela } from "./tabela-filtro.ts";
 
 const t = (recorte: string, dimensao: LinhaTerritorio["dimensao"], chave: string, n: number, valor: number, vivo: boolean | null = null, extra: Partial<LinhaTerritorio> = {}): LinhaTerritorio => ({
   recorte, dimensao, chave, vivo, n, em_execucao: 0, valor, desembolsado: 0, municipios: null, proponentes: null, ...extra,
@@ -256,4 +273,114 @@ test("C1a: fontes só do que a página leu, com a data do dado, e o método com 
   assert.match(metodo, /regiões do IBGE/);
   assert.match(metodoDaUf(false).join(" "), /só os instrumentos vivos/);
   assert.match(metodoDaUf(true, true).join(" "), /Uso interno/);
+});
+
+// ================================================================ as tabelas filtráveis (onda 15, fase 2, lote A, 13/10/2026)
+
+const ids = (cs: ColunaTabela[]) => cs.map((c) => c.id);
+const ordenaveis = (cs: ColunaTabela[]) => cs.filter((c) => c.ordenavel !== false).map((c) => c.id);
+function idsValidosEUnicos(cs: ColunaTabela[]) {
+  for (const c of cs) assert.ok(idValido(c.id), `id que não cabe no endereço: ${c.id}`);
+  assert.equal(new Set(ids(cs)).size, cs.length, "id repetido");
+}
+
+test("onda 15: só o administrador ordena por número; a coluna de número do público filtra e não ordena", () => {
+  assert.deepEqual(([0, 1, 2, 3] as NivelAcesso[]).map(ordemLivre), [false, false, false, true]);
+  assert.equal(colunaDeNumero("v", "Valor", false).ordenavel, false);
+  assert.equal(colunaDeNumero("v", "Valor", true).ordenavel, undefined, "sem a marca, ordena (o padrão do contrato)");
+  assert.equal(colunaDeNumero("v", "Valor", false).alinhar, "direita");
+  assert.deepEqual(emOrdemAlfabetica(["Areia", "Zabelê", "alhandra", "Água Branca"], (x) => x), ["Água Branca", "alhandra", "Areia", "Zabelê"]);
+});
+
+test("onda 15: os municípios da UF numa tabela só; o fiscal e os sinais só para o administrador da PB", () => {
+  for (const nivel of [0, 1, 2] as NivelAcesso[]) {
+    const cs = colunasMunicipiosUf(true, nivel);
+    idsValidosEUnicos(cs);
+    assert.ok(!ids(cs).includes("transferencia") && !ids(cs).includes("sinais"), `nível ${nivel}: sem as colunas do administrador`);
+    assert.deepEqual(ordenaveis(cs), ["municipio", "ibge", "regiao", "intermediaria", "porte"], `nível ${nivel}: valor e contagem não ordenam`);
+  }
+  const adm = colunasMunicipiosUf(true, 3);
+  idsValidosEUnicos(adm);
+  assert.deepEqual(ids(adm).slice(-2), ["transferencia", "sinais"]);
+  assert.equal(ordenaveis(adm).length, adm.length, "o administrador ordena por qualquer coluna");
+  assert.equal(adm.find((c) => c.id === "regiao")?.tipo, "categoria", "a região imediata, que agrupava, é categoria");
+  assert.equal(adm.find((c) => c.id === "ibge")?.oculta, true);
+  assert.deepEqual(
+    ids(colunasMunicipiosUf(false, 3)),
+    ["municipio", "ibge", "instrumentos", "em-execucao", "valor-execucao"],
+    "fora da PB: sem região, porte, população, OSC nem as do administrador",
+  );
+});
+
+test("onda 15: os valores do município nunca levam o fiscal nem os sinais a quem não é administrador", () => {
+  const m: MunicipioUf = {
+    ibge: "2510808", nome: "Patos", populacao: 108_000, porte: "grande", regiao: "Patos", intermediaria: "Patos", instrumentos: 10, em_execucao: 2,
+    valor_execucao: 3e6, osc_ativas: 40, decisao_b: "nao_atendido", sinais: 4,
+  };
+  for (const nivel of [0, 1, 2] as NivelAcesso[]) {
+    const v = valoresDoMunicipioUf(m, true, nivel);
+    assert.ok(!("transferencia" in v) && !("sinais" in v), `nível ${nivel}: a linha vai ao navegador sem o dado do administrador`);
+    assert.deepEqual(Object.keys(v).sort(), ids(colunasMunicipiosUf(true, nivel)).sort(), "um valor por coluna, nenhum a mais");
+  }
+  const adm = valoresDoMunicipioUf(m, true, 3);
+  assert.equal(adm.transferencia, "Bloqueada");
+  assert.equal(adm.sinais, 4);
+  assert.deepEqual(Object.keys(adm).sort(), ids(colunasMunicipiosUf(true, 3)).sort());
+  assert.deepEqual(Object.keys(valoresDoMunicipioUf(m, false, 3)).sort(), ids(colunasMunicipiosUf(false, 3)).sort(), "fora da PB, nem região nem fiscal");
+  assert.equal(valoresDoMunicipioUf({ ...m, decisao_b: null, sinais: null }, true, 3).transferencia, null);
+});
+
+test("onda 15: o índice das regiões filtra a tabela, e o ?ordem=sinais antigo vira a ordem da coluna (só do administrador)", () => {
+  const regiao = urlMunicipiosDaRegiao("PB", "Sousa - Cajazeiras");
+  assert.ok(regiao.startsWith("/mapa/uf/pb?aba=municipios&"), regiao);
+  const sp = new URLSearchParams(regiao.split("?")[1]);
+  assert.equal(sp.get("aba"), "municipios", "a aba continua no endereço");
+  assert.deepEqual(lerEstado(TABELA_MUNICIPIOS_UF, colunasMunicipiosUf(true, 0), sp).filtros.regiao, { tipo: "categoria", valores: ["Sousa - Cajazeiras"] });
+  const sinais = new URLSearchParams(urlMunicipiosPorSinais("PB").split("?")[1]);
+  assert.deepEqual(lerEstado(TABELA_MUNICIPIOS_UF, colunasMunicipiosUf(true, 3), sinais).ordem, { coluna: "sinais", sentido: "desc" });
+  assert.equal(lerEstado(TABELA_MUNICIPIOS_UF, colunasMunicipiosUf(true, 1), sinais).ordem, null, "para os outros, a coluna nem existe");
+  const porValor = new URLSearchParams("aba=municipios&t.municipios.o=valor-execucao.desc");
+  assert.equal(lerEstado(TABELA_MUNICIPIOS_UF, colunasMunicipiosUf(true, 0), porValor).ordem, null, "o público não ordena por valor nem pelo endereço");
+  assert.deepEqual(lerEstado(TABELA_MUNICIPIOS_UF, colunasMunicipiosUf(true, 3), porValor).ordem, { coluna: "valor-execucao", sentido: "desc" });
+});
+
+test("onda 15: entidades, órgãos e temas; no público, o número filtra, mas não ordena", () => {
+  const ent = colunasEntidades({ grupo: true, sede: true, livre: false });
+  idsValidosEUnicos(ent);
+  assert.deepEqual(ordenaveis(ent), ["entidade", "cnpj", "grupo", "especie", "sede", "mais-recente"], "o ano mais recente não é valor nem contagem");
+  assert.equal(ent.find((c) => c.id === "cnpj")?.oculta, true);
+  assert.equal(ent.find((c) => c.id === "cnpj")?.textoNoCsv, true);
+  assert.deepEqual(ids(colunasEntidades({ livre: false })), ["entidade", "cnpj", "especie", "instrumentos", "em-execucao", "valor", "mais-recente"]);
+  assert.equal(ordenaveis(colunasEntidades({ livre: true })).length, 7);
+  const v = valoresDaEntidade({ cnpj: "08885692000104", nome: "UEPB", especie: "Universidade", instrumentos: 2, emExecucao: 1, valor: 10, ultimoAno: 2024, sede: null });
+  assert.deepEqual(Object.keys(v).sort(), ids(colunasEntidades({ sede: true, livre: false })).sort());
+
+  const org = colunasOrgaos(false);
+  idsValidosEUnicos(org);
+  assert.deepEqual(ordenaveis(org), ["orgao"]);
+  assert.equal(ordenaveis(colunasOrgaos(true)).length, org.length);
+  const linhas: LinhaTabela[] = [
+    { chave: "a", valores: { orgao: "Ministério A", valor: 1 }, celulas: {} },
+    { chave: "b", valores: { orgao: "Ministério B", valor: 9 }, celulas: {} },
+  ];
+  assert.equal(lerEstado("orgaos", org, new URLSearchParams("t.orgaos.o=valor.desc")).ordem, null, "a ordem por valor vinda do endereço é ignorada");
+  assert.deepEqual(aplicar(org, linhas, { filtros: {}, ordem: { coluna: "valor", sentido: "desc" } }).map((l) => l.chave), ["a", "b"]);
+  assert.deepEqual(aplicar(org, linhas, lerEstado("orgaos", org, new URLSearchParams("t.orgaos.valor=5.."))).map((l) => l.chave), ["b"], "mas o filtro vale");
+
+  idsValidosEUnicos(COLUNAS_TEMAS);
+  assert.equal(ordenaveis(COLUNAS_TEMAS).length, COLUNAS_TEMAS.length, "por tema é do cadastro: ordena por qualquer coluna");
+});
+
+test("onda 15: tempos por órgão, uma coluna por etapa com id que cabe no endereço, e a do Brasil oculta", () => {
+  assert.equal(idDaEtapa("envio_aprovacao"), "envio-aprovacao");
+  const cs = colunasTemposOrgao(ETAPAS_CAMINHO);
+  idsValidosEUnicos(cs);
+  assert.equal(cs.length, 2 + 2 * ETAPAS_CAMINHO.length);
+  assert.ok(cs.filter((c) => c.id.startsWith("br-")).every((c) => c.oculta === true));
+  assert.ok(cs.filter((c) => c.id.startsWith("uf-")).every((c) => !c.oculta && /\(dias\)$/.test(c.titulo)));
+  const v = valoresDoOrgaoComparado(
+    { chave: "X", rotulo: "X", lentas: 1, etapas: [{ etapa: "envio_aprovacao", rotulo: "", uf: 120.6, br: 80.2, medicoes: 9, lento: true }] },
+    "Ministério X",
+  );
+  assert.deepEqual(v, { orgao: "Ministério X", lentas: 1, "uf-envio-aprovacao": 121, "br-envio-aprovacao": 80 }, "o dia arredondado, como a célula mostra");
 });

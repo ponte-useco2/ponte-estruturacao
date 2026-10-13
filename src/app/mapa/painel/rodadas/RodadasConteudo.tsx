@@ -12,9 +12,15 @@
  *
  * Os municípios (12/10/2026, onda 12, C): o mês do Caged, com as outras fontes como detalhe. O link do GitHub só é
  * desenhado se for do próprio GitHub (`urlDoGithub`).
+ *
+ * Onda 15, fase 2, lote C (13/10/2026): a tabela dos jobs é a `TabelaFiltravel`, com filtro e ordem em cada coluna (a
+ * regra do titular; tela de administrador, toda coluna ordena). As células são as de antes; os valores crus e as colunas
+ * ocultas (a tabela no banco, as horas desde a concluída, a situação do dado e o workflow) estão em `rodadas.ts`. A ordem
+ * padrão continua a de `JOBS_RODADAS`. A tabela dos 8 workflows é de método e fica como está.
  */
 import { WORKFLOWS } from "@/lib/oportunidades/agendamento";
 import {
+  COLUNAS_RODADAS,
   ESTADOS,
   FOLGA_PADRAO_H,
   JOBS_RODADAS,
@@ -22,6 +28,7 @@ import {
   MARCA_ESTADO,
   ROTULO_CADENCIA,
   ROTULO_ESTADO,
+  TABELA_RODADAS,
   TOM_ESTADO,
   WORKFLOWS_DAS_RODADAS,
   contarEstados,
@@ -38,13 +45,16 @@ import {
   textoPrazo,
   textoUnidade,
   urlDoGithub,
+  valoresDaRodada,
   type EstadoRodada,
   type LinhaRodada,
   type RodadaGithub,
 } from "@/lib/oportunidades/rodadas";
 import type { PainelRodadas } from "@/lib/oportunidades/rodadas.server";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../../_design/primitivos";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 import { Urgente } from "../Pecas";
 
@@ -107,30 +117,14 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
         <h2 id="rodadas-jobs" className="mp-radar-h2">
           As rodadas, job a job
         </h2>
-        <TabelaRolagem rotuloId="rodadas-jobs">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Job</th>
-                <th scope="col">Estado</th>
-                <th scope="col">Última concluída</th>
-                <th scope="col">Dado até</th>
-                <th scope="col">Cadência</th>
-                <th scope="col">Linhas</th>
-                <th scope="col" className="mp-num">
-                  Falhas
-                </th>
-                <th scope="col">Gravando</th>
-                <th scope="col">Avisos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {painel.linhas.map((l) => (
-                <LinhaJob key={l.job.id} l={l} />
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id={TABELA_RODADAS}
+          rotulo="As rodadas, job a job"
+          colunas={COLUNAS_RODADAS}
+          linhas={painel.linhas.map(linhaJob)}
+          descricaoOrdemPadrao="a ordem dos jobs"
+          csv={{ nome: "rodadas-dos-jobs" }}
+        />
       </section>
 
       <SecaoGithub github={painel.github} />
@@ -289,60 +283,56 @@ function Gravando({ l }: { l: LinhaRodada }) {
   );
 }
 
-function LinhaJob({ l }: { l: LinhaRodada }) {
+/** Uma linha da tabela dos jobs: os valores crus de `rodadas.ts` e as células de antes (onda 15, fase 2, lote C, 13/10/2026). */
+function linhaJob(l: LinhaRodada): LinhaTabela {
   const { job } = l;
-  return (
-    <tr>
-      <th scope="row">
-        <span className="mp-tabela-principal">{job.nome}</span>
-        <span className="mp-tabela-secundario">
-          {job.tabela}
-          {job.recorte ? ` · recorte ${job.recorte}` : ""}
-        </span>
-      </th>
-      <td>
-        <SeloEstado estado={l.estado} />
-      </td>
-      <td>
-        <UltimaConcluida l={l} />
-      </td>
-      <td>
-        <DadoAte l={l} />
-      </td>
-      <td>
-        <span className="mp-tabela-principal">{ROTULO_CADENCIA[job.cadencia]}</span>
-        <span className="mp-tabela-secundario">
-          {job.cron && job.workflow ? `${descreverCron(job.cron)} · ${job.workflow}` : "coleta no navegador, sem agendamento"}
-        </span>
-        {l.prazoH !== null && <span className="mp-tabela-secundario">atrasa depois de {textoPrazo(l.prazoH)}</span>}
-      </td>
-      <td>
-        {l.linhas !== null ? (
+  return {
+    chave: job.id,
+    valores: valoresDaRodada(l),
+    celulas: {
+      job: (
+        <>
+          <span className="mp-tabela-principal">{job.nome}</span>
+          <span className="mp-tabela-secundario">
+            {job.tabela}
+            {job.recorte ? ` · recorte ${job.recorte}` : ""}
+          </span>
+        </>
+      ),
+      estado: <SeloEstado estado={l.estado} />,
+      concluida: <UltimaConcluida l={l} />,
+      "dado-ate": <DadoAte l={l} />,
+      cadencia: (
+        <>
+          <span className="mp-tabela-principal">{ROTULO_CADENCIA[job.cadencia]}</span>
+          <span className="mp-tabela-secundario">
+            {job.cron && job.workflow ? `${descreverCron(job.cron)} · ${job.workflow}` : "coleta no navegador, sem agendamento"}
+          </span>
+          {l.prazoH !== null && <span className="mp-tabela-secundario">atrasa depois de {textoPrazo(l.prazoH)}</span>}
+        </>
+      ),
+      linhas:
+        l.linhas !== null ? (
           <>
             <span className="mp-tabela-principal">{n(l.linhas)}</span>
             <span className="mp-tabela-secundario">{job.rotuloLinhas}</span>
           </>
         ) : (
           "—"
-        )}
-      </td>
-      <td className="mp-num">{l.falhas !== null ? n(l.falhas) : "—"}</td>
-      <td>
-        <Gravando l={l} />
-      </td>
-      <td>
-        {l.avisos.length ? (
-          <ul>
-            {l.avisos.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
-        ) : (
-          "—"
-        )}
-      </td>
-    </tr>
-  );
+        ),
+      falhas: l.falhas !== null ? n(l.falhas) : "—",
+      gravando: <Gravando l={l} />,
+      avisos: l.avisos.length ? (
+        <ul>
+          {l.avisos.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
+      ) : (
+        "—"
+      ),
+    },
+  };
 }
 
 function SecaoGithub({ github }: { github: RodadaGithub[] | null }) {

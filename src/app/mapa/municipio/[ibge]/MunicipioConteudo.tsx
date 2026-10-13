@@ -8,8 +8,10 @@
  * o relatório chega recortado (`relatorioDoNivel`: sem fiscal, controle, TCE-PB, fornecedores, Pix nem análise), a
  * aba do dinheiro mostra só o que a entidade mostra ao público, e somem a estrela de seguir e o botão de imprimir.
  * Do nível 1 em diante, nada muda.
+ *
+ * Onda 15, fase 2, lote B (13/10/2026): os blocos de convênios e de emendas recebem o nível, só para o CSV filtrado das
+ * tabelas, que é do cadastro (D1); as abas usam `LinkMapa`.
  */
-import Link from "next/link";
 import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
@@ -29,7 +31,6 @@ import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pag
 import type { Relatorio } from "@/lib/oportunidades/relatorio-municipio";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { proximoDiaDoMes } from "@/lib/oportunidades/vazios";
-import { Carregando } from "../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
@@ -101,10 +102,9 @@ function Abas({ ibge, aba, nivel }: { ibge: string; aba: AbaMunicipio; nivel: Ni
   return (
     <nav aria-label="Partes do município" className="mp-mun-abas mp-nao-imprimir">
       {ABAS_MUNICIPIO.filter((a) => nivel >= a.minimo).map((a) => (
-        <Link key={a.id} href={urlMunicipio(ibge, a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false} prefetch={false}>
+        <LinkMapa key={a.id} href={urlMunicipio(ibge, a.id)} aria-current={a.id === aba ? "page" : undefined} scroll={false}>
           {a.nome}
-          <Carregando />
-        </Link>
+        </LinkMapa>
       ))}
     </nav>
   );
@@ -243,7 +243,7 @@ export function MunicipioConteudo({
       {aba === "dinheiro" && (
         <>
           {entidades !== undefined && <QuemRecebe grupos={entidades} municipio={r.nome} ibge={r.ibge} osc={osc} publico={publico} />}
-          <BlocoConvenios r={r} destino={destino} />
+          <BlocoConvenios r={r} destino={destino} nivel={nivel} />
           <Mais>
             <LinkMapa href={investimentos.href} className="pa-btn pa-btn-pequeno">
               Ver os investimentos por tema, modalidade e tipo
@@ -256,7 +256,7 @@ export function MunicipioConteudo({
             )}
           </Mais>
           <BlocoPropostas r={r} destino={destino} />
-          <BlocoEmendas r={r} />
+          <BlocoEmendas r={r} nivel={nivel} />
           {/* Onda 14, parte 2, C (13/10/2026): os autores das emendas, só do administrador, até a revisão jurídica. */}
           {PODE.interno(nivel) && emendas !== undefined && <EmendasDoMunicipio leitura={emendas} municipio={r.nome} />}
           {/* C4a (B3 da R3): Pix, TCE-PB e fornecedores só do nível 1 em diante, como na entidade. */}

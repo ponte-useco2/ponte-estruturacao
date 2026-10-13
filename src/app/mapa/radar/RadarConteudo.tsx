@@ -1,6 +1,13 @@
 /**
  * A exibição do radar. Recebe os dados já lidos e só desenha — é o que permite
  * conferir a tela com dados reais sem o portão de administrador e sem Supabase.
+ *
+ * Onda 15, fase 2, lote D (13/10/2026): a regra do titular de filtro e ordem em cada coluna. A disputa, a lista da
+ * Paraíba, o "por programa" e os municípios parados viraram `TabelaFiltravel` (colunas e valores em `radar.ts`, com
+ * teste), com todas as linhas na página: os limites da leitura subiram (`radar.server.ts`) e o corte dos 25 programas
+ * saiu. O `Ordenavel` (link GET por coluna) saiu com o `?ordem=` de antes, que redireciona para a forma nova. "Por canal"
+ * e "por tipo de proponente" (até 6 linhas fixas) são resumo: ficam sem filtro e sem ordem, na ordem do banco (mais
+ * propostas primeiro). Os chips de janela, categoria, canal e tipo e o "Onde" continuam indo ao banco.
  */
 import type { ReactNode } from "react";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
@@ -10,25 +17,33 @@ import { urlFicha } from "@/lib/oportunidades/painel";
 import {
   CANAIS_RADAR,
   CATEGORIAS,
+  COLUNAS_ENVIOS_PB,
+  COLUNAS_PARADOS,
+  COLUNAS_RECORTE_PROGRAMA,
   DESCRICAO_CATEGORIA,
   JANELAS,
+  TABELAS_RADAR,
   TIPOS_RADAR,
   ROTULO_CANAL_RADAR,
   ROTULO_CATEGORIA,
   ROTULO_JANELA,
+  colunasDisputa,
   janela24hTocaFimDeSemana,
   moedaCurta,
-  ordemDaTabela,
-  ordenar,
-  proximaOrdem,
   rotuloTipo,
   urlRadar,
+  valoresDaDisputa,
+  valoresDoEnvio,
+  valoresDoParado,
+  valoresDoRecorte,
   variacao,
   type ParametrosRadar,
 } from "@/lib/oportunidades/radar";
 import type { LeituraRadar, LinhaRecorte } from "@/lib/oportunidades/radar.server";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Saidas, type Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 import { Termo } from "../_componentes/Termo";
 
@@ -87,44 +102,15 @@ const BUSCA_VAZIA: ParametrosBusca = { aba: "instrumentos", q: "", uf: null, mun
 /** O programa na busca: as propostas que o citam, na mesma UF do recorte. */
 const urlPorPrograma = (programa: string, uf: string | null) => urlBusca(BUSCA_VAZIA, { aba: "propostas", q: programa, uf });
 
-/** Cabeçalho que ordena: link GET, sem JavaScript, com a ordem na URL para poder ser compartilhada. */
-function Ordenavel({
-  p,
-  tabela,
-  coluna,
-  children,
-  num = false,
-  texto = false,
-}: {
-  p: ParametrosRadar;
-  tabela: string;
-  coluna: string;
-  children: ReactNode;
-  num?: boolean;
-  texto?: boolean;
-}) {
-  const atual = ordemDaTabela(p, tabela);
-  const ativa = atual.coluna === coluna;
-  return (
-    <th
-      scope="col"
-      className={num ? "mp-num" : undefined}
-      aria-sort={ativa ? (atual.sentido === "asc" ? "ascending" : "descending") : "none"}
-    >
-      <LinkMapa href={urlRadar(p, { ordem: proximaOrdem(atual, tabela, coluna, texto) })} className="mp-ordenar">
-        {children}
-        <span aria-hidden="true" className={`mp-ordenar-seta${ativa ? " mp-ordenar-ativa" : ""}`}>
-          {ativa ? (atual.sentido === "asc" ? "▲" : "▼") : "↕"}
-        </span>
-      </LinkMapa>
-    </th>
-  );
-}
+/** O recorte no nome do CSV: "brasil-30d-nova", "pb-7d-revisada". */
+const recorteNoNome = (p: ParametrosRadar) => `${(p.uf ?? "brasil").toLowerCase()}-${p.dias}d-${p.categoria.replace("_", "-")}`;
 
 export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: LeituraOk }) {
+  // O `?ordem=` de antes (onda 15) é redirecionado em `page.tsx`, antes da leitura; aqui ele já não chega.
   const { execucao, placar } = leitura;
   const fimDeSemana = janela24hTocaFimDeSemana(execucao.dado_ate);
   const onde = p.uf ?? "Brasil";
+  const referencia = execucao.referencia.split("-").reverse().join("/");
 
   return (
     <div className="pa-pagina mp-radar">
@@ -190,10 +176,10 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
         <p className="pa-nota">
           Valor é o repasse pedido, somado uma vez por proposta. A comparação é com os {ROTULO_JANELA[p.dias]} anteriores.
         </p>
-        <TabelaRecorte
+        <ResumoRecorte
           p={p}
-          tabela="canal"
           titulo="Por canal"
+          coluna="Canal"
           linhas={leitura.porCanal}
           rotulo={(l) => ROTULO_CANAL_RADAR[l.chave ?? ""] ?? l.chave ?? "—"}
           nota={
@@ -205,24 +191,15 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
           mostrarInferidos
         />
         {/* B14b: as três tabelas leem o mesmo recorte; vazias juntas, só a primeira repete as saídas. */}
-        <TabelaRecorte
+        <ResumoRecorte
           p={p}
-          tabela="tipo"
           titulo="Por tipo de proponente"
+          coluna="Tipo de proponente"
           linhas={leitura.porTipo}
           rotulo={(l) => rotuloTipo(l.chave ?? "")}
           semSaidas={leitura.porCanal.length === 0}
         />
-        <TabelaRecorte
-          p={p}
-          tabela="programa"
-          titulo="Por programa"
-          linhas={leitura.porPrograma}
-          rotulo={(l) => l.rotulo ?? l.chave ?? "—"}
-          link={(l) => (l.rotulo ? urlPorPrograma(l.rotulo, p.uf) : null)}
-          nota="Os 25 com mais propostas no período. O nome do programa abre a busca de propostas."
-          semSaidas={leitura.porCanal.length === 0}
-        />
+        <RecortePrograma p={p} linhas={leitura.porPrograma} semSaidas={leitura.porCanal.length === 0} />
       </section>
 
       {/* ------------------------------------------------------------ disputa */}
@@ -231,45 +208,38 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
           Disputa por programa aberto · {onde}
         </h2>
         <p className="pa-nota">
-          <Termo slug="janela">Janelas abertas</Termo> em {execucao.referencia.split("-").reverse().join("/")}, com as propostas
-          novas do mesmo canal{p.uf ? ` e da ${p.uf}` : ""} desde a abertura.{p.uf ? "" : " No Brasil, somadas entre as UFs."}
+          <Termo slug="janela">Janelas abertas</Termo> em {referencia}, com as propostas novas do mesmo canal{p.uf ? ` e da ${p.uf}` : ""} desde a
+          abertura.{p.uf ? "" : " No Brasil, somadas entre as UFs."} Todas as janelas abertas, das mais disputadas para as menos; o órgão e as
+          datas de abertura e de fechamento também filtram.
         </p>
         {leitura.disputa.length === 0 ? (
-          <VazioRadar p={p} oQue={`Nenhuma janela aberta em ${execucao.referencia.split("-").reverse().join("/")}`} usa={{ uf: true }} />
+          <VazioRadar p={p} oQue={`Nenhuma janela aberta em ${referencia}`} usa={{ uf: true }} />
         ) : (
-          <TabelaRolagem rotuloId="radar-disputa">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <Ordenavel p={p} tabela="disputa" coluna="programa" texto>Programa</Ordenavel>
-                  <Ordenavel p={p} tabela="disputa" coluna="canal" texto>Canal</Ordenavel>
-                  <Ordenavel p={p} tabela="disputa" coluna="desde_abertura" num>Propostas desde a abertura</Ordenavel>
-                  <Ordenavel p={p} tabela="disputa" coluna="trinta_dias" num>Últimos 30 dias</Ordenavel>
-                  <Ordenavel p={p} tabela="disputa" coluna="valor" num>Valor pedido</Ordenavel>
-                  <Ordenavel p={p} tabela="disputa" coluna="faltam" num>Faltam</Ordenavel>
-                  {!p.uf && <Ordenavel p={p} tabela="disputa" coluna="ufs" num>UFs</Ordenavel>}
-                </tr>
-              </thead>
-              <tbody>
-                {ordenar(leitura.disputa, CHAVES_DISPUTA[ordemDaTabela(p, "disputa").coluna] ?? CHAVES_DISPUTA.desde_abertura, ordemDaTabela(p, "disputa").sentido).map((d) => (
-                  <tr key={`${d.cod_programa}-${d.canal}`}>
-                    <th scope="row">
+          <TabelaFiltravel
+            id={TABELAS_RADAR.disputa}
+            rotulo={`Disputa por programa aberto · ${onde}`}
+            colunas={colunasDisputa(!p.uf)}
+            linhas={leitura.disputa.map(
+              (d): LinhaTabela => ({
+                chave: `${d.cod_programa}-${d.canal}`,
+                valores: valoresDaDisputa(d),
+                celulas: {
+                  programa: (
+                    <>
                       <LinkMapa href={urlPorPrograma(d.programa, p.uf)} className="mp-tabela-principal">
                         {d.programa}
                       </LinkMapa>
                       <span className="mp-tabela-secundario">{d.orgao}</span>
-                    </th>
-                    <td>{ROTULO_CANAL_RADAR[d.canal] ?? d.canal}</td>
-                    <td className="mp-num">{d.novas_desde_abertura}</td>
-                    <td className="mp-num">{d.novas_30d}</td>
-                    <td className="mp-num">{moedaCurta(d.valor_pedido)}</td>
-                    <td className="mp-num">{d.dias_restantes === null ? "—" : `${d.dias_restantes} d`}</td>
-                    {!p.uf && <td className="mp-num">{d.ufs}</td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+                    </>
+                  ),
+                  valor: moedaCurta(d.valor_pedido),
+                  faltam: d.dias_restantes === null ? "—" : `${d.dias_restantes} d`,
+                },
+              }),
+            )}
+            ordemPadrao={{ coluna: "desde-abertura", sentido: "desc" }}
+            csv={{ nome: `radar-disputa-${(p.uf ?? "brasil").toLowerCase()}` }}
+          />
         )}
       </section>
 
@@ -281,49 +251,43 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
         {leitura.enviaramPB.length === 0 ? (
           <VazioRadar p={p} oQue="Nenhuma proposta da Paraíba movimentada" usa={{ dias: true, tipo: true }} />
         ) : (
-          <TabelaRolagem rotuloId="radar-pb">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <Ordenavel p={p} tabela="pb" coluna="quando">Quando</Ordenavel>
-                  <Ordenavel p={p} tabela="pb" coluna="proponente" texto>Proponente</Ordenavel>
-                  <Ordenavel p={p} tabela="pb" coluna="categoria" texto>O quê</Ordenavel>
-                  <Ordenavel p={p} tabela="pb" coluna="programa" texto>Programa</Ordenavel>
-                  <Ordenavel p={p} tabela="pb" coluna="canal" texto>Canal</Ordenavel>
-                  <Ordenavel p={p} tabela="pb" coluna="valor" num>Repasse</Ordenavel>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenar(leitura.enviaramPB, CHAVES_PB[ordemDaTabela(p, "pb").coluna] ?? CHAVES_PB.quando, ordemDaTabela(p, "pb").sentido).map((e, i) => (
-                  <tr key={`${e.ocorrido_em}-${e.id_proposta ?? i}`}>
-                    <td className="mp-nowrap">{formatarPublicacao(e.ocorrido_em)}</td>
-                    <th scope="row">
+          <TabelaFiltravel
+            id={TABELAS_RADAR.pb}
+            rotulo={`Quem movimentou proposta na Paraíba · ${ROTULO_JANELA[p.dias]}`}
+            colunas={COLUNAS_ENVIOS_PB}
+            linhas={leitura.enviaramPB.map(
+              (e, i): LinhaTabela => ({
+                chave: `${i}-${e.ocorrido_em}-${e.id_proposta ?? "sem"}`,
+                valores: valoresDoEnvio(e),
+                celulas: {
+                  proponente: (
+                    <>
                       <span className="mp-tabela-principal">{e.proponente ?? "—"}</span>
                       <span className="mp-tabela-secundario">
                         {e.cod_ibge ? <LinkMapa href={urlFicha({ ibge: e.cod_ibge })}>{e.municipio}</LinkMapa> : e.municipio} ·{" "}
                         {rotuloTipo(e.tipo_agente ?? "")}
                       </span>
-                    </th>
-                    <td>
-                      {e.id_proposta ? (
-                        <LinkMapa href={urlProposta(e.id_proposta)}>{ROTULO_CATEGORIA[e.categoria]}</LinkMapa>
-                      ) : (
-                        ROTULO_CATEGORIA[e.categoria]
-                      )}
-                    </td>
-                    <td>{e.programa ? <LinkMapa href={urlPorPrograma(e.programa, "PB")}>{e.programa}</LinkMapa> : "—"}</td>
-                    <td>{ROTULO_CANAL_RADAR[e.canal ?? ""] ?? "—"}</td>
-                    <td className="mp-num">{moedaCurta(e.valor_repasse)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+                    </>
+                  ),
+                  quando: <span className="mp-nowrap">{formatarPublicacao(e.ocorrido_em)}</span>,
+                  categoria: e.id_proposta ? (
+                    <LinkMapa href={urlProposta(e.id_proposta)}>{ROTULO_CATEGORIA[e.categoria]}</LinkMapa>
+                  ) : (
+                    ROTULO_CATEGORIA[e.categoria]
+                  ),
+                  programa: e.programa ? <LinkMapa href={urlPorPrograma(e.programa, "PB")}>{e.programa}</LinkMapa> : "—",
+                  valor: moedaCurta(e.valor_repasse),
+                },
+              }),
+            )}
+            ordemPadrao={{ coluna: "quando", sentido: "desc" }}
+            csv={{ nome: `radar-pb-${p.dias}d` }}
+          />
         )}
       </section>
 
       {/* ------------------------------------------------------------ municípios parados */}
-      <MunicipiosParados p={p} leitura={leitura} />
+      <MunicipiosParados leitura={leitura} />
     </div>
   );
 }
@@ -351,7 +315,6 @@ function Filtros({ p }: { p: ParametrosRadar }) {
         {/* Trocar a UF não pode apagar os outros filtros (achado da B14b, 08/10/2026): os mesmos de `urlRadar`. */}
         {p.canal && <input type="hidden" name="canal" value={p.canal} />}
         {p.tipo && <input type="hidden" name="tipo" value={p.tipo} />}
-        {p.ordem && <input type="hidden" name="ordem" value={`${p.ordem.tabela}.${p.ordem.coluna}.${p.ordem.sentido}`} />}
         <button type="submit" className="pa-btn pa-btn-pequeno">
           Aplicar o filtro
         </button>
@@ -383,7 +346,7 @@ function Filtros({ p }: { p: ParametrosRadar }) {
         ))}
       </nav>
 
-      {/* Filtro por coluna: vale para o placar, os recortes, a disputa (só canal) e a lista da Paraíba. */}
+      {/* Filtro que vai ao banco: vale para o placar, os recortes, a disputa (só canal) e a lista da Paraíba. */}
       <nav aria-label="Canal" className="pa-chips">
         <span className="pa-campo-rotulo mp-radar-filtro-rotulo">Canal</span>
         <LinkMapa href={urlRadar(p, { canal: null })} className={`pa-chip${p.canal === null ? " pa-ativo" : ""}`} aria-current={p.canal === null ? "true" : undefined}>
@@ -407,36 +370,38 @@ function Filtros({ p }: { p: ParametrosRadar }) {
           </LinkMapa>
         ))}
       </nav>
+      <p className="pa-nota">
+        Estes filtros mudam o que o radar lê. O “Filtrar e ordenar” de cada tabela filtra por cima do que foi lido e recomeça quando o recorte
+        muda.
+      </p>
     </div>
   );
 }
 
-function TabelaRecorte({
+/**
+ * "Por canal" e "por tipo de proponente": resumo de até 6 linhas fixas (a regra do titular deixa resumo sem filtro),
+ * na ordem do banco, com mais propostas primeiro. Onda 15, fase 2, lote D (13/10/2026): sem o cabeçalho que ordenava.
+ */
+function ResumoRecorte({
   p,
-  tabela,
   titulo,
+  coluna,
   linhas,
   rotulo,
-  link,
   nota,
   mostrarInferidos = false,
   semSaidas = false,
 }: {
   p: ParametrosRadar;
-  tabela: string;
   titulo: string;
+  coluna: string;
   linhas: LinhaRecorte[];
   rotulo: (l: LinhaRecorte) => string;
-  link?: (l: LinhaRecorte) => string | null;
   nota?: ReactNode;
   mostrarInferidos?: boolean;
   /** No vazio, sem os links (a tabela de cima já os deu). */
   semSaidas?: boolean;
 }) {
-  const o = ordemDaTabela(p, tabela);
-  const chave = { rotulo: (l: LinhaRecorte) => rotulo(l), atual: (l: LinhaRecorte) => l.atual, anterior: (l: LinhaRecorte) => l.anterior,
-    variacao: (l: LinhaRecorte) => l.atual - l.anterior, valor: (l: LinhaRecorte) => l.valor_atual, inferidos: (l: LinhaRecorte) => l.inferidos };
-  const ordenadas = ordenar(linhas, chave[o.coluna as keyof typeof chave] ?? chave.atual, o.sentido);
   return (
     <div className="mp-radar-recorte">
       <h3 className="mp-radar-h3">{titulo}</h3>
@@ -453,23 +418,32 @@ function TabelaRecorte({
           <table className="mp-tabela">
             <thead>
               <tr>
-                <Ordenavel p={p} tabela={tabela} coluna="rotulo" texto>
-                  {titulo.replace(/^Por /, "").replace(/^\w/, (x) => x.toUpperCase())}
-                </Ordenavel>
-                <Ordenavel p={p} tabela={tabela} coluna="atual" num>Propostas</Ordenavel>
-                <Ordenavel p={p} tabela={tabela} coluna="anterior" num>Período anterior</Ordenavel>
-                <Ordenavel p={p} tabela={tabela} coluna="variacao" num>Variação</Ordenavel>
-                <Ordenavel p={p} tabela={tabela} coluna="valor" num>Valor pedido</Ordenavel>
-                {mostrarInferidos && <Ordenavel p={p} tabela={tabela} coluna="inferidos" num>Inferidas</Ordenavel>}
+                <th scope="col">{coluna}</th>
+                <th scope="col" className="mp-num">
+                  Propostas
+                </th>
+                <th scope="col" className="mp-num">
+                  Período anterior
+                </th>
+                <th scope="col" className="mp-num">
+                  Variação
+                </th>
+                <th scope="col" className="mp-num">
+                  Valor pedido
+                </th>
+                {mostrarInferidos && (
+                  <th scope="col" className="mp-num">
+                    Inferidas
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {ordenadas.map((l) => {
+              {linhas.map((l) => {
                 const v = variacao(l.atual, l.anterior);
-                const destino = link?.(l) ?? null;
                 return (
                   <tr key={l.chave ?? "sem"}>
-                    <th scope="row">{destino ? <LinkMapa href={destino}>{rotulo(l)}</LinkMapa> : rotulo(l)}</th>
+                    <th scope="row">{rotulo(l)}</th>
                     <td className="mp-num">{l.atual}</td>
                     <td className="mp-num">{l.anterior}</td>
                     <td className={`mp-num mp-radar-${v.sentido}`}>{v.texto}</td>
@@ -486,33 +460,48 @@ function TabelaRecorte({
   );
 }
 
-const CHAVES_DISPUTA: Record<string, (d: LeituraOk["disputa"][number]) => string | number | null> = {
-  programa: (d) => d.programa,
-  canal: (d) => ROTULO_CANAL_RADAR[d.canal] ?? d.canal,
-  desde_abertura: (d) => d.novas_desde_abertura,
-  trinta_dias: (d) => d.novas_30d,
-  valor: (d) => d.valor_pedido,
-  faltam: (d) => d.dias_restantes,
-  ufs: (d) => d.ufs,
-};
+/** "Por programa" (#92): todos os programas do período, com filtro e ordem em cada coluna. */
+function RecortePrograma({ p, linhas, semSaidas }: { p: ParametrosRadar; linhas: LinhaRecorte[]; semSaidas: boolean }) {
+  return (
+    <div className="mp-radar-recorte">
+      <h3 className="mp-radar-h3">Por programa</h3>
+      <p className="pa-nota">
+        Todos os programas com proposta no período, dos que têm mais propostas para os que têm menos. O nome do programa abre a busca de
+        propostas.
+      </p>
+      {linhas.length === 0 ? (
+        <VazioRadar
+          p={p}
+          oQue={`Nenhuma proposta em “${ROTULO_CATEGORIA[p.categoria]}”`}
+          usa={{ uf: true, dias: true, tipo: true }}
+          semSaidas={semSaidas}
+        />
+      ) : (
+        <TabelaFiltravel
+          id={TABELAS_RADAR.programa}
+          rotulo="Propostas por programa"
+          colunas={COLUNAS_RECORTE_PROGRAMA}
+          linhas={linhas.map((l): LinhaTabela => {
+            const v = variacao(l.atual, l.anterior);
+            return {
+              chave: l.chave ?? "sem-programa",
+              valores: valoresDoRecorte(l),
+              celulas: {
+                programa: l.rotulo ? <LinkMapa href={urlPorPrograma(l.rotulo, p.uf)}>{l.rotulo}</LinkMapa> : (l.chave ?? "—"),
+                variacao: <span className={`mp-radar-${v.sentido}`}>{v.texto}</span>,
+                valor: moedaCurta(l.valor_atual),
+              },
+            };
+          })}
+          ordemPadrao={{ coluna: "propostas", sentido: "desc" }}
+          csv={{ nome: `radar-programas-${recorteNoNome(p)}` }}
+        />
+      )}
+    </div>
+  );
+}
 
-const CHAVES_PB: Record<string, (e: LeituraOk["enviaramPB"][number]) => string | number | null> = {
-  quando: (e) => e.ocorrido_em,
-  proponente: (e) => e.proponente,
-  categoria: (e) => ROTULO_CATEGORIA[e.categoria],
-  programa: (e) => e.programa,
-  canal: (e) => ROTULO_CANAL_RADAR[e.canal ?? ""] ?? null,
-  valor: (e) => e.valor_repasse,
-};
-
-const CHAVES_PARADOS: Record<string, (m: LeituraOk["municipiosPB"][number]) => string | number | null> = {
-  municipio: (m) => m.municipio,
-  em_revisao: (m) => m.em_revisao_30d,
-  revisadas: (m) => m.revisadas_30d,
-  ultimo_envio: (m) => m.ultimo_envio,
-};
-
-function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: LeituraOk }) {
+function MunicipiosParados({ leitura }: { leitura: LeituraOk }) {
   const janelas = leitura.execucao.contagens.janelas_abertas_municipio_pb ?? 0;
   // "Parado" é sem proposta NOVA em 30 dias. Quem só tem proposta em revisão
   // continua na lista, mas com o número à vista: está trabalhando, só não abriu
@@ -539,30 +528,23 @@ function MunicipiosParados({ p, leitura }: { p: ParametrosRadar; leitura: Leitur
         </p>
       )}
       {parados.length > 0 && (
-        <TabelaRolagem rotuloId="radar-parados">
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <Ordenavel p={p} tabela="parados" coluna="municipio" texto>Município</Ordenavel>
-                <Ordenavel p={p} tabela="parados" coluna="em_revisao" num>Em revisão (30 d)</Ordenavel>
-                <Ordenavel p={p} tabela="parados" coluna="revisadas" num>Revisadas (30 d)</Ordenavel>
-                <Ordenavel p={p} tabela="parados" coluna="ultimo_envio">Último envio novo</Ordenavel>
-              </tr>
-            </thead>
-            <tbody>
-              {ordenar(parados, CHAVES_PARADOS[ordemDaTabela(p, "parados").coluna] ?? CHAVES_PARADOS.municipio, ordemDaTabela(p, "parados").sentido).map((m) => (
-                <tr key={m.cod_ibge}>
-                  <th scope="row">
-                    <LinkMapa href={urlFicha({ ibge: m.cod_ibge })}>{m.municipio}</LinkMapa>
-                  </th>
-                  <td className="mp-num">{m.em_revisao_30d}</td>
-                  <td className="mp-num">{m.revisadas_30d}</td>
-                  <td>{m.ultimo_envio ? formatarPublicacao(m.ultimo_envio) : "nenhum envio registrado"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TabelaRolagem>
+        <TabelaFiltravel
+          id={TABELAS_RADAR.parados}
+          rotulo="Municípios da Paraíba sem proposta nova em 30 dias"
+          colunas={COLUNAS_PARADOS}
+          linhas={parados.map(
+            (m): LinhaTabela => ({
+              chave: m.cod_ibge,
+              valores: valoresDoParado(m),
+              celulas: {
+                municipio: <LinkMapa href={urlFicha({ ibge: m.cod_ibge })}>{m.municipio}</LinkMapa>,
+                "ultimo-envio": m.ultimo_envio ? formatarPublicacao(m.ultimo_envio) : "nenhum envio registrado",
+              },
+            }),
+          )}
+          ordemPadrao={{ coluna: "municipio", sentido: "asc" }}
+          csv={{ nome: "radar-municipios-pb-parados" }}
+        />
       )}
     </section>
   );

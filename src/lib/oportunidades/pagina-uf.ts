@@ -13,9 +13,11 @@
 import { GRUPOS_SITUACAO } from "./busca.ts";
 import { diaBrasilia } from "./datas.ts";
 import type { ItemCatalogo } from "./indicadores-municipio.ts";
+import { ROTULO_DECISAO, type EstadoFiscal } from "./fiscal.ts";
 import { especieDe, lenteDe, type LenteEntidade } from "./pagina-entidade.ts";
 import { versaoLegivel } from "./osc.ts";
-import { NOME_ABA, type NivelAcesso } from "./pagina-municipio.ts";
+import { NOME_ABA, PODE, type NivelAcesso } from "./pagina-municipio.ts";
+import { gravarEstado, type ColunaTabela, type EstadoTabela, type ValorCelula } from "./tabela-filtro.ts";
 import {
   CHAVE_TODOS,
   ETAPAS_CAMINHO,
@@ -543,4 +545,222 @@ export function indicadoresDaUf(
     saida.push({ item, ano: daUf.ano, uf: daUf.valor as number, br: br?.valor ?? null });
   }
   return saida;
+}
+
+// ================================================================ as tabelas filtráveis (onda 15, fase 2, lote A, 13/10/2026)
+
+/**
+ * A regra do titular (13/10/2026) para as listas do território: cada coluna filtra; nas telas que o público vê, o valor
+ * (R$) e a contagem (instrumentos, municípios, população, OSC...) filtram, mas não ordenam, porque ranking público foi
+ * rejeitado. Só o administrador (nível 3) ordena por qualquer coluna, inclusive nas telas públicas. A ordem padrão
+ * das listas públicas é a alfabética, pelo nome, e os cortes "os N maiores" saíram: a lista vem inteira e o filtro
+ * resolve. As peças de cada tabela ficam aqui, puras e com teste; as telas só desenham as células.
+ */
+export function ordemLivre(nivel: NivelAcesso): boolean {
+  return PODE.interno(nivel);
+}
+
+/** Uma coluna de valor ou de contagem: número, à direita; sem `livre`, filtra mas não ordena (sem ranking). */
+export function colunaDeNumero(id: string, titulo: string, livre: boolean): ColunaTabela {
+  const coluna: ColunaTabela = { id, titulo, tipo: "numero", alinhar: "direita" };
+  return livre ? coluna : { ...coluna, ordenavel: false };
+}
+
+const COMPARA_NOME = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+
+/** Uma cópia em ordem alfabética pelo nome, sem acento nem caixa ("Água Branca" antes de "Areia"): a ordem padrão. */
+export function emOrdemAlfabetica<T>(itens: readonly T[], nome: (x: T) => string): T[] {
+  return [...itens].sort((a, b) => COMPARA_NOME.compare(nome(a), nome(b)));
+}
+
+/** Os prefixos das tabelas da UF e do Brasil no endereço (`?t.<id>.<coluna>=…`): um por tabela, únicos na página. */
+export const TABELA_MUNICIPIOS_UF = "municipios";
+export const TABELA_ESTADO_UF = "estado";
+export const TABELA_ORGAOS = "orgaos";
+export const TABELA_TEMAS = "temas";
+export const TABELA_TEMPOS_ORGAO = "tempos-orgao";
+
+/**
+ * Os municípios da UF numa tabela só (antes, uma por região imediata): a região imediata e a intermediária viram colunas
+ * de categoria. Fora da PB a base não tem região, porte, população nem OSC, e essas colunas não existem. As duas
+ * colunas do administrador (a transferência voluntária do fiscal e os sinais do painel) só entram no nível 3 e só na
+ * PB, que é onde a leitura as traz. O código do IBGE vai oculto: filtra e vai ao CSV.
+ */
+export function colunasMunicipiosUf(completa: boolean, nivel: NivelAcesso): ColunaTabela[] {
+  const livre = ordemLivre(nivel);
+  const colunas: ColunaTabela[] = [
+    { id: "municipio", titulo: "Município", tipo: "texto" },
+    { id: "ibge", titulo: "IBGE", tipo: "texto", textoNoCsv: true, oculta: true },
+  ];
+  if (completa) {
+    colunas.push(
+      { id: "regiao", titulo: "Região imediata", tipo: "categoria" },
+      { id: "intermediaria", titulo: "Região intermediária", tipo: "categoria" },
+      { id: "porte", titulo: "Porte na PB", tipo: "categoria" },
+      colunaDeNumero("populacao", "População", livre),
+    );
+  }
+  colunas.push(
+    colunaDeNumero("instrumentos", "Instrumentos", livre),
+    colunaDeNumero("em-execucao", "Em execução", livre),
+    colunaDeNumero("valor-execucao", "Valor em execução", livre),
+  );
+  if (completa) colunas.push(colunaDeNumero("osc", "OSC ativas", livre));
+  if (completa && PODE.interno(nivel)) {
+    colunas.push(
+      { id: "transferencia", titulo: "Transferência voluntária (fiscal)", tipo: "categoria" },
+      { id: "sinais", titulo: "Sinais do painel", tipo: "numero", alinhar: "direita" },
+    );
+  }
+  return colunas;
+}
+
+/**
+ * Os valores crus de um município, só os das colunas de `colunasMunicipiosUf` para o mesmo nível: o que vai à linha
+ * vai ao navegador, e o fiscal e os sinais nunca saem para quem não é administrador, mesmo que a leitura os traga.
+ */
+export function valoresDoMunicipioUf(m: MunicipioUf, completa: boolean, nivel: NivelAcesso): Record<string, ValorCelula> {
+  const v: Record<string, ValorCelula> = {
+    municipio: m.nome,
+    ibge: m.ibge,
+    instrumentos: m.instrumentos,
+    "em-execucao": m.em_execucao,
+    "valor-execucao": m.valor_execucao,
+  };
+  if (completa) {
+    v.regiao = m.regiao;
+    v.intermediaria = m.intermediaria ?? null;
+    v.porte = m.porte;
+    v.populacao = m.populacao;
+    v.osc = m.osc_ativas;
+  }
+  if (completa && PODE.interno(nivel)) {
+    const d = m.decisao_b ?? null;
+    v.transferencia = d === null ? null : (ROTULO_DECISAO[d as EstadoFiscal] ?? d);
+    v.sinais = m.sinais ?? null;
+  }
+  return v;
+}
+
+function urlDaTabelaDeMunicipios(sigla: string, estado: EstadoTabela): string {
+  const extra = gravarEstado(TABELA_MUNICIPIOS_UF, estado, new URLSearchParams()).toString();
+  return `${urlUf(sigla, "municipios")}${extra ? `&${extra}` : ""}`;
+}
+
+/** A lista dos municípios filtrada por uma região imediata (o índice das regiões, acima da tabela). */
+export function urlMunicipiosDaRegiao(sigla: string, regiao: string): string {
+  return urlDaTabelaDeMunicipios(sigla, { filtros: { regiao: { tipo: "categoria", valores: [regiao] } }, ordem: null });
+}
+
+/**
+ * Só para o administrador: a lista com os mais sinais do painel primeiro. É o `?ordem=sinais` de antes, agora a ordem
+ * da coluna "Sinais do painel" da tabela; o endereço antigo redireciona para cá.
+ */
+export function urlMunicipiosPorSinais(sigla: string): string {
+  return urlDaTabelaDeMunicipios(sigla, { filtros: {}, ordem: { coluna: "sinais", sentido: "desc" } });
+}
+
+/**
+ * As entidades com instrumento: o estado como proponente, na UF (`sede`), e "quem recebe" no município (`grupo`, a
+ * lente). O CNPJ vai oculto (já está no endereço da página de cada uma): filtra e vai ao CSV. "Mais recente" é o ano
+ * da assinatura mais nova, e não valor nem contagem: ordena para todos.
+ */
+export function colunasEntidades({ grupo = false, sede = false, livre }: { grupo?: boolean; sede?: boolean; livre: boolean }): ColunaTabela[] {
+  const colunas: ColunaTabela[] = [
+    { id: "entidade", titulo: "Entidade", tipo: "texto" },
+    { id: "cnpj", titulo: "CNPJ", tipo: "texto", textoNoCsv: true, oculta: true },
+  ];
+  if (grupo) colunas.push({ id: "grupo", titulo: "Grupo", tipo: "categoria" });
+  colunas.push({ id: "especie", titulo: "Espécie", tipo: "categoria" });
+  if (sede) colunas.push({ id: "sede", titulo: "Sede", tipo: "categoria" });
+  colunas.push(
+    colunaDeNumero("instrumentos", "Instrumentos", livre),
+    colunaDeNumero("em-execucao", "Em execução", livre),
+    colunaDeNumero("valor", "Valor global", livre),
+    { id: "mais-recente", titulo: "Mais recente", tipo: "numero", alinhar: "direita" },
+  );
+  return colunas;
+}
+
+export interface EntidadeDaTabela {
+  cnpj: string;
+  nome: string;
+  /** O rótulo da espécie (`ROTULO_ESPECIE`). */
+  especie: string;
+  instrumentos: number;
+  emExecucao: number;
+  valor: number;
+  ultimoAno: number | null;
+  /** O rótulo da lente, quando a tabela tem a coluna "Grupo". */
+  grupo?: string;
+  /** O município da sede, quando a tabela tem a coluna "Sede". */
+  sede?: string | null;
+}
+
+export function valoresDaEntidade(e: EntidadeDaTabela): Record<string, ValorCelula> {
+  const v: Record<string, ValorCelula> = {
+    entidade: e.nome,
+    cnpj: e.cnpj,
+    especie: e.especie,
+    instrumentos: e.instrumentos,
+    "em-execucao": e.emExecucao,
+    valor: e.valor,
+    "mais-recente": e.ultimoAno,
+  };
+  if (e.grupo !== undefined) v.grupo = e.grupo;
+  if (e.sede !== undefined) v.sede = e.sede;
+  return v;
+}
+
+/** "De onde vem o dinheiro", por órgão concedente (UF e Brasil). O órgão é texto: são 23 a 33. */
+export function colunasOrgaos(livre: boolean): ColunaTabela[] {
+  return [
+    { id: "orgao", titulo: "Órgão", tipo: "texto" },
+    colunaDeNumero("instrumentos", "Instrumentos vivos", livre),
+    colunaDeNumero("em-execucao", "Em execução", livre),
+    colunaDeNumero("valor", "Valor global", livre),
+    colunaDeNumero("desembolsado", "Desembolsado", livre),
+  ];
+}
+
+/** Por tema: só do cadastro (a tabela não aparece ao público), então toda coluna ordena. */
+export const COLUNAS_TEMAS: ColunaTabela[] = [
+  { id: "tema", titulo: "Tema", tipo: "categoria" },
+  { id: "instrumentos", titulo: "Instrumentos vivos", tipo: "numero", alinhar: "direita" },
+  { id: "valor", titulo: "Valor global", tipo: "numero", alinhar: "direita" },
+];
+
+/** O id de uma etapa no endereço: "envio_aprovacao" vira "envio-aprovacao" (o contrato só aceita [a-z0-9-]). */
+export function idDaEtapa(etapa: string): string {
+  return etapa
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
+ * O tempo de cada etapa por órgão (só do cadastro, então toda coluna ordena): uma coluna por etapa, em dias, com a
+ * mediana da UF; a do Brasil vai numa coluna oculta por etapa, que filtra e vai ao CSV (a célula a mostra entre
+ * parênteses). "Etapas lentas" é a conta que dava a ordem de antes, agora à vista.
+ */
+export function colunasTemposOrgao(etapas: readonly string[]): ColunaTabela[] {
+  return [
+    { id: "orgao", titulo: "Órgão", tipo: "texto" },
+    { id: "lentas", titulo: "Etapas lentas", tipo: "numero", alinhar: "direita" },
+    ...etapas.flatMap((e): ColunaTabela[] => [
+      { id: `uf-${idDaEtapa(e)}`, titulo: `${ROTULO_ETAPA[e] ?? e} (dias)`, tipo: "numero", alinhar: "direita" },
+      { id: `br-${idDaEtapa(e)}`, titulo: `${ROTULO_ETAPA[e] ?? e}, no Brasil (dias)`, tipo: "numero", alinhar: "direita", oculta: true },
+    ]),
+  ];
+}
+
+/** Os valores de um órgão na tabela dos tempos: a mediana arredondada ao dia, como a célula mostra. */
+export function valoresDoOrgaoComparado(o: OrgaoComparado, nome: string): Record<string, ValorCelula> {
+  const dia = (x: number | null) => (x === null ? null : Math.round(x));
+  const v: Record<string, ValorCelula> = { orgao: nome, lentas: o.lentas };
+  for (const e of o.etapas) {
+    v[`uf-${idDaEtapa(e.etapa)}`] = dia(e.uf);
+    v[`br-${idDaEtapa(e.etapa)}`] = dia(e.br);
+  }
+  return v;
 }

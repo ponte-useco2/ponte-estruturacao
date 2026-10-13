@@ -14,7 +14,8 @@
  *
  * Tudo função pura, sem banco e sem relógio.
  */
-import { diaBrasilia, diasEntre, lerCondicoes, type ExigDetalhe, type ExigDocumento, type ExigEvento } from "./laudo.ts";
+import { diaBrasilia, diasEntre, lerCondicoes, nivelPrazo, type ExigDetalhe, type ExigDocumento, type ExigEvento, type Nivel } from "./laudo.ts";
+import { ESTADO_VAZIO, gravarEstado, type ColunaTabela, type EstadoTabela, type ValorCelula } from "./tabela-filtro.ts";
 
 // ================================================================ utilidades
 
@@ -527,4 +528,227 @@ export function montarChecklist(
     palavras,
     historico: historico.find((h) => h.orgao === orgao) ?? null,
   };
+}
+
+// ================================================================ as tabelas das telas (onda 15, fase 2, lote C, 13/10/2026)
+
+/**
+ * As listas dos padrões e a lista das suspensivas com filtro e ordem em cada coluna (a regra do titular de 13/10/2026;
+ * telas de administrador, toda coluna ordena). As células continuam as de antes; aqui ficam os valores crus. As colunas
+ * ocultas levam o que a célula junta. Percentual vai de 0 a 100, com uma casa; dias, inteiros.
+ *
+ * Os documentos perderam o corte nos 20 primeiros (`slice(0, 20)`): a tabela mostra todos, e o filtro resolve.
+ */
+export const TABELA_PADROES_ORGAOS = "orgaos";
+export const TABELA_PADROES_CONDICOES = "condicoes";
+export const TABELA_PADROES_ANALISTAS = "analistas";
+export const TABELA_PADROES_DOCUMENTOS = "documentos";
+
+const emPercentual = (x: number | null) => (x === null || !Number.isFinite(x) ? null : Math.round(x * 1000) / 10);
+const emDias = (x: number | null) => (x === null || !Number.isFinite(x) ? null : Math.round(x));
+
+export const COLUNAS_PADROES_ORGAOS: ColunaTabela[] = [
+  { id: "orgao", titulo: "Órgão", tipo: "texto" },
+  { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita" },
+  { id: "sairam", titulo: "Saíram", tipo: "numero", alinhar: "direita" },
+  { id: "mediana", titulo: "Tempo até sair (mediana, dias)", tipo: "numero", alinhar: "direita" },
+  { id: "extintos", titulo: "Extintos", tipo: "numero", alinhar: "direita" },
+  { id: "perda", titulo: "Perda entre os que terminaram (%)", tipo: "numero", alinhar: "direita" },
+  { id: "seguem", titulo: "Seguem", tipo: "numero", alinhar: "direita" },
+];
+
+/** Com menos de `MINIMO_PADRAO` convênios, a mediana fica vazia, como a célula, que diz "poucos casos". */
+export function valoresDoOrgaoHistorico(o: LinhaHistorico): Record<string, ValorCelula> {
+  return {
+    orgao: tituloOrgao(o.orgao),
+    convenios: o.total,
+    sairam: o.destinos.saiu.n,
+    mediana: o.total < MINIMO_PADRAO ? null : emDias(o.mediana),
+    extintos: o.destinos.morreu.n + o.destinos.encerrou.n,
+    perda: emPercentual(o.pctPerdido),
+    seguem: o.destinos.segue.n,
+  };
+}
+
+export const COLUNAS_PADROES_CONDICOES: ColunaTabela[] = [
+  { id: "condicao", titulo: "Condição do termo", tipo: "texto" },
+  { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita" },
+  { id: "repasse", titulo: "Repasse", tipo: "numero", alinhar: "direita" },
+  { id: "em-suspensiva", titulo: "Em suspensiva há (mediana, dias)", tipo: "numero", alinhar: "direita" },
+  { id: "prazo-apertado", titulo: "Prazo vencido ou em até 30 dias", tipo: "numero", alinhar: "direita" },
+];
+
+export function valoresDaCondicao(c: LinhaCondicao): Record<string, ValorCelula> {
+  return {
+    condicao: c.condicao,
+    convenios: c.convenios,
+    repasse: c.valor,
+    "em-suspensiva": emDias(c.medianaEmSuspensiva),
+    "prazo-apertado": c.prazoApertado,
+  };
+}
+
+/** O que a pessoa decide, em palavras (saiu de `PadroesConteudo` para ser também o valor da coluna). */
+export function perfilDecisao(exige: number, atende: number, recusa: number): string {
+  const total = exige + atende + recusa;
+  if (!total) return "—";
+  if (!atende && !recusa) return `só pede complementação (${exige})`;
+  if (!exige && !recusa) return `só dá por atendido (${atende})`;
+  return `pede complementação em ${Math.round((exige / total) * 100)}% (${exige} de ${total})`;
+}
+
+/**
+ * Quem analisa. Os nomes são de servidores do concedente, como o Transferegov registra, e ficam (ver
+ * `perfilAnalistas`); contato não é coletado. A tela não oferece CSV desta tabela: a lista de nomes não sai do painel.
+ */
+export const COLUNAS_PADROES_ANALISTAS: ColunaTabela[] = [
+  { id: "pessoa", titulo: "Pessoa", tipo: "texto" },
+  { id: "atribuicao", titulo: "Atribuição", tipo: "texto", oculta: true },
+  { id: "orgao", titulo: "Onde mais atua", tipo: "texto" },
+  { id: "fatia-orgao", titulo: "Fatia no órgão (%)", tipo: "numero", oculta: true },
+  { id: "programa", titulo: "Programa onde mais atua", tipo: "texto", oculta: true },
+  { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita" },
+  { id: "atos", titulo: "Atos", tipo: "numero", oculta: true },
+  { id: "decide", titulo: "O que decide", tipo: "texto" },
+  { id: "complementacao", titulo: "Pede complementação (%)", tipo: "numero", oculta: true },
+  { id: "maior-lote", titulo: "Maior lote (convênios)", tipo: "numero" },
+  { id: "dia-lote", titulo: "Dia do maior lote", tipo: "data", oculta: true },
+  { id: "ultima-palavra", titulo: "Última palavra (convênios)", tipo: "numero" },
+  { id: "ultima-ha", titulo: "Última palavra há (mediana, dias)", tipo: "numero", oculta: true },
+  { id: "ultima-repasse", titulo: "Repasse da última palavra", tipo: "numero", oculta: true },
+];
+
+/** O maior lote só conta com mais de um convênio no dia, como a célula ("—" no lote de um). */
+export function valoresDoAnalista(a: PerfilAnalista): Record<string, ValorCelula> {
+  const total = a.exigencias + a.atendimentos + a.recusas;
+  const lote = a.maiorLote && a.maiorLote.convenios > 1 ? a.maiorLote : null;
+  return {
+    pessoa: a.nome,
+    atribuicao: a.atribuicao,
+    orgao: a.orgao.valor ? tituloOrgao(a.orgao.valor) : null,
+    "fatia-orgao": a.orgao.valor ? emPercentual(a.orgao.fatia) : null,
+    programa: a.programa.valor,
+    convenios: a.convenios,
+    atos: a.atos,
+    decide: total ? perfilDecisao(a.exigencias, a.atendimentos, a.recusas) : null,
+    complementacao: total ? emPercentual(a.exigencias / total) : null,
+    "maior-lote": lote ? lote.convenios : null,
+    "dia-lote": lote ? lote.dia : null,
+    "ultima-palavra": a.ultimaPalavra.convenios,
+    "ultima-ha": a.ultimaPalavra.convenios ? emDias(a.ultimaPalavra.medianaDias) : null,
+    "ultima-repasse": a.ultimaPalavra.convenios ? a.ultimaPalavra.valor : null,
+  };
+}
+
+export const COLUNAS_PADROES_DOCUMENTOS: ColunaTabela[] = [
+  { id: "documento", titulo: "Documento", tipo: "texto" },
+  { id: "convenios", titulo: "Convênios", tipo: "numero", alinhar: "direita" },
+  { id: "com-validade", titulo: "Com validade", tipo: "numero", alinhar: "direita" },
+  { id: "vencidos", titulo: "Vencidos", tipo: "numero", alinhar: "direita" },
+  { id: "vencidos-pct", titulo: "Vencidos (%)", tipo: "numero", oculta: true },
+];
+
+/** Sem anexo com validade, "vencidos" fica vazio, como a célula ("—"). */
+export function valoresDoRequisito(r: LinhaRequisito): Record<string, ValorCelula> {
+  return {
+    documento: r.requisito,
+    convenios: r.convenios,
+    "com-validade": r.comValidade,
+    vencidos: r.comValidade ? r.vencidos : null,
+    "vencidos-pct": r.comValidade ? emPercentual(r.vencidos / r.comValidade) : null,
+  };
+}
+
+// ---------------------------------------------------------------- a lista das suspensivas (`/mapa/suspensivas`)
+
+/**
+ * A lista dos convênios em suspensiva (a coleta do Acesso Livre), com filtro e ordem em cada coluna. Os chips de antes
+ * (prazo e órgão, por GET) eram filtro só de coluna: o filtro da tabela os substitui, e o endereço antigo redireciona
+ * (`urlSuspensivasDoFiltroAntigo`). O chip de prazo vira a coluna oculta "Urgência do prazo", com as mesmas faixas de
+ * `nivelPrazo` que a cor da data já usava.
+ */
+export const TABELA_SUSPENSIVAS = "susp";
+
+/** As faixas do prazo da suspensiva em palavras, na ordem de urgência. */
+export const ROTULO_URGENCIA_PRAZO: Record<Nivel, string> = {
+  critico: "Vencido ou em até 30 dias",
+  alto: "Em 31 a 90 dias",
+  moderado: "Mais de 90 dias",
+  informativo: "Retirada ou sem prazo",
+};
+
+/** Os chips antigos (`?prazo=`): "urgente" é o crítico; "90" soma o alto. */
+const PRAZO_ANTIGO: Record<string, Nivel[]> = { urgente: ["critico"], "90": ["critico", "alto"] };
+
+/** O que a lista usa de cada convênio (`LinhaSuspensiva`, de `laudo.server.ts`, cabe aqui). */
+export interface ItemListaSuspensiva {
+  numero: string;
+  vez_de: "concedente" | "proponente" | null;
+  parado_desde: string | null;
+  rodadas_de_exigencia: number;
+  contexto: {
+    municipio: string | null;
+    programa: string | null;
+    orgao_sup: string | null;
+    vl_repasse: number | null;
+    dt_suspensiva: string | null;
+    dt_retirada_suspensiva: string | null;
+  } | null;
+}
+
+export const COLUNAS_SUSPENSIVAS: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "municipio", titulo: "Município", tipo: "texto", oculta: true },
+  { id: "programa", titulo: "Programa", tipo: "texto", oculta: true },
+  { id: "orgao", titulo: "Órgão", tipo: "categoria" },
+  { id: "repasse", titulo: "Repasse", tipo: "numero", alinhar: "direita" },
+  { id: "prazo", titulo: "Prazo da suspensiva", tipo: "data" },
+  { id: "urgencia", titulo: "Urgência do prazo", tipo: "categoria", oculta: true },
+  { id: "dias-prazo", titulo: "Dias para o prazo", tipo: "numero", oculta: true },
+  { id: "retirada", titulo: "Retirada em", tipo: "data", oculta: true },
+  { id: "vez", titulo: "A vez é do", tipo: "categoria" },
+  { id: "parado", titulo: "Parado há (dias)", tipo: "numero", oculta: true },
+  { id: "pedidos", titulo: "Pedidos de complementação", tipo: "numero", alinhar: "direita" },
+];
+
+/**
+ * Os valores crus de um convênio da lista. `hoje` conta os dias para o prazo (negativo: vencido); `referencia` (o dia
+ * da coleta) conta o tempo parado, como as células. Com a retirada registrada, o prazo fica vazio: o SICONV o apaga.
+ */
+export function valoresDaSuspensiva(l: ItemListaSuspensiva, hoje: string, referencia: string): Record<string, ValorCelula> {
+  const c = l.contexto;
+  const retirada = c?.dt_retirada_suspensiva ?? null;
+  const prazo = !retirada && c?.dt_suspensiva ? c.dt_suspensiva : null;
+  return {
+    convenio: l.numero,
+    municipio: c?.municipio ?? null,
+    programa: c?.programa ?? null,
+    orgao: c?.orgao_sup ? tituloOrgao(c.orgao_sup) : null,
+    repasse: c?.vl_repasse ?? null,
+    prazo,
+    urgencia: ROTULO_URGENCIA_PRAZO[nivelPrazo({ dt_suspensiva: c?.dt_suspensiva ?? null, dt_retirada_suspensiva: retirada }, hoje)],
+    "dias-prazo": prazo ? diasEntre(hoje, prazo) : null,
+    retirada,
+    vez: l.vez_de === "concedente" ? "concedente" : l.vez_de === "proponente" ? "município" : null,
+    parado: l.parado_desde ? diasEntre(l.parado_desde, referencia) : null,
+    pedidos: l.rodadas_de_exigencia,
+  };
+}
+
+/**
+ * O endereço novo de um link antigo (`?prazo=` e `?orgao=`), ou null quando ele não tem filtro antigo. Como antes,
+ * valor desconhecido não filtra (o órgão só vale se estiver na coleta, `orgaosDaColeta`, no nome como o banco grava):
+ * o link vira a lista inteira, e não uma lista vazia.
+ */
+export function urlSuspensivasDoFiltroAntigo(
+  antigo: { prazo: string | null; orgao: string | null },
+  orgaosDaColeta: readonly string[],
+): string | null {
+  if (!antigo.prazo && !antigo.orgao) return null;
+  const filtros: EstadoTabela["filtros"] = {};
+  const niveis = antigo.prazo ? PRAZO_ANTIGO[antigo.prazo] : undefined;
+  if (niveis) filtros.urgencia = { tipo: "categoria", valores: niveis.map((n) => ROTULO_URGENCIA_PRAZO[n]) };
+  if (antigo.orgao && orgaosDaColeta.includes(antigo.orgao)) filtros.orgao = { tipo: "categoria", valores: [tituloOrgao(antigo.orgao)] };
+  const s = gravarEstado(TABELA_SUSPENSIVAS, { ...ESTADO_VAZIO, filtros }, new URLSearchParams()).toString();
+  return `/mapa/suspensivas${s ? `?${s}` : ""}`;
 }

@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 import {
   ABAS_BRASIL,
   MACRORREGIAO,
+  TABELA_UFS,
+  colunasUfs,
+  valoresDaUfBrasil,
   URL_CSV_BRASIL,
   URL_RELATORIO_BRASIL,
   abaDoBrasil,
@@ -22,6 +25,7 @@ import {
 import type { LinhaTerritorio } from "./pagina-uf.ts";
 import type { LinhaDesfecho } from "./painel.ts";
 import type { LinhaEspecialAno } from "./pix.ts";
+import { idValido } from "./tabela-filtro.ts";
 
 const t = (recorte: string, dimensao: LinhaTerritorio["dimensao"], chave: string, n: number, valor: number, vivo: boolean | null = null, extra: Partial<LinhaTerritorio> = {}): LinhaTerritorio => ({
   recorte, dimensao, chave, vivo, n, em_execucao: 0, valor, desembolsado: 0, municipios: null, proponentes: null, ...extra,
@@ -63,6 +67,19 @@ test("U2: as 27 UFs em ordem alfabética, só com o comparável (os vivos)", () 
   assert.deepEqual(pb && [pb.vivos, pb.emExecucao, pb.prestandoContas, pb.municipiosVivos, pb.propostasAno, pb.pixPagoAno, pb.janelas, pb.regiao], [2699, 1790, 300, 222, 1223, 140e6, 2, "NE"]);
   const ac = l.find((u) => u.sigla === "AC");
   assert.deepEqual(ac && [ac.vivos, ac.propostasAno, ac.pixPagoAno, ac.janelas], [0, null, null, 0]);
+
+  // Onda 15, fase 2, lote A (13/10/2026): a tabela filtrável das 27 UFs, uma linha crua por UF, com um valor por coluna.
+  const colunas = colunasUfs(2026, false);
+  for (const c of colunas) assert.ok(idValido(c.id), c.id);
+  assert.equal(new Set(colunas.map((c) => c.id)).size, colunas.length);
+  assert.deepEqual(colunas.filter((c) => c.ordenavel !== false).map((c) => c.id), ["uf", "sigla", "regiao"], "tela pública: os números não ordenam");
+  assert.equal(colunasUfs(2026, true).filter((c) => c.ordenavel !== false).length, colunas.length, "o administrador ordena por qualquer coluna");
+  assert.deepEqual(colunas.filter((c) => c.oculta).map((c) => c.id), ["sigla", "assinadas"]);
+  assert.match(colunas.find((c) => c.id === "pix")?.titulo ?? "", /2026/);
+  const v = pb && valoresDaUfBrasil(pb);
+  assert.deepEqual(v && Object.keys(v).sort(), colunas.map((c) => c.id).sort());
+  assert.deepEqual(v && [v.uf, v.sigla, v.regiao, v.propostas, v.assinadas, v.pix], ["Paraíba", "PB", "Nordeste", 1223, 241, 140e6]);
+  assert.equal(TABELA_UFS, "ufs");
 });
 
 test("U2: cor só por região, nunca mais de 5 grupos", () => {
