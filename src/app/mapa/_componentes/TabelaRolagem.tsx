@@ -21,8 +21,14 @@
  * - **A tabela ganha o nome.** Das 107 tabelas, 9 tinham `<caption>`; nas outras, o leitor de tela dizia só "tabela".
  *   A `<table>` filha direta recebe o mesmo nome da caixa (`aria-labelledby` ou `aria-label`), salvo quando já tem
  *   `<caption>` ou nome próprio. Assim o nome fica também quando a caixa deixa de ser região.
+ *
+ * Integração da onda 14 (13/10/2026): o nome da tabela passa a ser posto no DOM depois de montar, e não mais clonando o
+ * filho. Com uma tabela grande vinda de um componente do servidor, o React entrega o filho ao render do servidor ainda
+ * como referência pendente (não clonável) e ao navegador já resolvido: o servidor desenhava a tabela sem o nome, o
+ * navegador com ele, e a hidratação acusava a diferença (visto na ficha do parlamentar, com 180 municípios). Agora o
+ * HTML do servidor e o primeiro desenho do navegador são iguais, e o nome entra logo em seguida.
  */
-import { Children, cloneElement, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type Nome =
   | {
@@ -36,20 +42,23 @@ type Nome =
       rotulo?: never;
     };
 
-type PropsTabela = { "aria-label"?: string; "aria-labelledby"?: string; children?: ReactNode };
-
-/** A `<table>` filha com o nome da caixa, se ela ainda não tem `<caption>` nem nome. O resto passa como veio. */
-function comNome(filhos: ReactNode, nome: Nome): ReactNode {
-  if (!isValidElement<PropsTabela>(filhos) || filhos.type !== "table") return filhos;
-  const p = filhos.props;
-  if (p["aria-label"] || p["aria-labelledby"]) return filhos;
-  if (Children.toArray(p.children).some((c) => isValidElement(c) && c.type === "caption")) return filhos;
-  return cloneElement(filhos as ReactElement<PropsTabela>, nome.rotuloId ? { "aria-labelledby": nome.rotuloId } : { "aria-label": nome.rotulo });
+/** Dá à `<table>` filha direta o nome da caixa, se ela ainda não tem `<caption>` nem nome próprio. */
+function nomearTabela(caixa: HTMLElement, nome: Nome): void {
+  const tabela = caixa.firstElementChild;
+  if (!tabela || tabela.tagName !== "TABLE") return;
+  if (tabela.hasAttribute("aria-label") || tabela.hasAttribute("aria-labelledby")) return;
+  if (tabela.querySelector(":scope > caption")) return;
+  if (nome.rotuloId) tabela.setAttribute("aria-labelledby", nome.rotuloId);
+  else if (nome.rotulo) tabela.setAttribute("aria-label", nome.rotulo);
 }
 
 export function TabelaRolagem({ rotulo, rotuloId, className, children }: Nome & { className?: string; children: ReactNode }) {
   const caixa = useRef<HTMLDivElement>(null);
   const [rola, setRola] = useState(true);
+
+  useEffect(() => {
+    if (caixa.current) nomearTabela(caixa.current, (rotuloId ? { rotuloId } : { rotulo }) as Nome);
+  }, [rotulo, rotuloId]);
 
   useEffect(() => {
     const el = caixa.current;
@@ -62,7 +71,6 @@ export function TabelaRolagem({ rotulo, rotuloId, className, children }: Nome & 
     return () => observador.disconnect();
   }, []);
 
-  const nome = (rotuloId ? { rotuloId } : { rotulo }) as Nome;
   return (
     <div
       ref={caixa}
@@ -72,7 +80,7 @@ export function TabelaRolagem({ rotulo, rotuloId, className, children }: Nome & 
       tabIndex={rola ? 0 : undefined}
       className={className ? `mp-tabela-rolagem ${className}` : "mp-tabela-rolagem"}
     >
-      {comNome(children, nome)}
+      {children}
     </div>
   );
 }

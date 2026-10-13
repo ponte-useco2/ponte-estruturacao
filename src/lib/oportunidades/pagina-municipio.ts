@@ -14,6 +14,15 @@
  * PB) e o recorte da leitura pública antes de ela ir à memória e ao cache comum (`leituraDoPublico`, com os campos de
  * análise do instrumento fora: `CAMPOS_DE_ANALISE_DO_INSTRUMENTO`).
  */
+import {
+  CANAIS,
+  destinoPorAutor,
+  separarDestino,
+  somarDestino,
+  type AutorEmendas,
+  type CanalEmenda,
+  type DestinoEmendas,
+} from "./emendas.ts";
 import { MUNICIPIOS_PB } from "./municipios-pb.ts";
 import {
   FALTAS_DA_FONTE,
@@ -144,6 +153,15 @@ export const PODE = {
   interno: (n: NivelAcesso) => n >= 3,
 };
 
+/**
+ * Se a página lê e desenha o bloco "De onde vêm as emendas" (onda 14, parte 2, C, 13/10/2026): só o administrador, até
+ * a revisão jurídica, e só na aba do dinheiro, que é onde o bloco aparece. O público (nível 0), o cadastrado e o cliente
+ * nunca disparam a leitura (`lerEmendasDoMunicipio`, que é de administrador e não passa pelo cache comum).
+ */
+export function leEmendasDoMunicipio(aba: AbaMunicipio, nivel: NivelAcesso): boolean {
+  return aba === "dinheiro" && PODE.interno(nivel);
+}
+
 /** "/mapa/instrumento/942082/laudo" para quem pode o laudo; "/mapa/instrumento/942082" para os outros. */
 export function destinoConvenio(nivel: NivelAcesso): (nr: string) => string {
   return PODE.laudo(nivel) ? (nr) => `/mapa/instrumento/${nr}/laudo` : (nr) => `/mapa/instrumento/${nr}`;
@@ -271,6 +289,85 @@ export function instrumentoDoPublico<T extends InstrumentoRelatorio>(i: T): T {
   const saida: T = { ...i };
   for (const c of CAMPOS_DE_ANALISE_DO_INSTRUMENTO) (saida as InstrumentoRelatorio)[c] = null;
   return saida;
+}
+
+// ================================================================ as emendas por autor (onda 14, parte 2, C)
+
+/** O valor de um canal no município: o válido (null no pago ao favorecido, que não tem escada) e o pago. */
+export interface CanalNoMunicipio {
+  canal: CanalEmenda;
+  valido: number | null;
+  pago: number;
+}
+
+/** Um autor que mandou recurso ao município. `codigo` null: a saúde fundo a fundo ainda sem o detalhe do autor. */
+export interface AutorNoMunicipio {
+  codigo: string | null;
+  autor: Pick<AutorEmendas, "codigo" | "nome" | "tipo" | "coletivo" | "pessoa"> | null;
+  canais: CanalNoMunicipio[];
+}
+
+export interface EmendasNoMunicipio {
+  /** Na ordem de tipo e nome do autor (`destinoPorAutor`), nunca de valor; o FNS sem o autor por último. */
+  autores: AutorNoMunicipio[];
+  /** Os canais com valor no município, na ordem fixa, com quantos autores (o FNS sem o autor não conta) e a soma. */
+  porCanal: (CanalNoMunicipio & { autores: number })[];
+  /** Autores com indicação para o município, mas sem nada válido nem pago ainda (proposta não assinada ou caducada). */
+  soIndicado: number;
+  /** O pago a empresa, OSC, consórcio ou órgão federal com sede no município: à parte, não é destino municipal. */
+  entidadeComSede: number;
+}
+
+const soPago = (c: CanalEmenda) => c === "favorecido";
+const ordemDoCanal = (c: CanalEmenda) => {
+  const k = CANAIS.indexOf(c);
+  return k < 0 ? CANAIS.length : k;
+};
+
+/**
+ * O bloco "De onde vêm as emendas" de um município (onda 14, parte 2, C, 13/10/2026), sobre `emd_destino(p_ibge)`:
+ *   · só o destino municipal (`separarDestino`): a prefeitura e o fundo municipal. O governo do estado e o fundo estadual
+ *     não têm IBGE e nunca chegam aqui; a entidade com sede no município fica à parte, só somada (`entidadeComSede`);
+ *   · por autor e canal, o válido e o pago; o canal sem válido nem pago fica fora, e o autor sem nenhum canal assim é só
+ *     contado (`soIndicado`);
+ *   · a ordem é a de `destinoPorAutor`: tipo e nome, e o FNS sem o autor no fim. Sem ranking.
+ */
+export function emendasNoMunicipio(
+  destino: readonly DestinoEmendas[],
+  autores: Pick<AutorEmendas, "codigo" | "nome" | "tipo" | "coletivo" | "pessoa">[],
+): EmendasNoMunicipio {
+  const { municipal, entidadeComSede } = separarDestino([...destino]);
+  const soma = new Map<string, Map<CanalEmenda, { valido: number; pago: number }>>();
+  for (const d of municipal) {
+    const k = d.autor_codigo ?? "";
+    const canais = soma.get(k) ?? new Map<CanalEmenda, { valido: number; pago: number }>();
+    const s = canais.get(d.canal) ?? { valido: 0, pago: 0 };
+    const x = somarDestino([d]); // converte o número que vier como texto
+    s.valido += x.valido;
+    s.pago += x.pago;
+    canais.set(d.canal, s);
+    soma.set(k, canais);
+  }
+  const lista: AutorNoMunicipio[] = [];
+  let soIndicado = 0;
+  for (const g of destinoPorAutor(municipal, autores)) {
+    const canais = [...(soma.get(g.codigo ?? "") ?? new Map<CanalEmenda, { valido: number; pago: number }>())]
+      .filter(([, s]) => s.valido > 0 || s.pago > 0)
+      .sort(([a], [b]) => ordemDoCanal(a) - ordemDoCanal(b))
+      .map(([canal, s]): CanalNoMunicipio => ({ canal, valido: soPago(canal) ? null : s.valido, pago: s.pago }));
+    if (canais.length) lista.push({ codigo: g.codigo, autor: g.autor, canais });
+    else if (g.codigo !== null) soIndicado += 1;
+  }
+  const porCanal = CANAIS.map((canal) => {
+    const comCanal = lista.map((a) => ({ a, c: a.canais.find((x) => x.canal === canal) })).filter((x) => x.c);
+    return {
+      canal,
+      autores: comCanal.filter((x) => x.a.codigo !== null).length,
+      valido: soPago(canal) ? null : comCanal.reduce((s, x) => s + (x.c?.valido ?? 0), 0),
+      pago: comCanal.reduce((s, x) => s + (x.c?.pago ?? 0), 0),
+    };
+  }).filter((c) => (c.valido ?? 0) > 0 || c.pago > 0);
+  return { autores: lista, porCanal, soIndicado, entidadeComSede: somarDestino(entidadeComSede).pago };
 }
 
 /**

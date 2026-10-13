@@ -90,8 +90,8 @@ export async function MapaFrame(
       {/* Onda 8, C (N22): o contexto não desenha caixa; a região de status única fica no fim, depois do rodapé. */}
       <EsperaDoMapa>
         <AbrirAoImprimir />
-        {/* B12 (08/10/2026; A15 da auditoria B1+B2): o primeiro Tab da página. São até 13 paradas no cabeçalho antes do
-            conteúdo (11 abas para o administrador). Âncora da própria página, não rota: <a> simples, sem LinkMapa. */}
+        {/* B12 (08/10/2026; A15 da auditoria B1+B2): o primeiro Tab da página. São até 14 paradas no cabeçalho antes do
+            conteúdo (12 abas para o administrador desde a onda 14, com "Parlamentares"). Âncora da própria página, não rota: <a> simples, sem LinkMapa. */}
         <a href="#conteudo" className="mp-pular">
           Pular para o conteúdo
         </a>

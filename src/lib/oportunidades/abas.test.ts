@@ -95,7 +95,7 @@ test("B11: o menu tem a aba «Território», para todo aprovado, logo depois da 
   assert.deepEqual(nomes("aprovado"), ["Janelas", "Avisos", "Carteira", "Busca", "Território"]);
   assert.deepEqual(nomes("prefeitura"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Meu município"]);
   assert.deepEqual(nomes("osc"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Minha organização"]);
-  assert.deepEqual(nomes("administrador"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Radar", "Painel", "Fiscal", "Suspensivas", "Fornecedores"]);
+  assert.deepEqual(nomes("administrador"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Radar", "Painel", "Fiscal", "Suspensivas", "Fornecedores", "Parlamentares"]);
   assert.equal(ABAS_MENU.find((a) => a.nome === "Território")?.href, "/mapa/brasil", "a porta leva ao topo da descida");
 });
 
@@ -144,13 +144,42 @@ test("B11: uma aba acesa por vez — o laudo do Pix do administrador com prefeit
   assert.equal(acesa("administrador", "/mapa/pix/ente/2513802"), "Painel");
   assert.equal(acesa("prefeitura", "/mapa/pix/plano/123"), "Meu município");
   // varredura: em qualquer página, no máximo uma aba casa com a regra que o menu aplica
-  const caminhos = ["/mapa", "/mapa/avisos", "/mapa/carteira", "/mapa/busca", "/mapa/brasil", "/mapa/uf/pb", `/mapa/municipio/${MEU_IBGE}`, `/mapa/entidade/${MINHA}`, "/mapa/pix/ente/2513802", "/mapa/radar", "/mapa/fornecedor/05476456000146"];
+  const caminhos = ["/mapa", "/mapa/avisos", "/mapa/carteira", "/mapa/busca", "/mapa/brasil", "/mapa/uf/pb", `/mapa/municipio/${MEU_IBGE}`, `/mapa/entidade/${MINHA}`, "/mapa/pix/ente/2513802", "/mapa/radar", "/mapa/fornecedor/05476456000146", "/mapa/parlamentares", "/mapa/parlamentar/4270"];
   for (const perfil of Object.keys(PERFIS)) {
     for (const caminho of caminhos) {
       const href = abaAcesa(abasDoMenu(PERFIS[perfil].perfil), caminho, null, PERFIS[perfil].dono);
       assert.ok(href === null || abasDoMenu(PERFIS[perfil].perfil).some((a) => a.href === href), `${perfil} em ${caminho}: a acesa é uma das visíveis`);
     }
   }
+});
+
+// ================================================================ onda 14, parte 2, C: a aba «Parlamentares»
+
+test("onda 14: «Parlamentares» é só do administrador, no fim do menu dele, e leva à lista", () => {
+  const aba = ABAS_MENU.find((a) => a.nome === "Parlamentares");
+  assert.ok(aba);
+  assert.equal(aba.href, "/mapa/parlamentares");
+  assert.equal(aba.admin, true);
+  for (const perfil of ["aprovado", "prefeitura", "osc"] as const) {
+    assert.ok(!abasDoMenu(PERFIS[perfil].perfil).some((a) => a.nome === "Parlamentares"), perfil);
+  }
+  assert.equal(abasDoMenu(PERFIS["administrador com prefeitura"].perfil).at(-1)?.nome, "Parlamentares");
+  assert.equal(rotaPublica("/mapa/parlamentares"), false, "a lista pede cadastro, e a página, o administrador");
+  assert.equal(rotaPublica("/mapa/parlamentar/4270"), false);
+});
+
+test("onda 14: «Parlamentares» acende na lista e na ficha de cada autor, e só ela", () => {
+  for (const perfil of ["administrador", "administrador com prefeitura"] as const) {
+    assert.equal(acesa(perfil, "/mapa/parlamentares"), "Parlamentares", perfil);
+    assert.equal(acesa(perfil, "/mapa/parlamentares?tipo=bancada"), "Parlamentares", "a query não chega ao caminho, mas não pode confundir");
+    assert.equal(acesa(perfil, "/mapa/parlamentar/4270"), "Parlamentares", perfil);
+    assert.equal(acesa(perfil, "/mapa/parlamentar/4270", "suspensivas"), "Parlamentares", "a origem não muda a ficha");
+  }
+  // O prefixo não confunde com o painel nem com o Pix; e o município (com o bloco das emendas) segue no Território.
+  assert.equal(acesa("administrador", "/mapa/painel"), "Painel");
+  assert.equal(acesa("administrador", `/mapa/municipio/${OUTRO_IBGE}`), "Território");
+  // Sem a aba no menu (quem não é administrador), a ficha não acende nenhuma.
+  assert.equal(acesa("aprovado", "/mapa/parlamentar/4270"), null);
 });
 
 // ================================================================ C4a: o menu da versão pública

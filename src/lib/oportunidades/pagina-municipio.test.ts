@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   ABAS_MUNICIPIO,
   CAMPOS_DE_ANALISE_DO_INSTRUMENTO,
@@ -11,8 +13,10 @@ import {
   abaEscolhida,
   colunasDoPublico,
   destinoConvenio,
+  emendasNoMunicipio,
   ibgeDaUrl,
   instrumentoDoPublico,
+  leEmendasDoMunicipio,
   leituraDoPublico,
   nivelDeAcesso,
   nivelSemCliente,
@@ -29,6 +33,7 @@ import type { MunicipioFiscal, VerificacaoFiscal } from "./fiscal.ts";
 import type { PlanoLaudoPix } from "./pix-laudo.ts";
 import type { TceTcu } from "./tce-tcu.ts";
 import { COLUNAS_INSTRUMENTO, montarRelatorio, relatorioSemNomes, type EntradaRelatorio, type InstrumentoRelatorio, type Relatorio } from "./relatorio-municipio.ts";
+import type { AutorEmendas, DestinoEmendas } from "./emendas.ts";
 
 test("nível de acesso: público, cadastrado, cliente do próprio município e administrador", () => {
   assert.equal(nivelDeAcesso({ aprovado: false, administrador: true, clienteDoMunicipio: true }), 0, "sem aprovação não há nível, nem de administrador");
@@ -294,4 +299,107 @@ test("onda 12 (M7): a leitura do público é idempotente e não mexe na leitura 
   assert.deepEqual(relatorioDoNivel(uma.relatorio, 0), relatorioDoNivel(relatorio, 0), "o que o nível 0 vê é o mesmo");
   assert.ok(relatorio.fiscal && ok.instrumentos.some((i) => i.situacao_contratacao), "a recebida não muda");
   for (const l of [{ estado: "nao_encontrado" as const }, { estado: "erro" as const }]) assert.equal(leituraDoPublico(l), l);
+});
+
+// ================================================================ onda 14, parte 2, C: "De onde vêm as emendas"
+
+test("onda 14: só o administrador lê o bloco das emendas, e só na aba do dinheiro — o público, nunca", () => {
+  for (const nivel of [0, 1, 2] as const) {
+    for (const a of ABAS_MUNICIPIO) assert.equal(leEmendasDoMunicipio(a.id, nivel), false, `nível ${nivel}, aba ${a.id}`);
+  }
+  assert.deepEqual(ABAS_MUNICIPIO.filter((a) => leEmendasDoMunicipio(a.id, 3)).map((a) => a.id), ["dinheiro"]);
+  // O nível 0 é o da página pública (`quemAPaginaAtende` com `aprovado: null`), e a aba do dinheiro abre para ele.
+  assert.equal(podeAbaMunicipio("dinheiro", 0), true);
+  assert.equal(leEmendasDoMunicipio(abaEscolhida("dinheiro", 0), 0), false);
+});
+
+const RAIZ_APP = path.join(import.meta.dirname, "..", "..", "app");
+const PASTA_MUNICIPIO = path.join(RAIZ_APP, "mapa", "municipio", "[ibge]");
+
+function fontesDoApp(dir: string): string[] {
+  const saida: string[] = [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) saida.push(...fontesDoApp(p));
+    else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) saida.push(p);
+  }
+  return saida;
+}
+
+test("onda 14: a página do município só chama a leitura das emendas atrás da regra do administrador", () => {
+  const pagina = fs.readFileSync(path.join(PASTA_MUNICIPIO, "page.tsx"), "utf8");
+  assert.equal(pagina.match(/lerEmendasDoMunicipio\(/g)?.length, 1, "uma chamada só");
+  assert.match(pagina, /leEmendasDoMunicipio\(aba, nivel\)\s*\?\s*lerEmendasDoMunicipio\(ibge\)/, "a chamada fica atrás da regra");
+  // Nenhuma outra página nem componente do app lê as emendas do município.
+  const chamam = fontesDoApp(RAIZ_APP)
+    .filter((f) => /lerEmendasDoMunicipio\(/.test(fs.readFileSync(f, "utf8")))
+    .map((f) => path.relative(RAIZ_APP, f).split(path.sep).join("/"));
+  assert.deepEqual(chamam, ["mapa/municipio/[ibge]/page.tsx"]);
+});
+
+test("onda 14: o conteúdo só desenha o bloco no nível do administrador, e o relatório do público não o leva", () => {
+  const conteudo = fs.readFileSync(path.join(PASTA_MUNICIPIO, "MunicipioConteudo.tsx"), "utf8");
+  assert.equal(conteudo.match(/<EmendasDoMunicipio\b/g)?.length, 1, "um lugar só");
+  assert.match(conteudo, /PODE\.interno\(nivel\) && emendas !== undefined && <EmendasDoMunicipio\b/);
+  // O relatório para imprimir e o recorte do público não importam o bloco nem a leitura.
+  for (const f of fontesDoApp(path.join(PASTA_MUNICIPIO, "relatorio"))) {
+    const texto = fs.readFileSync(f, "utf8");
+    assert.ok(!/EmendasDoMunicipio|lerEmendasDoMunicipio/.test(texto), f);
+  }
+  // A leitura é de administrador: fica na memória da instância, fora do cache comum (`cache-dados`).
+  const leitura = fs.readFileSync(path.join(import.meta.dirname, "emendas.server.ts"), "utf8");
+  assert.ok(!/cache-dados/.test(leitura.replace(/\/\*[\s\S]*?\*\//g, "")), "o emendas.server.ts não importa o cache comum");
+});
+
+const autorEmd = (codigo: string, nome: string, tipo: AutorEmendas["tipo"], coletivo = false) => ({ codigo, nome, tipo, coletivo, pessoa: null });
+const linhaEmd = (x: Partial<DestinoEmendas>): DestinoEmendas => ({
+  ibge: "2510808", autor_codigo: null, canal: "convenio", ente_tipo: "municipio", instrumentos: 1, emendas: 1, indicado: 0, valido: 0, pago: 0, caducado: 0, ...x,
+});
+
+test("onda 14: as emendas do município por autor e canal — só o destino municipal, em ordem de tipo e nome, sem ranking", () => {
+  const destino = [
+    linhaEmd({ autor_codigo: "4270", canal: "convenio", indicado: 1000, valido: 1000, pago: 500 }),
+    linhaEmd({ autor_codigo: "4270", canal: "pix", indicado: 300, valido: "300" as unknown as number, pago: 300 }),
+    linhaEmd({ autor_codigo: "4270", canal: "favorecido", ente_tipo: "fundo_municipal", pago: 50 }),
+    linhaEmd({ autor_codigo: "3905", canal: "fns", ente_tipo: "fundo_municipal", indicado: 200, valido: 200, pago: 100 }),
+    linhaEmd({ autor_codigo: "1111", canal: "convenio", indicado: 999 }), // só indicado: fica fora, contado
+    linhaEmd({ autor_codigo: null, canal: "fns", ente_tipo: "fundo_municipal", indicado: 400, valido: 400, pago: 400 }),
+    linhaEmd({ autor_codigo: "2222", canal: "favorecido", ente_tipo: "empresa", pago: 70 }), // sede no município: à parte
+    linhaEmd({ autor_codigo: "2222", canal: "favorecido", ente_tipo: "osc", pago: 30 }),
+    linhaEmd({ autor_codigo: "5555", canal: "convenio", ente_tipo: "estado", indicado: 999, valido: 999, pago: 999 }), // estado: fora
+    linhaEmd({ autor_codigo: "9999", canal: "convenio", indicado: 10, valido: 10 }), // autor fora da lista: "Autor 9999"
+  ];
+  const autores = [
+    autorEmd("3905", "BANCADA DE TESTE", "bancada", true),
+    autorEmd("4270", "AUTORA DE TESTE", "individual"),
+    autorEmd("1111", "AUTOR SEM VALOR", "individual"),
+  ];
+  const e = emendasNoMunicipio(destino, autores);
+  assert.deepEqual(e.autores.map((a) => a.codigo), ["4270", "3905", "9999", null], "tipo e nome; o autor fora da lista e o FNS sem autor no fim");
+  assert.deepEqual(e.autores[0].canais, [
+    { canal: "convenio", valido: 1000, pago: 500 },
+    { canal: "pix", valido: 300, pago: 300 },
+    { canal: "favorecido", valido: null, pago: 50 },
+  ]);
+  assert.deepEqual(e.autores[1].canais, [{ canal: "fns", valido: 200, pago: 100 }]);
+  assert.equal(e.autores[1].autor?.coletivo, true);
+  assert.equal(e.autores[2].autor, null);
+  assert.deepEqual(e.autores[3].canais, [{ canal: "fns", valido: 400, pago: 400 }]);
+  assert.deepEqual(e.porCanal, [
+    { canal: "convenio", autores: 2, valido: 1010, pago: 500 },
+    { canal: "pix", autores: 1, valido: 300, pago: 300 },
+    { canal: "fns", autores: 1, valido: 600, pago: 500 },
+    { canal: "favorecido", autores: 1, valido: null, pago: 50 },
+  ]);
+  assert.equal(e.soIndicado, 1);
+  assert.equal(e.entidadeComSede, 100);
+  assert.ok(!e.autores.some((a) => a.codigo === "5555" || a.codigo === "2222"), "estado e entidade com sede não são destino municipal");
+  // A ordem não depende do valor: dobrar o pago de um autor não muda a lista.
+  const dobrado = emendasNoMunicipio(destino.map((d) => (d.autor_codigo === "3905" ? { ...d, pago: d.pago * 100 } : d)), autores);
+  assert.deepEqual(dobrado.autores.map((a) => a.codigo), e.autores.map((a) => a.codigo));
+});
+
+test("onda 14: município sem emenda válida nem paga dá a lista vazia, sem quebrar", () => {
+  const e = emendasNoMunicipio([], []);
+  assert.deepEqual(e, { autores: [], porCanal: [], soIndicado: 0, entidadeComSede: 0 });
 });

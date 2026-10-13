@@ -22,6 +22,7 @@ import {
   type AbaMunicipio,
   type NivelAcesso,
 } from "@/lib/oportunidades/pagina-municipio";
+import type { LeituraEmendasMunicipio } from "@/lib/oportunidades/emendas";
 import type { FonteOsc, ResumoOscMunicipio } from "@/lib/oportunidades/osc";
 import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import type { EntidadeNoMunicipio, LenteEntidade } from "@/lib/oportunidades/pagina-entidade";
@@ -32,6 +33,7 @@ import { Carregando } from "../../_componentes/Carregando";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
+import { EmendasDoMunicipio } from "./EmendasDoMunicipio";
 import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
@@ -193,6 +195,7 @@ export function MunicipioConteudo({
   seguindo,
   entidades,
   osc,
+  emendas,
 }: {
   r: Relatorio;
   aba: AbaMunicipio;
@@ -202,6 +205,11 @@ export function MunicipioConteudo({
   entidades?: { lente: LenteEntidade; entidades: EntidadeNoMunicipio[] }[] | null;
   /** O resumo do Mapa das OSC (E3), também só na aba do dinheiro. */
   osc?: { resumo: ResumoOscMunicipio; fonte: FonteOsc } | null;
+  /**
+   * "De onde vêm as emendas" (onda 14, parte 2, C, 13/10/2026): lido só na aba do dinheiro e só para o administrador
+   * (`leEmendasDoMunicipio`); ausente para os outros. O bloco ainda confere o nível antes de desenhar.
+   */
+  emendas?: LeituraEmendasMunicipio;
 }) {
   // C4a: o recorte do público mora no dado, e não só na tela (ver `relatorioDoPublico`); do nível 1 em diante, o inteiro.
   const r = relatorioDoNivel(relatorio, nivel);
@@ -249,6 +257,8 @@ export function MunicipioConteudo({
           </Mais>
           <BlocoPropostas r={r} destino={destino} />
           <BlocoEmendas r={r} />
+          {/* Onda 14, parte 2, C (13/10/2026): os autores das emendas, só do administrador, até a revisão jurídica. */}
+          {PODE.interno(nivel) && emendas !== undefined && <EmendasDoMunicipio leitura={emendas} municipio={r.nome} />}
           {/* C4a (B3 da R3): Pix, TCE-PB e fornecedores só do nível 1 em diante, como na entidade. */}
           {PODE.cadastro(nivel) && (
             <>

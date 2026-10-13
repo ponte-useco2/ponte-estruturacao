@@ -121,6 +121,9 @@ export const ABAS_MENU: readonly AbaMenu[] = [
   { href: "/mapa/suspensivas", nome: "Suspensivas", exata: false, admin: true, municipio: false, tambem: [LAUDO_PELAS_SUSPENSIVAS] },
   // O dossiê de cada empresa (/mapa/fornecedor/<cnpj>) acende a lista.
   { href: "/mapa/fornecedores", nome: "Fornecedores", exata: false, admin: true, municipio: false, tambem: ["/mapa/fornecedor/"] },
+  // Os autores das emendas com destino à PB (onda 14, parte 2, C, 13/10/2026): a lista acende a aba, e a ficha de cada
+  // autor (/mapa/parlamentar/<código>) também. Só administrador, até a revisão jurídica.
+  { href: "/mapa/parlamentares", nome: "Parlamentares", exata: false, admin: true, municipio: false, tambem: ["/mapa/parlamentar/"] },
 ];
 
 /** Quem está olhando o menu: administrador, organização de município com IBGE, organização com CNPJ. */

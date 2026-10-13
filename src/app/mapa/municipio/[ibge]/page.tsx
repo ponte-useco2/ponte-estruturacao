@@ -6,7 +6,9 @@ import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { quemRecebe } from "@/lib/oportunidades/pagina-entidade";
-import { ABAS_MUNICIPIO, PODE, abaEscolhida, ibgeDaUrl, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import type { LeituraEmendasMunicipio } from "@/lib/oportunidades/emendas";
+import { lerEmendasDoMunicipio } from "@/lib/oportunidades/emendas.server";
+import { ABAS_MUNICIPIO, PODE, abaEscolhida, ibgeDaUrl, leEmendasDoMunicipio, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
@@ -108,7 +110,16 @@ export default async function MunicipioPage({
   after(() => registrarUso(visitante, "mapa_municipio", { ibge, aba, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
   // "Quem recebe no município" (E1) e as OSC do Mapa (E3): só na aba do dinheiro, que é onde o bloco aparece.
-  const [linhas, osc] = aba === "dinheiro" ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge)]) : [undefined, null];
+  // "De onde vêm as emendas" (onda 14, parte 2, C, 13/10/2026): só o administrador lê, e só nessa aba; a leitura é de
+  // administrador, fica na memória da instância e não passa pelo cache comum. A rejeição inesperada vira "falha", e o
+  // bloco diz só uma linha: a página nunca cai por ele.
+  const emendasDoMunicipio: Promise<LeituraEmendasMunicipio> | undefined = leEmendasDoMunicipio(aba, nivel)
+    ? lerEmendasDoMunicipio(ibge).catch(() => ({ estado: "falha" as const }))
+    : undefined;
+  const [linhas, osc, emendas] =
+    aba === "dinheiro"
+      ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio])
+      : [undefined, null, undefined];
   const entidades = linhas === undefined ? undefined : linhas ? quemRecebe(linhas) : null;
   const conteudo = (
     <MunicipioConteudo
@@ -118,6 +129,7 @@ export default async function MunicipioPage({
       seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false}
       entidades={entidades}
       osc={osc}
+      emendas={emendas}
     />
   );
   if (!acesso.sessao) return conteudo;

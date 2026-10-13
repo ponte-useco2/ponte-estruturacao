@@ -1,0 +1,63 @@
+/* =====================================================================
+   Onda 14, parte 2, B (13/10/2026) — as telas dos parlamentares (só
+   administrador): a lista dos autores e a ficha do autor. Completa
+   mapa.css sem mexer nele: o carimbo da data do dado, o filtro por tipo
+   e as faixas do mapa de destino. Só tokens do Mapa. Seletores com duas
+   classes onde mexem no que mapa.css já define: a ordem de carga não é
+   fixa.
+   ===================================================================== */
+
+.pa-root .mp-parl-carimbo { margin: 0; max-width: 72ch; }
+.pa-root .mp-parl-lista { display: grid; gap: 0.45rem; margin: 0; padding-left: 1.1rem; max-width: 80ch; }
+
+/* O filtro por tipo: chips que são links (aria-current na escolhida), quebrando linha no celular. */
+.pa-root .mp-parl-filtro { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0 0.25rem; padding: 0; list-style: none; }
+.pa-root .mp-parl-filtro a { text-decoration: none; }
+@media (max-width: 640px) {
+  .pa-root .mp-parl-filtro .pa-chip { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+/* A nota de cada grupo da lista, logo abaixo do título. */
+.pa-root .mp-parl-grupo-nota { margin: 0.2rem 0 0; max-width: 80ch; }
+
+/* Os chips do cabeçalho da ficha quebram a linha: o nome publicado de comissão é longo. */
+.pa-root .mp-parl-chips { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; }
+
+/* ---------------------------------------------------------------------
+   O mapa do destino (aba Destinação): a mesma malha e a mesma moldura
+   (`mp-mapa`) da página da UF, com faixas de pago por habitante em tons
+   do azul petróleo, do claro ao escuro, e o não atendido hachurado, à
+   vista, em vez de sumir no fundo. A cor nunca é sozinha: a legenda diz
+   a faixa, cada área tem o nome e o valor no `title` e a tabela abaixo
+   traz todos os números.
+   --------------------------------------------------------------------- */
+.pa-root .mp-mapa.mp-parl-mapa { max-width: 720px; }
+.pa-root .mp-parl-mapa .mp-parl-f0 { fill: url(#mp-parl-hachura); }
+.pa-root .mp-parl-mapa .mp-parl-f1 { fill: var(--pa-brand-soft); }
+.pa-root .mp-parl-mapa .mp-parl-f2 { fill: var(--mp-sobre-marca); }
+.pa-root .mp-parl-mapa .mp-parl-f3 { fill: var(--pa-brand-2); }
+.pa-root .mp-parl-mapa .mp-parl-f4 { fill: var(--pa-brand); }
+/* A borda entre municípios: a da superfície some no hachurado claro; a do campo marca o contorno. */
+.pa-root .mp-mapa.mp-parl-mapa path { stroke: var(--mp-borda-campo); stroke-width: 0.5; }
+.pa-root .mp-parl-hachura-fundo { fill: var(--pa-surface); }
+.pa-root .mp-parl-hachura-traco { stroke: var(--mp-borda-campo); stroke-width: 1.2; }
+
+.pa-root .mp-parl-amostra { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; border: 1px solid var(--mp-borda-campo); }
+.pa-root .mp-parl-amostra.mp-parl-a0 {
+  background: repeating-linear-gradient(45deg, var(--mp-borda-campo) 0 1.5px, var(--pa-surface) 1.5px 4px);
+}
+.pa-root .mp-parl-amostra.mp-parl-a1 { background: var(--pa-brand-soft); }
+.pa-root .mp-parl-amostra.mp-parl-a2 { background: var(--mp-sobre-marca); }
+.pa-root .mp-parl-amostra.mp-parl-a3 { background: var(--pa-brand-2); }
+.pa-root .mp-parl-amostra.mp-parl-a4 { background: var(--pa-brand); }
+@media print {
+  .pa-root .mp-parl-mapa path, .pa-root .mp-parl-amostra { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+
+/* A lista dos municípios sem destino deste autor, aberta sob o mapa: nomes corridos, sem rolagem de lado. */
+.pa-root .mp-parl-nao-atendidos { margin: 0.5rem 0 1rem; }
+.pa-root .mp-parl-nao-atendidos > summary { cursor: pointer; font-weight: 600; }
+.pa-root .mp-parl-nao-atendidos p { margin: 0.5rem 0 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .pa-root .mp-parl-nao-atendidos > summary { min-height: 44px; display: flex; align-items: center; }
+}
