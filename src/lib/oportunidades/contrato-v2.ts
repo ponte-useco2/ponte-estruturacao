@@ -54,12 +54,21 @@ export type CampoMudanca = "title" | "status" | "dates.deadline" | "funding.prog
  *   emenda_parlamentar       só com emenda destinada por parlamentar
  *   beneficiario_especifico  só quem o órgão concedente indicou
  *   chamada_publica          edital aberto de Finep, CNPq, FAPESQ
+ *   fluxo_continuo           porta sem edital nem prazo (contrato 2.2)
  *
- * Os três primeiros são as três janelas de datas do SICONV. O último é o que as
+ * Os três primeiros são as três janelas de datas do SICONV. O quarto é o que as
  * outras fontes publicam: edital competitivo, aberto a quem cumpre os
- * requisitos.
+ * requisitos. O último é o produto que está sempre aberto — o modelo EMBRAPII de
+ * projeto com uma Unidade, uma linha de crédito do BNDES: vem com `status: open`
+ * e prazo nulo, e a tela mostra à parte, como "porta permanente", fora da conta
+ * das janelas (ver `ehFluxoContinuo`).
  */
-export type CanalV2 = "voluntaria" | "emenda_parlamentar" | "beneficiario_especifico" | "chamada_publica";
+export type CanalV2 =
+  | "voluntaria"
+  | "emenda_parlamentar"
+  | "beneficiario_especifico"
+  | "chamada_publica"
+  | "fluxo_continuo";
 export type TipoInstrumento =
   | "subvencao_economica"
   | "convenio"
@@ -69,6 +78,10 @@ export type TipoInstrumento =
   | "investimento"
   | "contratacao_pdi"
   | "premio"
+  /** Contrato 2.2: auxílio a projeto de pesquisa (CNPq, PPSUS, FAPs). */
+  | "auxilio_pesquisa"
+  /** Contrato 2.2: credenciamento de instituição (as Unidades da EMBRAPII). */
+  | "credenciamento"
   | "outros";
 
 export interface FonteDaOportunidade {
@@ -120,8 +133,16 @@ export interface OportunidadeV2 {
   /** Contrato 2.1. Ausente em arquivos 2.0 — ver `canalDaOportunidade`. */
   channel?: CanalV2 | null;
   status: StatusV2;
-  dates: { published: string | null; deadline: string | null };
-  eligibility: { organization_types: string[]; geography: string[] };
+  /** `closed` (contrato 2.2): quando encerrou. O radar guarda a encerrada por 24 meses. */
+  dates: { published: string | null; deadline: string | null; closed?: string | null };
+  /**
+   * `partner_types` (contrato 2.2): quem entra só como PARCEIRA — participa, mas
+   * não propõe nem recebe. É a empresa no PPSUS, no PDIL de 2024 e na Chamada CNPq
+   * 30/2025. Sem o campo, o portão por tipo esconderia dela a porta que ela tem.
+   */
+  eligibility: { organization_types: string[]; geography: string[]; partner_types?: string[] };
+  /** Contrato 2.2: os parceiros do edital (Decit/MS, CNPq, a FAP, o Sebrae). */
+  partners?: string[];
   /** Crus, NÃO normalizados — passar por `temasNormalizados` antes de usar. */
   themes: string[];
   funding: { program_budget: number | null };
@@ -148,6 +169,8 @@ export interface PayloadV2 {
     /** Métrica da Ponte. Regra 3: não usar. */
     priority_a: number;
     stale_sources: number;
+    /** Contrato 2.2: portas de fluxo contínuo abertas. Não entram em `open`. */
+    continuous?: number;
   };
   opportunities: OportunidadeV2[];
 }
@@ -235,6 +258,41 @@ export function ehAberta(o: Pick<OportunidadeV2, "status" | "dates">, hojeIso: s
   return d === null || d >= 0;
 }
 
+/**
+ * Porta permanente (contrato 2.2): aberta, sem prazo, por natureza. Não é janela:
+ * não vence, não é urgente e não entra na contagem de abertas.
+ */
+export function ehFluxoContinuo(o: Pick<OportunidadeV2, "channel" | "status">): boolean {
+  return o.channel === "fluxo_continuo" && o.status === "open";
+}
+
+/** Por quanto tempo uma encerrada continua visível. Decisão do titular, 14/10/2026. */
+export const DIAS_HISTORICO = 730;
+
+/**
+ * Encerrada nos últimos 24 meses: para responder "o que já houve" — a chamada que
+ * volta todo ano, o PPSUS que volta a cada ciclo. Uma `open` com prazo vencido
+ * também é encerrada (regra 5).
+ *
+ * Devolve null quando não é encerrada recente; senão, `em` é a data de
+ * encerramento (ou o prazo), e null quando a fonte não deu nenhuma das duas — a
+ * página de resultados do CNPq traz muitas assim. Sem data, ela entra: o radar já
+ * aplicou os 24 meses pela publicação, e a tela diz "não informada" em vez de
+ * inventar uma data.
+ */
+export function encerradaRecente(
+  o: Pick<OportunidadeV2, "status" | "dates" | "channel">,
+  hojeIso: string,
+): { em: string | null } | null {
+  if (o.channel === "fluxo_continuo") return null;
+  const vencidaAberta = o.status === "open" && (diasAte(o.dates.deadline, hojeIso) ?? 0) < 0;
+  if (o.status !== "closed" && !vencidaAberta) return null;
+  const referencia = o.dates.closed ?? o.dates.deadline;
+  if (!referencia) return { em: null };
+  const d = diasAte(referencia, hojeIso);
+  return d !== null && d <= 0 && d >= -DIAS_HISTORICO ? { em: referencia.slice(0, 10) } : null;
+}
+
 export function urgente(o: Pick<OportunidadeV2, "status" | "dates">, hojeIso: string): boolean {
   if (!ehAberta(o, hojeIso)) return false;
   const d = diasAte(o.dates.deadline, hojeIso);
@@ -257,6 +315,8 @@ export const ROTULO_INSTRUMENTO: Record<TipoInstrumento, string> = {
   investimento: "Investimento",
   contratacao_pdi: "Contratação de PD&I",
   premio: "Prêmio",
+  auxilio_pesquisa: "Auxílio à pesquisa",
+  credenciamento: "Credenciamento",
   outros: "Outro instrumento",
 };
 
@@ -304,6 +364,7 @@ export const ROTULO_CANAL: Record<CanalV2, string> = {
   emenda_parlamentar: "Emenda parlamentar",
   beneficiario_especifico: "Beneficiário específico",
   chamada_publica: "Chamada pública",
+  fluxo_continuo: "Fluxo contínuo",
 };
 
 /**
@@ -316,7 +377,14 @@ export const CONDICAO_CANAL: Record<CanalV2, string> = {
   emenda_parlamentar: "Só recebe proposta de quem tem emenda parlamentar destinada.",
   beneficiario_especifico: "Só recebe proposta de quem o órgão concedente indicou.",
   chamada_publica: "Edital aberto a quem cumpre os requisitos.",
+  fluxo_continuo: "Sem edital nem prazo: a qualquer tempo, pelas regras do produto.",
 };
 
 /** Ordem de exibição: do mais aberto ao mais restrito. */
-export const ORDEM_CANAL: CanalV2[] = ["voluntaria", "chamada_publica", "emenda_parlamentar", "beneficiario_especifico"];
+export const ORDEM_CANAL: CanalV2[] = [
+  "voluntaria",
+  "chamada_publica",
+  "emenda_parlamentar",
+  "beneficiario_especifico",
+  "fluxo_continuo",
+];

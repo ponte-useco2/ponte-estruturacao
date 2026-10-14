@@ -1,7 +1,7 @@
 /**
  * Tipos de agente — quem capta recurso público, e o que cada um pode pleitear.
  *
- * Os doze ids são EXATAMENTE os de `ORGANIZATION_TYPES`, em
+ * Os quinze ids são EXATAMENTE os de `ORGANIZATION_TYPES`, em
  * `funding_intelligence/models.py` no radar. Não é gosto: o catálogo v2 traz
  * `eligibility.organization_types` com essas mesmas cadeias, e o cruzamento
  * precisa ser comparação de string. Qualquer tradução aqui viraria tabela
@@ -15,6 +15,12 @@
  * estado 36, OSC 36, município 35, consórcio 20, ICT 11, startup 9,
  * cooperativa 8, pesquisador 6, universidade 4, pessoa física 3. Só `outros`
  * não aparece — é a saída para quem não se encaixa, não uma categoria do dado.
+ *
+ * Contrato 2.2 (14/10/2026): `ict_privada`, `hospital` e `fundacao_apoio`. As
+ * fontes de saúde (PPSUS, Decit, PDIL, EMBRAPII) separam a ICT pública da privada
+ * sem fins lucrativos e dão papel próprio ao hospital e à fundação de apoio. Desde
+ * então `ict` quer dizer ICT pública. Nenhuma organização cadastrada usava `ict`
+ * nessa data, então ninguém mudou de sentido.
  */
 
 export type TipoAgente =
@@ -27,11 +33,14 @@ export type TipoAgente =
   | "startup"
   | "universidade"
   | "ict"
+  | "ict_privada"
+  | "hospital"
+  | "fundacao_apoio"
   | "pesquisador"
   | "pessoa_fisica"
   | "outros";
 
-/** Grupos existem para a tela, não para o dado: doze opções soltas não se leem. */
+/** Grupos existem para a tela, não para o dado: quinze opções soltas não se leem. */
 export type GrupoAgente = "publico" | "civil" | "produtivo" | "ciencia" | "individual";
 
 export interface Agente {
@@ -101,8 +110,26 @@ export const AGENTES: Agente[] = [
   },
   {
     id: "ict",
-    rotulo: "ICT",
-    exemplos: "instituto de ciência e tecnologia, instituto federal, fundação de apoio",
+    rotulo: "ICT pública",
+    exemplos: "instituto de pesquisa público, instituto federal, centro de pesquisa estatal",
+    grupo: "ciencia",
+  },
+  {
+    id: "ict_privada",
+    rotulo: "ICT privada sem fins lucrativos",
+    exemplos: "instituto ou centro de pesquisa privado sem fins lucrativos, com pesquisa no estatuto",
+    grupo: "ciencia",
+  },
+  {
+    id: "hospital",
+    rotulo: "Hospital",
+    exemplos: "hospital universitário, filantrópico ou de ensino, centro de pesquisa clínica",
+    grupo: "ciencia",
+  },
+  {
+    id: "fundacao_apoio",
+    rotulo: "Fundação de apoio",
+    exemplos: "fundação que gere recursos de projetos de uma universidade, ICT ou hospital",
     grupo: "ciencia",
   },
   {

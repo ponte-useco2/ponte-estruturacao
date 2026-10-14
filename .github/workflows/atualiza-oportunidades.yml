@@ -158,7 +158,7 @@ jobs:
 
           python - <<'EOF'
           import json, sys, jsonschema
-          # Cópia de schema/funding-opportunity-2.0.schema.json do radar. Draft
+          # Cópia de schema/funding-opportunity-2.2.schema.json do radar, com `version` aceitando 2.0, 2.1 e 2.2. Draft
           # 2020-12: `jsonschema.validate` escolhe o validador pelo `$schema`.
           schema  = json.load(open("docs/oportunidades-v2.schema.json", encoding="utf-8"))
           payload = json.load(open("/tmp/oportunidades-v2.json", encoding="utf-8"))

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ponteprojetos.example/schemas/funding-opportunity-2.1.json",
+  "$id": "https://ponteprojetos.example/schemas/funding-opportunity-2.2.json",
   "title": "PONTE Funding Intelligence — catálogo multifuente v2",
   "type": "object",
   "additionalProperties": false,
@@ -16,7 +16,8 @@
     "version": {
       "enum": [
         "2.0",
-        "2.1"
+        "2.1",
+        "2.2"
       ]
     },
     "change_mode": {
@@ -83,6 +84,10 @@
           "minimum": 0
         },
         "stale_sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "continuous": {
           "type": "integer",
           "minimum": 0
         }
@@ -359,6 +364,8 @@
                 "investimento",
                 "contratacao_pdi",
                 "premio",
+                "auxilio_pesquisa",
+                "credenciamento",
                 "outros"
               ]
             },
@@ -391,6 +398,9 @@
             },
             "deadline": {
               "$ref": "#/$defs/nullableDate"
+            },
+            "closed": {
+              "$ref": "#/$defs/nullableDate"
             }
           }
         },
@@ -419,6 +429,9 @@
                   "cooperativa",
                   "pesquisador",
                   "pessoa_fisica",
+                  "ict_privada",
+                  "hospital",
+                  "fundacao_apoio",
                   "outros"
                 ]
               }
@@ -429,6 +442,29 @@
               "uniqueItems": true,
               "items": {
                 "type": "string"
+              }
+            },
+            "partner_types": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "empresa",
+                  "startup",
+                  "osc",
+                  "ict",
+                  "universidade",
+                  "municipio",
+                  "estado",
+                  "consorcio_publico",
+                  "cooperativa",
+                  "pesquisador",
+                  "pessoa_fisica",
+                  "ict_privada",
+                  "hospital",
+                  "fundacao_apoio",
+                  "outros"
+                ]
               }
             }
           }
@@ -516,9 +552,18 @@
             "emenda_parlamentar",
             "beneficiario_especifico",
             "chamada_publica",
-            null
+            null,
+            "fluxo_continuo"
           ],
           "description": "Contrato 2.1. Por onde a proposta entra. Os três primeiros são as janelas de datas do SICONV (RECEB_PROP, EMENDA_PAR, BENEF_ESP); chamada_publica é edital aberto das demais fontes. Opcional no schema para que arquivos 2.0 continuem válidos."
+        },
+        "partners": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 2
+          }
         }
       }
     }

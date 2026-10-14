@@ -14,7 +14,7 @@ import {
 /**
  * A lista abaixo é a cópia literal de `ORGANIZATION_TYPES`, em
  * `funding_intelligence/models.py` do repositório do radar
- * (diretoriajnconsulting-dotcom/jn-portal-oportunidades), lida em 12/09/2026.
+ * (diretoriajnconsulting-dotcom/jn-portal-oportunidades), lida em 12/09/2026 e atualizada no contrato 2.2 (14/10/2026).
  *
  * Está duplicada aqui de propósito: o radar é outro repositório e não está
  * disponível no CI deste. Se os dois divergirem, o cruzamento com
@@ -27,7 +27,10 @@ const TIPOS_DO_RADAR = [
   "startup",
   "osc",
   "ict",
+  "ict_privada",
   "universidade",
+  "hospital",
+  "fundacao_apoio",
   "municipio",
   "estado",
   "consorcio_publico",
@@ -51,7 +54,7 @@ test("nenhum id repetido e todo id tem rótulo", () => {
   }
 });
 
-test("os grupos cobrem os doze, sem sobra nem repetição", () => {
+test("os grupos cobrem os quinze, sem sobra nem repetição", () => {
   const agrupados = agentesPorGrupo().flatMap((g) => g.agentes.map((a) => a.id));
   assert.equal(agrupados.length, AGENTES.length);
   assert.deepEqual([...agrupados].sort(), AGENTES.map((a) => a.id).sort());

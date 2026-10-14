@@ -7,7 +7,7 @@
  * catálogo um produto de um cliente só.
  *
  * AQUI, roda em tempo de leitura, contra a organização de quem está olhando.
- * É esse giro que permite servir aos doze tipos de agente: a mesma janela é
+ * É esse giro que permite servir aos quinze tipos de agente: a mesma janela é
  * elegível para um município e não é para uma empresa, e a resposta depende de
  * quem pergunta, não de quem gerou o arquivo.
  *
@@ -26,6 +26,11 @@ import type { TipoAgente } from "./organizacao";
 /** O mínimo que uma janela precisa expor para ser avaliada. */
 export interface JanelaElegivel {
   tiposElegiveis: string[];
+  /**
+   * Contrato 2.2: quem entra só como parceira (participa, não propõe nem recebe).
+   * Não abre o portão de proponente: dá à entidade o papel de parceira, à parte.
+   */
+  tiposParceiros?: string[];
   geografia: string[];
   /** Ids estáveis de `temas.ts`, já normalizados — ver `temasNormalizados`. */
   temas: string[];
@@ -61,8 +66,18 @@ export function elegivel(janela: JanelaElegivel, quem: Perguntante): boolean {
   return janela.tiposElegiveis.includes(quem.tipo);
 }
 
+/**
+ * O papel de quem pergunta na janela. `parceira` é a porta que o contrato 2.2
+ * abriu: a empresa no PPSUS, no PDIL de 2024 e na Chamada CNPq 30/2025 não propõe,
+ * mas entra junto, com termo e contrapartida. Sem ele, o portão por tipo
+ * escondia dela a porta que ela tem.
+ */
+export type Papel = "proponente" | "parceira";
+
 export interface Aderencia {
   elegivel: boolean;
+  /** Null quando o tipo não entra de jeito nenhum. */
+  papel: Papel | null;
   pontuacao: number;
   /** Em linguagem de gente, na ordem em que a tela mostra. */
   motivos: string[];
@@ -80,7 +95,13 @@ function alcancaGeografia(janela: JanelaElegivel, quem: Perguntante): boolean {
 
 export function avaliar(janela: JanelaElegivel, quem: Perguntante): Aderencia {
   if (!elegivel(janela, quem)) {
-    return { elegivel: false, pontuacao: 0, motivos: [] };
+    // Parceira não é elegível como proponente e não ganha pontuação: a lista das
+    // janelas da entidade continua sendo só a que ela pode propor. A tela mostra
+    // as de parceira num bloco próprio, com o motivo dito.
+    if (janela.tiposParceiros?.includes(quem.tipo)) {
+      return { elegivel: false, papel: "parceira", pontuacao: 0, motivos: ["entra como parceira, não como proponente"] };
+    }
+    return { elegivel: false, papel: null, pontuacao: 0, motivos: [] };
   }
 
   const motivos: string[] = [];
@@ -125,7 +146,7 @@ export function avaliar(janela: JanelaElegivel, quem: Perguntante): Aderencia {
     motivos.push(`combina em ${acertos === 1 ? "1 assunto" : `${acertos} assuntos`}`);
   }
 
-  return { elegivel: true, pontuacao, motivos };
+  return { elegivel: true, papel: "proponente", pontuacao, motivos };
 }
 
 export function relevante(a: Aderencia): boolean {
@@ -185,11 +206,12 @@ export function temasNormalizados(temasDoV2: string[] | undefined): string[] {
  * nenhum chamador esquecer de normalizar.
  */
 export function janelaDoV2(o: {
-  eligibility: { organization_types: string[]; geography: string[] };
+  eligibility: { organization_types: string[]; geography: string[]; partner_types?: string[] };
   themes: string[];
 }): JanelaElegivel {
   return {
     tiposElegiveis: o.eligibility.organization_types,
+    tiposParceiros: o.eligibility.partner_types ?? [],
     geografia: o.eligibility.geography,
     temas: temasNormalizados(o.themes),
   };

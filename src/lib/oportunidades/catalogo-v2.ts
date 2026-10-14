@@ -11,13 +11,15 @@ import {
   canalDaOportunidade,
   diasAte,
   ehAberta,
+  ehFluxoContinuo,
+  encerradaRecente,
   urgente,
   type CanalV2,
   type OportunidadeV2,
   type PayloadV2,
   type SaudeFonte,
 } from "./contrato-v2.ts";
-import { avaliar, janelaDoV2, type Aderencia, type Perguntante } from "./elegibilidade.ts";
+import { avaliar, janelaDoV2, type Aderencia, type Papel, type Perguntante } from "./elegibilidade.ts";
 import { comAscendentes, paiDe } from "./temas.ts";
 
 export interface JanelaVista {
@@ -46,6 +48,14 @@ export interface JanelaVista {
   codigos: string[];
   /** `source.stale`: o dado desta janela é o da última leitura boa da fonte. */
   fonteDefasada: boolean;
+  /** Contrato 2.2. Null sem entidade declarada; "parceira" quando ela só entra junto. */
+  papel: Papel | null;
+  /** Contrato 2.2: os parceiros do edital (Decit/MS, CNPq, a FAP). */
+  parceiros: string[];
+  /** Contrato 2.2: a descrição da fonte, que é o que explica uma porta permanente. */
+  descricao: string | null;
+  /** Só nas encerradas: quando encerrou (ou o prazo). Null também quando a fonte não informou. */
+  encerradaEm: string | null;
 }
 
 export interface FonteVista {
@@ -64,6 +74,18 @@ export interface CatalogoVista {
   hoje: string;
   janelas: JanelaVista[];
   /**
+   * Contrato 2.2. Abertas em que a entidade entra só como PARCEIRA — à parte da
+   * lista principal, que continua sendo a do que ela pode propor. Vazia sem entidade.
+   */
+  comoParceira: JanelaVista[];
+  /** Contrato 2.2: portas de fluxo contínuo (sem prazo). Com entidade, só as que servem a ela. */
+  portas: JanelaVista[];
+  /**
+   * Encerradas nos últimos 24 meses (decisão do titular, 14/10/2026): o que já
+   * houve, para quem prepara a próxima edição. Com entidade, só as que serviam a ela.
+   */
+  encerradas: JanelaVista[];
+  /**
    * Regra 2 do contrato: o UNIVERSO do catálogo, nunca rotulado como "seu".
    *
    * `abertasHoje` é calculado aqui, e não lido de `summary.open`: o `summary`
@@ -77,6 +99,8 @@ export interface CatalogoVista {
     urgentes: number;
     /** Abertas hoje que o tipo de proponente da entidade não pode pleitear. */
     foraDoTipo: number;
+    /** Abertas hoje em que ela entra como parceira (contrato 2.2). */
+    comoParceira: number;
   } | null;
   fontes: FonteVista[];
   /** Regra 1: as que a tela é obrigada a nomear. */
@@ -99,7 +123,13 @@ function ordenar(a: JanelaVista, b: JanelaVista): number {
   return a.titulo.localeCompare(b.titulo, "pt-BR");
 }
 
-function vista(o: OportunidadeV2, hojeIso: string, aderencia: Aderencia | null, codigos: string[]): JanelaVista {
+function vista(
+  o: OportunidadeV2,
+  hojeIso: string,
+  aderencia: Aderencia | null,
+  codigos: string[],
+  encerradaEm: string | null = null,
+): JanelaVista {
   return {
     id: o.id,
     titulo: o.title,
@@ -117,7 +147,19 @@ function vista(o: OportunidadeV2, hojeIso: string, aderencia: Aderencia | null, 
     documentos: o.documents.map((d) => ({ titulo: d.title, url: d.url })),
     codigos,
     fonteDefasada: o.source.stale,
+    papel: aderencia?.papel ?? null,
+    parceiros: o.partners ?? [],
+    descricao: o.description,
+    encerradaEm,
   };
+}
+
+/** A mais recente primeiro, as sem data no fim; empate pelo título, para a ordem ser estável. */
+function ordenarEncerradas(a: JanelaVista, b: JanelaVista): number {
+  const da = a.encerradaEm ?? "";
+  const db = b.encerradaEm ?? "";
+  if (da !== db) return da < db ? 1 : -1;
+  return a.titulo.localeCompare(b.titulo, "pt-BR");
 }
 
 /**
@@ -131,9 +173,12 @@ export function montarCatalogo(
   hojeIso: string,
   codigos: ReadonlyMap<string, string[]> = new Map(),
 ): CatalogoVista {
-  const abertas = payload.opportunities.filter((o) => ehAberta(o, hojeIso));
+  // A porta permanente (contrato 2.2) é "aberta" pela regra 5, mas não é janela:
+  // não vence nem entra na conta de abertas. Vai para a lista própria.
+  const abertas = payload.opportunities.filter((o) => ehAberta(o, hojeIso) && !ehFluxoContinuo(o));
 
   const janelas: JanelaVista[] = [];
+  const comoParceira: JanelaVista[] = [];
   let foraDoTipo = 0;
   for (const o of abertas) {
     const codigosDaJanela = codigos.get(o.id) ?? [];
@@ -142,13 +187,37 @@ export function montarCatalogo(
       continue;
     }
     const a = avaliar(janelaDoV2(o), quem);
-    if (!a.elegivel) {
+    if (a.elegivel) {
+      janelas.push(vista(o, hojeIso, a, codigosDaJanela));
+    } else if (a.papel === "parceira") {
+      comoParceira.push(vista(o, hojeIso, a, codigosDaJanela));
+    } else {
       foraDoTipo++;
-      continue;
     }
-    janelas.push(vista(o, hojeIso, a, codigosDaJanela));
   }
   janelas.sort(ordenar);
+  comoParceira.sort(ordenar);
+
+  // Portas e encerradas: sem entidade, todas; com entidade, as que servem a ela,
+  // como proponente ou como parceira.
+  const serve = (o: OportunidadeV2): Aderencia | null | false => {
+    if (quem === null) return null;
+    const a = avaliar(janelaDoV2(o), quem);
+    return a.elegivel || a.papel === "parceira" ? a : false;
+  };
+  const portas: JanelaVista[] = [];
+  const encerradas: JanelaVista[] = [];
+  for (const o of payload.opportunities) {
+    const continua = ehFluxoContinuo(o);
+    const encerrada = continua ? null : encerradaRecente(o, hojeIso);
+    if (!continua && encerrada === null) continue;
+    const a = serve(o);
+    if (a === false) continue;
+    if (continua) portas.push(vista(o, hojeIso, a, codigos.get(o.id) ?? []));
+    else encerradas.push(vista(o, hojeIso, a, codigos.get(o.id) ?? [], encerrada?.em ?? null));
+  }
+  portas.sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"));
+  encerradas.sort(ordenarEncerradas);
 
   const abertasPorFonte = new Map<string, number>();
   for (const j of janelas) abertasPorFonte.set(j.fonteId, (abertasPorFonte.get(j.fonteId) ?? 0) + 1);
@@ -167,11 +236,19 @@ export function montarCatalogo(
     geradoEm: payload.generated_at,
     hoje: hojeIso,
     janelas,
+    comoParceira,
+    portas,
+    encerradas,
     universo: { monitoradas: payload.summary.monitored, abertasHoje: abertas.length },
     paraEntidade:
       quem === null
         ? null
-        : { elegiveis: janelas.length, urgentes: janelas.filter((j) => j.urgente).length, foraDoTipo },
+        : {
+            elegiveis: janelas.length,
+            urgentes: janelas.filter((j) => j.urgente).length,
+            foraDoTipo,
+            comoParceira: comoParceira.length,
+          },
     fontes,
     fontesComProblema: fontes.filter((f) => f.status !== "healthy"),
   };

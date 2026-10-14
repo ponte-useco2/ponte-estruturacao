@@ -28,7 +28,9 @@ import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
 import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
 import { vazioCatalogo } from "@/lib/oportunidades/vazios";
 import { copiarTexto } from "@/lib/area-de-transferencia";
+import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../_design/primitivos";
+import { TabelaFiltravel } from "./_componentes/TabelaFiltravel";
 import { EstrelaSeguir } from "./_componentes/EstrelaSeguir";
 import { LinkMapa } from "./_componentes/LinkMapa";
 
@@ -42,6 +44,7 @@ interface Entidade {
 const ESPERA_DO_ANUNCIO = 500;
 
 function prazoPorExtenso(j: JanelaVista): string {
+  if (j.canal === "fluxo_continuo") return "Fluxo contínuo · sem prazo";
   if (j.prazo === null || j.diasRestantes === null) return "Sem prazo informado pela fonte";
   const data = formatarData(j.prazo);
   if (j.diasRestantes === 0) return `Fecha hoje · ${data}`;
@@ -381,6 +384,71 @@ export function CatalogoClient({
         </ul>
       )}
 
+      {vista.comoParceira.length > 0 && (
+        <section aria-labelledby="catalogo-parceira" className="mp-radar-secao">
+          <h2 id="catalogo-parceira" className="mp-radar-h2">
+            Onde a sua entidade entra como parceira ({vista.comoParceira.length})
+          </h2>
+          <p className="pa-nota">
+            Nestas, quem propõe e recebe o recurso é outro tipo de instituição (em geral uma universidade, ICT ou entidade sem fins
+            lucrativos). A sua entidade participa junto, com termo de compromisso e, quase sempre, contrapartida. As regras de cada
+            edital dizem como.
+          </p>
+          <ul className="pa-pilha mp-janelas">
+            {vista.comoParceira.map((j) => (
+              <li key={j.id} id={`janela-${j.id}`}>
+                <JanelaCartao janela={j} mostrarMotivos anunciar={setAnuncio} seguindo={seguidas ? seguidas.has(j.id) : null} nivel={3} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {vista.portas.length > 0 && (
+        <section aria-labelledby="catalogo-portas" className="mp-radar-secao">
+          <h2 id="catalogo-portas" className="mp-radar-h2">
+            Portas permanentes, sem prazo ({vista.portas.length})
+          </h2>
+          <p className="pa-nota">
+            Produtos que não dependem de edital: a qualquer tempo, pelas regras de cada um. Não entram na contagem das janelas acima.
+          </p>
+          <ul className="pa-pilha mp-janelas">
+            {vista.portas.map((j) => (
+              <li key={j.id} id={`janela-${j.id}`}>
+                <JanelaCartao
+                  janela={j}
+                  mostrarMotivos={entidade !== null}
+                  anunciar={setAnuncio}
+                  seguindo={seguidas ? seguidas.has(j.id) : null}
+                  nivel={3}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {vista.encerradas.length > 0 && (
+        <section aria-labelledby="catalogo-encerradas" className="mp-radar-secao">
+          <h2 id="catalogo-encerradas" className="mp-radar-h2">
+            Encerradas nos últimos 24 meses ({vista.encerradas.length})
+          </h2>
+          <p className="pa-nota">
+            O que já houve, para preparar a próxima edição: muitas chamadas voltam todo ano ou a cada ciclo.
+            {entidade !== null && " Só as que serviam à sua entidade, como proponente ou como parceira."} A mais recente primeiro.
+          </p>
+          <TabelaFiltravel
+            id="encerradas"
+            rotulo="Oportunidades encerradas nos últimos 24 meses"
+            colunas={colunasEncerradas(entidade !== null)}
+            linhas={linhasEncerradas(vista.encerradas)}
+            descricaoOrdemPadrao="pela data de encerramento, a mais recente primeiro"
+            csv={{ nome: "oportunidades-encerradas-24-meses" }}
+            empilhar
+          />
+        </section>
+      )}
+
       <p className="pa-nota mp-procedencia">
         Catálogo gerado em {formatarPublicacao(vista.geradoEm)}. Prazos contados a partir de{" "}
         {formatarData(vista.hoje)}, no horário da Paraíba.
@@ -507,12 +575,16 @@ function JanelaCartao({
   mostrarMotivos,
   anunciar,
   seguindo,
+  nivel = 2,
 }: {
   janela: JanelaVista;
   mostrarMotivos: boolean;
   anunciar: (mensagem: string) => void;
   seguindo: boolean | null;
+  /** 3 dentro dos blocos que têm título próprio (parceira, portas): a hierarquia dos títulos não pula nível. */
+  nivel?: 2 | 3;
 }) {
+  const Titulo = nivel === 3 ? "h3" : "h2";
   const edital = j.documentos[0];
   const combinaTema = j.aderencia?.motivos.some((m) => m.startsWith("combina")) ?? false;
   const [copia, setCopia] = useState<"copiado" | "falhou" | null>(null);
@@ -549,16 +621,21 @@ function JanelaCartao({
   return (
     <article className="pa-cartao mp-janela">
       <div className="mp-janela-corpo">
-        <h2 className="pa-oportunidade-titulo mp-janela-titulo">{j.titulo}</h2>
+        <Titulo className="pa-oportunidade-titulo mp-janela-titulo">{j.titulo}</Titulo>
         {/* Onda 7, C (09/10/2026; N18 da auditoria R1): as etiquetas vêm depois do título no DOM, e quem navega pelos
             títulos chega ao cartão pelo nome e ouve fonte e canal em seguida. Na tela continuam acima do título
             (`order` em mapa.css): não são focáveis, então a ordem do Tab não muda. */}
         <div className="pa-linha mp-janela-etiquetas">
           <Tag>{j.fonteNome}</Tag>
           {j.canal !== null ? <Tag tom="forte">{ROTULO_CANAL[j.canal]}</Tag> : <Tag>{j.instrumento}</Tag>}
+          {j.papel === "parceira" && <Tag tom="forte">Entra como parceira</Tag>}
           {combinaTema && <Tag tom="aderente">Combina com o que você acompanha</Tag>}
         </div>
-        <p className="mp-janela-financiador">{j.financiador}</p>
+        <p className="mp-janela-financiador">
+          {j.financiador}
+          {j.parceiros.length > 0 && <> · com {j.parceiros.join(", ")}</>}
+        </p>
+        {j.canal === "fluxo_continuo" && j.descricao && <p className="mp-janela-condicao">{j.descricao}</p>}
         {j.canal !== null && <p className="mp-janela-condicao">{CONDICAO_CANAL[j.canal]}</p>}
 
         {j.codigos.length > 0 && (
@@ -640,8 +717,60 @@ function JanelaCartao({
             Abrir no Transferegov
             <span className="pa-sr"> — módulo {j.fonteNome.replace(/^TransfereGov · /, "")}, programa {j.titulo} (abre em nova aba)</span>
           </a>
+        ) : j.fonteUrl.startsWith("https://") ? (
+          // Contrato 2.2: a porta permanente (produto do BNDES, modelo da EMBRAPII) não tem edital. O endereço da fonte
+          // é o da página do próprio produto, que o adaptador grava em `source.url`.
+          <a className="pa-btn pa-btn-pequeno" href={j.fonteUrl} target="_blank" rel="noopener noreferrer">
+            Ver na fonte
+            <span className="pa-sr"> — {j.titulo}, em {j.fonteNome} (abre em nova aba)</span>
+          </a>
         ) : null}
       </div>
     </article>
   );
+}
+
+/**
+ * As encerradas dos 24 meses numa tabela com filtro e ordem em cada coluna (regra do titular de 13/10/2026). A data de
+ * encerramento ordena: não é ranking, é o calendário. O papel só aparece com entidade declarada.
+ */
+function colunasEncerradas(comEntidade: boolean): ColunaTabela[] {
+  const colunas: ColunaTabela[] = [
+    { id: "titulo", titulo: "Oportunidade", tipo: "texto" },
+    { id: "fonte", titulo: "Fonte", tipo: "categoria" },
+    { id: "financiador", titulo: "Financiador e parceiros", tipo: "texto" },
+    { id: "canal", titulo: "Canal", tipo: "categoria" },
+    { id: "encerrada", titulo: "Encerrou em", tipo: "data", alinhar: "direita" },
+  ];
+  if (comEntidade) colunas.push({ id: "papel", titulo: "Sua entidade entra como", tipo: "categoria" });
+  colunas.push({ id: "edital", titulo: "Edital", tipo: "texto", ordenavel: false, filtravel: false, semCsv: true });
+  return colunas;
+}
+
+function linhasEncerradas(encerradas: JanelaVista[]): LinhaTabela[] {
+  return encerradas.map((j) => {
+    const edital = j.documentos[0];
+    const financiador = j.parceiros.length > 0 ? `${j.financiador} · com ${j.parceiros.join(", ")}` : j.financiador;
+    return {
+      chave: j.id,
+      valores: {
+        titulo: j.titulo,
+        fonte: j.fonteNome,
+        financiador,
+        canal: j.canal !== null ? ROTULO_CANAL[j.canal] : j.instrumento,
+        encerrada: j.encerradaEm,
+        papel: j.papel === "parceira" ? "Parceira" : j.papel === "proponente" ? "Proponente" : null,
+        edital: edital ? edital.url : null,
+      },
+      celulas: {
+        edital: edital ? (
+          <a href={edital.url} target="_blank" rel="noopener noreferrer">
+            Ver edital<span className="pa-sr"> de {j.titulo} (abre em nova aba)</span>
+          </a>
+        ) : (
+          "—"
+        ),
+      },
+    };
+  });
 }
