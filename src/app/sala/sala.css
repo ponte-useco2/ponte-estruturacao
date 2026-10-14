@@ -1,0 +1,81 @@
+/* Sala do cliente (14/10/2026). Só tokens do design (--pa-*, --mp-*): nenhuma cor nasce aqui. */
+
+.pa-root .sl-pagina { display: flex; flex-direction: column; gap: 2rem; padding-bottom: 3rem; }
+.pa-root .sl-cabeca { gap: 0.6rem; }
+.pa-root .sl-carimbo { border-left: 3px solid var(--pa-brand-2); padding-left: 0.75rem; }
+.pa-root .sl-cartoes { align-items: stretch; }
+.pa-root .sl-cartoes .pa-cartao { display: flex; flex-direction: column; gap: 0.4rem; }
+
+/* Os três caminhos */
+.pa-root .sl-caminhos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.pa-root .sl-caminho {
+  display: flex; flex-direction: column; gap: 0.5rem; min-width: 0;
+  background: var(--pa-surface); border: 1px solid var(--pa-border); border-top: 4px solid var(--pa-brand-2);
+  border-radius: var(--pa-r-lg); padding: 1rem 1.1rem;
+}
+.pa-root .sl-caminho h3 { font-family: var(--pa-display); font-size: 1.05rem; line-height: 1.3; margin: 0; }
+.pa-root .sl-caminho p { margin: 0; }
+.pa-root .sl-caminho-quando { font-family: var(--pa-mono); font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--pa-muted); }
+
+/* A linha do tempo */
+.pa-root .sl-linha { list-style: none; margin: 0; padding: 0 0 0 1.1rem; border-left: 2px solid var(--pa-border); display: flex; flex-direction: column; gap: 1.1rem; }
+.pa-root .sl-marco { position: relative; display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.pa-root .sl-marco::before {
+  content: ""; position: absolute; left: calc(-1.1rem - 7px); top: 0.35rem; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--pa-brand-2); border: 2px solid var(--pa-surface);
+}
+.pa-root .sl-marco-passou { opacity: 0.6; }
+.pa-root .sl-marco-passou::before { background: var(--pa-border); }
+.pa-root .sl-marco h3 { font-family: var(--pa-display); font-size: 1rem; line-height: 1.3; margin: 0; }
+.pa-root .sl-marco p { margin: 0; }
+.pa-root .sl-marco-data { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: center; }
+
+.pa-root .sl-prazo, .pa-root .sl-vale, .pa-root .sl-estado {
+  display: inline-block; font-size: 0.75rem; font-weight: 600; line-height: 1.2; padding: 0.18rem 0.55rem;
+  border-radius: 999px; border: 1px solid var(--pa-border); background: var(--pa-surface-2); color: var(--pa-text);
+  white-space: nowrap;
+}
+.pa-root .sl-prazo-agora { background: var(--pa-brand); border-color: var(--pa-brand); color: var(--pa-surface); }
+.pa-root .sl-prazo-breve { background: var(--pa-brand-soft); border-color: var(--pa-brand-2); color: var(--pa-brand); }
+.pa-root .sl-prazo-passou { color: var(--pa-muted); }
+.pa-root .sl-vale-entes { color: var(--pa-muted); border-style: dashed; }
+
+.pa-root .sl-dias { color: var(--pa-muted); font-size: 0.8em; }
+.pa-root .sl-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Requisitos */
+.pa-root .sl-requisitos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.pa-root .sl-requisito {
+  display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 0.9rem; align-items: start;
+  background: var(--pa-surface); border: 1px solid var(--pa-border); border-left: 4px solid var(--pa-border);
+  border-radius: var(--pa-r); padding: 0.8rem 1rem;
+}
+.pa-root .sl-requisito h3 { font-size: 0.98rem; margin: 0 0 0.2rem; }
+.pa-root .sl-requisito p { margin: 0; }
+.pa-root .sl-requisito .sl-estado { justify-self: start; }
+.pa-root .sl-requisito-cumprido { border-left-color: var(--pa-environmental); }
+.pa-root .sl-requisito-cumprido .sl-estado { background: var(--pa-environmental); border-color: var(--pa-environmental); color: var(--pa-surface); }
+.pa-root .sl-requisito-a-fazer { border-left-color: var(--pa-economic); }
+.pa-root .sl-requisito-a-fazer .sl-estado { border-color: var(--pa-economic); color: var(--pa-economic); background: var(--pa-surface); }
+.pa-root .sl-requisito-a-confirmar { border-left-color: var(--mp-moderado); }
+.pa-root .sl-requisito-a-confirmar .sl-estado { border-color: var(--mp-moderado); color: var(--mp-moderado); background: var(--pa-surface); }
+
+.pa-root .sl-ministerio p { margin: 0; }
+.pa-root .sl-lista, .pa-root .sl-fontes, .pa-root .sl-passos { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.pa-root .sl-fontes a, .pa-root .sl-caminho a, .pa-root .sl-marco a, .pa-root .sl-requisito a, .pa-root .sl-ministerio a,
+.pa-root .sl-carimbo a, .pa-root .sl-pagina > section > .pa-nota a { overflow-wrap: anywhere; }
+.pa-root .sl-rodape { border-top: 1px solid var(--pa-border); padding-top: 1rem; }
+
+/* A porta (senha) */
+.pa-root .sl-porta { max-width: 26rem; margin: 3rem auto; gap: 0.8rem; }
+.pa-root .sl-porta .pa-input { width: 100%; }
+
+@media (max-width: 640px) {
+  .pa-root .sl-requisito { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
+  .pa-root .sl-porta { margin: 1.5rem auto; }
+}
+
+@media print {
+  .pa-root .pa-top, .pa-root .mp-rodape { display: none; }
+  .pa-root .sl-caminho, .pa-root .sl-requisito, .pa-root .sl-marco { break-inside: avoid; }
+}
