@@ -2,7 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { ROTULO_TEMA, TEMAS, ehTemaConhecido, radicaisDesconhecidos, temasDaJanela } from "./temas.ts";
+import {
+  ROTULO_TEMA,
+  TEMAS,
+  comAscendentes,
+  ehTemaConhecido,
+  paiDe,
+  radicaisDesconhecidos,
+  subtemasDe,
+  temaDeCadeia,
+  temasDaJanela,
+} from "./temas.ts";
 
 test("radical do radar vira id de tema", () => {
   assert.deepEqual(temasDaJanela(["inovaç"]), ["inovacao"]);
@@ -57,4 +67,22 @@ test("todo radical do radar tem rótulo", () => {
   const radicais = [...bloco[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]);
   assert.ok(radicais.length >= 10, `poucos radicais lidos do radar: ${radicais.length}`);
   assert.deepEqual(radicaisDesconhecidos(radicais), [], "o radar tem radical sem rótulo em temas.ts");
+});
+
+test("contrato 2.2: os temas de saúde do radar viram subtemas de Saúde", () => {
+  const cadeias = ["terapias_avancadas", "pesquisa_clinica", "pesquisa_sus", "complexo_economico_industrial_saude"];
+  assert.deepEqual(
+    cadeias.map((c) => temaDeCadeia(c)),
+    cadeias,
+    "cada cadeia do radar é o próprio id",
+  );
+  for (const c of cadeias) assert.equal(paiDe(c), "saude");
+  assert.deepEqual(
+    subtemasDe("saude").map((t) => t.id),
+    cadeias,
+  );
+  // Marcar Saúde alcança a janela marcada só como terapia avançada.
+  assert.deepEqual(comAscendentes(["terapias_avancadas"]), ["saude", "terapias_avancadas"]);
+  // "ceis" não é tema: é também o cadastro de empresas inidôneas.
+  assert.equal(temaDeCadeia("ceis"), null);
 });

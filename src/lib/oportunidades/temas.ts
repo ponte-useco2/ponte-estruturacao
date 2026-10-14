@@ -27,6 +27,11 @@
  * TAMBÉM combina com quem segue `inovacao`. Marcar o pai traz tudo abaixo dele;
  * marcar o filho estreita. Ver `comAscendentes`.
  *
+ * Saúde ganhou filhos no contrato 2.2 (14/10/2026), com as fontes de saúde do radar
+ * (PPSUS, Decit pelo CNPq, PDIL, EMBRAPII, BNDES): terapias avançadas, pesquisa
+ * clínica, PPSUS e complexo industrial da saúde. Mesma regra: marcar Saúde traz os
+ * quatro; marcar um deles estreita.
+ *
  * Cobertura: no v1.1 de 11/09/2026, 40 das 150 janelas tinham algum tema; no v2
  * de 10/09/2026, 62 das 171. É por isso que a preferência não é só por tema —
  * órgão e natureza também contam, e esses cobrem o catálogo inteiro.
@@ -139,6 +144,30 @@ export const TEMAS: Tema[] = [
     rotulo: "Cooperação internacional",
     radicais: ["cooperação internacional", "cooperacao_internacional", "cooperacao internacional"],
     pai: "inovacao",
+  },
+
+  // =============================================== subtemas de SAÚDE
+  // Contrato 2.2 (14/10/2026). As cadeias são as que o radar emite (`canonical_themes`
+  // e os adaptadores ppsus e pdil). Fica de fora a sigla "ceis": é também o Cadastro de
+  // Empresas Inidôneas e Suspensas, e casaria por prefixo com o que não é saúde.
+  {
+    id: "terapias_avancadas",
+    rotulo: "Terapias avançadas",
+    radicais: ["terapias_avancadas", "terapias avançadas", "terapia avançada", "terapia celular", "terapia gênica"],
+    pai: "saude",
+  },
+  {
+    id: "pesquisa_clinica",
+    rotulo: "Pesquisa clínica",
+    radicais: ["pesquisa_clinica", "pesquisa clínica", "ensaio clínico", "ensaios clínicos"],
+    pai: "saude",
+  },
+  { id: "pesquisa_sus", rotulo: "Pesquisa para o SUS (PPSUS)", radicais: ["pesquisa_sus", "ppsus"], pai: "saude" },
+  {
+    id: "complexo_economico_industrial_saude",
+    rotulo: "Complexo industrial da saúde",
+    radicais: ["complexo_economico_industrial_saude", "complexo econômico-industrial da saúde", "complexo industrial da saúde"],
+    pai: "saude",
   },
 ];
 
