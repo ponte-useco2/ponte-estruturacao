@@ -17,6 +17,7 @@ import {
   DIAS_ANO_CORRENTE_TCE_PB,
   ESTADOS,
   FOLGA_EMENDAS_H,
+  FOLGA_EMENDAS_JP_H,
   FOLGA_EMENDAS_PB_H,
   FOLGA_PADRAO_H,
   FONTE_CAGED,
@@ -142,13 +143,15 @@ test("onda 9, C: os workflows do disparo da Vercel são diários", () => {
   assert.equal(cronDoWorkflow("nao-existe.yml"), null);
 });
 
-test("onda 9, C: os 16 jobs, com as 14 tabelas (12 conferidas no banco em 09/10/2026; a emd_execucao na onda 14; a epb_execucao no E1)", () => {
+test("onda 9, C: os 17 jobs, com as 15 tabelas (12 conferidas no banco em 09/10/2026; a emd_execucao na onda 14; a epb_execucao no E1; a ejp_execucao no J1)", () => {
   // Onda 14, integração (12/10/2026): as emendas parlamentares, a 15ª linha e a 13ª tabela. E1 das emendas estaduais
-  // (16/10/2026): a 16ª linha e a 14ª tabela, da oport_41.
-  assert.equal(JOBS_RODADAS.length, 16);
+  // (16/10/2026): a 16ª linha e a 14ª tabela, da oport_41. J1 das emendas de João Pessoa (16/10/2026): a 17ª linha e a
+  // 15ª tabela, da oport_44.
+  assert.equal(JOBS_RODADAS.length, 17);
   assert.equal(new Set(JOBS_RODADAS.map((j) => j.id)).size, JOBS_RODADAS.length, "ids únicos");
   assert.deepEqual([...new Set(JOBS_RODADAS.map((j) => j.tabela))].sort(), [
     "al_execucao",
+    "ejp_execucao",
     "emd_execucao",
     "epb_execucao",
     "exigencia_execucao",
@@ -513,6 +516,8 @@ test("onda 11, B: cada job diz onde grava a data do dado, ou que não grava", ()
     emd: `coluna:dias:${DEFASAGEM_PORTAL_EMENDAS_DIAS}`,
     // E1 das emendas estaduais (16/10/2026): a API da PB não informa a data do dado; vale o instante da leitura.
     epb: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
+    // J1 das emendas de João Pessoa (16/10/2026): a `ultimaAtualizacao` do painel, que acompanha a hora da leitura.
+    ejp: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
     // Onda 12, C (12/10/2026): o Caged, de `contagens.periodo_por_fonte`. Até aqui, null.
     mun: `contagens:meses:${DEFASAGEM_CAGED_MESES}`,
     osc: `contagens:meses:${DEFASAGEM_OSC_MESES}`,
@@ -526,9 +531,9 @@ test("onda 11, B: cada job diz onde grava a data do dado, ou que não grava", ()
     if (j.dado) assert.equal(j.dado.limite === null, j.cadencia === "assistida", `${j.id}: limite só onde há cadência`);
     if (j.dado) assert.ok(j.dado.onde && j.dado.rotulo, `${j.id}: onde e rótulo por extenso`);
   }
-  // As 11 linhas da coluna fazem as 11 consultas a mais de `rodadas.server.ts` (32 + 11 = 43; até o E1 das emendas
-  // estaduais, 30 + 10; até a onda 14, 28 + 9).
-  assert.equal(JOBS_RODADAS.filter((j) => j.dado?.origem === "coluna").length, 11);
+  // As 12 linhas da coluna fazem as 12 consultas a mais de `rodadas.server.ts` (34 + 12 = 46; até o J1 das emendas de
+  // João Pessoa, 32 + 11; até o E1 das emendas estaduais, 30 + 10; até a onda 14, 28 + 9).
+  assert.equal(JOBS_RODADAS.filter((j) => j.dado?.origem === "coluna").length, 12);
 });
 
 test("onda 11, B: as defasagens esperadas, com o porquê nas constantes", () => {
@@ -723,6 +728,8 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     emd: EMD_SEM_EXECUCAO,
     // E1 das emendas estaduais (16/10/2026): idem.
     epb: EMD_SEM_EXECUCAO,
+    // J1 das emendas de João Pessoa (16/10/2026): idem.
+    ejp: EMD_SEM_EXECUCAO,
     mun: ok(execucao(5, "2026-10-09T18:25:14.450873+00:00", "2026-10-09T18:25:22.305704+00:00", { linhas_por_fonte: { ibge: 2453, mapbiomas: 892 }, avisos: {} })),
     osc: ok(
       execucao(1, "2026-10-08T12:44:57.557481+00:00", "2026-10-08T12:45:17.547464+00:00", { ativas: 10381, malformadas_pb: 0, cebas_ok: true, descartadas: {}, versao_fonte: "20260806" }),
@@ -753,6 +760,7 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     // mostra "nenhuma" e "—"; o e-mail a põe no bloco do topo até a primeira rodada concluir (onda 14, integração).
     emd: "atrasada · sem_execucao — —",
     epb: "atrasada · sem_execucao — —",
+    ejp: "atrasada · sem_execucao — —",
     // A execução 5 é de antes do `periodo_por_fonte` (onda 12, C): continua como era. Conferido de novo em 12/10/2026,
     // ainda a última concluída.
     mun: "em_dia · nao_grava — —",
@@ -764,7 +772,7 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     "exigencia:suspensiva": "em_dia · sem_prazo 2026-09-16 5",
     "exigencia:assinatura": "em_dia · sem_prazo 2026-09-28 0",
   });
-  assert.deepEqual(contarEstados(linhas), { em_dia: 13, atrasada: 2, dado_velho: 1, com_aviso: 0, nao_lido: 0 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 13, atrasada: 3, dado_velho: 1, com_aviso: 0, nao_lido: 0 });
   assert.equal(textoFrescor(linhas.find((l) => l.job.id === "osc")?.dado ?? linhas[0].dado), "arquivo do Ipea de 06/08/2026, 2 meses antes da rodada (esperado: até 2 meses)");
   const emd = linhas.find((l) => l.job.id === "emd");
   assert.deepEqual([emd?.concluidaEm, emd?.idadeH, emd?.linhas, emd?.falhas, emd?.avisos], [null, null, null, null, []]);
@@ -1295,6 +1303,40 @@ test("E1 das emendas estaduais: a cadência do runner próprio, com a folga da m
   assert.equal(avaliarRodada(job("epb"), EMD_SEM_EXECUCAO, AGORA).estado, "atrasada");
 });
 
+// ================================================================ as emendas de João Pessoa (J1, 16/10/2026)
+
+/** As contagens como o `emendas_jp/executar.py` grava (a rodada local de 16/10/2026, só as chaves lidas aqui). */
+const EJP = { ejp_painel: { linhas: 416, cnpj_invalido: 10 }, ejp_sem_pessoa: {}, ejp_apps_script_mudou: false, ejp_tce: { "2026": { arquivo: true } } };
+/** 16/10/2026: o cron das 12h30 UTC mais o atraso do GitHub. */
+const DIA_EJP = "2026-10-16T17:10:00Z";
+
+test("J1 das emendas de João Pessoa: a linha conta as linhas do painel e só avisa o que pede ação nossa", () => {
+  assert.deepEqual(contar("ejp", EJP), { linhas: 416, falhas: null, avisos: [] });
+  assert.deepEqual(
+    contar("ejp", { ...EJP, ejp_sem_pessoa: { "NOVA GRAFIA": 2 }, ejp_apps_script_mudou: true, ejp_tce: { "2026": { arquivo: false } } }).avisos,
+    [
+      "1 grafia de autor fora da semente",
+      "a Prefeitura reimplantou o painel (URL do Apps Script nova): conferir os campos",
+      "o TCE-PB ainda não tem o arquivo de despesas de 2026",
+    ],
+  );
+  // O CNPJ com dígito errado no objeto é da fonte: fica nas contagens, sem acender a linha.
+  for (const c of [{}, { ejp_painel: null }, { ejp_painel: { linhas: "416" } }, { ejp_tce: [] }]) {
+    assert.deepEqual(contar("ejp", c), { linhas: null, falhas: null, avisos: [] }, JSON.stringify(c));
+  }
+});
+
+test("J1 das emendas de João Pessoa: diária no runner próprio, com a folga da máquina desligada", () => {
+  assert.equal(descreverCron(job("ejp").cron ?? ""), "todo dia, 12h30 UTC");
+  assert.equal(FOLGA_EMENDAS_JP_H, 30);
+  assert.equal(prazoH(job("ejp")), 24 + 30);
+  const rodada = (horas: number) => avaliarRodada(job("ejp"), comDadoAte(execucao(1, DIA_EJP, DIA_EJP, EJP), DIA_EJP), depoisDe(DIA_EJP, horas));
+  const r = rodada(1);
+  assert.deepEqual([r.estado, r.dado.situacao, r.linhas, r.job.nome], ["em_dia", "no_prazo", 416, "Emendas de João Pessoa"]);
+  assert.deepEqual([rodada(24 + 30).estado, rodada(24 + 30 + 1 / 60).estado], ["em_dia", "atrasada"]);
+  assert.equal(avaliarRodada(job("ejp"), { estado: "nao_lido", motivo: "ausente" }, AGORA).estado, "nao_lido");
+});
+
 // ================================================================ a tabela que ainda não existe (onda 14, integração, 12/10/2026)
 
 /** A resposta do PostgREST para a tabela que não existe (a `emd_execucao` antes da oport_39). */
@@ -1324,10 +1366,10 @@ test("onda 14, integração: a tabela que não existe (42P01, PGRST205) é 'não
   assert.deepEqual(leituraDasConsultas({ data: null, error: null }, { data: null, error: null }), { estado: "ok", ultima: null, abertas: [], dadoAte: undefined });
 });
 
-test("onda 14, integração: sem a emd_execucao, só a linha das emendas fica 'não lido', e a tela segue com as outras 15", () => {
+test("onda 14, integração: sem a emd_execucao, só a linha das emendas fica 'não lido', e a tela segue com as outras 16", () => {
   const ausente = leituraDasConsultas(semTabela("PGRST205"), semTabela("PGRST205"), { estado: "falha" });
   const linhas = JOBS_RODADAS.map((j) => avaliarRodada(j, j.id === "emd" ? ausente : ok(concluida(1)), AGORA));
-  assert.deepEqual(contarEstados(linhas), { em_dia: 15, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 1 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 16, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 1 });
   const emd = linhas.find((l) => l.job.id === "emd");
   assert.deepEqual([emd?.estado, emd?.motivoNaoLido, emd?.dado.situacao, emd?.linhas, emd?.avisos], ["nao_lido", "ausente", "sem_execucao", null, []]);
 });

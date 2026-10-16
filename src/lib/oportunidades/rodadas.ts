@@ -186,6 +186,13 @@ export const FOLGA_EMENDAS_H = ATRASO_GITHUB_H + 3 + 1;
 export const FOLGA_EMENDAS_PB_H = ATRASO_GITHUB_H + 24 + 1;
 
 /**
+ * A folga das emendas da Câmara de João Pessoa (J1, 16/10/2026): o `emendas-jp.yml` roda TODO DIA no runner da máquina
+ * do titular (decisão do titular). A conta é a das estaduais: com a máquina desligada, o job espera na fila até 24 h;
+ * somam-se o atraso do agendamento (5 h) e 1 h de margem, onde cabe o tempo-limite de 20 min.
+ */
+export const FOLGA_EMENDAS_JP_H = ATRASO_GITHUB_H + 24 + 1;
+
+/**
  * As OSC (Mapa das OSC, Ipea): `contagens.versao_fonte`, a data no nome do arquivo (AAAAMMDD), que dá o mês do arquivo.
  * O Ipea publica o arquivo do mês por volta do dia 18 (agosto/2026: Last-Modified 18/08), e o job roda nos dias 20 e
  * 28: a carga do mês traz o arquivo do mês, ou o do mês anterior quando o do mês atrasa. Dois meses para trás é um mês
@@ -554,6 +561,9 @@ const DADO_MUNICIPIOS: RegraDado = {
  *
  * As emendas estaduais (`epb`, E1, 16/10/2026) vêm com a `epb_execucao` da `oport_41`: 14 tabelas e 16 linhas, com o
  * mesmo caminho até a primeira rodada ("não lido" sem a tabela; "atrasada" com ela e sem rodada concluída).
+ *
+ * As emendas da Câmara de João Pessoa (`ejp`, J1, 16/10/2026) vêm com a `ejp_execucao` da `oport_44`: 15 tabelas e 17
+ * linhas, pelo mesmo caminho.
  */
 export const JOBS_RODADAS: readonly JobRodada[] = [
   // radar-propostas.yml: quatro passos no mesmo job, cada um com a sua execução.
@@ -803,6 +813,33 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
       ...seMaior(Object.keys(objeto(c, "epb_autor_sem_pessoa")).length, (x) => `${plural(x, "grafia de autor", "grafias de autor")} fora da semente`),
       ...seMaior(somaPorAno(c, "empenho_sem_catalogo"), (x) => `${plural(x, "emenda empenhada", "emendas empenhadas")} sem linha no catálogo`),
       ...seMaior(somaPorAno(c, "municipio_sem_ibge"), (x) => `${plural(x, "destino", "destinos")} sem o IBGE do município`),
+    ],
+  },
+  {
+    // Emendas da Câmara de João Pessoa, J1 (16/10/2026): o painel da Prefeitura, o SAPL da Câmara e o TCE-PB, lidos do
+    // runner da máquina do titular, todo dia (o painel só mostra o dia; a série é o que cada rodada guarda).
+    id: "ejp",
+    nome: "Emendas de João Pessoa",
+    tabela: "ejp_execucao",
+    recorte: null,
+    cadencia: "diaria",
+    workflow: "emendas-jp.yml",
+    cron: "30 12 * * *",
+    folgaH: FOLGA_EMENDAS_JP_H,
+    // O `dado_ate` é a `ultimaAtualizacao` do painel (`emendas_jp/executar.py`), que acompanha a hora da leitura.
+    dado: dadoDaConsulta("leitura do painel da Prefeitura"),
+    linhas: (c) => numero(objeto(c, "ejp_painel"), "linhas"),
+    rotuloLinhas: "linhas de emenda no painel do exercício",
+    // A rodada com falha não publica (bloqueio, fonte fora, soma que não fecha, elo do SAPL ou queda): sem falha parcial.
+    falhas: semFalhas,
+    // Só o que pede ação nossa: a semente, o painel reimplantado e o ano sem arquivo no TCE-PB. A qualidade da fonte
+    // (CNPJ com dígito errado no objeto) fica nas contagens, sem acender a linha.
+    avisos: (c) => [
+      ...seMaior(Object.keys(objeto(c, "ejp_sem_pessoa")).length, (x) => `${plural(x, "grafia de autor", "grafias de autor")} fora da semente`),
+      ...(c.ejp_apps_script_mudou === true ? ["a Prefeitura reimplantou o painel (URL do Apps Script nova): conferir os campos"] : []),
+      ...Object.entries(objeto(c, "ejp_tce"))
+        .filter(([, t]) => t && typeof t === "object" && (t as Record<string, unknown>).arquivo === false)
+        .map(([ano]) => `o TCE-PB ainda não tem o arquivo de despesas de ${ano}`),
     ],
   },
   {
