@@ -178,6 +178,14 @@ export const DEFASAGEM_PORTAL_EMENDAS_DIAS = 5;
 export const FOLGA_EMENDAS_H = ATRASO_GITHUB_H + 3 + 1;
 
 /**
+ * A folga das emendas estaduais (E1, 16/10/2026): o `emendas-pb.yml` roda no runner da máquina do titular, porque a API
+ * da PB não responde ao GitHub. Com a máquina desligada na terça, o job espera na fila do GitHub até 24 h; somam-se o
+ * atraso do agendamento (5 h) e 1 h de margem, onde cabe o tempo-limite de 30 min. Passou disso, a rodada da semana
+ * não aconteceu.
+ */
+export const FOLGA_EMENDAS_PB_H = ATRASO_GITHUB_H + 24 + 1;
+
+/**
  * As OSC (Mapa das OSC, Ipea): `contagens.versao_fonte`, a data no nome do arquivo (AAAAMMDD), que dá o mês do arquivo.
  * O Ipea publica o arquivo do mês por volta do dia 18 (agosto/2026: Last-Modified 18/08), e o job roda nos dias 20 e
  * 28: a carga do mês traz o arquivo do mês, ou o do mês anterior quando o do mês atrasa. Dois meses para trás é um mês
@@ -347,6 +355,14 @@ const tamanho = (c: Contagens, chave: string) => {
 };
 
 const soma = (o: Record<string, unknown>) => Object.values(o).reduce<number>((s, v) => s + (typeof v === "number" ? v : 0), 0);
+
+/** A soma de uma chave em cada ano de `epb_anos` (emendas estaduais), ou null quando nenhum ano a traz. */
+function somaPorAno(c: Contagens, chave: string): number | null {
+  const valores = Object.values(objeto(c, "epb_anos"))
+    .map((ano) => (ano && typeof ano === "object" && !Array.isArray(ano) ? numero(ano as Contagens, chave) : null))
+    .filter((x): x is number => x !== null);
+  return valores.length ? valores.reduce((s, x) => s + x, 0) : null;
+}
 
 /** O texto de uma chave do `contagens`, ou null (a data do dado, quando o job a grava lá). */
 const textoDe = (c: Contagens, chave: string) => {
@@ -535,6 +551,9 @@ const DADO_MUNICIPIOS: RegraDado = {
  * criada pela `oport_39`: 13 tabelas e 15 linhas. Em 12/10/2026 a oport_39 ainda não estava aplicada (conferido pelo
  * MCP). Até ser aplicada, a linha diz "não lido" (a tabela não existe; `leituraDasConsultas`); aplicada, fica
  * "atrasada" até a primeira rodada concluída, como toda agendada que nunca concluiu (`avaliarRodada`).
+ *
+ * As emendas estaduais (`epb`, E1, 16/10/2026) vêm com a `epb_execucao` da `oport_41`: 14 tabelas e 16 linhas, com o
+ * mesmo caminho até a primeira rodada ("não lido" sem a tabela; "atrasada" com ela e sem rodada concluída).
  */
 export const JOBS_RODADAS: readonly JobRodada[] = [
   // radar-propostas.yml: quatro passos no mesmo job, cada um com a sua execução.
@@ -763,6 +782,28 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
         ...seMaior(numero(c, "emd_fns_detalhes_pendentes"), (x) => `${plural(x, "proposta do FNS ficou", "propostas do FNS ficaram")} sem o detalhe, para a próxima rodada`),
       ];
     },
+  },
+  {
+    // Emendas estaduais, E1 (16/10/2026): a API de dados abertos da PB, lida do runner da máquina do titular.
+    id: "epb",
+    nome: "Emendas estaduais (PB)",
+    tabela: "epb_execucao",
+    recorte: null,
+    cadencia: "semanal",
+    workflow: "emendas-pb.yml",
+    cron: "0 13 * * 2",
+    folgaH: FOLGA_EMENDAS_PB_H,
+    // A API não informa a data do dado: o `dado_ate` é o instante da leitura (`emendas_pb/executar.py`).
+    dado: dadoDaConsulta("leitura da API da PB"),
+    linhas: (c) => somaPorAno(c, "emendas"),
+    rotuloLinhas: "emendas no catálogo, de 2021 em diante",
+    // A rodada com falha não publica (bloqueio, API fora, ano fechado vazio ou divergente): não há falha parcial.
+    falhas: semFalhas,
+    avisos: (c) => [
+      ...seMaior(Object.keys(objeto(c, "epb_autor_sem_pessoa")).length, (x) => `${plural(x, "grafia de autor", "grafias de autor")} fora da semente`),
+      ...seMaior(somaPorAno(c, "empenho_sem_catalogo"), (x) => `${plural(x, "emenda empenhada", "emendas empenhadas")} sem linha no catálogo`),
+      ...seMaior(somaPorAno(c, "municipio_sem_ibge"), (x) => `${plural(x, "destino", "destinos")} sem o IBGE do município`),
+    ],
   },
   {
     id: "mun",

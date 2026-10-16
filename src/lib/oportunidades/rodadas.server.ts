@@ -22,7 +22,8 @@
  *
  * Volume: uma linha por job de `JOBS_RODADAS`, duas consultas pequenas por linha (uma linha e até 20 linhas), mais a
  * do `dado_ate` nas que a gravam na coluna, todas em paralelo, e, na tela, uma chamada ao GitHub por workflow. Com as
- * emendas (onda 14, integração, 12/10/2026): 15 linhas, 40 consultas e 8 chamadas.
+ * emendas (onda 14, integração, 12/10/2026): 15 linhas, 40 consultas e 8 chamadas. Com as emendas estaduais (E1,
+ * 16/10/2026): 16 linhas, 43 consultas e 9 chamadas.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
