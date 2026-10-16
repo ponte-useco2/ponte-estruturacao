@@ -4,6 +4,8 @@ import { tituloEmendaEpb } from "@/lib/oportunidades/assembleia-tela";
 import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { URL_ASSEMBLEIA, emendaDaUrl } from "@/lib/oportunidades/emendas-pb";
 import { lerEmendaEpb } from "@/lib/oportunidades/emendas-pb.server";
+import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../../busca/BuscaConteudo";
 import { SemEpbPublicadas } from "../../PecasAssembleia";
@@ -29,7 +31,7 @@ export default async function EmendaEpbPage({ params }: Props) {
 
   const daUrl = (await params).emenda;
   if (!emendaDaUrl(daUrl)) notFound();
-  const leitura = await lerEmendaEpb(daUrl);
+  const [leitura, seguidas] = await Promise.all([lerEmendaEpb(daUrl), lerSeguidas()]);
   if (leitura.estado === "nao_encontrado") notFound();
   if (leitura.estado === "sem_dado") return <SemEpbPublicadas kicker="Assembleia (PB) · emenda" />;
   if (leitura.estado !== "ok") {
@@ -42,5 +44,12 @@ export default async function EmendaEpbPage({ params }: Props) {
       />
     );
   }
-  return <EmendaConteudo leitura={leitura} hoje={diaBrasilia(new Date().toISOString())} />;
+  return (
+    <EmendaConteudo
+      leitura={leitura}
+      hoje={diaBrasilia(new Date().toISOString())}
+      chave={daUrl}
+      seguindo={seguidas ? seguidas.has(chaveSeguida("emenda_estadual", daUrl)) : null}
+    />
+  );
 }

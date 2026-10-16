@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { clienteSessao, visitanteAtual } from "@/lib/supabase-auth";
+import { clienteServidor, clienteSessao, ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { lerCatalogo, lerCatalogoV2 } from "@/lib/oportunidades/catalogo.server";
 import { hojeLocal } from "@/lib/oportunidades/contrato-v2";
 import { LIMITE_SEGUIDOS, chaveValida, retratoDaJanela } from "@/lib/oportunidades/favoritos";
@@ -106,6 +106,13 @@ export async function desarquivarItens(ids: unknown): Promise<ResultadoAcao> {
    Convênio e proposta: o banco confere que o item está no painel e tira dele o
    título e o retrato (gatilho da oport_15). Janela: o id é conferido aqui no
    catálogo v2, e o retrato sai do catálogo lido no servidor, nunca do navegador.
+
+   Emenda estadual (E4, oport_43): só administrador, como as telas da Assembleia.
+   O banco não sabe quem é administrador (a lista mora no ambiente do site): a
+   política recusa este tipo pela sessão, e a gravação vai pela chave de serviço
+   DEPOIS de conferir aqui. O `user_id` é o da sessão, nunca do pedido, e o
+   gatilho tira o título e o retrato da última rodada das emendas estaduais.
+   Deixar de seguir continua pela sessão: a política de apagar é a de sempre.
    ------------------------------------------------------------------------- */
 
 export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAcao> {
@@ -114,6 +121,9 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
 
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return { ok: false, erro: "Sem permissão." };
+
+  const estadual = tipo === "emenda_estadual";
+  if (estadual && !ehAdministrador(visitante.email)) return { ok: false, erro: "Sem permissão." };
 
   const linha: Record<string, unknown> = { user_id: visitante.id, tipo, chave: alvo };
   if (tipo === "janela") {
@@ -124,7 +134,7 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
     Object.assign(linha, { titulo: retrato.titulo, estado: retrato.estado, referencia: leitura.payload.generated_at });
   }
 
-  const db = await clienteSessao();
+  const db = estadual ? clienteServidor() : await clienteSessao();
   const { error } = await db.from("oport_favorito").insert(linha);
   // 23505: já seguia (dois cliques, duas abas). O resultado pedido é o mesmo.
   if (error && error.code !== "23505") {
@@ -137,7 +147,9 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
           ? "Este município não está nas fontes do painel."
           : tipo === "entidade"
             ? "Esta entidade não tem instrumento nem proposta no painel."
-            : "Este item não está mais na busca.";
+            : estadual
+              ? "Esta emenda não está na última rodada das emendas estaduais."
+              : "Este item não está mais na busca.";
       return { ok: false, erro };
     }
     console.error("seguir:", error.message);

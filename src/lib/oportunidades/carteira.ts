@@ -12,9 +12,11 @@
  */
 import { formatarData } from "./central.ts";
 import { diaBrasilia } from "./datas.ts";
+import { PASSOS_EPB, ROTULO_PASSO, VEZ_DEPOIS, type PassoEpb } from "./emendas-pb.ts";
 import { compararFila, type ClasseFila } from "./fila.ts";
 import { ROTULO_TIPO_ITEM, fraseDoAviso, urlDoItem, type AvisoItem, type FraseAviso, type TipoItem } from "./favoritos.ts";
 import { percentual } from "./painel.ts";
+import { moedaCurta } from "./radar.ts";
 import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
 
 export type Consequencia = "alto" | "moderado" | "informativo";
@@ -202,6 +204,19 @@ export function consequenciaDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "ante
     case "prazo":
     case "reaberta":
       return { nivel: "moderado", melhora: null };
+    // A emenda estadual (E4, oport_43): andar no caminho, empenhar e pagar são melhora; o parecer que fala em
+    // devolver pede atenção, e só ele.
+    case "epb_passo": {
+      const passoAntes = PASSOS_EPB.indexOf(a.antes as PassoEpb);
+      const passoDepois = PASSOS_EPB.indexOf(a.depois as PassoEpb);
+      return { nivel: "informativo", melhora: passoAntes >= 0 && passoDepois > passoAntes ? true : null };
+    }
+    case "epb_empenhado":
+    case "epb_pago":
+    case "epb_credores":
+      return { nivel: "informativo", melhora: subiu ? true : null };
+    case "epb_devolvida":
+      return a.depois === "true" ? { nivel: "moderado", melhora: false } : { nivel: "informativo", melhora: true };
     default:
       return { nivel: "informativo", melhora: null };
   }
@@ -375,6 +390,31 @@ function numerosDaEntidade(e: Record<string, unknown>): ItemCarteira["numeros"] 
   return [{ rotulo: "Instrumentos", valor: String(num(e.instrumentos) ?? 0), nivel: null }, ...numerosDoMunicipio(e)];
 }
 
+/** A emenda estadual (E4): o passo, de quem é a vez (só quando o passo tem data: `VEZ_DEPOIS`) e o dinheiro. */
+function numerosDaEmendaEstadual(e: Record<string, unknown>): ItemCarteira["numeros"] {
+  const passo = txt(e.epb_passo) as PassoEpb | null;
+  const n: ItemCarteira["numeros"] = [{ rotulo: "Passo", valor: passo ? (ROTULO_PASSO[passo] ?? passo) : "sem ficha", nivel: null }];
+  const vez = passo ? VEZ_DEPOIS[passo] : null;
+  if (vez) n.push({ rotulo: "Vez", valor: vez, nivel: null });
+  n.push({ rotulo: "Empenhado", valor: moedaCurta(num(e.epb_empenhado) ?? 0), nivel: null });
+  n.push({ rotulo: "Pago", valor: moedaCurta(num(e.epb_pago) ?? 0), nivel: null });
+  const credores = num(e.epb_credores) ?? 0;
+  if (credores > 0) n.push({ rotulo: "Credores", valor: String(credores), nivel: null });
+  return n;
+}
+
+/** Só o fato que o dado traz: o parecer que fala em devolver. O texto do parecer está na página da emenda. */
+function recomendacoesEmendaEstadual(e: Record<string, unknown>, dadoDe: string | null): Recomendacao[] {
+  if (e.epb_devolvida !== true) return [];
+  return [
+    {
+      nivel: "moderado",
+      acao: "Ler o parecer que fala em devolver a emenda",
+      fato: `Um parecer do caminho da emenda fala em devolução${dadoDe ? ` (rodada de ${formatarData(dadoDe)})` : ""}; o texto está na página da emenda.`,
+    },
+  ];
+}
+
 /** O retrato do convênio, cru (onda 15, fase 2, lote D, 13/10/2026): a fonte de `numerosDoInstrumento` e da tabela. */
 function retratoDoInstrumento(e: Record<string, unknown>, hoje: string): NonNullable<ItemCarteira["instrumento"]> {
   const situacao = txt(e.situacao);
@@ -429,8 +469,19 @@ export function montarCarteira(
         ? recomendacoesInstrumento(e, hoje, dadoDe)
         : s.tipo === "janela"
           ? recomendacoesJanela(e, hoje)
-          : [];
-    const numeros = s.tipo === "entidade" ? numerosDaEntidade(e) : s.tipo === "municipio" ? numerosDoMunicipio(e) : s.tipo === "instrumento" ? numerosDoInstrumento(e, hoje) : [];
+          : s.tipo === "emenda_estadual"
+            ? recomendacoesEmendaEstadual(e, dadoDe)
+            : [];
+    const numeros =
+      s.tipo === "entidade"
+        ? numerosDaEntidade(e)
+        : s.tipo === "municipio"
+          ? numerosDoMunicipio(e)
+          : s.tipo === "instrumento"
+            ? numerosDoInstrumento(e, hoje)
+            : s.tipo === "emenda_estadual"
+              ? numerosDaEmendaEstadual(e)
+              : [];
     return {
       tipo: s.tipo,
       chave: s.chave,
@@ -451,7 +502,7 @@ export function montarCarteira(
   const comMudanca = itens
     .filter((i) => i.pior !== null)
     .sort((a, b) => ORDEM[a.pior as Consequencia] - ORDEM[b.pior as Consequencia] || a.titulo.localeCompare(b.titulo, "pt-BR"));
-  const porTipo: Record<TipoItem, ItemCarteira[]> = { municipio: [], entidade: [], instrumento: [], proposta: [], janela: [] };
+  const porTipo: Record<TipoItem, ItemCarteira[]> = { municipio: [], entidade: [], instrumento: [], proposta: [], janela: [], emenda_estadual: [] };
   for (const i of itens) porTipo[i.tipo].push(i);
   for (const t of Object.keys(porTipo) as TipoItem[]) {
     porTipo[t].sort((a, b) => ORDEM[a.recomendacoes[0]?.nivel ?? "informativo"] - ORDEM[b.recomendacoes[0]?.nivel ?? "informativo"] || a.titulo.localeCompare(b.titulo, "pt-BR"));

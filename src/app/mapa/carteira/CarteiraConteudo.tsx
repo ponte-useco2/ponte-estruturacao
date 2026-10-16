@@ -7,6 +7,9 @@
  * `carteira.ts`, com teste). A carteira é do próprio usuário: toda coluna filtra e ordena. "Situação e vigência" virou
  * três colunas (situação, fim da vigência e físico), e no celular a tabela continua empilhando (`empilhar`). Os
  * municípios e as entidades são cartões, e as propostas e as janelas, listas curtas: não são tabelas.
+ *
+ * E4 (16/10/2026): as emendas estaduais seguidas (só administrador) são cartões, com o passo, a vez e o dinheiro da
+ * última rodada semanal.
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
@@ -354,6 +357,31 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
         </Secao>
       )}
 
+      {c.porTipo.emenda_estadual.length > 0 && (
+        <Secao
+          id="cart-emendas-estaduais"
+          titulo="Emendas estaduais"
+          nota="Da última rodada semanal das emendas impositivas da Assembleia (API de dados abertos da PB): o passo no caminho SEPLAG → SEFAZ, de quem é a vez e o dinheiro do catálogo."
+        >
+          <div className="mp-cart-grade">
+            {c.porTipo.emenda_estadual.map((i) => (
+              <article key={i.chave} className="pa-cartao mp-cart-cartao">
+                <Cabeca i={i} />
+                <div className="mp-cart-numeros">
+                  {i.numeros.map((n) => (
+                    <span key={n.rotulo} className={`mp-cart-numero${n.nivel ? ` mp-cart-${n.nivel}` : ""}`}>
+                      <span className="pa-mono">{n.rotulo}</span>
+                      <b>{n.valor}</b>
+                    </span>
+                  ))}
+                </div>
+                {i.recomendacoes.length > 0 && <Recomendacoes r={i.recomendacoes} dadoDe={i.dadoDe} />}
+              </article>
+            ))}
+          </div>
+        </Secao>
+      )}
+
       {c.porTipo.janela.length > 0 && (
         <Secao id="cart-janelas" titulo="Janelas">
           <ul className="mp-cart-lista">
@@ -375,7 +403,8 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
 
       <Secao id="cart-metodo" titulo="De onde vem cada coisa">
         <p className="pa-nota">
-          Os números são da última atualização diária de cada item (a data aparece ao lado do nome). As mudanças são os avisos de cada
+          Os números são da última atualização diária de cada item (a data aparece ao lado do nome)
+          {c.porTipo.emenda_estadual.length > 0 ? "; as emendas estaduais são relidas uma vez por semana, às terças" : ""}. As mudanças são os avisos de cada
           atualização; ficam aqui até serem lidas. As próximas ações são pontos para olhar, cada uma com o fato e a data que a sustentam;
           a análise completa está no relatório do município e no laudo do convênio. Ponto <Termo slug="ponto-a-conferir">a conferir</Termo> nunca quer dizer
           irregularidade.

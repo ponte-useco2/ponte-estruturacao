@@ -5,6 +5,9 @@
  * O responsável de cada passo é nome de servidor (quem enviou, quem deu o parecer): fica, para achar padrão (regra de
  * 29/09/2026), mas só nesta tela de administrador, nunca no modo cliente nem em sala. Os pareceres já vêm com CPF,
  * e-mail e telefone mascarados pelo job.
+ *
+ * E4 (16/10/2026, oport_43): a estrela segue a emenda, e a rodada semanal avisa quando ela anda no caminho, é empenhada
+ * ou paga. Sem saber o que a pessoa segue (`seguindo` nulo), a estrela não aparece, como nas outras páginas.
  */
 import {
   COLUNAS_DESTINO_EMENDA,
@@ -28,6 +31,7 @@ import { formatarDataBr, type LinhaTabela } from "@/lib/oportunidades/tabela-fil
 import { Tag } from "../../../../../_design/primitivos";
 import { LinkMapa } from "../../../../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../../../../_componentes/TabelaFiltravel";
+import { EstrelaSeguir } from "../../../../_componentes/EstrelaSeguir";
 import { TabelaRolagem } from "../../../../_componentes/TabelaRolagem";
 import { CartaoNumero, CasasParlamentares, dinheiro, n } from "../../../PecasParlamentares";
 import { AVISO_ASSEMBLEIA, CarimboEpb, NotaDeMetodoEpb } from "../../PecasAssembleia";
@@ -36,7 +40,18 @@ type LeituraOk = Extract<LeituraEmendaEpb, { estado: "ok" }>;
 
 const data = (iso: string | null) => (iso ? formatarDataBr(iso) : "—");
 
-export function EmendaConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: string }) {
+export function EmendaConteudo({
+  leitura,
+  hoje,
+  chave,
+  seguindo = null,
+}: {
+  leitura: LeituraOk;
+  hoje: string;
+  /** A chave do endereço (`AAAA-NNNN`), a mesma do item seguido. */
+  chave: string;
+  seguindo?: boolean | null;
+}) {
   const { retrato, emenda: codigo, tramites } = leitura;
   const e = emendasDoRetrato(retrato).find((x) => x.emenda === codigo);
   const ficha = retrato.fichas.find((f) => f.emenda === codigo);
@@ -92,6 +107,7 @@ export function EmendaConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: st
         <p className="mp-fiscal-aviso">{AVISO_ASSEMBLEIA}</p>
         <CarimboEpb execucao={retrato.execucao} />
         <p className="pa-linha mp-nao-imprimir">
+          {seguindo !== null && <EstrelaSeguir tipo="emenda_estadual" chave={chave} nome={`a emenda estadual ${codigo}`} seguindo={seguindo} />}
           {e.pessoa && (
             <LinkMapa href={urlDeputado(e.pessoa)} className="pa-btn pa-btn-pequeno">
               Ver a ficha do deputado

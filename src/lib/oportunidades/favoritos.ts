@@ -8,12 +8,17 @@
  */
 import { formatarData } from "./central.ts";
 import { ehAberta, type PayloadV2 } from "./contrato-v2.ts";
+import { PASSOS_EPB, ROTULO_PASSO, URL_ASSEMBLEIA, emendaDaUrl, type PassoEpb } from "./emendas-pb.ts";
 import { ROTULO_DESFECHO, percentual } from "./painel.ts";
 import { moedaCurta } from "./radar.ts";
 
-export type TipoItem = "janela" | "instrumento" | "proposta" | "municipio" | "entidade";
+/**
+ * `emenda_estadual` (E4, 16/10/2026, oport_43): a emenda impositiva da ALPB, só de administrador, como as telas da
+ * Assembleia. A chave é a do endereço da página (`AAAA-NNNN`).
+ */
+export type TipoItem = "janela" | "instrumento" | "proposta" | "municipio" | "entidade" | "emenda_estadual";
 
-export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta", "municipio", "entidade"];
+export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta", "municipio", "entidade", "emenda_estadual"];
 
 /** O mesmo teto da oport_15 (`oport_favorito_limite`). */
 export const LIMITE_SEGUIDOS = 300;
@@ -27,6 +32,7 @@ export function chaveValida(tipo: unknown, chave: unknown): tipo is TipoItem {
   if (tipo === "municipio") return /^[0-9]{7}$/.test(chave);
   // o CNPJ como a base guarda (oport_31): 14 posições, alfanumérico aceito
   if (tipo === "entidade") return /^[0-9A-Z]{12}[0-9]{2}$/.test(chave);
+  if (tipo === "emenda_estadual") return /^20[0-9]{2}-[0-9]{4}$/.test(chave);
   return false;
 }
 
@@ -38,6 +44,7 @@ export const ROTULO_TIPO_ITEM: Record<TipoItem, string> = {
   proposta: "Proposta",
   municipio: "Município",
   entidade: "Entidade",
+  emenda_estadual: "Emenda estadual",
 };
 
 /** Como as frases chamam o item: "Você deixou de seguir a janela X." */
@@ -47,6 +54,7 @@ export const ARTIGO_TIPO_ITEM: Record<TipoItem, string> = {
   proposta: "a proposta",
   municipio: "o município",
   entidade: "a entidade",
+  emenda_estadual: "a emenda estadual",
 };
 
 /** Nome longo (o título da janela, o objeto da proposta) vai encurtado para caber no botão e no aviso. */
@@ -67,6 +75,8 @@ function encurtar(t: string): string {
  */
 export function nomeDoItemSeguido(tipo: TipoItem, chave: string, titulo: string | null): string {
   if (tipo === "instrumento") return `${ARTIGO_TIPO_ITEM.instrumento} nº ${chave}`;
+  // A emenda vai pelo número, como a Assembleia escreve ("0075/2025"): o título dela já começa por "Emenda".
+  if (tipo === "emenda_estadual") return `${ARTIGO_TIPO_ITEM.emenda_estadual} ${emendaDaUrl(chave) ?? chave}`;
   const proprio = titulo?.trim() && titulo.trim() !== `${ROTULO_TIPO_ITEM[tipo]} ${chave}` ? titulo : null;
   return `${ARTIGO_TIPO_ITEM[tipo]} ${proprio ? encurtar(proprio) : chave}`;
 }
@@ -140,6 +150,8 @@ export function urlDoItem(tipo: TipoItem, chave: string): string {
     return /^25\d{5}$/.test(chave) ? `/mapa/municipio/${chave}` : `/mapa/municipio/${encodeURIComponent(chave)}/investimentos`;
   }
   if (tipo === "entidade") return `/mapa/entidade/${encodeURIComponent(chave)}`;
+  // A página da emenda tem o mesmo endereço da chave (`urlEmendaEpb`).
+  if (tipo === "emenda_estadual") return `${URL_ASSEMBLEIA}/emenda/${encodeURIComponent(chave)}`;
   return `/mapa#janela-${chave}`;
 }
 
@@ -241,6 +253,21 @@ function contagem(antes: string | null, depois: string | null): string {
   return `${antes ?? "0"} → ${depois ?? "0"}`;
 }
 
+/** O passo como a página da emenda o escreve; sem ficha, o retrato não tem passo. */
+function passo(t: string | null): string {
+  if (!t) return "sem ficha";
+  return ROTULO_PASSO[t as PassoEpb] ?? t;
+}
+
+/** Valor em reais inteiros (o retrato da oport_43): o que entrou de novo e o total, como no desembolso do convênio. */
+function valorDaEmenda(antes: string | null, depois: string | null, novo: string, mudou: string): FraseAviso {
+  const de = numero(antes) ?? 0;
+  const para = numero(depois) ?? 0;
+  return para > de
+    ? { rotulo: novo, detalhe: `${moedaCurta(para - de)} a mais · total de ${moedaCurta(de)} para ${moedaCurta(para)}` }
+    : { rotulo: mudou, detalhe: `${moedaCurta(de)} → ${moedaCurta(para)}` };
+}
+
 function pct(v: number | null): string {
   return v === null ? "sem dado" : `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
@@ -325,7 +352,28 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
       return { rotulo: "Pix: planos em análise no órgão federal", detalhe: contagem(antes, depois) };
     case "pix_prazo_ente":
       return { rotulo: "Pix: prazo da etapa do município", detalhe: `${antes ? data(antes) : "sem prazo"} → ${depois ? data(depois) : "sem prazo"}` };
+    case "epb_passo": {
+      const de = PASSOS_EPB.indexOf(antes as PassoEpb);
+      const para = PASSOS_EPB.indexOf(depois as PassoEpb);
+      return { rotulo: de >= 0 && para > de ? "A emenda andou no caminho" : "O passo da emenda mudou", detalhe: `${passo(antes)} → ${passo(depois)}` };
+    }
+    case "epb_empenhado":
+      return valorDaEmenda(antes, depois, "Novo empenho da emenda", "O empenhado da emenda mudou");
+    case "epb_pago":
+      return valorDaEmenda(antes, depois, "Novo pagamento da emenda", "O pago da emenda mudou");
+    case "epb_devolvida":
+      return depois === "true"
+        ? { rotulo: "Um parecer fala em devolver a emenda", detalhe: "Algum parecer do caminho fala em devolução: ver o parecer na página da emenda." }
+        : { rotulo: "A emenda deixou de constar como devolvida", detalhe: "Nenhum parecer da última rodada fala em devolução." };
+    case "epb_credores":
+      return { rotulo: "Credores com empenho da emenda", detalhe: contagem(antes, depois) };
     case "fora_do_recorte":
+      if (a.tipo === "emenda_estadual") {
+        return {
+          rotulo: "Saiu da rodada das emendas estaduais",
+          detalhe: "A emenda não veio na última leitura da API de dados abertos da PB (catálogo e ficha da Assembleia).",
+        };
+      }
       return {
         rotulo: "Saiu da busca",
         detalhe: "Não está mais no recorte do painel: fora da Paraíba, a busca só guarda o que está em execução ou em prestação de contas.",

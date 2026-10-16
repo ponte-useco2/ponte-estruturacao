@@ -148,9 +148,17 @@ test("as telas das emendas estaduais: todas de administrador, e o nome de servid
   for (const p of paginas) {
     const fonte = fs.readFileSync(path.join(raiz, p), "utf-8");
     assert.match(fonte, /if \(!ehAdministrador\(visitante\.email\)\) redirect\("\/mapa"\);/, p);
-    // A conferência vem antes de qualquer leitura.
-    assert.ok(fonte.indexOf("ehAdministrador(") < fonte.indexOf("await ler"), `${p}: confere antes de ler`);
+    // A conferência vem antes de qualquer leitura (a da emenda lê junto o que a pessoa segue, E4).
+    const leitura = fonte.search(/await (?:Promise\.all\(\[)?ler/);
+    assert.ok(leitura > 0 && fonte.indexOf("ehAdministrador(") < leitura, `${p}: confere antes de ler`);
   }
+  // E4 (oport_43): seguir a emenda estadual grava pela chave de serviço, e só depois de conferir o administrador.
+  const acoes = fs.readFileSync(path.join(raiz, "acoes.ts"), "utf-8");
+  const seguir = acoes.slice(acoes.indexOf("export async function seguir("), acoes.indexOf("export async function deixarDeSeguir("));
+  assert.match(seguir, /if \(estadual && !ehAdministrador\(visitante\.email\)\) return \{ ok: false, erro: "Sem permissão\." \};/);
+  assert.match(seguir, /const db = estadual \? clienteServidor\(\) : await clienteSessao\(\);/);
+  assert.ok(seguir.indexOf("!ehAdministrador(") < seguir.indexOf("clienteServidor()"), "confere antes de abrir a chave de serviço");
+  assert.match(seguir, /user_id: visitante\.id/, "o dono é o da sessão, nunca o do pedido");
   // O responsável do caminho (servidor) só é lido no leitor da emenda e só desenhado na página da emenda.
   const servidor = path.resolve(import.meta.dirname, "emendas-pb.server.ts");
   assert.equal((fs.readFileSync(servidor, "utf-8").match(/responsavel/g) ?? []).length, 1);

@@ -18,6 +18,7 @@ import {
   somaNaoLidos,
   urlDoItem,
 } from "./favoritos.ts";
+import { urlEmendaEpb } from "./emendas-pb.ts";
 
 /** As sete oportunidades reais de 10/09/2026 dos testes do contrato e do catálogo. */
 const FIXTURE = JSON.parse(
@@ -201,11 +202,48 @@ test("B0: município de fora da PB abre os investimentos (a página com abas só
 });
 
 test("B0: cada tipo diz o próprio tipo na estrela (a entidade era lida como janela)", () => {
-  const esperado = { janela: "a janela X", instrumento: "o convênio nº 123", proposta: "a proposta X", municipio: "o município X", entidade: "a entidade X" };
+  const esperado = {
+    janela: "a janela X",
+    instrumento: "o convênio nº 123",
+    proposta: "a proposta X",
+    municipio: "o município X",
+    entidade: "a entidade X",
+    emenda_estadual: "a emenda estadual 123",
+  };
   for (const tipo of TIPOS_ITEM) {
     const nome = nomeDoItemSeguido(tipo, "123", "X");
     assert.equal(nome, esperado[tipo], tipo);
     assert.equal(rotuloEstrela(tipo, nome, true).nomeAcessivel, `Seguindo ${esperado[tipo]}`, tipo);
     assert.equal(rotuloEstrela(tipo, nome, false).confirmacao, `Você deixou de seguir ${esperado[tipo]}.`, tipo);
   }
+});
+
+test("E4 (oport_43): a emenda estadual se segue pela chave do endereço e abre a página da emenda", () => {
+  assert.ok(chaveValida("emenda_estadual", "2025-0075"));
+  assert.ok(!chaveValida("emenda_estadual", "0075-2025"), "o ano vem primeiro, como no endereço");
+  assert.ok(!chaveValida("emenda_estadual", "0075/2025"), "a barra do número não entra na chave");
+  assert.ok(!chaveValida("emenda_estadual", "2025-75"));
+  assert.ok(!chaveValida("emenda_estadual", "1999-0075"), "a mesma regra da tabela: 20AA");
+  assert.equal(urlDoItem("emenda_estadual", "2025-0075"), "/mapa/parlamentares/assembleia/emenda/2025-0075");
+  assert.equal(urlDoItem("emenda_estadual", "2025-0075"), urlEmendaEpb("0075/2025"), "o mesmo endereço da página");
+  assert.equal(nomeDoItemSeguido("emenda_estadual", "2025-0075", "Emenda 0075/2025 · Aquisição de equipamentos"), "a emenda estadual 0075/2025");
+  assert.equal(rotuloEstrela("emenda_estadual", "a emenda estadual 0075/2025", false).acao, "Seguir a emenda estadual 0075/2025");
+});
+
+test("E4: os avisos da emenda estadual em palavras (passo, empenho, pagamento, devolução, credores, saída)", () => {
+  const f = (evento: string, antes: string | null, depois: string | null) => fraseDoAviso({ tipo: "emenda_estadual", evento, antes, depois });
+  assert.deepEqual(f("epb_passo", "sec_seplag", "empenhada"), {
+    rotulo: "A emenda andou no caminho",
+    detalhe: "Aprovada pelo secretário da SEPLAG → Empenhada, falta pagar",
+  });
+  assert.equal(f("epb_passo", "cronograma_sefaz", "seplag").rotulo, "O passo da emenda mudou", "voltar não é andar");
+  assert.equal(f("epb_passo", null, "envio").detalhe, "sem ficha → Enviada à SEPLAG");
+  assert.deepEqual(f("epb_empenhado", "0", "100000"), { rotulo: "Novo empenho da emenda", detalhe: "R$ 100 mil a mais · total de R$ 0 para R$ 100 mil" });
+  assert.deepEqual(f("epb_pago", "100000", "250000"), { rotulo: "Novo pagamento da emenda", detalhe: "R$ 150 mil a mais · total de R$ 100 mil para R$ 250 mil" });
+  assert.deepEqual(f("epb_pago", "250000", "200000"), { rotulo: "O pago da emenda mudou", detalhe: "R$ 250 mil → R$ 200 mil" });
+  assert.equal(f("epb_devolvida", "false", "true").rotulo, "Um parecer fala em devolver a emenda");
+  assert.equal(f("epb_devolvida", "true", "false").rotulo, "A emenda deixou de constar como devolvida");
+  assert.deepEqual(f("epb_credores", "0", "1"), { rotulo: "Credores com empenho da emenda", detalhe: "0 → 1" });
+  assert.equal(f("fora_do_recorte", null, null).rotulo, "Saiu da rodada das emendas estaduais");
+  assert.equal(fraseDoAviso({ tipo: "instrumento", evento: "fora_do_recorte", antes: null, depois: null }).rotulo, "Saiu da busca", "o convênio segue igual");
 });

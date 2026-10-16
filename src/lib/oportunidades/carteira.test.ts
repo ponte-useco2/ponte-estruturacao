@@ -168,3 +168,37 @@ test("oport_31: a entidade na carteira usa os números e as recomendações do m
   assert.match(tce?.fato ?? "", /para convênios da entidade/);
   assert.ok(x.recomendacoes.some((r) => /prestações de contas atrasadas/.test(r.acao)));
 });
+
+test("E4 (oport_43): a emenda estadual na carteira — passo, vez e dinheiro; andar e pagar são melhora; devolução pede atenção", () => {
+  const e = (x: Partial<AvisoItem>) => c({ tipo: "emenda_estadual", chave: "2025-0075", ...x });
+  assert.deepEqual(e({ evento: "epb_passo", antes: "sec_seplag", depois: "empenhada" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(e({ evento: "epb_passo", antes: "empenhada", depois: "seplag" }), { nivel: "informativo", melhora: null });
+  assert.deepEqual(e({ evento: "epb_pago", antes: "0", depois: "100000" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(e({ evento: "epb_devolvida", antes: "false", depois: "true" }), { nivel: "moderado", melhora: false });
+  assert.deepEqual(e({ evento: "epb_devolvida", antes: "true", depois: "false" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(e({ evento: "fora_do_recorte" }), { nivel: "moderado", melhora: null });
+
+  const estado = { epb_passo: "sec_sefaz", epb_empenhado: 0, epb_pago: 0, epb_devolvida: true, epb_credores: 0 };
+  const k = montarCarteira(
+    {
+      seguidos: [
+        { tipo: "emenda_estadual", chave: "2025-0075", titulo: "Emenda 0075/2025 · Aquisição de equipamentos", estado, referencia: "epb:2026-10-16T14:52:57Z", criado_em: "2026-10-16T15:00:00Z" },
+      ],
+      avisos: [aviso({ tipo: "emenda_estadual", chave: "2025-0075", evento: "epb_passo", antes: "cronograma_sefaz", depois: "sec_sefaz" })],
+    },
+    HOJE,
+  );
+  const x = k.porTipo.emenda_estadual[0];
+  assert.equal(x.url, "/mapa/parlamentares/assembleia/emenda/2025-0075");
+  assert.equal(x.dadoDe, "2026-10-16");
+  assert.deepEqual(
+    x.numeros.map((n) => [n.rotulo, n.valor]),
+    [["Passo", "Aprovada pelo secretário da SEFAZ"], ["Vez", "Órgão executor (empenho)"], ["Empenhado", "R$ 0"], ["Pago", "R$ 0"]],
+    "sem credor, a contagem não aparece",
+  );
+  assert.equal(x.recomendacoes.length, 1);
+  assert.match(x.recomendacoes[0].fato, /rodada de 16\/10\/2026/);
+  assert.equal(x.mudancas[0].rotulo, "A emenda andou no caminho");
+  assert.equal(x.mudancas[0].melhora, true);
+  assert.deepEqual(k.comMudanca.map((i) => i.chave), ["2025-0075"]);
+});
