@@ -165,8 +165,9 @@ create table if not exists public.epb_destino (
   orgao        text,
   -- O `valorDespesa` (valor atualizado da nota), nunca o `valorEmpenhado` original.
   empenhado    numeric not null default 0,
+  -- O liquidado e o pago do CATÁLOGO repartidos pelo empenhado de cada credor na emenda (as notas do mesmo empenho
+  -- repetem o pago do empenho inteiro e não se somam; ver `emendas_pb/montar.py`). Exatos com um credor só.
   liquidado    numeric not null default 0,
-  -- Pago menos pagamento anulado.
   pago         numeric not null default 0,
   notas        integer not null default 0,
   primeira     date,

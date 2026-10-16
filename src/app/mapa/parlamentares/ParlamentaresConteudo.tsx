@@ -45,7 +45,7 @@ import type { LinhaTabela, ValorCelula } from "@/lib/oportunidades/tabela-filtro
 import { Tag } from "../../_design/primitivos";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
-import { CarimboDoDado, CartaoNumero, NotaDeMetodo, dinheiro, n } from "./PecasParlamentares";
+import { CarimboDoDado, CartaoNumero, CasasParlamentares, NotaDeMetodo, dinheiro, n } from "./PecasParlamentares";
 
 const AVISO =
   "Uso interno da PONTE, só administrador até a revisão jurídica. Parlamentar, bancada e comissão são agentes públicos, com o nome " +
@@ -82,6 +82,7 @@ export function ParlamentaresConteudo({ execucao, autores, tipo }: { execucao: E
 
   return (
     <div className="pa-pagina mp-radar mp-parl">
+      <CasasParlamentares atual="congresso" />
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">Painel · parlamentares</p>
         <h1 className="pa-titulo">Autores de emendas com recurso para a Paraíba</h1>

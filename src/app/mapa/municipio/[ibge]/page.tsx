@@ -8,6 +8,8 @@ import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { quemRecebe } from "@/lib/oportunidades/pagina-entidade";
 import type { LeituraEmendasMunicipio } from "@/lib/oportunidades/emendas";
 import { lerEmendasDoMunicipio } from "@/lib/oportunidades/emendas.server";
+import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
+import { lerAssembleia } from "@/lib/oportunidades/emendas-pb.server";
 import { ABAS_MUNICIPIO, PODE, abaEscolhida, ibgeDaUrl, leEmendasDoMunicipio, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
@@ -116,10 +118,14 @@ export default async function MunicipioPage({
   const emendasDoMunicipio: Promise<LeituraEmendasMunicipio> | undefined = leEmendasDoMunicipio(aba, nivel)
     ? lerEmendasDoMunicipio(ibge).catch(() => ({ estado: "falha" as const }))
     : undefined;
-  const [linhas, osc, emendas] =
+  // As emendas estaduais (E2, 16/10/2026): a mesma regra das federais — só o administrador, só na aba do dinheiro.
+  const estaduais: Promise<LeituraAssembleia> | undefined = leEmendasDoMunicipio(aba, nivel)
+    ? lerAssembleia().catch(() => ({ estado: "falha" as const }))
+    : undefined;
+  const [linhas, osc, emendas, assembleia] =
     aba === "dinheiro"
-      ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio])
-      : [undefined, null, undefined];
+      ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio, estaduais])
+      : [undefined, null, undefined, undefined];
   const entidades = linhas === undefined ? undefined : linhas ? quemRecebe(linhas) : null;
   const conteudo = (
     <MunicipioConteudo
@@ -130,6 +136,7 @@ export default async function MunicipioPage({
       entidades={entidades}
       osc={osc}
       emendas={emendas}
+      assembleia={assembleia}
     />
   );
   if (!acesso.sessao) return conteudo;

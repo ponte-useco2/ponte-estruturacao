@@ -90,6 +90,23 @@ export function SemEmendasPublicadas({ kicker, voltar }: { kicker: string; volta
   );
 }
 
+/**
+ * As duas casas (emendas estaduais, E2, 16/10/2026): as emendas federais (Congresso Nacional) e as estaduais (Assembleia
+ * da PB), cada uma com a sua lista. As abas do município, com a escolhida marcada.
+ */
+export function CasasParlamentares({ atual }: { atual: "congresso" | "assembleia" }) {
+  return (
+    <nav aria-label="Casa legislativa" className="mp-mun-abas mp-nao-imprimir">
+      <LinkMapa href="/mapa/parlamentares" aria-current={atual === "congresso" ? "page" : undefined}>
+        Congresso Nacional
+      </LinkMapa>
+      <LinkMapa href="/mapa/parlamentares/assembleia" aria-current={atual === "assembleia" ? "page" : undefined}>
+        Assembleia (PB)
+      </LinkMapa>
+    </nav>
+  );
+}
+
 /** Um cartão de número com rótulo e nota (o `pa-cartao` do Mapa). */
 export function CartaoNumero({ titulo, numero, nota }: { titulo: string; numero: string; nota: ReactNode }) {
   return (

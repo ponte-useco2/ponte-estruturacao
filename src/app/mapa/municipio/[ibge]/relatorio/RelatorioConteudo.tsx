@@ -23,6 +23,8 @@ import { citacoesDosBlocos, rotuloRegic, type BlocoIndicadores, type IndicadorLi
 import { ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import type { SlugTermo } from "@/lib/oportunidades/glossario";
 import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
+import { EmendasEstaduaisDoMunicipio } from "../../../parlamentares/assembleia/EmendasEstaduais";
 import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
@@ -911,7 +913,18 @@ export function BlocoFontes({ r }: { r: Relatorio }) {
 
 // ================================================================ o relatório inteiro, para imprimir
 
-export function RelatorioConteudo({ r, seguindo, nivel = 3 }: { r: Relatorio; seguindo?: boolean; nivel?: NivelAcesso }) {
+export function RelatorioConteudo({
+  r,
+  seguindo,
+  nivel = 3,
+  assembleia,
+}: {
+  r: Relatorio;
+  seguindo?: boolean;
+  nivel?: NivelAcesso;
+  /** As emendas estaduais (E2, 16/10/2026): lidas só para o administrador; ausente para os outros. */
+  assembleia?: LeituraAssembleia;
+}) {
   const ind = r.indicadores;
   const destino = destinoConvenio(nivel);
   return (
@@ -972,6 +985,7 @@ export function RelatorioConteudo({ r, seguindo, nivel = 3 }: { r: Relatorio; se
       <BlocoControle r={r} destino={destino} />
       <BlocoPropostas r={r} destino={destino} />
       <BlocoEmendas r={r} nivel={nivel} />
+      {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} />}
       <BlocoPix r={r} destino={destino} />
       <BlocoTcePb r={r} />
       <BlocoFornecedores r={r} destino={destino} />

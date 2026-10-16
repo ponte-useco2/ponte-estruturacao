@@ -35,6 +35,8 @@ import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
 import { EmendasDoMunicipio } from "./EmendasDoMunicipio";
+import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
+import { EmendasEstaduaisDoMunicipio } from "../../parlamentares/assembleia/EmendasEstaduais";
 import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
@@ -196,6 +198,7 @@ export function MunicipioConteudo({
   entidades,
   osc,
   emendas,
+  assembleia,
 }: {
   r: Relatorio;
   aba: AbaMunicipio;
@@ -210,6 +213,8 @@ export function MunicipioConteudo({
    * (`leEmendasDoMunicipio`); ausente para os outros. O bloco ainda confere o nível antes de desenhar.
    */
   emendas?: LeituraEmendasMunicipio;
+  /** As emendas estaduais (E2, 16/10/2026): a mesma regra das federais — só administrador, só na aba do dinheiro. */
+  assembleia?: LeituraAssembleia;
 }) {
   // C4a: o recorte do público mora no dado, e não só na tela (ver `relatorioDoPublico`); do nível 1 em diante, o inteiro.
   const r = relatorioDoNivel(relatorio, nivel);
@@ -259,6 +264,10 @@ export function MunicipioConteudo({
           <BlocoEmendas r={r} nivel={nivel} />
           {/* Onda 14, parte 2, C (13/10/2026): os autores das emendas, só do administrador, até a revisão jurídica. */}
           {PODE.interno(nivel) && emendas !== undefined && <EmendasDoMunicipio leitura={emendas} municipio={r.nome} />}
+          {/* E2 das emendas estaduais (16/10/2026): a Assembleia da PB, à parte das federais, só do administrador. */}
+          {PODE.interno(nivel) && assembleia !== undefined && (
+            <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} />
+          )}
           {/* C4a (B3 da R3): Pix, TCE-PB e fornecedores só do nível 1 em diante, como na entidade. */}
           {PODE.cadastro(nivel) && (
             <>
