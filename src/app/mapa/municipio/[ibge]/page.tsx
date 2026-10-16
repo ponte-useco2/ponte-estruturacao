@@ -9,7 +9,9 @@ import { quemRecebe } from "@/lib/oportunidades/pagina-entidade";
 import type { LeituraEmendasMunicipio } from "@/lib/oportunidades/emendas";
 import { lerEmendasDoMunicipio } from "@/lib/oportunidades/emendas.server";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
-import { lerAssembleia } from "@/lib/oportunidades/emendas-pb.server";
+import { lerAssembleia, lerFederalPorAno, lerTceEstadoDoMunicipio } from "@/lib/oportunidades/emendas-pb.server";
+import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
+import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import { ABAS_MUNICIPIO, PODE, abaEscolhida, ibgeDaUrl, leEmendasDoMunicipio, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
@@ -122,10 +124,17 @@ export default async function MunicipioPage({
   const estaduais: Promise<LeituraAssembleia> | undefined = leEmendasDoMunicipio(aba, nivel)
     ? lerAssembleia().catch(() => ({ estado: "falha" as const }))
     : undefined;
-  const [linhas, osc, emendas, assembleia] =
+  // E3 (16/10/2026): o que o município registrou no TCE-PB do dinheiro do Estado, com a mesma regra.
+  const tceEstado: Promise<LeituraTceEstadoMunicipio> | undefined = leEmendasDoMunicipio(aba, nivel)
+    ? lerTceEstadoDoMunicipio(ibge).catch(() => ({ estado: "falha" as const }))
+    : undefined;
+  const federalPorAno: Promise<LeituraFederalPorAno> | undefined = leEmendasDoMunicipio(aba, nivel)
+    ? lerFederalPorAno({ ibge }).catch(() => ({ estado: "falha" as const }))
+    : undefined;
+  const [linhas, osc, emendas, assembleia, tce, federal] =
     aba === "dinheiro"
-      ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio, estaduais])
-      : [undefined, null, undefined, undefined];
+      ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio, estaduais, tceEstado, federalPorAno])
+      : [undefined, null, undefined, undefined, undefined, undefined];
   const entidades = linhas === undefined ? undefined : linhas ? quemRecebe(linhas) : null;
   const conteudo = (
     <MunicipioConteudo
@@ -137,6 +146,8 @@ export default async function MunicipioPage({
       osc={osc}
       emendas={emendas}
       assembleia={assembleia}
+      tceEstado={tce}
+      federalPorAno={federal}
     />
   );
   if (!acesso.sessao) return conteudo;

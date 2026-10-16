@@ -9,7 +9,7 @@ import { parametrosBusca, urlBusca } from "@/lib/oportunidades/busca";
 import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { ABAS_ENTIDADE, abaDaEntidade, cnpjDaUrl, urlEntidade, type AbaEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { PODE } from "@/lib/oportunidades/pagina-municipio";
-import { lerAssembleia } from "@/lib/oportunidades/emendas-pb.server";
+import { lerAssembleia, lerFederalPorAno } from "@/lib/oportunidades/emendas-pb.server";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -122,9 +122,11 @@ export default async function EntidadePage({
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
   // As emendas estaduais (E2, 16/10/2026): só o administrador lê, e só na aba do dinheiro, como no município. A
   // rejeição inesperada vira "falha": o bloco diz só uma linha, e a página nunca cai por ele.
-  const [seguidas, assembleia] = await Promise.all([
+  const interno = PODE.interno(nivel) && aba === "dinheiro";
+  const [seguidas, assembleia, federalPorAno] = await Promise.all([
     visitante ? lerSeguidas() : Promise.resolve(null),
-    PODE.interno(nivel) && aba === "dinheiro" ? lerAssembleia().catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
+    interno ? lerAssembleia().catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
+    interno ? lerFederalPorAno({ cnpj }).catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
   ]);
   const conteudo = (
     <EntidadeConteudo
@@ -137,6 +139,7 @@ export default async function EntidadePage({
       nivel={nivel}
       seguindo={seguidas?.has(chaveSeguida("entidade", cnpj)) ?? false}
       assembleia={assembleia}
+      federalPorAno={federalPorAno}
     />
   );
   if (!acesso.sessao) return conteudo;

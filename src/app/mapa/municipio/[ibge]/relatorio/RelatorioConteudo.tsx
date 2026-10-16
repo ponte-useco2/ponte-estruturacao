@@ -24,6 +24,8 @@ import { ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import type { SlugTermo } from "@/lib/oportunidades/glossario";
 import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
+import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
+import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDoMunicipio } from "../../../parlamentares/assembleia/EmendasEstaduais";
 import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -918,12 +920,18 @@ export function RelatorioConteudo({
   seguindo,
   nivel = 3,
   assembleia,
+  tceEstado,
+  federalPorAno,
 }: {
   r: Relatorio;
   seguindo?: boolean;
   nivel?: NivelAcesso;
   /** As emendas estaduais (E2, 16/10/2026): lidas só para o administrador; ausente para os outros. */
   assembleia?: LeituraAssembleia;
+  /** O dinheiro do Estado no TCE-PB (E3): só para o administrador. */
+  tceEstado?: LeituraTceEstadoMunicipio;
+  /** As emendas federais por ano (E3), para o lado a lado: só para o administrador. */
+  federalPorAno?: LeituraFederalPorAno;
 }) {
   const ind = r.indicadores;
   const destino = destinoConvenio(nivel);
@@ -985,7 +993,7 @@ export function RelatorioConteudo({
       <BlocoControle r={r} destino={destino} />
       <BlocoPropostas r={r} destino={destino} />
       <BlocoEmendas r={r} nivel={nivel} />
-      {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} />}
+      {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} tce={tceEstado} federal={federalPorAno} />}
       <BlocoPix r={r} destino={destino} />
       <BlocoTcePb r={r} />
       <BlocoFornecedores r={r} destino={destino} />

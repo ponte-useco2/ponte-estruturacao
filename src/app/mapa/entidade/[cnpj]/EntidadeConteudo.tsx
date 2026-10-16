@@ -89,6 +89,7 @@ import {
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
+import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDaEntidade } from "../../parlamentares/assembleia/EmendasEstaduais";
 
 type Destino = (nr: string) => string;
@@ -575,6 +576,7 @@ export function EntidadeConteudo({
   nivel,
   seguindo = false,
   assembleia,
+  federalPorAno,
 }: {
   e: IdentidadeEntidade;
   r: Relatorio;
@@ -587,6 +589,8 @@ export function EntidadeConteudo({
   seguindo?: boolean;
   /** As emendas estaduais (E2, 16/10/2026): lidas só para o administrador, só na aba do dinheiro. */
   assembleia?: LeituraAssembleia;
+  /** As emendas federais da entidade por ano (E3), para o lado a lado. */
+  federalPorAno?: LeituraFederalPorAno;
 }) {
   const soCadastro = !instrumentos.length && !propostas.length;
   const e = entidadeLegivel(entidade);
@@ -639,7 +643,7 @@ export function EntidadeConteudo({
           <PorOrgao instrumentos={instrumentos} csv={csvDaEntidade(nivel, "orgaos", e.cnpj)} />
           <BlocoEmendas r={r} nivel={nivel} />
           {/* E2 das emendas estaduais (16/10/2026): a Assembleia da PB, à parte das federais, só do administrador. */}
-          {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDaEntidade leitura={assembleia} cnpj={e.cnpj} nome={e.nome} />}
+          {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDaEntidade leitura={assembleia} cnpj={e.cnpj} nome={e.nome} federal={federalPorAno} />}
           {nivel >= 1 && (
             <>
               <BlocoPix r={r} destino={destino} />

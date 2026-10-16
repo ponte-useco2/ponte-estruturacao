@@ -36,6 +36,8 @@ import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
 import { EmendasDoMunicipio } from "./EmendasDoMunicipio";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
+import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
+import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDoMunicipio } from "../../parlamentares/assembleia/EmendasEstaduais";
 import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
@@ -199,6 +201,8 @@ export function MunicipioConteudo({
   osc,
   emendas,
   assembleia,
+  tceEstado,
+  federalPorAno,
 }: {
   r: Relatorio;
   aba: AbaMunicipio;
@@ -215,6 +219,10 @@ export function MunicipioConteudo({
   emendas?: LeituraEmendasMunicipio;
   /** As emendas estaduais (E2, 16/10/2026): a mesma regra das federais — só administrador, só na aba do dinheiro. */
   assembleia?: LeituraAssembleia;
+  /** O dinheiro do Estado no TCE-PB (E3), com a mesma regra. */
+  tceEstado?: LeituraTceEstadoMunicipio;
+  /** As emendas federais por ano, para o lado a lado com as estaduais (E3). */
+  federalPorAno?: LeituraFederalPorAno;
 }) {
   // C4a: o recorte do público mora no dado, e não só na tela (ver `relatorioDoPublico`); do nível 1 em diante, o inteiro.
   const r = relatorioDoNivel(relatorio, nivel);
@@ -266,7 +274,7 @@ export function MunicipioConteudo({
           {PODE.interno(nivel) && emendas !== undefined && <EmendasDoMunicipio leitura={emendas} municipio={r.nome} />}
           {/* E2 das emendas estaduais (16/10/2026): a Assembleia da PB, à parte das federais, só do administrador. */}
           {PODE.interno(nivel) && assembleia !== undefined && (
-            <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} />
+            <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} tce={tceEstado} federal={federalPorAno} />
           )}
           {/* C4a (B3 da R3): Pix, TCE-PB e fornecedores só do nível 1 em diante, como na entidade. */}
           {PODE.cadastro(nivel) && (

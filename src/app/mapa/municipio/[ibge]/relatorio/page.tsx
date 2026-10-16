@@ -6,7 +6,7 @@ import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { PODE, abaEscolhida, ibgeDaUrl, podeAbaMunicipio, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
-import { lerAssembleia } from "@/lib/oportunidades/emendas-pb.server";
+import { lerAssembleia, lerFederalPorAno, lerTceEstadoDoMunicipio } from "@/lib/oportunidades/emendas-pb.server";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -53,11 +53,13 @@ export default async function RelatorioMunicipioPage({ params }: { params: Promi
     );
   }
   // As emendas estaduais (E2, 16/10/2026): só o administrador lê; a rejeição inesperada vira "falha", numa linha.
-  const [seguidas, assembleia] = await Promise.all([
+  const [seguidas, assembleia, tceEstado, federalPorAno] = await Promise.all([
     lerSeguidas(),
     PODE.interno(nivel) ? lerAssembleia().catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
+    PODE.interno(nivel) ? lerTceEstadoDoMunicipio(ibge).catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
+    PODE.interno(nivel) ? lerFederalPorAno({ ibge }).catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
   ]);
   after(() => registrarUso(visitante, "mapa_relatorio_municipio", { ibge, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
-  return <RelatorioConteudo r={r} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} assembleia={assembleia} />;
+  return <RelatorioConteudo r={r} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} assembleia={assembleia} tceEstado={tceEstado} federalPorAno={federalPorAno} />;
 }

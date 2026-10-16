@@ -14,6 +14,15 @@ import { ROTULO_CANAL_PROGRAMA, contarPorCanal, diasEntre, type ProgramaAberto }
 import type { LeituraProgramas } from "@/lib/oportunidades/sala.server";
 import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import {
+  CAMINHO_ESTADUAL,
+  CIENCIA_E_TECNOLOGIA,
+  DADOS_DA_API_PB,
+  DEPUTADOS_ESTADUAIS_OSC,
+  ENVIO_DAS_INDICACOES,
+  ESTADUAIS_POR_ANO,
+  ESTADUAIS_POR_ORGAO,
+} from "./dados-estaduais";
+import {
   DADOS_DO_PORTAL, F, MARCOS, MINISTERIOS_CITADOS, MINISTERIOS_OSC, PARLAMENTARES, PREPARADO_EM, REQUISITOS,
   type Fonte, type Marco,
 } from "./dados";
@@ -129,6 +138,161 @@ function linhasParlamentares(): LinhaTabela[] {
     }));
 }
 
+// ---------------------------------------------------------------- a Assembleia da PB (E3 das emendas estaduais, 16/10/2026)
+
+// Tela pública: filtro em toda coluna; valor e contagem não ordenam (sem ranking). Os nomes, como a API do Estado publica.
+const COLUNAS_DEPUTADOS_ESTADUAIS: ColunaTabela[] = [
+  { id: "deputado", titulo: "Deputado estadual", tipo: "texto" },
+  { id: "emendas", titulo: "Emendas a OSC", tipo: "numero", ordenavel: false, alinhar: "direita" },
+  { id: "valor", titulo: "Valor indicado", tipo: "numero", ordenavel: false, alinhar: "direita" },
+  { id: "entidades", titulo: "OSCs com empenho", tipo: "numero", ordenavel: false, alinhar: "direita" },
+  { id: "orgaos", titulo: "Órgãos mais usados", tipo: "texto" },
+];
+
+function linhasDeputadosEstaduais(): LinhaTabela[] {
+  return [...DEPUTADOS_ESTADUAIS_OSC]
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    .map((d) => ({
+      chave: d.nome,
+      valores: { deputado: d.nome, emendas: d.emendas, valor: d.valor, entidades: d.entidades, orgaos: d.orgaos.join("; ") },
+      celulas: {
+        deputado: <strong>{d.nome}</strong>,
+        emendas: n(d.emendas),
+        valor: dinheiro(d.valor),
+        entidades: d.entidades ? n(d.entidades) : "—",
+        orgaos: d.orgaos.join("; "),
+      },
+    }));
+}
+
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+/** "abril" ou "fevereiro e março": os meses em que as indicações a OSC foram enviadas à SEPLAG naquele ano. */
+const mesesDoEnvio = (ano: number) =>
+  Object.keys(ENVIO_DAS_INDICACOES[String(ano)] ?? {})
+    .sort()
+    .map((m) => MESES[Number(m) - 1])
+    .join(" e ");
+
+function SecaoAssembleia() {
+  const total = ESTADUAIS_POR_ANO.reduce((s, a) => ({ emendas: s.emendas + a.emendas, valor: s.valor + a.valor, pago: s.pago + a.pago }), {
+    emendas: 0,
+    valor: 0,
+    pago: 0,
+  });
+  const ent25 = CAMINHO_ESTADUAL.find((c) => c.grupo === "entidade" && c.ano === 2025);
+  const mun25 = CAMINHO_ESTADUAL.find((c) => c.grupo === "municipio" && c.ano === 2025);
+  return (
+    <section aria-labelledby="sl-assembleia" className="mp-radar-secao">
+      <h2 id="sl-assembleia" className="mp-radar-h2">A Assembleia da Paraíba e as OSC, 2024 a 2026</h2>
+      <p className="pa-nota">
+        Além das emendas federais, os deputados estaduais têm emendas impositivas no orçamento do Estado, e parte delas vai a organizações da
+        sociedade civil. São {n(total.emendas)} emendas a OSC de {n(DEPUTADOS_ESTADUAIS_OSC.length)} deputados, com {dinheiro(total.valor)}{" "}
+        indicados e {dinheiro(total.pago)} pagos até {DADOS_DA_API_PB}.
+      </p>
+
+      <h3 className="mp-radar-h3">O caminho até o dinheiro</h3>
+      <p>
+        A indicação do deputado vai à SEPLAG, que dá o parecer; o secretário da SEPLAG aprova; a SEFAZ põe a emenda no cronograma e o secretário
+        da SEFAZ aprova; o órgão do Estado empenha e paga. Em 2025, da indicação ao primeiro empenho passaram {ent25?.ateEmpenho ?? "—"} dias
+        (mediana) para OSC, contra {mun25?.ateEmpenho ?? "—"} para municípios. A espera maior é entre a aprovação na SEPLAG e o cronograma
+        da SEFAZ: {ent25?.cronograma ?? "—"} dias para OSC e {mun25?.cronograma ?? "—"} para municípios. Das {n(ent25?.emendas ?? 0)} emendas
+        a OSC de 2025, {n(ent25?.empenhadas ?? 0)} chegaram ao empenho até {DADOS_DA_API_PB}; das {n(mun25?.emendas ?? 0)} a municípios,{" "}
+        {n(mun25?.empenhadas ?? 0)}.
+      </p>
+      <TabelaRolagem rotulo="Emendas estaduais a OSC por ano">
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Ano da emenda</th>
+              <th scope="col">Indicações enviadas em</th>
+              <th scope="col" className="sl-num">Emendas a OSC</th>
+              <th scope="col" className="sl-num">Valor indicado</th>
+              <th scope="col" className="sl-num">Chegaram ao empenho</th>
+              <th scope="col" className="sl-num">Pago</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ESTADUAIS_POR_ANO.map((a) => (
+              <tr key={a.ano}>
+                <th scope="row">{a.ano}</th>
+                <td>{mesesDoEnvio(a.ano) || "—"}</td>
+                <td className="sl-num">{n(a.emendas)}</td>
+                <td className="sl-num">{dinheiro(a.valor)}</td>
+                <td className="sl-num">{n(a.empenhadas)}</td>
+                <td className="sl-num">{dinheiro(a.pago)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolagem>
+
+      <h3 className="mp-radar-h3">Por qual órgão do Estado</h3>
+      <TabelaRolagem rotulo="Emendas estaduais a OSC por órgão do Estado, 2024 a 2026">
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Órgão</th>
+              <th scope="col" className="sl-num">Emendas</th>
+              <th scope="col" className="sl-num">Valor indicado</th>
+              <th scope="col" className="sl-num">Chegaram ao empenho</th>
+              <th scope="col" className="sl-num">Pago</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ESTADUAIS_POR_ORGAO.map((o) => (
+              <tr key={o.orgao}>
+                <th scope="row">{o.orgao}</th>
+                <td className="sl-num">{n(o.emendas)}</td>
+                <td className="sl-num">{dinheiro(o.valor)}</td>
+                <td className="sl-num">{n(o.empenhadas)}</td>
+                <td className="sl-num">{dinheiro(o.pago)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolagem>
+      {CIENCIA_E_TECNOLOGIA.length > 0 && (
+        <p className="pa-nota">
+          Na área da associação, ciência e tecnologia:{" "}
+          {CIENCIA_E_TECNOLOGIA.map((o) => `${o.orgao}, ${n(o.emendas)} ${o.emendas === 1 ? "emenda" : "emendas"} (${dinheiro(o.valor)}, pago ${dinheiro(o.pago)})`).join("; ")}.
+        </p>
+      )}
+
+      <h3 className="mp-radar-h3">Os deputados estaduais que destinaram emendas a OSC</h3>
+      <p className="pa-nota">
+        Em ordem alfabética, com o nome como a API do Estado publica; as colunas de valor filtram, mas não ordenam. “OSCs com empenho” conta as
+        entidades que já receberam empenho dessas emendas.
+      </p>
+      <TabelaFiltravel
+        id="assembleia"
+        rotulo="Deputados estaduais e as emendas a OSC, 2024 a 2026"
+        colunas={COLUNAS_DEPUTADOS_ESTADUAIS}
+        linhas={linhasDeputadosEstaduais()}
+        descricaoOrdemPadrao="em ordem alfabética"
+        csv={{ nome: "assembleia-pb-emendas-osc-2024-2026" }}
+        empilhar
+      />
+      <ul className="pa-nota sl-lista">
+        <li>
+          <strong>OSC pela modalidade.</strong> Contam as emendas cuja modalidade, no orçamento do Estado, é a transferência a entidade privada
+          sem fins lucrativos.
+        </li>
+        <li>
+          <strong>O pago depende do órgão.</strong> A execução varia muito de um órgão do Estado para outro, e o pago de 2026 ainda está em
+          curso.
+        </li>
+        <li>
+          <strong>Fato, não avaliação.</strong> Deputado é agente público; a tabela mostra o que os dados abertos do Estado registram, sem nota
+          nem posição.
+        </li>
+      </ul>
+      <p className="pa-nota">
+        Fonte: <LinkFonte fonte={F.apiPb} />, lida em {DADOS_DA_API_PB} e processada pela PONTE.
+      </p>
+    </section>
+  );
+}
+
 // ---------------------------------------------------------------- a página
 
 export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: LeituraProgramas }) {
@@ -144,10 +308,12 @@ export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: Lei
         <h1 className="pa-titulo">Associação Ilha Tech: caminhos de recurso federal em 2026 e 2027</h1>
         <p className="pa-sub">
           Preparada para a reunião de 15/10/2026. Reúne fatos públicos, cada um com a fonte: o calendário oficial das emendas, o que a
-          bancada da Paraíba destinou a organizações da sociedade civil e os programas abertos hoje no Transferegov.
+          bancada da Paraíba destinou a organizações da sociedade civil e os programas abertos hoje no Transferegov. Desde 16/10/2026,
+          também as emendas da Assembleia Legislativa da Paraíba a OSC.
         </p>
         <p className="pa-nota sl-carimbo">
-          Emendas: Portal da Transparência, arquivo de {DADOS_DO_PORTAL}. Programas:{" "}
+          Emendas federais: Portal da Transparência, arquivo de {DADOS_DO_PORTAL}. Emendas estaduais: API de dados abertos do Governo da
+          Paraíba, lida em {DADOS_DA_API_PB}. Programas:{" "}
           {leitura.estado === "ok" && leitura.referencia
             ? `Transferegov, leitura de ${dataBr(leitura.referencia)}, atualizada todo dia.`
             : "leitura do Transferegov indisponível agora."}{" "}
@@ -332,6 +498,8 @@ export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: Lei
         <p className="pa-nota">Emendas dos 15 parlamentares da Paraíba a OSC com sede na PB. Fonte: <LinkFonte fonte={F.portal} /> e SICONV.</p>
       </section>
 
+      <SecaoAssembleia />
+
       <section aria-labelledby="sl-citados" className="mp-radar-secao">
         <h2 id="sl-citados" className="mp-radar-h2">Os quatro ministérios de relacionamento da associação</h2>
         <div className="pa-grade pa-grade-2 sl-cartoes">
@@ -390,6 +558,11 @@ export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: Lei
           <li>
             <strong>2027:</strong> levar aos gabinetes um projeto pronto, com objeto, metas, custos e o ministério da área, antes da
             abertura do prazo de emendas ao orçamento de 2027.
+          </li>
+          <li>
+            <strong>Assembleia:</strong> as indicações estaduais a OSC foram enviadas à SEPLAG em {mesesDoEnvio(2024)} de 2024,{" "}
+            {mesesDoEnvio(2025)} de 2025 e {mesesDoEnvio(2026)} de 2026. Um projeto pronto também serve aos gabinetes estaduais, antes do
+            envio das indicações de 2027; conte com meses entre a indicação e o empenho.
           </li>
           <li>
             <strong>Transparência:</strong> publicar a página com os recursos recebidos de emendas, exigida antes da primeira parceria.

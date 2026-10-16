@@ -32,6 +32,9 @@ import {
   type LeituraAssembleia,
 } from "@/lib/oportunidades/emendas-pb";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
+import { anosNoTce, temAlgoNoTce, type AnoNoTce, type LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
+import { ladoALado, type EstadualAno, type LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
+import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import type { ReactNode } from "react";
@@ -88,13 +91,147 @@ function linhasDoLugar(l: EmendasPbDoLugar): LinhaTabela[] {
   }));
 }
 
+/**
+ * Federal e estadual lado a lado, por ano da emenda (E3, 16/10/2026): dinheiros diferentes, que nunca se somam. Sem a
+ * leitura federal, a tabela não aparece; com ela vazia de 2021 em diante, também não.
+ */
+function LadoALado({ federal, estadual, quem }: { federal: LeituraFederalPorAno | undefined; estadual: EstadualAno[]; quem: string }) {
+  if (federal?.estado === "falha") return <p className="pa-nota">As emendas federais por ano não puderam ser lidas agora.</p>;
+  if (federal?.estado !== "ok") return null;
+  const linhas = ladoALado(federal.anos, estadual);
+  if (!linhas.length) return null;
+  return (
+    <>
+      <h3 className="mp-radar-h3">Federal e estadual, lado a lado</h3>
+      <p className="pa-nota">
+        Por ano da emenda, de 2021 em diante, para {quem}. A federal é a dos canais com destino (convênio, Pix, saúde fundo a fundo e pago ao
+        favorecido): o valor em instrumento válido e o pago. A estadual é a da Assembleia pelo empenho. São dinheiros diferentes, com fontes,
+        regras e definições diferentes: ficam lado a lado e nunca se somam.
+      </p>
+      <TabelaRolagem rotulo={`Emendas federais e estaduais, lado a lado, para ${quem}`}>
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Ano da emenda</th>
+              <th scope="col">Federal: válido</th>
+              <th scope="col">Federal: pago</th>
+              <th scope="col">Estadual: empenhado</th>
+              <th scope="col">Estadual: pago</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l) => (
+              <tr key={l.ano}>
+                <th scope="row" className="mp-th-celula">
+                  {l.ano}
+                </th>
+                <td className="mp-rel-num">{l.federalValido ? moedaCurta(l.federalValido) : "—"}</td>
+                <td className="mp-rel-num">{l.federalPago ? moedaCurta(l.federalPago) : "—"}</td>
+                <td className="mp-rel-num">{l.estadualEmpenhado ? moedaCurta(l.estadualEmpenhado) : "—"}</td>
+                <td className="mp-rel-num">{l.estadualPago ? moedaCurta(l.estadualPago) : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolagem>
+    </>
+  );
+}
+
+/** O empenhado e o pago das emendas de um lugar, por ano da emenda. */
+function estadualPorAno(l: EmendasPbDoLugar): EstadualAno[] {
+  const m = new Map<number, EstadualAno>();
+  for (const e of l.emendas) {
+    const a = m.get(e.ano) ?? { ano: e.ano, empenhado: 0, pago: 0 };
+    a.empenhado += e.empenhadoAqui;
+    a.pago += e.pagoAqui;
+    m.set(e.ano, a);
+  }
+  return [...m.values()];
+}
+
+/** O valor do quadro do TCE-PB: null é "não verificado" (o arquivo não foi lido), nunca zero. */
+const doTce = (v: number | null) => (v === null ? "não verificado" : moedaCurta(v));
+
+/**
+ * O que o município registrou no TCE-PB (E3, 16/10/2026), ao lado do que o Estado diz ter pago. O pago pelo Estado vai
+ * pelo ano da emenda e o recebido pelo ano do caixa: a emenda paga no fim do ano entra como receita do seguinte. Por
+ * isso os dois ficam lado a lado e nunca se subtraem.
+ */
+function NoTce({ anos, municipio, dadoAte }: { anos: AnoNoTce[]; municipio: string; dadoAte: string | null }) {
+  return (
+    <>
+      <h3 className="mp-radar-h3">No TCE-PB: o que {municipio} registrou</h3>
+      <p className="pa-nota">
+        O recebido do Estado e o gasto com fonte estadual, pelas receitas e despesas que o município envia ao Tribunal de Contas (arquivos
+        do TCE-PB até {dataBrasilia(dadoAte)}). O CO 3210 marca a emenda individual estadual; a fonte 710 é a transferência especial dos
+        Estados (o “Pix estadual”) e a 701, o convênio estadual. O pago pelo Estado conta pelo ano da emenda, e o recebido, pelo ano do
+        caixa: a emenda paga em dezembro pode entrar como receita de janeiro. O rendimento da conta fica à parte.
+      </p>
+      <TabelaRolagem rotulo={`No TCE-PB: o que ${municipio} registrou do dinheiro do Estado`}>
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Ano</th>
+              <th scope="col">Pago pelo Estado (emendas do ano)</th>
+              <th scope="col">Recebido como emenda (CO 3210)</th>
+              <th scope="col">Recebido na fonte 710</th>
+              <th scope="col">Gasto na fonte 710</th>
+              <th scope="col">Capital no gasto 710</th>
+              <th scope="col">Convênio estadual (701): recebido</th>
+              <th scope="col">Convênio estadual (701): gasto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {anos.map((a) => (
+              <tr key={a.ano}>
+                <th scope="row" className="mp-th-celula">
+                  {a.ano}
+                  {a.motivo && <span className="mp-tabela-secundario">{a.motivo}</span>}
+                </th>
+                <td className="mp-rel-num">{a.pagoPeloEstado ? moedaCurta(a.pagoPeloEstado) : "—"}</td>
+                <td className="mp-rel-num">{doTce(a.recebidoEmenda)}</td>
+                <td className="mp-rel-num">
+                  {doTce(a.recebidoPix)}
+                  {a.rendimentoPix ? <span className="mp-tabela-secundario">+ {moedaCurta(a.rendimentoPix)} de rendimento</span> : null}
+                </td>
+                <td className="mp-rel-num">{doTce(a.gastoPix)}</td>
+                <td className="mp-rel-num">{a.pctCapitalPix === null ? "—" : `${a.pctCapitalPix.toLocaleString("pt-BR")}%`}</td>
+                <td className="mp-rel-num">{doTce(a.recebidoConvenio)}</td>
+                <td className="mp-rel-num">{doTce(a.gastoConvenio)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolagem>
+    </>
+  );
+}
+
 /** O bloco da página do município (aba do dinheiro). */
-export function EmendasEstaduaisDoMunicipio({ leitura, ibge, municipio }: { leitura: LeituraAssembleia; ibge: string; municipio: string }) {
+export function EmendasEstaduaisDoMunicipio({
+  leitura,
+  ibge,
+  municipio,
+  tce,
+  federal,
+}: {
+  leitura: LeituraAssembleia;
+  ibge: string;
+  municipio: string;
+  /** O que o município registrou no TCE-PB (E3); ausente, o quadro não aparece. */
+  tce?: LeituraTceEstadoMunicipio;
+  /** As emendas federais por ano, da prefeitura e dos fundos (E3); ausente, a tabela lado a lado não aparece. */
+  federal?: LeituraFederalPorAno;
+}) {
   if (leitura.estado !== "ok") return <Indisponivel leitura={leitura} />;
   const { retrato } = leitura;
   const { publico, entidades } = emendasPbDoMunicipio(retrato, ibge);
   const credores = destinoDe(retrato, entidades.emendas).credores.filter((c) => c.ibge === ibge && c.modalidade === "entidades");
   const deputados = new Set([...publico.porDeputado, ...entidades.porDeputado].map((d) => d.pessoa)).size;
+  const pagoPorAno = new Map<number, number>();
+  for (const e of publico.emendas) pagoPorAno.set(e.ano, (pagoPorAno.get(e.ano) ?? 0) + e.pagoAqui);
+  const anosTce = tce?.estado === "ok" ? anosNoTce(tce, pagoPorAno) : null;
   return (
     <Secao
       id="mun-emendas-estaduais"
@@ -156,6 +293,9 @@ export function EmendasEstaduaisDoMunicipio({ leitura, ibge, municipio }: { leit
           )}
         </>
       )}
+      <LadoALado federal={federal} estadual={estadualPorAno(publico)} quem={`a prefeitura e os fundos de ${municipio}`} />
+      {anosTce && temAlgoNoTce(anosTce) && tce?.estado === "ok" && <NoTce anos={anosTce} municipio={municipio} dadoAte={tce.dadoAte} />}
+      {tce?.estado === "falha" && <p className="pa-nota">No TCE-PB: o recebido e o gasto do dinheiro do Estado não puderam ser lidos agora.</p>}
       <p className="pa-linha mp-nao-imprimir">
         <LinkMapa href={URL_ASSEMBLEIA} className="pa-btn pa-btn-pequeno">
           Ver as emendas da Assembleia
@@ -166,7 +306,18 @@ export function EmendasEstaduaisDoMunicipio({ leitura, ibge, municipio }: { leit
 }
 
 /** O bloco da página da entidade (aba do dinheiro): o que ela recebeu como credora do empenho. */
-export function EmendasEstaduaisDaEntidade({ leitura, cnpj, nome }: { leitura: LeituraAssembleia; cnpj: string; nome: string }) {
+export function EmendasEstaduaisDaEntidade({
+  leitura,
+  cnpj,
+  nome,
+  federal,
+}: {
+  leitura: LeituraAssembleia;
+  cnpj: string;
+  nome: string;
+  /** As emendas federais da entidade por ano (E3); ausente, a tabela lado a lado não aparece. */
+  federal?: LeituraFederalPorAno;
+}) {
   if (leitura.estado !== "ok") return <Indisponivel leitura={leitura} />;
   const { retrato } = leitura;
   const l = emendasPbDaEntidade(retrato, cnpj);
@@ -200,6 +351,7 @@ export function EmendasEstaduaisDaEntidade({ leitura, cnpj, nome }: { leitura: L
           />
         </>
       )}
+      <LadoALado federal={federal} estadual={estadualPorAno(l)} quem={nome} />
       <p className="pa-linha mp-nao-imprimir">
         <LinkMapa href={URL_ASSEMBLEIA} className="pa-btn pa-btn-pequeno">
           Ver as emendas da Assembleia

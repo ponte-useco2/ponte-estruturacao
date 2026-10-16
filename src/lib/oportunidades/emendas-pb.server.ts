@@ -31,6 +31,8 @@ import {
   type PfEpb,
   type TramiteEpb,
 } from "./emendas-pb";
+import type { CoberturaEstado, DespesaEstado, LeituraTceEstadoMunicipio, ReceitaEstado } from "./tce-estado";
+import { federalPorAno, type LeituraFederalPorAno } from "./lado-a-lado";
 
 type Banco = ReturnType<typeof clienteServidor>;
 type Erro = { message: string; code?: string };
@@ -223,4 +225,85 @@ async function lerEmendaDoBanco(emenda: string): Promise<LeituraEmendaEpb> {
   );
   if (ehProblema(tramites)) return estadoDe(tramites);
   return { estado: "ok", retrato: r, emenda, tramites: (tramites ?? []).map((t) => ({ ...t, ordem: num(t.ordem) })) };
+}
+
+// ================================================================ o dinheiro do Estado no TCE-PB (E3, 16/10/2026)
+
+const tcePorMunicipio = criarMemoria<LeituraTceEstadoMunicipio>({ validadeMs: VALIDADE_MS, maximo: 50, guardar: (l) => l.estado === "ok" });
+
+/**
+ * O que o município registrou no TCE-PB como recebido do Estado e o que gastou com fonte estadual (`tce_estado_*`, da
+ * oport_42, na execução `tce_*` do job diário). Só servidor, só chave de serviço; a página decide quem vê (só o
+ * administrador). IBGE fora do formato: `sem_dado`, sem ler o banco.
+ */
+export function lerTceEstadoDoMunicipio(ibge: string): Promise<LeituraTceEstadoMunicipio> {
+  if (typeof ibge !== "string" || !/^\d{7}$/.test(ibge)) return Promise.resolve({ estado: "sem_dado" });
+  return tcePorMunicipio.obter(ibge, () => lerTceEstadoDoBanco(ibge));
+}
+
+async function lerTceEstadoDoBanco(ibge: string): Promise<LeituraTceEstadoMunicipio> {
+  if (!authConfigurada()) return { estado: "sem_dado" };
+  const db = clienteServidor();
+  const ex = await uma<{ id: number; dado_ate: string | null }[]>("execução do TCE-PB", (sinal) =>
+    db.rpc("tce_ultima_execucao").select("id,dado_ate").limit(1).abortSignal(sinal),
+  );
+  if (ehProblema(ex)) return estadoDe(ex);
+  const e = (ex ?? [])[0];
+  if (!e) return { estado: "sem_dado" };
+  const [cobertura, receita, despesa] = await Promise.all([
+    uma<CoberturaEstado[]>("cobertura estadual do TCE-PB", (sinal) =>
+      db.from("tce_estado_cobertura").select("ano,receitas_lidas,despesas_lidas,motivo").eq("execucao_id", e.id).eq("ibge", ibge).order("ano").abortSignal(sinal),
+    ),
+    uma<ReceitaEstado[]>("receita estadual no TCE-PB", (sinal) =>
+      db.from("tce_estado_receita").select("ano,fonte,co,tipo,valor").eq("execucao_id", e.id).eq("ibge", ibge).order("ano").limit(PAGINA).abortSignal(sinal),
+    ),
+    uma<DespesaEstado[]>("despesa estadual no TCE-PB", (sinal) =>
+      db.from("tce_estado_despesa").select("ano,fonte,co,grupo,empenhado,pago").eq("execucao_id", e.id).eq("ibge", ibge).order("ano").limit(PAGINA).abortSignal(sinal),
+    ),
+  ]);
+  for (const x of [cobertura, receita, despesa]) if (ehProblema(x)) return estadoDe(x);
+  const cob = (cobertura as CoberturaEstado[] | null) ?? [];
+  // Execução de antes da oport_42 aplicada (ou de antes do job novo): sem cobertura estadual, não há o que mostrar.
+  if (!cob.length) return { estado: "sem_dado" };
+  return {
+    estado: "ok",
+    dadoAte: e.dado_ate ?? null,
+    cobertura: cob.map((c) => ({ ...c, ano: num(c.ano) })),
+    receita: ((receita as ReceitaEstado[] | null) ?? []).map((r) => ({ ...r, ano: num(r.ano), valor: num(r.valor) })),
+    despesa: ((despesa as DespesaEstado[] | null) ?? []).map((d) => ({ ...d, ano: num(d.ano), empenhado: num(d.empenhado), pago: num(d.pago) })),
+  };
+}
+
+// ================================================================ federal e estadual lado a lado (E3, 16/10/2026)
+
+const federalPorAlvo = criarMemoria<LeituraFederalPorAno>({ validadeMs: VALIDADE_MS, maximo: 100, guardar: (l) => l.estado === "ok" });
+
+/**
+ * As emendas FEDERAIS por ano da emenda, para pôr ao lado das estaduais: as linhas de `emd_canal` (oport_39) que nenhum
+ * outro canal cobre, da prefeitura e dos fundos municipais do IBGE, ou do CNPJ da entidade. Só o válido e o pago do que
+ * é válido (`federalPorAno`). Alvo fora do formato: `sem_dado`, sem ler o banco.
+ */
+export function lerFederalPorAno(alvo: { ibge: string } | { cnpj: string }): Promise<LeituraFederalPorAno> {
+  const chave = "ibge" in alvo ? (/^\d{7}$/.test(alvo.ibge) ? `ibge:${alvo.ibge}` : null) : /^[0-9A-Z]{12}\d{2}$/.test(alvo.cnpj) ? `cnpj:${alvo.cnpj}` : null;
+  if (!chave) return Promise.resolve({ estado: "sem_dado" });
+  return federalPorAlvo.obter(chave, () => lerFederalDoBanco(alvo));
+}
+
+async function lerFederalDoBanco(alvo: { ibge: string } | { cnpj: string }): Promise<LeituraFederalPorAno> {
+  if (!authConfigurada()) return { estado: "sem_dado" };
+  const db = clienteServidor();
+  const ex = await uma<{ id: number }[]>("execução das emendas federais", (sinal) => db.rpc("emd_ultima_execucao").select("id").limit(1).abortSignal(sinal));
+  if (ehProblema(ex)) return estadoDe(ex);
+  const id = (ex ?? [])[0]?.id;
+  if (id === undefined || id === null) return { estado: "sem_dado" };
+  const linhas = await todasAsLinhas<{ ano: number | null; valido: boolean; indicado: number | null; pago: number | null }>("emendas federais por ano", (a, b, sinal) => {
+    let q = db.from("emd_canal").select("ano,valido,indicado,pago,linha").eq("execucao_id", id).is("coberto_por", null);
+    q = "ibge" in alvo ? q.eq("ibge", alvo.ibge).in("ente_tipo", ["municipio", "fundo_municipal"]) : q.eq("ente_cnpj", alvo.cnpj);
+    return q.order("linha").range(a, b).abortSignal(sinal);
+  });
+  if (ehProblema(linhas)) return estadoDe(linhas);
+  return {
+    estado: "ok",
+    anos: federalPorAno(linhas.map((l) => ({ ano: l.ano === null ? null : num(l.ano), valido: !!l.valido, indicado: numOuNull(l.indicado), pago: numOuNull(l.pago) }))),
+  };
 }

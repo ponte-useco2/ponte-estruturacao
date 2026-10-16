@@ -118,6 +118,7 @@ export const F = {
   memp4: { rotulo: "MEMP, Edital de Chamamento Público nº 4/2026", url: "https://www.gov.br/memp/pt-br/acesso-a-informacao/editais/edital-04-2026/edital_de_chamamento_publico_n__4_2026.pdf" },
   mcomCrc: { rotulo: "MCom, programa Computadores para Inclusão", url: "https://www.gov.br/mcom/pt-br/acesso-a-informacao/acoes-e-programas/programas-projetos-acoes-obras-e-atividades/computadores-para-inclusao-1" },
   transferegov: { rotulo: "Transferegov.br (programas e cadastro de proponente)", url: "https://www.gov.br/transferegov/pt-br" },
+  apiPb: { rotulo: "Governo da Paraíba, API de dados abertos: execução das emendas, listagem das emendas e notas de empenho", url: "https://api.dados.pb.gov.br/swagger/" },
 } satisfies Record<string, Fonte>;
 
 /** Marcos do calendário, com a fonte de cada um. `ate` = fim do prazo (AAAA-MM-DD). */
