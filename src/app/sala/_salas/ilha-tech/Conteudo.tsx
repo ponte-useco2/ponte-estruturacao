@@ -23,6 +23,14 @@ import {
   ESTADUAIS_POR_ORGAO,
 } from "./dados-estaduais";
 import {
+  APRESENTACAO_LOA_2026,
+  DADOS_DO_PAINEL_JP,
+  EMPENHOS_OSC_2026_POR_MES,
+  MUNICIPAIS_POR_ANO,
+  MUNICIPAIS_POR_UNIDADE,
+  VEREADORES_MUNICIPAIS_OSC,
+} from "./dados-municipais";
+import {
   DADOS_DO_PORTAL, F, MARCOS, MINISTERIOS_CITADOS, MINISTERIOS_OSC, PARLAMENTARES, PREPARADO_EM, REQUISITOS,
   type Fonte, type Marco,
 } from "./dados";
@@ -293,6 +301,173 @@ function SecaoAssembleia() {
   );
 }
 
+// ---------------------------------------------------------------- a Câmara de João Pessoa (J2 das emendas de João Pessoa, 16/10/2026)
+
+const COLUNAS_VEREADORES_MUNICIPAIS: ColunaTabela[] = [
+  { id: "vereador", titulo: "Vereador", tipo: "texto" },
+  { id: "emendas-2024", titulo: "Emendas a entidades, 2024", tipo: "numero", ordenavel: false, alinhar: "direita" },
+  { id: "valor-2024", titulo: "Valor indicado, 2024", tipo: "numero", ordenavel: false, alinhar: "direita" },
+  { id: "emendas-2026", titulo: "Emendas a entidades, 2026", tipo: "numero", ordenavel: false, alinhar: "direita" },
+  { id: "valor-2026", titulo: "Valor atual, 2026", tipo: "numero", ordenavel: false, alinhar: "direita" },
+];
+
+function linhasVereadoresMunicipais(): LinhaTabela[] {
+  return [...VEREADORES_MUNICIPAIS_OSC]
+    .sort((a, b) => a.vereador.localeCompare(b.vereador, "pt-BR"))
+    .map((v) => ({
+      chave: v.vereador,
+      valores: { vereador: v.vereador, "emendas-2024": v.emendas2024, "valor-2024": v.valor2024, "emendas-2026": v.emendas2026, "valor-2026": v.valor2026 },
+      celulas: {
+        vereador: <strong>{v.vereador}</strong>,
+        "emendas-2024": v.emendas2024 ? n(v.emendas2024) : "—",
+        "valor-2024": dinheiro(v.valor2024),
+        "emendas-2026": v.emendas2026 ? n(v.emendas2026) : "—",
+        "valor-2026": dinheiro(v.valor2026),
+      },
+    }));
+}
+
+const NOME_MES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const nomeDoMes = (aaaaMm: string) => NOME_MES[Number(aaaaMm.slice(5, 7)) - 1] ?? aaaaMm;
+const ANOS_SALA = [2024, 2025, 2026] as const;
+type Unidade = (typeof MUNICIPAIS_POR_UNIDADE)[number];
+const emendasDoAno = (u: Unidade, ano: (typeof ANOS_SALA)[number]) => (ano === 2024 ? u.emendas2024 : ano === 2025 ? u.emendas2025 : u.emendas2026);
+const valorDoAno = (u: Unidade, ano: (typeof ANOS_SALA)[number]) => (ano === 2024 ? u.valor2024 : ano === 2025 ? u.valor2025 : u.valor2026);
+
+function SecaoCamaraJp() {
+  const a26 = MUNICIPAIS_POR_ANO.find((a) => a.ano === 2026);
+  const a25 = MUNICIPAIS_POR_ANO.find((a) => a.ano === 2025);
+  const empenhos = EMPENHOS_OSC_2026_POR_MES.reduce((s, m) => s + m.empenhos, 0);
+  const deJulho = EMPENHOS_OSC_2026_POR_MES.filter((m) => m.mes >= "2026-07").reduce((s, m) => s + m.empenhos, 0);
+  const cienciaTecnologia = MUNICIPAIS_POR_UNIDADE.filter((u) => /CI[ÊE]NCIA|TECNOLOGIA/i.test(u.unidade));
+  return (
+    <section aria-labelledby="sl-camara-jp" className="mp-radar-secao">
+      <h2 id="sl-camara-jp" className="mp-radar-h2">A Câmara de João Pessoa e as entidades sem fins lucrativos, 2024 a 2026</h2>
+      <p className="pa-nota">
+        Os vereadores de João Pessoa também têm emendas impositivas, no orçamento do próprio município, e a maior parte delas vai a entidades
+        privadas sem fins lucrativos. Em 2026, são {n(a26?.emendas ?? 0)} das {n(a26?.todas ?? 0)} emendas da Câmara, com{" "}
+        {dinheiro(a26?.atual ?? 0)} dos {dinheiro(a26?.valorTodas ?? 0)} do valor atual; até {DADOS_DO_PAINEL_JP} foram pagos{" "}
+        {dinheiro(a26?.pago ?? 0)}.
+      </p>
+
+      <h3 className="mp-radar-h3">O caminho até o dinheiro</h3>
+      <p>
+        O vereador apresenta a emenda ao projeto de lei orçamentária na Câmara: as emendas impositivas ao orçamento de 2026 foram apresentadas
+        de {dataBr(APRESENTACAO_LOA_2026.de)} a {dataBr(APRESENTACAO_LOA_2026.ate)}. Aprovado o orçamento, a
+        secretaria ou o fundo do município empenha e paga. Em 2026, os {n(empenhos)} empenhos dessas emendas registrados no TCE-PB começaram em{" "}
+        {EMPENHOS_OSC_2026_POR_MES[0] ? nomeDoMes(EMPENHOS_OSC_2026_POR_MES[0].mes) : "—"}, e {n(deJulho)} saíram de julho em diante. Em 2025, até
+        dezembro, foram pagos {dinheiro(a25?.pago ?? 0)} dos {dinheiro(a25?.atual ?? 0)} do valor atual das emendas a entidades.
+      </p>
+      <TabelaRolagem rotulo="Emendas municipais a entidades sem fins lucrativos por ano">
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Ano</th>
+              <th scope="col" className="sl-num">Emendas a entidades</th>
+              <th scope="col" className="sl-num">Valor indicado</th>
+              <th scope="col" className="sl-num">Valor atual</th>
+              <th scope="col" className="sl-num">Empenhado</th>
+              <th scope="col" className="sl-num">Pago</th>
+              <th scope="col" className="sl-num">Todas as emendas da Câmara</th>
+              <th scope="col">Fonte</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MUNICIPAIS_POR_ANO.map((a) => (
+              <tr key={a.ano}>
+                <th scope="row">{a.ano}</th>
+                <td className="sl-num">{n(a.emendas)}</td>
+                <td className="sl-num">{a.valor === null ? "—" : dinheiro(a.valor)}</td>
+                <td className="sl-num">{dinheiro(a.atual)}</td>
+                <td className="sl-num">{dinheiro(a.empenhado)}</td>
+                <td className="sl-num">{dinheiro(a.pago)}</td>
+                <td className="sl-num">{n(a.todas)}</td>
+                <td>{a.fonte}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolagem>
+
+      <h3 className="mp-radar-h3">Por qual unidade da Prefeitura</h3>
+      <p className="pa-nota">Quantidade de emendas a entidades e valor atual, em ordem de nome da unidade.</p>
+      <TabelaRolagem rotulo="Emendas municipais a entidades por unidade gestora, 2024 a 2026">
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Unidade gestora</th>
+              {ANOS_SALA.map((ano) => (
+                <th key={ano} scope="col" className="sl-num">
+                  {ano}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {MUNICIPAIS_POR_UNIDADE.map((u) => (
+              <tr key={u.unidade}>
+                <th scope="row">{u.unidade}</th>
+                {ANOS_SALA.map((ano) => (
+                  <td key={ano} className="sl-num">
+                    {emendasDoAno(u, ano) ? `${n(emendasDoAno(u, ano))} · ${dinheiro(valorDoAno(u, ano))}` : "—"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolagem>
+      {cienciaTecnologia.length > 0 && (
+        <p className="pa-nota">
+          Na área da associação, ciência e tecnologia:{" "}
+          {cienciaTecnologia
+            .flatMap((u) =>
+              ANOS_SALA.filter((ano) => emendasDoAno(u, ano) > 0).map(
+                (ano) => `${u.unidade}, ${ano}: ${n(emendasDoAno(u, ano))} ${emendasDoAno(u, ano) === 1 ? "emenda" : "emendas"} (${dinheiro(valorDoAno(u, ano))})`,
+              ),
+            )
+            .join("; ")}
+          .
+        </p>
+      )}
+
+      <h3 className="mp-radar-h3">Os vereadores que destinaram emendas a entidades</h3>
+      <p className="pa-nota">
+        Em ordem alfabética, com o nome como a Prefeitura e a Câmara publicam; as colunas de valor filtram, mas não ordenam. A lista de autores
+        das emendas de 2025 não está publicada no portal, por isso o ano fica fora desta tabela.
+      </p>
+      <TabelaFiltravel
+        id="camara-jp"
+        rotulo="Vereadores de João Pessoa e as emendas a entidades sem fins lucrativos, 2024 e 2026"
+        colunas={COLUNAS_VEREADORES_MUNICIPAIS}
+        linhas={linhasVereadoresMunicipais()}
+        descricaoOrdemPadrao="em ordem alfabética"
+        csv={{ nome: "camara-joao-pessoa-emendas-entidades-2024-2026" }}
+        empilhar
+      />
+      <ul className="pa-nota sl-lista">
+        <li>
+          <strong>Entidade pela natureza da despesa.</strong> Contam as emendas cuja natureza, no orçamento do município, é a transferência a
+          instituição privada sem fins lucrativos (modalidade 50). Em 2026, a natureza vem da posição de maio do portal, e os valores, do painel
+          da Prefeitura.
+        </li>
+        <li>
+          <strong>Valor indicado e valor atual.</strong> O indicado é o da lei orçamentária; o atual, o que ficou depois de remanejamentos e
+          cortes. O pago de 2026 ainda está em curso.
+        </li>
+        <li>
+          <strong>Fato, não avaliação.</strong> Vereador é agente público; a tabela mostra o que os dados públicos do município registram, sem
+          nota nem posição, e nenhuma entidade é nomeada.
+        </li>
+      </ul>
+      <p className="pa-nota">
+        Fontes: <LinkFonte fonte={F.painelJp} />, lido em {DADOS_DO_PAINEL_JP}; <LinkFonte fonte={F.saplJp} />; e a despesa do município no
+        TCE-PB. Processado pela PONTE.
+      </p>
+    </section>
+  );
+}
+
 // ---------------------------------------------------------------- a página
 
 export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: LeituraProgramas }) {
@@ -309,11 +484,11 @@ export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: Lei
         <p className="pa-sub">
           Preparada para a reunião de 15/10/2026. Reúne fatos públicos, cada um com a fonte: o calendário oficial das emendas, o que a
           bancada da Paraíba destinou a organizações da sociedade civil e os programas abertos hoje no Transferegov. Desde 16/10/2026,
-          também as emendas da Assembleia Legislativa da Paraíba a OSC.
+          também as emendas da Assembleia Legislativa da Paraíba e da Câmara Municipal de João Pessoa a entidades sem fins lucrativos.
         </p>
         <p className="pa-nota sl-carimbo">
           Emendas federais: Portal da Transparência, arquivo de {DADOS_DO_PORTAL}. Emendas estaduais: API de dados abertos do Governo da
-          Paraíba, lida em {DADOS_DA_API_PB}. Programas:{" "}
+          Paraíba, lida em {DADOS_DA_API_PB}. Emendas municipais: painel da Prefeitura de João Pessoa, lido em {DADOS_DO_PAINEL_JP}. Programas:{" "}
           {leitura.estado === "ok" && leitura.referencia
             ? `Transferegov, leitura de ${dataBr(leitura.referencia)}, atualizada todo dia.`
             : "leitura do Transferegov indisponível agora."}{" "}
@@ -500,6 +675,8 @@ export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: Lei
 
       <SecaoAssembleia />
 
+      <SecaoCamaraJp />
+
       <section aria-labelledby="sl-citados" className="mp-radar-secao">
         <h2 id="sl-citados" className="mp-radar-h2">Os quatro ministérios de relacionamento da associação</h2>
         <div className="pa-grade pa-grade-2 sl-cartoes">
@@ -563,6 +740,11 @@ export function ConteudoIlhaTech({ hoje, leitura }: { hoje: string; leitura: Lei
             <strong>Assembleia:</strong> as indicações estaduais a OSC foram enviadas à SEPLAG em {mesesDoEnvio(2024)} de 2024,{" "}
             {mesesDoEnvio(2025)} de 2025 e {mesesDoEnvio(2026)} de 2026. Um projeto pronto também serve aos gabinetes estaduais, antes do
             envio das indicações de 2027; conte com meses entre a indicação e o empenho.
+          </li>
+          <li>
+            <strong>Câmara de João Pessoa:</strong> as emendas impositivas ao orçamento municipal de 2026 foram apresentadas na Câmara de{" "}
+            {dataBr(APRESENTACAO_LOA_2026.de)} a {dataBr(APRESENTACAO_LOA_2026.ate)}, e a maior parte vai a entidades sem fins lucrativos. Um
+            projeto pronto serve também aos vereadores, antes das emendas ao orçamento municipal de 2027.
           </li>
           <li>
             <strong>Transparência:</strong> publicar a página com os recursos recebidos de emendas, exigida antes da primeira parceria.

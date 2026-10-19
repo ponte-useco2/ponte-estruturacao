@@ -91,6 +91,8 @@ import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDaEntidade } from "../../parlamentares/assembleia/EmendasEstaduais";
+import { EmendasDaCamaraNaEntidade } from "../../parlamentares/camara-jp/EmendasDaCamaraJp";
+import type { LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
 
 type Destino = (nr: string) => string;
 
@@ -577,6 +579,7 @@ export function EntidadeConteudo({
   seguindo = false,
   assembleia,
   federalPorAno,
+  camaraJp,
 }: {
   e: IdentidadeEntidade;
   r: Relatorio;
@@ -591,6 +594,8 @@ export function EntidadeConteudo({
   assembleia?: LeituraAssembleia;
   /** As emendas federais da entidade por ano (E3), para o lado a lado. */
   federalPorAno?: LeituraFederalPorAno;
+  /** As emendas da Câmara de João Pessoa (J2): só para o administrador, só na aba do dinheiro. */
+  camaraJp?: LeituraCamaraJp;
 }) {
   const soCadastro = !instrumentos.length && !propostas.length;
   const e = entidadeLegivel(entidade);
@@ -644,6 +649,7 @@ export function EntidadeConteudo({
           <BlocoEmendas r={r} nivel={nivel} />
           {/* E2 das emendas estaduais (16/10/2026): a Assembleia da PB, à parte das federais, só do administrador. */}
           {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDaEntidade leitura={assembleia} cnpj={e.cnpj} nome={e.nome} federal={federalPorAno} />}
+          {PODE.interno(nivel) && camaraJp !== undefined && <EmendasDaCamaraNaEntidade leitura={camaraJp} cnpj={e.cnpj} nome={e.nome} />}
           {nivel >= 1 && (
             <>
               <BlocoPix r={r} destino={destino} />

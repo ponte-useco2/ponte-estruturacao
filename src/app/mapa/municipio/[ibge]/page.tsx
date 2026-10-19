@@ -10,6 +10,8 @@ import type { LeituraEmendasMunicipio } from "@/lib/oportunidades/emendas";
 import { lerEmendasDoMunicipio } from "@/lib/oportunidades/emendas.server";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
 import { lerAssembleia, lerFederalPorAno, lerTceEstadoDoMunicipio } from "@/lib/oportunidades/emendas-pb.server";
+import { IBGE_JOAO_PESSOA, type LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
+import { lerCamaraJp } from "@/lib/oportunidades/emendas-jp.server";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import { ABAS_MUNICIPIO, PODE, abaEscolhida, ibgeDaUrl, leEmendasDoMunicipio, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
@@ -131,10 +133,13 @@ export default async function MunicipioPage({
   const federalPorAno: Promise<LeituraFederalPorAno> | undefined = leEmendasDoMunicipio(aba, nivel)
     ? lerFederalPorAno({ ibge }).catch(() => ({ estado: "falha" as const }))
     : undefined;
-  const [linhas, osc, emendas, assembleia, tce, federal] =
+  // J2 das emendas de João Pessoa (16/10/2026): a Câmara Municipal da capital, só na página de João Pessoa, com a mesma regra.
+  const camaraJp: Promise<LeituraCamaraJp> | undefined =
+    ibge === IBGE_JOAO_PESSOA && leEmendasDoMunicipio(aba, nivel) ? lerCamaraJp().catch(() => ({ estado: "falha" as const })) : undefined;
+  const [linhas, osc, emendas, assembleia, tce, federal, camara] =
     aba === "dinheiro"
-      ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio, estaduais, tceEstado, federalPorAno])
-      : [undefined, null, undefined, undefined, undefined, undefined];
+      ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio, estaduais, tceEstado, federalPorAno, camaraJp])
+      : [undefined, null, undefined, undefined, undefined, undefined, undefined];
   const entidades = linhas === undefined ? undefined : linhas ? quemRecebe(linhas) : null;
   const conteudo = (
     <MunicipioConteudo
@@ -148,6 +153,7 @@ export default async function MunicipioPage({
       assembleia={assembleia}
       tceEstado={tce}
       federalPorAno={federal}
+      camaraJp={camara}
     />
   );
   if (!acesso.sessao) return conteudo;

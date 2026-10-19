@@ -10,6 +10,7 @@ import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
 import { ABAS_ENTIDADE, abaDaEntidade, cnpjDaUrl, urlEntidade, type AbaEntidade } from "@/lib/oportunidades/pagina-entidade";
 import { PODE } from "@/lib/oportunidades/pagina-municipio";
 import { lerAssembleia, lerFederalPorAno } from "@/lib/oportunidades/emendas-pb.server";
+import { lerCamaraJp } from "@/lib/oportunidades/emendas-jp.server";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -123,10 +124,12 @@ export default async function EntidadePage({
   // As emendas estaduais (E2, 16/10/2026): só o administrador lê, e só na aba do dinheiro, como no município. A
   // rejeição inesperada vira "falha": o bloco diz só uma linha, e a página nunca cai por ele.
   const interno = PODE.interno(nivel) && aba === "dinheiro";
-  const [seguidas, assembleia, federalPorAno] = await Promise.all([
+  const [seguidas, assembleia, federalPorAno, camaraJp] = await Promise.all([
     visitante ? lerSeguidas() : Promise.resolve(null),
     interno ? lerAssembleia().catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
     interno ? lerFederalPorAno({ cnpj }).catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
+    // J2 das emendas de João Pessoa (16/10/2026): as emendas da Câmara que citam a entidade ou a têm como credora.
+    interno ? lerCamaraJp().catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
   ]);
   const conteudo = (
     <EntidadeConteudo
@@ -140,6 +143,7 @@ export default async function EntidadePage({
       seguindo={seguidas?.has(chaveSeguida("entidade", cnpj)) ?? false}
       assembleia={assembleia}
       federalPorAno={federalPorAno}
+      camaraJp={camaraJp}
     />
   );
   if (!acesso.sessao) return conteudo;

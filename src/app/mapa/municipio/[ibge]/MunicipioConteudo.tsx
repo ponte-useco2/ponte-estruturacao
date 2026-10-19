@@ -39,6 +39,8 @@ import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
 import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDoMunicipio } from "../../parlamentares/assembleia/EmendasEstaduais";
+import { EmendasDaCamaraNoMunicipio } from "../../parlamentares/camara-jp/EmendasDaCamaraJp";
+import type { LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
 import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
@@ -203,6 +205,7 @@ export function MunicipioConteudo({
   assembleia,
   tceEstado,
   federalPorAno,
+  camaraJp,
 }: {
   r: Relatorio;
   aba: AbaMunicipio;
@@ -223,6 +226,8 @@ export function MunicipioConteudo({
   tceEstado?: LeituraTceEstadoMunicipio;
   /** As emendas federais por ano, para o lado a lado com as estaduais (E3). */
   federalPorAno?: LeituraFederalPorAno;
+  /** As emendas da Câmara de João Pessoa (J2): só na página de João Pessoa, com a mesma regra. */
+  camaraJp?: LeituraCamaraJp;
 }) {
   // C4a: o recorte do público mora no dado, e não só na tela (ver `relatorioDoPublico`); do nível 1 em diante, o inteiro.
   const r = relatorioDoNivel(relatorio, nivel);
@@ -276,6 +281,8 @@ export function MunicipioConteudo({
           {PODE.interno(nivel) && assembleia !== undefined && (
             <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} tce={tceEstado} federal={federalPorAno} />
           )}
+          {/* J2 das emendas de João Pessoa (16/10/2026): a Câmara Municipal da capital, à parte, só do administrador. */}
+          {PODE.interno(nivel) && camaraJp !== undefined && <EmendasDaCamaraNoMunicipio leitura={camaraJp} />}
           {/* C4a (B3 da R3): Pix, TCE-PB e fornecedores só do nível 1 em diante, como na entidade. */}
           {PODE.cadastro(nivel) && (
             <>

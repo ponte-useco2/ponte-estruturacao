@@ -119,6 +119,8 @@ export const F = {
   mcomCrc: { rotulo: "MCom, programa Computadores para Inclusão", url: "https://www.gov.br/mcom/pt-br/acesso-a-informacao/acoes-e-programas/programas-projetos-acoes-obras-e-atividades/computadores-para-inclusao-1" },
   transferegov: { rotulo: "Transferegov.br (programas e cadastro de proponente)", url: "https://www.gov.br/transferegov/pt-br" },
   apiPb: { rotulo: "Governo da Paraíba, API de dados abertos: execução das emendas, listagem das emendas e notas de empenho", url: "https://api.dados.pb.gov.br/swagger/" },
+  painelJp: { rotulo: "Prefeitura de João Pessoa, painel das emendas impositivas e portal da transparência (execução das emendas)", url: "https://transparenciaemendas.joaopessoa.pb.gov.br/" },
+  saplJp: { rotulo: "Câmara Municipal de João Pessoa, SAPL (emendas impositivas à LOA)", url: "https://sapl.joaopessoa.pb.leg.br/" },
 } satisfies Record<string, Fonte>;
 
 /** Marcos do calendário, com a fonte de cada um. `ate` = fim do prazo (AAAA-MM-DD). */

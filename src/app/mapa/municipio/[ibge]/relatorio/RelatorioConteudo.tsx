@@ -27,6 +27,8 @@ import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
 import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDoMunicipio } from "../../../parlamentares/assembleia/EmendasEstaduais";
+import { EmendasDaCamaraNoMunicipio } from "../../../parlamentares/camara-jp/EmendasDaCamaraJp";
+import type { LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
 import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
@@ -922,6 +924,7 @@ export function RelatorioConteudo({
   assembleia,
   tceEstado,
   federalPorAno,
+  camaraJp,
 }: {
   r: Relatorio;
   seguindo?: boolean;
@@ -932,6 +935,8 @@ export function RelatorioConteudo({
   tceEstado?: LeituraTceEstadoMunicipio;
   /** As emendas federais por ano (E3), para o lado a lado: só para o administrador. */
   federalPorAno?: LeituraFederalPorAno;
+  /** As emendas da Câmara de João Pessoa (J2): só no relatório de João Pessoa e só para o administrador. */
+  camaraJp?: LeituraCamaraJp;
 }) {
   const ind = r.indicadores;
   const destino = destinoConvenio(nivel);
@@ -994,6 +999,7 @@ export function RelatorioConteudo({
       <BlocoPropostas r={r} destino={destino} />
       <BlocoEmendas r={r} nivel={nivel} />
       {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} tce={tceEstado} federal={federalPorAno} />}
+      {PODE.interno(nivel) && camaraJp !== undefined && <EmendasDaCamaraNoMunicipio leitura={camaraJp} />}
       <BlocoPix r={r} destino={destino} />
       <BlocoTcePb r={r} />
       <BlocoFornecedores r={r} destino={destino} />

@@ -91,10 +91,11 @@ export function SemEmendasPublicadas({ kicker, voltar }: { kicker: string; volta
 }
 
 /**
- * As duas casas (emendas estaduais, E2, 16/10/2026): as emendas federais (Congresso Nacional) e as estaduais (Assembleia
- * da PB), cada uma com a sua lista. As abas do município, com a escolhida marcada.
+ * As casas (emendas estaduais, E2, 16/10/2026; Câmara de João Pessoa, J2): as emendas federais (Congresso Nacional), as
+ * estaduais (Assembleia da PB) e as municipais da capital (Câmara de João Pessoa), cada uma com a sua lista. As abas do
+ * município, com a escolhida marcada.
  */
-export function CasasParlamentares({ atual }: { atual: "congresso" | "assembleia" }) {
+export function CasasParlamentares({ atual }: { atual: "congresso" | "assembleia" | "camara-jp" }) {
   return (
     <nav aria-label="Casa legislativa" className="mp-mun-abas mp-nao-imprimir">
       <LinkMapa href="/mapa/parlamentares" aria-current={atual === "congresso" ? "page" : undefined}>
@@ -102,6 +103,9 @@ export function CasasParlamentares({ atual }: { atual: "congresso" | "assembleia
       </LinkMapa>
       <LinkMapa href="/mapa/parlamentares/assembleia" aria-current={atual === "assembleia" ? "page" : undefined}>
         Assembleia (PB)
+      </LinkMapa>
+      <LinkMapa href="/mapa/parlamentares/camara-jp" aria-current={atual === "camara-jp" ? "page" : undefined}>
+        Câmara de João Pessoa
       </LinkMapa>
     </nav>
   );
