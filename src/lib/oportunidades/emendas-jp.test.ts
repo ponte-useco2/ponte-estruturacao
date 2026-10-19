@@ -9,6 +9,11 @@ import {
   etapaDe,
   filaDaExecucao,
   fonteDoAno,
+  municipalDaEntidadeNaLeitura,
+  municipalDaEntidadePorAno,
+  municipalDaLeitura,
+  municipalPorAno,
+  pontosParaOlhar,
   resumoDasEtapas,
   slugVereador,
   urlEmendaJp,
@@ -53,7 +58,7 @@ function retrato(): RetratoEjp {
     ],
     pf: [],
     hist: [
-      { ano: 2024, mes_referencia: "Dezembro", ug_codigo: "080101/00001", ug_nome: "SECRETARIA", codigo: 5, objetivo: "A", cnpj_objeto: null,
+      { ano: 2024, mes_referencia: "Dezembro", ug_codigo: "080101/00001", ug_nome: "SECRETARIA", codigo: 5, objetivo: "A", cnpj_objeto: null, cnpj_objeto_invalido: true,
         autor_publicado: "MESA DIRETORA", pessoa: "MESA DIRETORA", original: 100, atual: 90, empenhado: 90, liquidado: 90, pago: 90 },
     ],
     loa: [],
@@ -119,4 +124,41 @@ test("a entidade: citada no objeto e credora do empenho", () => {
   const x = emendasJpDaEntidade(r, es, CNPJ);
   assert.deepEqual(x.map((y) => [y.emenda.chave, y.como, y.empenhadoTce]), [["2026-0171", "objeto_e_credor", 100000]]);
   assert.deepEqual(emendasJpDaEntidade(r, es, "00000000000000"), []);
+});
+
+test("o municipal por ano (J3): a Câmara inteira e a entidade, sem a emenda sem valor", () => {
+  const r = retrato();
+  const es = emendasDoRetrato(r);
+  assert.deepEqual(municipalPorAno(es), [
+    { ano: 2024, atual: 90, pago: 90 },
+    { ano: 2026, atual: 230000, pago: 50000 },
+  ]);
+  assert.deepEqual(municipalDaEntidadePorAno(emendasJpDaEntidade(r, es, CNPJ)), [{ ano: 2026, atual: 150000, pago: 50000 }]);
+  assert.deepEqual(municipalDaLeitura({ estado: "ok", retrato: r }), municipalPorAno(es));
+  assert.equal(municipalDaLeitura({ estado: "falha" }), undefined);
+  assert.equal(municipalDaLeitura(undefined), undefined);
+  assert.deepEqual(municipalDaEntidadeNaLeitura({ estado: "ok", retrato: r }, CNPJ), [{ ano: 2026, atual: 150000, pago: 50000 }]);
+  assert.equal(municipalDaEntidadeNaLeitura({ estado: "ok", retrato: r }, "00000000000000"), undefined, "sem emenda, sem coluna");
+  assert.equal(municipalDaEntidadeNaLeitura({ estado: "sem_dado" }, CNPJ), undefined);
+});
+
+test("pontos para olhar (J3): CNPJ com dígito errado, empenho a outro CNPJ e empenho sem o TCE-PB", () => {
+  const OUTRO = "11222333000181";
+  const r = retrato();
+  r.linhas.push(linha({ codigo: 300, dotacao: 9000, empenhado: 5000 }), linha({ codigo: 400, dotacao: 0, empenhado: 0, cnpj_objeto_invalido: true }));
+  r.empenhos.push({
+    ano: 2026, ug_codigo: "610095", ug_nome: null, numero_empenho: "2001", seq: 1, data_empenho: "2026-06-01", credor_cnpj: OUTRO,
+    credor_nome: "EMPRESA Y", empenhado: 7000.5, liquidado: 0, pago: 0, elemento: "30", modalidade_licitacao: null, numero_licitacao: null,
+    historico: "EMENDA 171/2025", codigo_citado: 171, ano_citado: 2025,
+  });
+  const ps = pontosParaOlhar(r, emendasDoRetrato(r));
+  assert.deepEqual(ps.map((p) => [p.ponto, p.emenda.chave]), [
+    ["cnpj_invalido", "2024-0005"],
+    ["credor_diferente", "2026-0171"],
+    ["sem_empenho_tce", "2026-0300"],
+  ], "a emenda sem valor (400) não entra; a 200, sem empenho no painel, também não");
+  assert.equal(ps[1].detalhe, "1 empenho no TCE-PB a outro CNPJ (R$ 7.000,50).");
+  assert.equal(ps[2].detalhe, "R$ 5.000,00 empenhados no painel; nenhum empenho do TCE-PB cita a emenda.");
+  assert.equal(ps.some((p) => /irregular/i.test(p.detalhe)), false);
+  assert.deepEqual(pontosParaOlhar(retrato(), emendasDoRetrato(retrato())).map((p) => p.ponto), ["cnpj_invalido"]);
 });

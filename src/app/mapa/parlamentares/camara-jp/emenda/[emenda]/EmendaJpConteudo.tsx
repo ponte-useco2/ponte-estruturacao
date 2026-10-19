@@ -24,15 +24,26 @@ import {
 } from "@/lib/oportunidades/camara-jp-tela";
 import {
   ROTULO_ETAPA,
+  ROTULO_PONTO,
   URL_CAMARA_JP,
   URL_FILA_EJP,
   URL_SAPL_MATERIA,
   emendasDoRetrato,
+  emendasJpDaEntidade,
   empenhosDaEmenda,
+  municipalDaEntidadePorAno,
   pct,
+  pontosParaOlhar,
   urlVereadorJp,
+  type EmendaJp,
+  type EntidadeCitadaJp,
   type LeituraEmendaJp,
+  type RetratoEjp,
 } from "@/lib/oportunidades/emendas-jp";
+import { cnpjLegivel } from "@/lib/oportunidades/fornecedores";
+import { ladoALado3 } from "@/lib/oportunidades/lado-a-lado";
+import { rotuloArea, rotuloNatureza } from "@/lib/oportunidades/osc";
+import { TabelaLadoALado, notaMunicipalDaEntidade } from "../../../assembleia/EmendasEstaduais";
 import { formatarDataBr, type LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../../../../_design/primitivos";
 import { LinkMapa } from "../../../../_componentes/LinkMapa";
@@ -48,9 +59,11 @@ const data = (iso: string | null) => (iso ? formatarDataBr(iso) : "—");
 const ehContagem = (campo: string) => campo.endsWith("_n") || campo === "linha";
 
 export function EmendaJpConteudo({ leitura }: { leitura: LeituraOk }) {
-  const { retrato, ano, codigo, materia, movimentos } = leitura;
-  const e = emendasDoRetrato(retrato).find((x) => x.ano === ano && x.codigo === codigo);
+  const { retrato, ano, codigo, materia, movimentos, entidade } = leitura;
+  const todas = emendasDoRetrato(retrato);
+  const e = todas.find((x) => x.ano === ano && x.codigo === codigo);
   if (!e) return null;
+  const pontos = pontosParaOlhar(retrato, [e]);
   const linhas = retrato.linhas.filter((l) => l.ano === ano && l.codigo === codigo);
   const dotacoes = retrato.dotacoes.filter((d) => d.ano === ano && d.codigo === codigo);
   const credores = retrato.credores.filter((c) => c.ano === ano && c.codigo === codigo);
@@ -143,6 +156,18 @@ export function EmendaJpConteudo({ leitura }: { leitura: LeituraOk }) {
         <CartaoNumero titulo="Empenhado" numero={reais(e.empenhado)} nota={`${porcento(pct(e.empenhado, e.atual))} do valor atual`} />
         <CartaoNumero titulo="Pago" numero={reais(e.pago)} nota={`${porcento(pct(e.pago, e.atual))} do valor atual`} />
       </div>
+
+      {pontos.length > 0 && (
+        <Secao id="cjp-em-pontos" titulo="Para olhar" nota="Um segundo olhar nas fontes, sem juízo: não é irregularidade.">
+          <ul className="mp-parl-lista">
+            {pontos.map((p) => (
+              <li key={p.ponto}>
+                <strong>{ROTULO_PONTO[p.ponto]}.</strong> {p.detalhe}
+              </li>
+            ))}
+          </ul>
+        </Secao>
+      )}
 
       {materia && (
         <Secao id="cjp-em-materia" titulo="A matéria no SAPL da Câmara">
@@ -238,6 +263,8 @@ export function EmendaJpConteudo({ leitura }: { leitura: LeituraOk }) {
         </Secao>
       )}
 
+      {entidade && <EntidadeCitada entidade={entidade} retrato={retrato} todas={todas} />}
+
       {e.origem === "painel" && (
         <Secao
           id="cjp-em-serie"
@@ -324,5 +351,57 @@ export function EmendaJpConteudo({ leitura }: { leitura: LeituraOk }) {
       )}
       <NotaDeMetodoEjp id="cjp-em-como-ler" />
     </div>
+  );
+}
+
+/**
+ * A entidade citada pelo CNPJ no objeto (J3, 19/10/2026): o cadastro no Mapa das OSC (sem endereço nem dirigentes) e o
+ * que ela recebeu de emendas federais, estaduais e da própria Câmara, por ano, lado a lado e nunca somados. Cada parte
+ * que não pôde ser lida diz isso; nunca vira zero.
+ */
+function EntidadeCitada({ entidade, retrato, todas }: { entidade: EntidadeCitadaJp; retrato: RetratoEjp; todas: EmendaJp[] }) {
+  const { cnpj, osc, federal, estadual } = entidade;
+  const daEntidade = emendasJpDaEntidade(retrato, todas, cnpj);
+  const nome = osc?.estado === "ok" && osc.razaoSocial ? osc.razaoSocial : (cnpjLegivel(cnpj) ?? cnpj);
+  const linhas = ladoALado3(federal ?? [], estadual ?? [], municipalDaEntidadePorAno(daEntidade));
+  const faltas = [federal === null && "as emendas federais", estadual === null && "as emendas estaduais"].filter(Boolean);
+  return (
+    <Secao
+      id="cjp-em-entidade"
+      titulo="A entidade citada no objeto"
+      nota={`CNPJ ${cnpjLegivel(cnpj) ?? cnpj}, citado no objeto da emenda. O que ela recebeu de cada esfera, pelo mesmo CNPJ.`}
+    >
+      {osc?.estado === "ok" ? (
+        <p className="pa-sub mp-parl-chips">
+          <span>
+            <strong>{osc.razaoSocial ?? cnpj}</strong>
+          </span>
+          <span>{rotuloNatureza(osc.natureza)}</span>
+          <span>{osc.ativa ? "Ativa no Mapa das OSC" : "Inativa no Mapa das OSC"}</span>
+          {osc.municipio && <span>Sede: {osc.municipio}</span>}
+          {osc.areas.map((a) => (
+            <span key={a}>{rotuloArea(a)}</span>
+          ))}
+        </p>
+      ) : (
+        <p className="pa-nota">
+          {osc?.estado === "nao_encontrada"
+            ? "O CNPJ não está no Mapa das OSC (Ipea): pode ser órgão público, empresa, cooperativa ou entidade fora do cadastro."
+            : "O cadastro do Mapa das OSC não pôde ser lido agora."}
+        </p>
+      )}
+      <p>
+        {daEntidade.length === 1
+          ? "Só esta emenda da Câmara de João Pessoa cita a entidade ou a tem como credora."
+          : `${n(daEntidade.length)} emendas da Câmara de João Pessoa citam a entidade ou a têm como credora.`}
+      </p>
+      <TabelaLadoALado linhas={linhas} quem={nome} notaMunicipal={notaMunicipalDaEntidade(nome)} />
+      {faltas.length > 0 && <p className="pa-nota">Não puderam ser lidas agora: {faltas.join(" e ")}. As colunas delas ficam vazias.</p>}
+      <p className="pa-linha mp-nao-imprimir">
+        <LinkMapa href={`/mapa/entidade/${cnpj}`} className="pa-btn pa-btn-pequeno">
+          Abrir a página da entidade
+        </LinkMapa>
+      </p>
+    </Secao>
   );
 }

@@ -13,6 +13,7 @@
  * credor pessoa física é só somado; "ponto para olhar", nunca "irregular"; sem posição nem nota.
  */
 import { dobrar } from "./emendas-pb.ts";
+import type { EstadualAno, FederalAno, MunicipalAno } from "./lado-a-lado.ts";
 
 // ================================================================ o que vem do banco
 
@@ -115,6 +116,7 @@ export interface HistEmendaEjp {
   codigo: number;
   objetivo: string | null;
   cnpj_objeto: string | null;
+  cnpj_objeto_invalido: boolean;
   autor_publicado: string | null;
   pessoa: string | null;
   original: number;
@@ -170,6 +172,20 @@ export interface MovimentoEjp {
   depois: number | null;
 }
 
+/**
+ * A entidade citada no objeto da emenda (J3, 19/10/2026): o cadastro no Mapa das OSC (Ipea) e o que ela recebeu de
+ * emendas federais e estaduais por ano. Cada parte pode faltar sozinha: null é "não lido agora".
+ */
+export interface EntidadeCitadaJp {
+  cnpj: string;
+  osc:
+    | { estado: "ok"; razaoSocial: string | null; ativa: boolean; natureza: string | null; areas: string[]; municipio: string | null }
+    | { estado: "nao_encontrada" }
+    | null;
+  federal: FederalAno[] | null;
+  estadual: EstadualAno[] | null;
+}
+
 export type LeituraCamaraJp = { estado: "ok"; retrato: RetratoEjp } | { estado: "sem_dado" } | { estado: "falha" };
 export type LeituraEmendaJp =
   | {
@@ -179,6 +195,8 @@ export type LeituraEmendaJp =
       codigo: number;
       materia: MateriaEjp | null;
       movimentos: MovimentoEjp[];
+      /** A entidade citada pelo CNPJ no objeto (J3); null quando o objeto não cita CNPJ válido. */
+      entidade: EntidadeCitadaJp | null;
     }
   | { estado: "nao_encontrado" }
   | { estado: "sem_dado" }
@@ -255,6 +273,8 @@ export interface EmendaJp {
   autorPublicado: string | null;
   objeto: string | null;
   cnpj: string | null;
+  /** O objeto cita CNPJ com dígito verificador errado. */
+  cnpjInvalido: boolean;
   unidades: string[];
   /** O valor original da emenda (o do painel vem da tabela de dotação; sem ela, null). */
   original: number | null;
@@ -317,6 +337,7 @@ export function emendasDoRetrato(r: RetratoEjp): EmendaJp[] {
       autorPublicado: base.vereador_publicado,
       objeto: base.objeto,
       cnpj: ls.find((l) => l.cnpj_objeto)?.cnpj_objeto ?? null,
+      cnpjInvalido: ls.some((l) => l.cnpj_objeto_invalido),
       unidades: [...new Set((comValor.length ? comValor : ls).map((l) => l.ug))],
       original: original.has(chave) ? arred(original.get(chave) ?? 0) : null,
       ...valores,
@@ -351,6 +372,7 @@ export function emendasDoRetrato(r: RetratoEjp): EmendaJp[] {
       autorPublicado: base.autor_publicado,
       objeto: base.objetivo,
       cnpj: hs.find((h) => h.cnpj_objeto)?.cnpj_objeto ?? null,
+      cnpjInvalido: hs.some((h) => h.cnpj_objeto_invalido),
       unidades: [...new Set(hs.map((h) => h.ug_nome ?? h.ug_codigo))],
       original: arred(soma(hs, (h) => h.original)),
       ...valores,
@@ -520,4 +542,85 @@ export const ROTULO_COMO: Record<EmendaDaEntidade["como"], string> = {
 /** "painel da Prefeitura (ao vivo)" ou "portal da Prefeitura, posição de Dezembro". */
 export function fonteDoAno(a: Pick<AnoJp, "origem" | "mesReferencia">): string {
   return a.origem === "painel" ? "painel da Prefeitura (diário)" : `portal da Prefeitura, posição de ${(a.mesReferencia ?? "—").toLowerCase()}`;
+}
+
+// ================================================================ por ano, para o lado a lado (J3, 19/10/2026)
+
+/** A Câmara inteira por ano (o orçamento do município indicado pelos vereadores). A emenda sem valor não conta. */
+export function municipalPorAno(emendas: readonly EmendaJp[]): MunicipalAno[] {
+  const m = new Map<number, MunicipalAno>();
+  for (const e of emendas) {
+    if (e.etapa === "sem_valor") continue;
+    const a = m.get(e.ano) ?? { ano: e.ano, atual: 0, pago: 0 };
+    a.atual = arred(a.atual + e.atual);
+    a.pago = arred(a.pago + e.pago);
+    m.set(e.ano, a);
+  }
+  return [...m.values()].sort((a, b) => a.ano - b.ano);
+}
+
+/** O valor atual e o pago das emendas que citam a entidade ou a têm como credora (a emenda inteira). */
+export function municipalDaEntidadePorAno(daEntidade: readonly EmendaDaEntidade[]): MunicipalAno[] {
+  return municipalPorAno(daEntidade.map((x) => x.emenda));
+}
+
+// ================================================================ pontos para olhar (J3, 19/10/2026)
+
+export type PontoEjp = "cnpj_invalido" | "credor_diferente" | "sem_empenho_tce";
+
+export const ROTULO_PONTO: Record<PontoEjp, string> = {
+  cnpj_invalido: "CNPJ citado com dígito errado",
+  credor_diferente: "Empenho a outro CNPJ que não o citado",
+  sem_empenho_tce: "Empenhada no painel sem empenho do TCE-PB ligado",
+};
+
+export interface PontoParaOlhar {
+  emenda: EmendaJp;
+  ponto: PontoEjp;
+  detalhe: string;
+}
+
+const reaisTexto = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * O que pede um segundo olhar, sem juízo: o objeto que cita CNPJ com dígito errado; a emenda que cita uma entidade e
+ * cujo empenho no TCE-PB vai a outro CNPJ (pode ser compra feita pela Prefeitura para a entidade); e a emenda com
+ * empenho no painel sem nenhum empenho do TCE-PB que a cite (o histórico do empenho pode não citar a emenda, e o
+ * arquivo do TCE-PB anda atrás do painel). Nunca "irregular".
+ */
+export function pontosParaOlhar(r: RetratoEjp, emendas: readonly EmendaJp[]): PontoParaOlhar[] {
+  const saida: PontoParaOlhar[] = [];
+  for (const e of emendas) {
+    if (e.etapa === "sem_valor") continue;
+    if (e.cnpjInvalido) saida.push({ emenda: e, ponto: "cnpj_invalido", detalhe: "O objeto cita um CNPJ cujo dígito verificador não confere." });
+    if (e.origem !== "painel") continue;
+    if (e.cnpj) {
+      const outros = empenhosDaEmenda(r.empenhos, e.ano, e.codigo).filter((x) => x.credor_cnpj !== e.cnpj);
+      if (outros.length) {
+        const v = arred(soma(outros, (x) => x.empenhado));
+        saida.push({
+          emenda: e,
+          ponto: "credor_diferente",
+          detalhe: `${outros.length} ${outros.length === 1 ? "empenho" : "empenhos"} no TCE-PB a outro CNPJ (${reaisTexto(v)}).`,
+        });
+      }
+    }
+    if (e.empenhado > 0 && e.empenhosTce === 0) {
+      saida.push({ emenda: e, ponto: "sem_empenho_tce", detalhe: `${reaisTexto(e.empenhado)} empenhados no painel; nenhum empenho do TCE-PB cita a emenda.` });
+    }
+  }
+  const ordem: PontoEjp[] = ["cnpj_invalido", "credor_diferente", "sem_empenho_tce"];
+  return saida.sort((a, b) => ordem.indexOf(a.ponto) - ordem.indexOf(b.ponto) || b.emenda.ano - a.emenda.ano || a.emenda.codigo - b.emenda.codigo);
+}
+
+/** O municipal por ano da leitura da Câmara, para o lado a lado da página de João Pessoa; sem a leitura, nada. */
+export function municipalDaLeitura(l: LeituraCamaraJp | undefined): MunicipalAno[] | undefined {
+  return l?.estado === "ok" ? municipalPorAno(emendasDoRetrato(l.retrato)) : undefined;
+}
+
+/** O municipal por ano das emendas que citam a entidade ou a têm como credora; sem nenhuma, nada (a coluna não aparece). */
+export function municipalDaEntidadeNaLeitura(l: LeituraCamaraJp | undefined, cnpj: string): MunicipalAno[] | undefined {
+  if (l?.estado !== "ok") return undefined;
+  const x = municipalDaEntidadePorAno(emendasJpDaEntidade(l.retrato, emendasDoRetrato(l.retrato), cnpj));
+  return x.length ? x : undefined;
 }

@@ -33,7 +33,13 @@ import {
 } from "@/lib/oportunidades/emendas-pb";
 import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { anosNoTce, temAlgoNoTce, type AnoNoTce, type LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
-import { ladoALado, type EstadualAno, type LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
+import {
+  ladoALado3,
+  type EstadualAno,
+  type LeituraFederalPorAno,
+  type LinhaLadoALado3,
+  type MunicipalAno,
+} from "@/lib/oportunidades/lado-a-lado";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
@@ -91,24 +97,59 @@ function linhasDoLugar(l: EmendasPbDoLugar): LinhaTabela[] {
   }));
 }
 
+/** O municipal no lado a lado da página de João Pessoa (J3, 19/10/2026). */
+export const NOTA_MUNICIPAL_JP =
+  "A municipal é a das emendas impositivas da Câmara de João Pessoa: o orçamento do próprio município indicado pelos vereadores, " +
+  "com o valor atual e o pago, cada ano com a sua fonte (painel da Prefeitura no exercício; portal de 2021 a 2025, e 2023 só com a " +
+  "posição de agosto). Não é dinheiro que chega de fora.";
+
 /**
- * Federal e estadual lado a lado, por ano da emenda (E3, 16/10/2026): dinheiros diferentes, que nunca se somam. Sem a
- * leitura federal, a tabela não aparece; com ela vazia de 2021 em diante, também não.
+ * Federal e estadual lado a lado, por ano da emenda (E3, 16/10/2026), e o municipal ao lado quando houver (J3,
+ * 19/10/2026): dinheiros diferentes, que nunca se somam. Sem a leitura federal, a tabela não aparece; com ela vazia de
+ * 2021 em diante, também não.
  */
-function LadoALado({ federal, estadual, quem }: { federal: LeituraFederalPorAno | undefined; estadual: EstadualAno[]; quem: string }) {
+function LadoALado({
+  federal,
+  estadual,
+  municipal,
+  notaMunicipal,
+  quem,
+}: {
+  federal: LeituraFederalPorAno | undefined;
+  estadual: EstadualAno[];
+  municipal?: readonly MunicipalAno[];
+  notaMunicipal?: string;
+  quem: string;
+}) {
   if (federal?.estado === "falha") return <p className="pa-nota">As emendas federais por ano não puderam ser lidas agora.</p>;
   if (federal?.estado !== "ok") return null;
-  const linhas = ladoALado(federal.anos, estadual);
+  return (
+    <TabelaLadoALado
+      linhas={ladoALado3(federal.anos, estadual, municipal ?? [])}
+      quem={quem}
+      notaMunicipal={municipal?.length ? (notaMunicipal ?? NOTA_MUNICIPAL_JP) : null}
+    />
+  );
+}
+
+/**
+ * A tabela das esferas lado a lado. Com `notaMunicipal`, entram as duas colunas da Câmara de João Pessoa (o valor atual
+ * e o pago) e a nota que diz de onde vêm; sem ela, só a federal e a estadual. Também na página da emenda municipal.
+ */
+export function TabelaLadoALado({ linhas, quem, notaMunicipal }: { linhas: LinhaLadoALado3[]; quem: string; notaMunicipal: string | null }) {
   if (!linhas.length) return null;
+  const comMunicipal = notaMunicipal !== null;
+  const esferas = comMunicipal ? "federais, estaduais e municipais" : "federais e estaduais";
+  const v = (x: number) => (x ? moedaCurta(x) : "—");
   return (
     <>
-      <h3 className="mp-radar-h3">Federal e estadual, lado a lado</h3>
+      <h3 className="mp-radar-h3">{comMunicipal ? "Federal, estadual e municipal, lado a lado" : "Federal e estadual, lado a lado"}</h3>
       <p className="pa-nota">
         Por ano da emenda, de 2021 em diante, para {quem}. A federal é a dos canais com destino (convênio, Pix, saúde fundo a fundo e pago ao
-        favorecido): o valor em instrumento válido e o pago. A estadual é a da Assembleia pelo empenho. São dinheiros diferentes, com fontes,
-        regras e definições diferentes: ficam lado a lado e nunca se somam.
+        favorecido): o valor em instrumento válido e o pago. A estadual é a da Assembleia pelo empenho. {comMunicipal ? `${notaMunicipal} ` : ""}
+        São dinheiros diferentes, com fontes, regras e definições diferentes: ficam lado a lado e nunca se somam.
       </p>
-      <TabelaRolagem rotulo={`Emendas federais e estaduais, lado a lado, para ${quem}`}>
+      <TabelaRolagem rotulo={`Emendas ${esferas}, lado a lado, para ${quem}`}>
         <table className="mp-tabela">
           <thead>
             <tr>
@@ -117,6 +158,8 @@ function LadoALado({ federal, estadual, quem }: { federal: LeituraFederalPorAno 
               <th scope="col">Federal: pago</th>
               <th scope="col">Estadual: empenhado</th>
               <th scope="col">Estadual: pago</th>
+              {comMunicipal && <th scope="col">Municipal: valor atual</th>}
+              {comMunicipal && <th scope="col">Municipal: pago</th>}
             </tr>
           </thead>
           <tbody>
@@ -125,10 +168,12 @@ function LadoALado({ federal, estadual, quem }: { federal: LeituraFederalPorAno 
                 <th scope="row" className="mp-th-celula">
                   {l.ano}
                 </th>
-                <td className="mp-rel-num">{l.federalValido ? moedaCurta(l.federalValido) : "—"}</td>
-                <td className="mp-rel-num">{l.federalPago ? moedaCurta(l.federalPago) : "—"}</td>
-                <td className="mp-rel-num">{l.estadualEmpenhado ? moedaCurta(l.estadualEmpenhado) : "—"}</td>
-                <td className="mp-rel-num">{l.estadualPago ? moedaCurta(l.estadualPago) : "—"}</td>
+                <td className="mp-rel-num">{v(l.federalValido)}</td>
+                <td className="mp-rel-num">{v(l.federalPago)}</td>
+                <td className="mp-rel-num">{v(l.estadualEmpenhado)}</td>
+                <td className="mp-rel-num">{v(l.estadualPago)}</td>
+                {comMunicipal && <td className="mp-rel-num">{v(l.municipalAtual)}</td>}
+                {comMunicipal && <td className="mp-rel-num">{v(l.municipalPago)}</td>}
               </tr>
             ))}
           </tbody>
@@ -215,6 +260,7 @@ export function EmendasEstaduaisDoMunicipio({
   municipio,
   tce,
   federal,
+  municipal,
 }: {
   leitura: LeituraAssembleia;
   ibge: string;
@@ -223,6 +269,8 @@ export function EmendasEstaduaisDoMunicipio({
   tce?: LeituraTceEstadoMunicipio;
   /** As emendas federais por ano, da prefeitura e dos fundos (E3); ausente, a tabela lado a lado não aparece. */
   federal?: LeituraFederalPorAno;
+  /** As emendas da Câmara Municipal por ano (J3; só João Pessoa); ausente, a coluna municipal não aparece. */
+  municipal?: readonly MunicipalAno[];
 }) {
   if (leitura.estado !== "ok") return <Indisponivel leitura={leitura} />;
   const { retrato } = leitura;
@@ -293,7 +341,7 @@ export function EmendasEstaduaisDoMunicipio({
           )}
         </>
       )}
-      <LadoALado federal={federal} estadual={estadualPorAno(publico)} quem={`a prefeitura e os fundos de ${municipio}`} />
+      <LadoALado federal={federal} estadual={estadualPorAno(publico)} municipal={municipal} quem={`a prefeitura e os fundos de ${municipio}`} />
       {anosTce && temAlgoNoTce(anosTce) && tce?.estado === "ok" && <NoTce anos={anosTce} municipio={municipio} dadoAte={tce.dadoAte} />}
       {tce?.estado === "falha" && <p className="pa-nota">No TCE-PB: o recebido e o gasto do dinheiro do Estado não puderam ser lidos agora.</p>}
       <p className="pa-linha mp-nao-imprimir">
@@ -311,12 +359,15 @@ export function EmendasEstaduaisDaEntidade({
   cnpj,
   nome,
   federal,
+  municipal,
 }: {
   leitura: LeituraAssembleia;
   cnpj: string;
   nome: string;
   /** As emendas federais da entidade por ano (E3); ausente, a tabela lado a lado não aparece. */
   federal?: LeituraFederalPorAno;
+  /** As emendas da Câmara de João Pessoa que citam a entidade ou a têm como credora (J3); ausente, sem a coluna municipal. */
+  municipal?: readonly MunicipalAno[];
 }) {
   if (leitura.estado !== "ok") return <Indisponivel leitura={leitura} />;
   const { retrato } = leitura;
@@ -351,12 +402,26 @@ export function EmendasEstaduaisDaEntidade({
           />
         </>
       )}
-      <LadoALado federal={federal} estadual={estadualPorAno(l)} quem={nome} />
+      <LadoALado
+        federal={federal}
+        estadual={estadualPorAno(l)}
+        municipal={municipal}
+        notaMunicipal={notaMunicipalDaEntidade(nome)}
+        quem={nome}
+      />
       <p className="pa-linha mp-nao-imprimir">
         <LinkMapa href={URL_ASSEMBLEIA} className="pa-btn pa-btn-pequeno">
           Ver as emendas da Assembleia
         </LinkMapa>
       </p>
     </Secao>
+  );
+}
+
+/** O municipal da entidade: a emenda inteira, que pode ter outros credores. */
+export function notaMunicipalDaEntidade(nome: string): string {
+  return (
+    `A municipal é o valor atual e o pago das emendas da Câmara de João Pessoa que citam ${nome} pelo CNPJ no objeto ou a têm como ` +
+    "credora de empenho (a emenda inteira, que pode ter outros credores): orçamento do próprio município, não dinheiro que chega de fora."
   );
 }

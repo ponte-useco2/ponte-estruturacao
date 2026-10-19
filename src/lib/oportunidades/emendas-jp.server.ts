@@ -17,11 +17,16 @@
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import { criarMemoria } from "./memoria";
+import { emendasPbDaEntidade } from "./emendas-pb";
+import { lerAssembleia, lerFederalPorAno } from "./emendas-pb.server";
+import type { EstadualAno } from "./lado-a-lado";
+import { lerCadastroOsc } from "./osc.server";
 import {
   emendaJpDaUrl,
   emendasDoRetrato,
   type CredorEjp,
   type DotacaoEjp,
+  type EntidadeCitadaJp,
   type EmpenhoEjp,
   type ExecucaoEjp,
   type HistEmendaEjp,
@@ -104,7 +109,7 @@ const COLUNAS = {
     "ano,ug_codigo,ug_nome,numero_empenho,seq,data_empenho,credor_cnpj,credor_nome,empenhado,liquidado,pago,elemento," +
     "modalidade_licitacao,numero_licitacao,historico,codigo_citado,ano_citado",
   pf: "ano,codigo,empenhado,liquidado,pago,notas",
-  hist: "ano,mes_referencia,ug_codigo,ug_nome,codigo,objetivo,cnpj_objeto,autor_publicado,pessoa,original,atual,empenhado,liquidado,pago",
+  hist: "ano,mes_referencia,ug_codigo,ug_nome,codigo,objetivo,cnpj_objeto,cnpj_objeto_invalido,autor_publicado,pessoa,original,atual,empenhado,liquidado,pago",
   loa: "ano,codigo,seq,autor_publicado,pessoa,funcional,natureza,fonte,objetivo,valor",
   materia: "sapl_id,numero,ano,loa,pessoa,ementa,data_apresentacao,em_tramitacao,texto_url",
 } as const;
@@ -191,8 +196,8 @@ async function lerEmendaDoBanco(daUrl: string): Promise<LeituraEmendaJp> {
   const leitura = await lerCamaraJp();
   if (leitura.estado !== "ok") return leitura;
   const { retrato } = leitura;
-  const existe = emendasDoRetrato(retrato).some((e) => e.ano === alvo.ano && e.codigo === alvo.codigo);
-  if (!existe) return { estado: "nao_encontrado" };
+  const emenda = emendasDoRetrato(retrato).find((e) => e.ano === alvo.ano && e.codigo === alvo.codigo);
+  if (!emenda) return { estado: "nao_encontrado" };
   const db = clienteServidor();
   const [materias, movimentos] = await Promise.all([
     uma<MateriaEjp[]>("matéria", (sinal) =>
@@ -214,14 +219,58 @@ async function lerEmendaDoBanco(daUrl: string): Promise<LeituraEmendaJp> {
     referencias = new Map((execs ?? []).map((e) => [num(e.id), e.referencia ?? null]));
   }
   const materia = (materias ?? [])[0];
+  const entidade = emenda.cnpj ? await lerEntidadeCitada(emenda.cnpj) : null;
   return {
     estado: "ok",
     retrato,
     ano: alvo.ano,
     codigo: alvo.codigo,
+    entidade,
     materia: materia ? { ...materia, sapl_id: num(materia.sapl_id), numero: num(materia.numero), ano: num(materia.ano), loa: num(materia.loa) } : null,
     movimentos: (movimentos ?? []).map(
       (m): MovimentoEjp => ({ referencia: referencias.get(num(m.execucao_id)) ?? null, ug: m.ug, campo: m.campo, antes: numOuNull(m.antes), depois: numOuNull(m.depois) }),
     ),
+  };
+}
+
+/**
+ * A entidade citada no objeto (J3, 19/10/2026): o cadastro no Mapa das OSC e o que ela recebeu de emendas federais
+ * (canais com destino, `emd_canal`) e estaduais (credora do empenho, `epb_destino`), por ano. Cada parte falha
+ * sozinha e vira null ("não lido agora"); a página nunca cai por ela.
+ */
+async function lerEntidadeCitada(cnpj: string): Promise<EntidadeCitadaJp> {
+  const [osc, federal, assembleia] = await Promise.all([
+    lerCadastroOsc(cnpj, null).catch(() => ({ estado: "indisponivel" as const })),
+    lerFederalPorAno({ cnpj }).catch(() => ({ estado: "falha" as const })),
+    lerAssembleia().catch(() => ({ estado: "falha" as const })),
+  ]);
+  let estadual: EstadualAno[] | null = null;
+  if (assembleia.estado === "ok") {
+    const porAno = new Map<number, EstadualAno>();
+    for (const e of emendasPbDaEntidade(assembleia.retrato, cnpj).emendas) {
+      const a = porAno.get(e.ano) ?? { ano: e.ano, empenhado: 0, pago: 0 };
+      a.empenhado += e.empenhadoAqui;
+      a.pago += e.pagoAqui;
+      porAno.set(e.ano, a);
+    }
+    estadual = [...porAno.values()];
+  }
+  return {
+    cnpj,
+    osc:
+      osc.estado === "ok"
+        ? {
+            estado: "ok",
+            razaoSocial: osc.cadastro.razao_social,
+            ativa: osc.cadastro.ativa,
+            natureza: osc.cadastro.natureza_juridica,
+            areas: osc.cadastro.areas ?? [],
+            municipio: osc.cadastro.municipio,
+          }
+        : osc.estado === "nao_encontrado"
+          ? { estado: "nao_encontrada" }
+          : null,
+    federal: federal.estado === "ok" ? federal.anos : federal.estado === "sem_dado" ? [] : null,
+    estadual,
   };
 }

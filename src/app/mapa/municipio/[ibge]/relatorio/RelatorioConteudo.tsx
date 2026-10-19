@@ -28,7 +28,7 @@ import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDoMunicipio } from "../../../parlamentares/assembleia/EmendasEstaduais";
 import { EmendasDaCamaraNoMunicipio } from "../../../parlamentares/camara-jp/EmendasDaCamaraJp";
-import type { LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
+import { municipalDaLeitura, type LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
 import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
@@ -998,7 +998,16 @@ export function RelatorioConteudo({
       <BlocoControle r={r} destino={destino} />
       <BlocoPropostas r={r} destino={destino} />
       <BlocoEmendas r={r} nivel={nivel} />
-      {PODE.interno(nivel) && assembleia !== undefined && <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} tce={tceEstado} federal={federalPorAno} />}
+      {PODE.interno(nivel) && assembleia !== undefined && (
+        <EmendasEstaduaisDoMunicipio
+          leitura={assembleia}
+          ibge={r.ibge}
+          municipio={r.nome}
+          tce={tceEstado}
+          federal={federalPorAno}
+          municipal={municipalDaLeitura(camaraJp)}
+        />
+      )}
       {PODE.interno(nivel) && camaraJp !== undefined && <EmendasDaCamaraNoMunicipio leitura={camaraJp} />}
       <BlocoPix r={r} destino={destino} />
       <BlocoTcePb r={r} />

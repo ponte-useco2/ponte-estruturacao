@@ -69,3 +69,35 @@ export function federalPorAno(linhas: readonly { ano: number | null; valido: boo
   }
   return [...m.values()].sort((a, b) => a.ano - b.ano);
 }
+
+// ================================================================ com o municipal (J3 das emendas de João Pessoa, 19/10/2026)
+
+/**
+ * As emendas da Câmara de João Pessoa por ano: o orçamento do PRÓPRIO município indicado pelos vereadores, com o valor
+ * atual e o pago. Não é dinheiro que chega de fora, como a federal e a estadual: fica ao lado, e nunca se soma.
+ */
+export interface MunicipalAno {
+  ano: number;
+  atual: number;
+  pago: number;
+}
+
+export interface LinhaLadoALado3 extends LinhaLadoALado {
+  municipalAtual: number;
+  municipalPago: number;
+}
+
+/** O lado a lado com as três esferas, de 2021 em diante, do ano mais novo ao mais velho. */
+export function ladoALado3(federal: readonly FederalAno[], estadual: readonly EstadualAno[], municipal: readonly MunicipalAno[]): LinhaLadoALado3[] {
+  const anos = new Map<number, LinhaLadoALado3>(ladoALado(federal, estadual).map((l) => [l.ano, { ...l, municipalAtual: 0, municipalPago: 0 }]));
+  for (const m of municipal) {
+    if (m.ano < PRIMEIRO_ANO_ESTADUAL) continue;
+    const l = anos.get(m.ano) ?? { ano: m.ano, federalValido: 0, federalPago: 0, estadualEmpenhado: 0, estadualPago: 0, municipalAtual: 0, municipalPago: 0 };
+    l.municipalAtual += m.atual || 0;
+    l.municipalPago += m.pago || 0;
+    anos.set(m.ano, l);
+  }
+  return [...anos.values()]
+    .filter((l) => l.federalValido || l.federalPago || l.estadualEmpenhado || l.estadualPago || l.municipalAtual || l.municipalPago)
+    .sort((a, b) => b.ano - a.ano);
+}

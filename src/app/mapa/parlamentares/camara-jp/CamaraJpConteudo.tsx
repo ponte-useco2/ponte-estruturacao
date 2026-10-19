@@ -9,7 +9,16 @@
  *   · o que ainda não está pago no exercício leva à fila da execução.
  */
 import type { ReactNode } from "react";
-import { COLUNAS_VEREADORES_JP, TABELA_VEREADORES_JP, porcento, valoresDoVereadorJp } from "@/lib/oportunidades/camara-jp-tela";
+import {
+  COLUNAS_PONTOS_JP,
+  COLUNAS_VEREADORES_JP,
+  TABELA_PONTOS_JP,
+  TABELA_VEREADORES_JP,
+  porcento,
+  valoresDoPontoJp,
+  valoresDoVereadorJp,
+} from "@/lib/oportunidades/camara-jp-tela";
+import { resumir } from "@/lib/oportunidades/assembleia-tela";
 import {
   URL_FILA_EJP,
   URL_PAINEL_PREFEITURA,
@@ -17,10 +26,13 @@ import {
   emendasDoRetrato,
   fonteDoAno,
   pct,
+  pontosParaOlhar,
   resumoDasEtapas,
   ROTULO_ETAPA,
+  urlEmendaJp,
   urlVereadorJp,
   vereadoresDoRetrato,
+  type PontoEjp,
   type RetratoEjp,
   type VereadorJp,
 } from "@/lib/oportunidades/emendas-jp";
@@ -31,6 +43,13 @@ import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 import { CartaoNumero, CasasParlamentares, n } from "../PecasParlamentares";
 import { AVISO_CAMARA_JP, CarimboEjp, NotaDeMetodoEjp, Secao, reais } from "./PecasCamaraJp";
+
+/** A contagem de cada ponto, para a nota da seção. */
+const FRASE_PONTO: Record<PontoEjp, (q: number) => string> = {
+  cnpj_invalido: (q) => `${n(q)} com CNPJ de dígito errado no objeto`,
+  credor_diferente: (q) => `${n(q)} com empenho a outro CNPJ`,
+  sem_empenho_tce: (q) => `${n(q)} empenhadas no painel sem empenho do TCE-PB ligado`,
+};
 
 const EM_REAIS = ["atual", "empenhado", "pago", "exercicio-atual", "exercicio-pago"] as const;
 const CONTAGENS = ["emendas", "exercicio-emendas", "exercicio-sem-empenho"] as const;
@@ -47,6 +66,24 @@ export function CamaraJpConteudo({ retrato }: { retrato: RetratoEjp }) {
     const valores = valoresDoVereadorJp(v);
     return { chave: v.slug, valores, celulas: celulasDoVereador(v, valores) };
   });
+  const pontos = pontosParaOlhar(retrato, emendas);
+  const linhasPontos: LinhaTabela[] = pontos.map((p) => ({
+    chave: `${p.ponto}-${p.emenda.chave}`,
+    valores: valoresDoPontoJp(p),
+    celulas: {
+      emenda: (
+        <LinkMapa href={urlEmendaJp(p.emenda.ano, p.emenda.codigo)} className="mp-tabela-principal">
+          {p.emenda.codigo}
+        </LinkMapa>
+      ),
+      ano: String(p.emenda.ano),
+      vereador: p.emenda.pessoa ? <LinkMapa href={urlVereadorJp(p.emenda.pessoa)}>{p.emenda.pessoa}</LinkMapa> : (p.emenda.autorPublicado ?? "—"),
+      objeto: <span title={p.emenda.objeto ?? undefined}>{resumir(p.emenda.objeto)}</span>,
+      atual: reais(p.emenda.atual),
+    },
+  }));
+  const porPonto = new Map<PontoEjp, number>();
+  for (const p of pontos) porPonto.set(p.ponto, (porPonto.get(p.ponto) ?? 0) + 1);
 
   return (
     <div className="pa-pagina mp-radar mp-parl">
@@ -154,6 +191,30 @@ export function CamaraJpConteudo({ retrato }: { retrato: RetratoEjp }) {
           </table>
         </TabelaRolagem>
       </Secao>
+
+      {pontos.length > 0 && (
+        <Secao
+          id="cjp-pontos"
+          titulo="Pontos para olhar"
+          nota={
+            <>
+              O que pede um segundo olhar nas fontes, sem juízo: nenhum destes pontos é irregularidade. O CNPJ com dígito errado costuma ser
+              erro de digitação no objeto; o empenho a outro CNPJ pode ser compra feita pela Prefeitura para a entidade; e a emenda empenhada no
+              painel sem empenho do TCE-PB ligado pode ter um empenho que não cita a emenda no histórico, ou o arquivo do TCE-PB ainda não
+              chegou ao mês do empenho. Nesta leitura: {[...porPonto].map(([p, q]) => FRASE_PONTO[p](q)).join("; ")}.
+            </>
+          }
+        >
+          <TabelaFiltravel
+            id={TABELA_PONTOS_JP}
+            rotulo="Pontos para olhar nas emendas da Câmara de João Pessoa"
+            colunas={COLUNAS_PONTOS_JP}
+            linhas={linhasPontos}
+            descricaoOrdemPadrao="pelo tipo de ponto, do ano mais recente, pelo número"
+            csv={{ nome: "camara-joao-pessoa-pontos-para-olhar" }}
+          />
+        </Secao>
+      )}
 
       <Secao id="cjp-lista" titulo={`Os ${n(vereadores.length)} vereadores e colegiados`}>
         <p className="pa-nota mp-parl-grupo-nota">

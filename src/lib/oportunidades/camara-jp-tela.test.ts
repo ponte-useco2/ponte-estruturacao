@@ -8,6 +8,7 @@ import {
   COLUNAS_EMPENHOS_JP,
   COLUNAS_ENTIDADE_JP,
   COLUNAS_FILA_JP,
+  COLUNAS_PONTOS_JP,
   COLUNAS_SERIE_JP,
   COLUNAS_VEREADORES_JP,
   TABELA_CREDORES_JP,
@@ -15,6 +16,7 @@ import {
   TABELA_EMPENHOS_JP,
   TABELA_ENTIDADE_JP,
   TABELA_FILA_JP,
+  TABELA_PONTOS_JP,
   TABELA_SERIE_JP,
   TABELA_VEREADORES_JP,
   porcento,
@@ -22,6 +24,7 @@ import {
   tituloEmendaJp,
   tituloVereadorJp,
   valoresDaFilaJp,
+  valoresDoPontoJp,
   valoresDoVereadorJp,
 } from "./camara-jp-tela.ts";
 import type { EmendaJp, VereadorJp } from "./emendas-jp.ts";
@@ -35,6 +38,7 @@ test("cada tabela: ids válidos e únicos, e toda coluna ordena (tela de adminis
     [TABELA_ENTIDADE_JP, COLUNAS_ENTIDADE_JP],
     [TABELA_CREDORES_JP, COLUNAS_CREDORES_JP],
     [TABELA_SERIE_JP, COLUNAS_SERIE_JP],
+    [TABELA_PONTOS_JP, COLUNAS_PONTOS_JP],
   ];
   assert.equal(new Set(tabelas.map(([t]) => t)).size, tabelas.length);
   for (const [t, colunas] of tabelas) {
@@ -56,12 +60,15 @@ test("os valores crus batem com as colunas", () => {
   assert.equal(valoresDoVereadorJp(v)["pct-pago"], 50);
   const e: EmendaJp = {
     chave: "2026-0171", ano: 2026, codigo: 171, origem: "painel", mesReferencia: null, pessoa: null, autorPublicado: "GRAFIA", objeto: null,
-    cnpj: "08939944000130", unidades: ["FMS", "FUNJOPE"], original: null, atual: 10, empenhado: 0, liquidado: 0, pago: 0, etapa: "sem_empenho",
+    cnpj: "08939944000130", cnpjInvalido: false, unidades: ["FMS", "FUNJOPE"], original: null, atual: 10, empenhado: 0, liquidado: 0, pago: 0, etapa: "sem_empenho",
     remanejada: false, materia: null, primeiroEmpenho: null, empenhosTce: 0,
   };
   const f = valoresDaFilaJp(e);
   assert.deepEqual(Object.keys(f).sort(), COLUNAS_FILA_JP.map((c) => c.id).sort());
   assert.deepEqual([f.vereador, f.unidade, f.etapa, f.cnpj], ["GRAFIA", "FMS · FUNJOPE", "Sem empenho", "Sim"]);
+  const p = valoresDoPontoJp({ emenda: e, ponto: "credor_diferente", detalhe: "1 empenho no TCE-PB a outro CNPJ (R$ 1,00)." });
+  assert.deepEqual(Object.keys(p).sort(), COLUNAS_PONTOS_JP.map((c) => c.id).sort());
+  assert.deepEqual([p.ponto, p.ano, p.emenda, p.vereador, p.atual], ["Empenho a outro CNPJ que não o citado", 2026, 171, "GRAFIA", 10]);
 });
 
 test("títulos só com o que está no endereço", () => {

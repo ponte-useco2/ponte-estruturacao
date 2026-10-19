@@ -9,12 +9,14 @@
 import {
   ROTULO_COMO,
   ROTULO_ETAPA,
+  ROTULO_PONTO,
   pct,
   type CredorEjp,
   type EmendaDaEntidade,
   type EmendaJp,
   type EmpenhoEjp,
   type MovimentoEjp,
+  type PontoParaOlhar,
   type VereadorJp,
 } from "./emendas-jp.ts";
 import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
@@ -247,4 +249,30 @@ export const COLUNAS_SERIE_JP: ColunaTabela[] = [
 
 export function valoresDaSerieJp(m: MovimentoEjp): Record<string, ValorCelula> {
   return { dia: m.referencia, unidade: m.ug, campo: ROTULO_CAMPO_SERIE[m.campo] ?? m.campo, antes: m.antes, depois: m.depois };
+}
+
+// ================================================================ os pontos para olhar (J3, 19/10/2026)
+
+export const TABELA_PONTOS_JP = "cjp-pontos";
+
+export const COLUNAS_PONTOS_JP: ColunaTabela[] = [
+  { id: "ponto", titulo: "Ponto para olhar", tipo: "categoria" },
+  { id: "ano", titulo: "Ano", tipo: "numero", alinhar: "direita" },
+  { id: "emenda", titulo: "Emenda", tipo: "numero", alinhar: "direita" },
+  { id: "vereador", titulo: "Vereador", tipo: "texto" },
+  { id: "objeto", titulo: "Objeto", tipo: "texto" },
+  { id: "atual", titulo: "Valor atual", tipo: "numero", alinhar: "direita" },
+  { id: "detalhe", titulo: "O que se vê", tipo: "texto" },
+];
+
+export function valoresDoPontoJp(p: PontoParaOlhar): Record<string, ValorCelula> {
+  return {
+    ponto: ROTULO_PONTO[p.ponto],
+    ano: p.emenda.ano,
+    emenda: p.emenda.codigo,
+    vereador: p.emenda.pessoa ?? p.emenda.autorPublicado ?? "—",
+    objeto: p.emenda.objeto ?? "",
+    atual: p.emenda.atual,
+    detalhe: p.detalhe,
+  };
 }

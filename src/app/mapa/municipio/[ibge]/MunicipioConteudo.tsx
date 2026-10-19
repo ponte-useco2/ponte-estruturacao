@@ -40,7 +40,7 @@ import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDoMunicipio } from "../../parlamentares/assembleia/EmendasEstaduais";
 import { EmendasDaCamaraNoMunicipio } from "../../parlamentares/camara-jp/EmendasDaCamaraJp";
-import type { LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
+import { municipalDaLeitura, type LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
 import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
@@ -279,7 +279,14 @@ export function MunicipioConteudo({
           {PODE.interno(nivel) && emendas !== undefined && <EmendasDoMunicipio leitura={emendas} municipio={r.nome} />}
           {/* E2 das emendas estaduais (16/10/2026): a Assembleia da PB, à parte das federais, só do administrador. */}
           {PODE.interno(nivel) && assembleia !== undefined && (
-            <EmendasEstaduaisDoMunicipio leitura={assembleia} ibge={r.ibge} municipio={r.nome} tce={tceEstado} federal={federalPorAno} />
+            <EmendasEstaduaisDoMunicipio
+              leitura={assembleia}
+              ibge={r.ibge}
+              municipio={r.nome}
+              tce={tceEstado}
+              federal={federalPorAno}
+              municipal={municipalDaLeitura(camaraJp)}
+            />
           )}
           {/* J2 das emendas de João Pessoa (16/10/2026): a Câmara Municipal da capital, à parte, só do administrador. */}
           {PODE.interno(nivel) && camaraJp !== undefined && <EmendasDaCamaraNoMunicipio leitura={camaraJp} />}
