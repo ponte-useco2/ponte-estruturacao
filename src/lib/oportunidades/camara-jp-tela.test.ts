@@ -85,7 +85,8 @@ test("as telas da Câmara de João Pessoa: todas de administrador, e os blocos s
   for (const p of paginas) {
     const fonte = fs.readFileSync(path.join(raiz, p), "utf-8");
     assert.match(fonte, /if \(!ehAdministrador\(visitante\.email\)\) redirect\("\/mapa"\);/, p);
-    const leitura = fonte.search(/await ler(CamaraJp|EmendaJp)\(/);
+    // A da emenda lê junto o que a pessoa segue (J4).
+    const leitura = fonte.search(/await (?:Promise\.all\(\[)?ler(CamaraJp|EmendaJp)\(/);
     assert.ok(leitura > 0 && fonte.indexOf("ehAdministrador(") < leitura, `${p}: confere antes de ler`);
   }
   for (const [p, bloco] of [

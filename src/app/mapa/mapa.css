@@ -1089,6 +1089,10 @@
 /* Carteira (02/10/2026) */
 .pa-root .mp-cart-cabeca { margin: 0 0 0.4rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem; }
 .pa-root .mp-cart-cabeca a { font-weight: 600; }
+/* O título longo (o objeto da emenda) desce para a linha dele quando não cabem 12rem ao lado da estrela e da etiqueta:
+   no celular ele ficava numa coluna estreita, quebrando no meio da palavra (J4, 20/10/2026). */
+.pa-root .mp-cart-cabeca .mp-estrela-item { flex-wrap: wrap; }
+.pa-root .mp-cart-cabeca .mp-estrela-item-nome { flex: 1 1 12rem; }
 .pa-root .mp-cart-mudo { color: var(--pa-muted); font-size: 0.82rem; }
 .pa-root .mp-cart-mudancas, .pa-root .mp-cart-recs { margin: 0.3rem 0 0; padding-left: 0; list-style: none; display: grid; gap: 0.35rem; }
 .pa-root .mp-cart-fato { color: var(--pa-muted); }

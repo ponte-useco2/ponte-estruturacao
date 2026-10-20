@@ -10,6 +10,9 @@
  *
  * E4 (16/10/2026): as emendas estaduais seguidas (só administrador) são cartões, com o passo, a vez e o dinheiro da
  * última rodada semanal.
+ *
+ * J4 (20/10/2026): as emendas da Câmara de João Pessoa seguidas (só administrador), também em cartões, com a etapa, o
+ * dinheiro e os empenhos do TCE-PB da leitura diária do painel da Prefeitura.
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
@@ -365,6 +368,31 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
         >
           <div className="mp-cart-grade">
             {c.porTipo.emenda_estadual.map((i) => (
+              <article key={i.chave} className="pa-cartao mp-cart-cartao">
+                <Cabeca i={i} />
+                <div className="mp-cart-numeros">
+                  {i.numeros.map((n) => (
+                    <span key={n.rotulo} className={`mp-cart-numero${n.nivel ? ` mp-cart-${n.nivel}` : ""}`}>
+                      <span className="pa-mono">{n.rotulo}</span>
+                      <b>{n.valor}</b>
+                    </span>
+                  ))}
+                </div>
+                {i.recomendacoes.length > 0 && <Recomendacoes r={i.recomendacoes} dadoDe={i.dadoDe} />}
+              </article>
+            ))}
+          </div>
+        </Secao>
+      )}
+
+      {c.porTipo.emenda_municipal.length > 0 && (
+        <Secao
+          id="cart-emendas-municipais"
+          titulo="Emendas da Câmara de João Pessoa"
+          nota="Do painel de emendas da Prefeitura de João Pessoa, lido todo dia: a etapa pelo dinheiro, o valor atual, o empenhado e o pago, e os empenhos do TCE-PB que citam a emenda."
+        >
+          <div className="mp-cart-grade">
+            {c.porTipo.emenda_municipal.map((i) => (
               <article key={i.chave} className="pa-cartao mp-cart-cartao">
                 <Cabeca i={i} />
                 <div className="mp-cart-numeros">

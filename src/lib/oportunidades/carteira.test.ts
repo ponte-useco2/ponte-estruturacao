@@ -202,3 +202,39 @@ test("E4 (oport_43): a emenda estadual na carteira — passo, vez e dinheiro; an
   assert.equal(x.mudancas[0].melhora, true);
   assert.deepEqual(k.comMudanca.map((i) => i.chave), ["2025-0075"]);
 });
+
+test("J4 (oport_45): a emenda municipal na carteira — etapa, dinheiro e TCE-PB; pagar é melhora; corte e estorno pedem atenção", () => {
+  const e = (x: Partial<AvisoItem>) => c({ tipo: "emenda_municipal", chave: "2026-0171", ...x });
+  assert.deepEqual(e({ evento: "ejp_empenhado", antes: "0", depois: "44110" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(e({ evento: "ejp_pago", antes: "0", depois: "44110" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(e({ evento: "ejp_pago", antes: "44110", depois: "0" }), { nivel: "moderado", melhora: false }, "estorno");
+  assert.deepEqual(e({ evento: "ejp_atual", antes: "50000", depois: "40000" }), { nivel: "moderado", melhora: false }, "corte");
+  assert.deepEqual(e({ evento: "ejp_atual", antes: "40000", depois: "50000" }), { nivel: "informativo", melhora: null }, "acréscimo não é andar");
+  assert.deepEqual(e({ evento: "ejp_empenhos_tce", antes: "0", depois: "1" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(e({ evento: "ejp_unidade", antes: "FMS", depois: "FUNJOPE" }), { nivel: "informativo", melhora: null });
+  assert.deepEqual(e({ evento: "fora_do_recorte" }), { nivel: "moderado", melhora: null });
+
+  const estado = { ejp_atual: 50000, ejp_empenhado: 44110, ejp_liquidado: 44110, ejp_pago: 0, ejp_unidade: "FUNDO MUNICIPAL DE SAÚDE", ejp_empenhos_tce: 0 };
+  const k = montarCarteira(
+    {
+      seguidos: [
+        { tipo: "emenda_municipal", chave: "2026-0171", titulo: "Emenda 171/2026 · Equipamentos hospitalares", estado, referencia: "ejp:2026-10-19T18:47:48Z", criado_em: "2026-10-20T12:00:00Z" },
+      ],
+      avisos: [aviso({ tipo: "emenda_municipal", chave: "2026-0171", evento: "ejp_liquidado", antes: "0", depois: "44110" })],
+    },
+    HOJE,
+  );
+  const x = k.porTipo.emenda_municipal[0];
+  assert.equal(x.url, "/mapa/parlamentares/camara-jp/emenda/2026-0171");
+  assert.deepEqual(
+    x.numeros.map((n) => [n.rotulo, n.valor]),
+    [["Etapa", "Liquidada, falta pagar"], ["Valor atual", "R$ 50 mil"], ["Empenhado", "R$ 44 mil"], ["Pago", "R$ 0"], ["Unidade", "FUNDO MUNICIPAL DE SAÚDE"]],
+    "sem empenho no TCE-PB, a contagem não aparece",
+  );
+  assert.equal(x.recomendacoes.length, 1, "empenhada no painel sem empenho do TCE-PB: conferir");
+  assert.match(x.recomendacoes[0].fato, /nenhum empenho do TCE-PB cita a emenda/);
+  assert.equal(x.mudancas[0].rotulo, "Nova liquidação da emenda");
+  assert.equal(x.mudancas[0].melhora, true);
+  const comTce = montarCarteira({ seguidos: [{ tipo: "emenda_municipal", chave: "2026-0171", titulo: "Emenda 171/2026", estado: { ...estado, ejp_empenhos_tce: 1 }, referencia: null, criado_em: "2026-10-20T12:00:00Z" }], avisos: [] }, HOJE);
+  assert.equal(comTce.porTipo.emenda_municipal[0].recomendacoes.length, 0);
+});

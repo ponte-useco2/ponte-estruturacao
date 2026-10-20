@@ -19,6 +19,7 @@ import {
   urlDoItem,
 } from "./favoritos.ts";
 import { urlEmendaEpb } from "./emendas-pb.ts";
+import { urlEmendaJp } from "./emendas-jp.ts";
 
 /** As sete oportunidades reais de 10/09/2026 dos testes do contrato e do catálogo. */
 const FIXTURE = JSON.parse(
@@ -209,6 +210,7 @@ test("B0: cada tipo diz o próprio tipo na estrela (a entidade era lida como jan
     municipio: "o município X",
     entidade: "a entidade X",
     emenda_estadual: "a emenda estadual 123",
+    emenda_municipal: "a emenda municipal 123",
   };
   for (const tipo of TIPOS_ITEM) {
     const nome = nomeDoItemSeguido(tipo, "123", "X");
@@ -246,4 +248,27 @@ test("E4: os avisos da emenda estadual em palavras (passo, empenho, pagamento, d
   assert.deepEqual(f("epb_credores", "0", "1"), { rotulo: "Credores com empenho da emenda", detalhe: "0 → 1" });
   assert.equal(f("fora_do_recorte", null, null).rotulo, "Saiu da rodada das emendas estaduais");
   assert.equal(fraseDoAviso({ tipo: "instrumento", evento: "fora_do_recorte", antes: null, depois: null }).rotulo, "Saiu da busca", "o convênio segue igual");
+});
+
+test("J4 (oport_45): a emenda municipal se segue pela chave do endereço e abre a página da emenda", () => {
+  assert.ok(chaveValida("emenda_municipal", "2026-0171"));
+  assert.ok(!chaveValida("emenda_municipal", "2026-171"), "o número com quatro dígitos, como a chave do endereço");
+  assert.ok(!chaveValida("emenda_municipal", "171/2026"));
+  assert.ok(!chaveValida("emenda_municipal", "1999-0171"));
+  assert.equal(urlDoItem("emenda_municipal", "2026-0171"), "/mapa/parlamentares/camara-jp/emenda/2026-0171");
+  assert.equal(urlDoItem("emenda_municipal", "2026-0171"), urlEmendaJp(2026, 171), "o mesmo endereço da página");
+  assert.equal(nomeDoItemSeguido("emenda_municipal", "2026-0171", "Emenda 171/2026 · Equipamentos"), "a emenda municipal 171/2026");
+  assert.equal(rotuloEstrela("emenda_municipal", "a emenda municipal 171/2026", false).acao, "Seguir a emenda municipal 171/2026");
+});
+
+test("J4: os avisos da emenda municipal em palavras, com o valor exato (dinheiro, unidade, TCE-PB, saída do painel)", () => {
+  const f = (evento: string, antes: string | null, depois: string | null) => fraseDoAviso({ tipo: "emenda_municipal", evento, antes, depois });
+  assert.deepEqual(f("ejp_empenhado", "0", "44110"), { rotulo: "Novo empenho da emenda", detalhe: "R$ 44.110 a mais · total de R$ 0 para R$ 44.110" });
+  assert.deepEqual(f("ejp_liquidado", "0", "44110"), { rotulo: "Nova liquidação da emenda", detalhe: "R$ 44.110 a mais · total de R$ 0 para R$ 44.110" });
+  assert.deepEqual(f("ejp_pago", "44110", "40000"), { rotulo: "O pago da emenda mudou", detalhe: "R$ 44.110 → R$ 40.000" });
+  assert.equal(f("ejp_atual", "50000", "45000").detalhe, "R$ 50.000 → R$ 45.000 (remanejamento, corte ou acréscimo no painel)");
+  assert.deepEqual(f("ejp_unidade", "FUNDO MUNICIPAL DE SAÚDE", "FUNJOPE"), { rotulo: "A emenda mudou de unidade gestora", detalhe: "FUNDO MUNICIPAL DE SAÚDE → FUNJOPE" });
+  assert.deepEqual(f("ejp_empenhos_tce", "0", "1"), { rotulo: "Empenhos no TCE-PB que citam a emenda", detalhe: "0 → 1" });
+  assert.equal(f("fora_do_recorte", null, null).rotulo, "Saiu do painel da Prefeitura");
+  assert.equal(fraseDoAviso({ tipo: "emenda_estadual", evento: "fora_do_recorte", antes: null, depois: null }).rotulo, "Saiu da rodada das emendas estaduais");
 });

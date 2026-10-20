@@ -12,6 +12,7 @@
  */
 import { formatarData } from "./central.ts";
 import { diaBrasilia } from "./datas.ts";
+import { ROTULO_ETAPA, etapaDe } from "./emendas-jp.ts";
 import { PASSOS_EPB, ROTULO_PASSO, VEZ_DEPOIS, type PassoEpb } from "./emendas-pb.ts";
 import { compararFila, type ClasseFila } from "./fila.ts";
 import { ROTULO_TIPO_ITEM, fraseDoAviso, urlDoItem, type AvisoItem, type FraseAviso, type TipoItem } from "./favoritos.ts";
@@ -217,6 +218,15 @@ export function consequenciaDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "ante
       return { nivel: "informativo", melhora: subiu ? true : null };
     case "epb_devolvida":
       return a.depois === "true" ? { nivel: "moderado", melhora: false } : { nivel: "informativo", melhora: true };
+    // A emenda municipal (J4, oport_45): empenhar, liquidar e pagar são melhora; o valor que cai (corte) e o empenho,
+    // a liquidação ou o pagamento que diminuem (anulação, estorno) pedem atenção.
+    case "ejp_empenhado":
+    case "ejp_liquidado":
+    case "ejp_pago":
+    case "ejp_atual":
+      return subiu === false ? { nivel: "moderado", melhora: false } : { nivel: "informativo", melhora: subiu && a.evento !== "ejp_atual" ? true : null };
+    case "ejp_empenhos_tce":
+      return { nivel: "informativo", melhora: subiu ? true : null };
     default:
       return { nivel: "informativo", melhora: null };
   }
@@ -415,6 +425,37 @@ function recomendacoesEmendaEstadual(e: Record<string, unknown>, dadoDe: string 
   ];
 }
 
+/** A emenda municipal (J4): a etapa pelo dinheiro (a regra da página, `etapaDe`), o dinheiro e os empenhos do TCE-PB. */
+function numerosDaEmendaMunicipal(e: Record<string, unknown>): ItemCarteira["numeros"] {
+  const v = { atual: num(e.ejp_atual) ?? 0, empenhado: num(e.ejp_empenhado) ?? 0, liquidado: num(e.ejp_liquidado) ?? 0, pago: num(e.ejp_pago) ?? 0 };
+  const n: ItemCarteira["numeros"] = [
+    { rotulo: "Etapa", valor: ROTULO_ETAPA[etapaDe(v)], nivel: null },
+    { rotulo: "Valor atual", valor: moedaCurta(v.atual), nivel: null },
+    { rotulo: "Empenhado", valor: moedaCurta(v.empenhado), nivel: null },
+    { rotulo: "Pago", valor: moedaCurta(v.pago), nivel: null },
+  ];
+  const tce = num(e.ejp_empenhos_tce) ?? 0;
+  if (tce > 0) n.push({ rotulo: "Empenhos no TCE-PB", valor: String(tce), nivel: null });
+  const unidade = txt(e.ejp_unidade);
+  if (unidade) n.push({ rotulo: "Unidade", valor: unidade, nivel: null });
+  return n;
+}
+
+/** Só o fato que o dado traz: empenhada no painel sem empenho do TCE-PB que cite a emenda (ponto para olhar, J3). */
+function recomendacoesEmendaMunicipal(e: Record<string, unknown>, dadoDe: string | null): Recomendacao[] {
+  const empenhado = num(e.ejp_empenhado) ?? 0;
+  if (empenhado <= 0 || (num(e.ejp_empenhos_tce) ?? 0) > 0) return [];
+  return [
+    {
+      nivel: "informativo",
+      acao: "Conferir o empenho no TCE-PB",
+      fato:
+        `O painel da Prefeitura mostra ${moedaCurta(empenhado)} empenhados${dadoDe ? ` (leitura de ${formatarData(dadoDe)})` : ""} e nenhum empenho ` +
+        "do TCE-PB cita a emenda: o histórico do empenho pode não citá-la, ou o arquivo do TCE-PB ainda não chegou ao mês.",
+    },
+  ];
+}
+
 /** O retrato do convênio, cru (onda 15, fase 2, lote D, 13/10/2026): a fonte de `numerosDoInstrumento` e da tabela. */
 function retratoDoInstrumento(e: Record<string, unknown>, hoje: string): NonNullable<ItemCarteira["instrumento"]> {
   const situacao = txt(e.situacao);
@@ -471,7 +512,9 @@ export function montarCarteira(
           ? recomendacoesJanela(e, hoje)
           : s.tipo === "emenda_estadual"
             ? recomendacoesEmendaEstadual(e, dadoDe)
-            : [];
+            : s.tipo === "emenda_municipal"
+              ? recomendacoesEmendaMunicipal(e, dadoDe)
+              : [];
     const numeros =
       s.tipo === "entidade"
         ? numerosDaEntidade(e)
@@ -481,7 +524,9 @@ export function montarCarteira(
             ? numerosDoInstrumento(e, hoje)
             : s.tipo === "emenda_estadual"
               ? numerosDaEmendaEstadual(e)
-              : [];
+              : s.tipo === "emenda_municipal"
+                ? numerosDaEmendaMunicipal(e)
+                : [];
     return {
       tipo: s.tipo,
       chave: s.chave,
@@ -502,7 +547,7 @@ export function montarCarteira(
   const comMudanca = itens
     .filter((i) => i.pior !== null)
     .sort((a, b) => ORDEM[a.pior as Consequencia] - ORDEM[b.pior as Consequencia] || a.titulo.localeCompare(b.titulo, "pt-BR"));
-  const porTipo: Record<TipoItem, ItemCarteira[]> = { municipio: [], entidade: [], instrumento: [], proposta: [], janela: [], emenda_estadual: [] };
+  const porTipo: Record<TipoItem, ItemCarteira[]> = { municipio: [], entidade: [], instrumento: [], proposta: [], janela: [], emenda_estadual: [], emenda_municipal: [] };
   for (const i of itens) porTipo[i.tipo].push(i);
   for (const t of Object.keys(porTipo) as TipoItem[]) {
     porTipo[t].sort((a, b) => ORDEM[a.recomendacoes[0]?.nivel ?? "informativo"] - ORDEM[b.recomendacoes[0]?.nivel ?? "informativo"] || a.titulo.localeCompare(b.titulo, "pt-BR"));

@@ -113,6 +113,9 @@ export async function desarquivarItens(ids: unknown): Promise<ResultadoAcao> {
    DEPOIS de conferir aqui. O `user_id` é o da sessão, nunca do pedido, e o
    gatilho tira o título e o retrato da última rodada das emendas estaduais.
    Deixar de seguir continua pela sessão: a política de apagar é a de sempre.
+
+   Emenda municipal (J4, oport_45): a mesma regra, como as telas da Câmara de
+   João Pessoa; o gatilho tira o retrato do painel da última rodada da `ejp`.
    ------------------------------------------------------------------------- */
 
 export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAcao> {
@@ -122,8 +125,8 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return { ok: false, erro: "Sem permissão." };
 
-  const estadual = tipo === "emenda_estadual";
-  if (estadual && !ehAdministrador(visitante.email)) return { ok: false, erro: "Sem permissão." };
+  const soAdministrador = tipo === "emenda_estadual" || tipo === "emenda_municipal";
+  if (soAdministrador && !ehAdministrador(visitante.email)) return { ok: false, erro: "Sem permissão." };
 
   const linha: Record<string, unknown> = { user_id: visitante.id, tipo, chave: alvo };
   if (tipo === "janela") {
@@ -134,7 +137,7 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
     Object.assign(linha, { titulo: retrato.titulo, estado: retrato.estado, referencia: leitura.payload.generated_at });
   }
 
-  const db = estadual ? clienteServidor() : await clienteSessao();
+  const db = soAdministrador ? clienteServidor() : await clienteSessao();
   const { error } = await db.from("oport_favorito").insert(linha);
   // 23505: já seguia (dois cliques, duas abas). O resultado pedido é o mesmo.
   if (error && error.code !== "23505") {
@@ -147,9 +150,11 @@ export async function seguir(tipo: unknown, chave: unknown): Promise<ResultadoAc
           ? "Este município não está nas fontes do painel."
           : tipo === "entidade"
             ? "Esta entidade não tem instrumento nem proposta no painel."
-            : estadual
+            : tipo === "emenda_estadual"
               ? "Esta emenda não está na última rodada das emendas estaduais."
-              : "Este item não está mais na busca.";
+              : tipo === "emenda_municipal"
+                ? "Esta emenda não está no painel da Prefeitura da última rodada (só se seguem as do exercício corrente)."
+                : "Este item não está mais na busca.";
       return { ok: false, erro };
     }
     console.error("seguir:", error.message);

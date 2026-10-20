@@ -155,8 +155,9 @@ test("as telas das emendas estaduais: todas de administrador, e o nome de servid
   // E4 (oport_43): seguir a emenda estadual grava pela chave de serviço, e só depois de conferir o administrador.
   const acoes = fs.readFileSync(path.join(raiz, "acoes.ts"), "utf-8");
   const seguir = acoes.slice(acoes.indexOf("export async function seguir("), acoes.indexOf("export async function deixarDeSeguir("));
-  assert.match(seguir, /if \(estadual && !ehAdministrador\(visitante\.email\)\) return \{ ok: false, erro: "Sem permissão\." \};/);
-  assert.match(seguir, /const db = estadual \? clienteServidor\(\) : await clienteSessao\(\);/);
+  assert.match(seguir, /const soAdministrador = tipo === "emenda_estadual" \|\| tipo === "emenda_municipal";/);
+  assert.match(seguir, /if \(soAdministrador && !ehAdministrador\(visitante\.email\)\) return \{ ok: false, erro: "Sem permissão\." \};/);
+  assert.match(seguir, /const db = soAdministrador \? clienteServidor\(\) : await clienteSessao\(\);/);
   assert.ok(seguir.indexOf("!ehAdministrador(") < seguir.indexOf("clienteServidor()"), "confere antes de abrir a chave de serviço");
   assert.match(seguir, /user_id: visitante\.id/, "o dono é o da sessão, nunca o do pedido");
   // O responsável do caminho (servidor) só é lido no leitor da emenda e só desenhado na página da emenda.

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { tituloEmendaJp } from "@/lib/oportunidades/camara-jp-tela";
-import { URL_CAMARA_JP, emendaJpDaUrl } from "@/lib/oportunidades/emendas-jp";
+import { URL_CAMARA_JP, chaveEmendaJp, emendaJpDaUrl } from "@/lib/oportunidades/emendas-jp";
 import { lerEmendaJp } from "@/lib/oportunidades/emendas-jp.server";
+import { chaveSeguida } from "@/lib/oportunidades/favoritos";
+import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../../busca/BuscaConteudo";
 import { SemEjpPublicadas } from "../../PecasCamaraJp";
@@ -26,8 +28,9 @@ export default async function EmendaJpPage({ params }: Props) {
   if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
   const daUrl = (await params).emenda;
-  if (!emendaJpDaUrl(daUrl)) notFound();
-  const leitura = await lerEmendaJp(daUrl);
+  const alvo = emendaJpDaUrl(daUrl);
+  if (!alvo) notFound();
+  const [leitura, seguidas] = await Promise.all([lerEmendaJp(daUrl), lerSeguidas()]);
   if (leitura.estado === "nao_encontrado") notFound();
   if (leitura.estado === "sem_dado") return <SemEjpPublicadas kicker="Câmara de João Pessoa · emenda" />;
   if (leitura.estado !== "ok") {
@@ -40,5 +43,7 @@ export default async function EmendaJpPage({ params }: Props) {
       />
     );
   }
-  return <EmendaJpConteudo leitura={leitura} />;
+  // J4 (oport_45): a chave do item seguido é a do endereço normalizado (`AAAA-NNNN`).
+  const chave = chaveEmendaJp(alvo.ano, alvo.codigo);
+  return <EmendaJpConteudo leitura={leitura} chave={chave} seguindo={seguidas ? seguidas.has(chaveSeguida("emenda_municipal", chave)) : null} />;
 }

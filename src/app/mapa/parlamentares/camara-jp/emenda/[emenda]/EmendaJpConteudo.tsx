@@ -7,6 +7,10 @@
  *   · nos anos do portal (2021 a 2025): a execução por unidade e as linhas da lista da LOA (funcional, natureza, fonte).
  *
  * Credor pessoa jurídica com nome só aqui, em tela de administrador.
+ *
+ * J4 (20/10/2026, oport_45): a estrela segue a emenda do exercício (a do painel), e a rodada diária avisa quando ela é
+ * empenhada, liquidada, paga, muda de valor ou de unidade, ou ganha empenho no TCE-PB. Os anos do portal não mudam e
+ * não se seguem. Sem saber o que a pessoa segue (`seguindo` nulo), a estrela não aparece.
  */
 import type { ReactNode } from "react";
 import { resumir } from "@/lib/oportunidades/assembleia-tela";
@@ -46,6 +50,7 @@ import { rotuloArea, rotuloNatureza } from "@/lib/oportunidades/osc";
 import { TabelaLadoALado, notaMunicipalDaEntidade } from "../../../assembleia/EmendasEstaduais";
 import { formatarDataBr, type LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../../../../_design/primitivos";
+import { EstrelaSeguir } from "../../../../_componentes/EstrelaSeguir";
 import { LinkMapa } from "../../../../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../../../../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../../../../_componentes/TabelaRolagem";
@@ -58,7 +63,16 @@ const data = (iso: string | null) => (iso ? formatarDataBr(iso) : "—");
 /** Contagens (empenhos e pagamentos listados, a linha) não são dinheiro. */
 const ehContagem = (campo: string) => campo.endsWith("_n") || campo === "linha";
 
-export function EmendaJpConteudo({ leitura }: { leitura: LeituraOk }) {
+export function EmendaJpConteudo({
+  leitura,
+  chave,
+  seguindo = null,
+}: {
+  leitura: LeituraOk;
+  /** A chave do endereço (`AAAA-NNNN`), a mesma do item seguido. */
+  chave: string;
+  seguindo?: boolean | null;
+}) {
   const { retrato, ano, codigo, materia, movimentos, entidade } = leitura;
   const todas = emendasDoRetrato(retrato);
   const e = todas.find((x) => x.ano === ano && x.codigo === codigo);
@@ -129,6 +143,9 @@ export function EmendaJpConteudo({ leitura }: { leitura: LeituraOk }) {
         <p className="mp-fiscal-aviso">{AVISO_CAMARA_JP}</p>
         <CarimboEjp execucao={retrato.execucao} />
         <p className="pa-linha mp-nao-imprimir">
+          {seguindo !== null && e.origem === "painel" && (
+            <EstrelaSeguir tipo="emenda_municipal" chave={chave} nome={`a emenda municipal ${codigo}/${ano}`} seguindo={seguindo} />
+          )}
           {e.pessoa && (
             <LinkMapa href={urlVereadorJp(e.pessoa)} className="pa-btn pa-btn-pequeno">
               Ver a ficha do vereador

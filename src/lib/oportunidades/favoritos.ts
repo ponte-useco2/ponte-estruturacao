@@ -8,6 +8,7 @@
  */
 import { formatarData } from "./central.ts";
 import { ehAberta, type PayloadV2 } from "./contrato-v2.ts";
+import { URL_CAMARA_JP, emendaJpDaUrl } from "./emendas-jp.ts";
 import { PASSOS_EPB, ROTULO_PASSO, URL_ASSEMBLEIA, emendaDaUrl, type PassoEpb } from "./emendas-pb.ts";
 import { ROTULO_DESFECHO, percentual } from "./painel.ts";
 import { moedaCurta } from "./radar.ts";
@@ -15,10 +16,13 @@ import { moedaCurta } from "./radar.ts";
 /**
  * `emenda_estadual` (E4, 16/10/2026, oport_43): a emenda impositiva da ALPB, só de administrador, como as telas da
  * Assembleia. A chave é a do endereço da página (`AAAA-NNNN`).
+ *
+ * `emenda_municipal` (J4, 20/10/2026, oport_45): a emenda impositiva da Câmara de João Pessoa no painel da Prefeitura
+ * (o exercício corrente), só de administrador. A chave é a do endereço da página (`AAAA-NNNN`, `chaveEmendaJp`).
  */
-export type TipoItem = "janela" | "instrumento" | "proposta" | "municipio" | "entidade" | "emenda_estadual";
+export type TipoItem = "janela" | "instrumento" | "proposta" | "municipio" | "entidade" | "emenda_estadual" | "emenda_municipal";
 
-export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta", "municipio", "entidade", "emenda_estadual"];
+export const TIPOS_ITEM: readonly TipoItem[] = ["janela", "instrumento", "proposta", "municipio", "entidade", "emenda_estadual", "emenda_municipal"];
 
 /** O mesmo teto da oport_15 (`oport_favorito_limite`). */
 export const LIMITE_SEGUIDOS = 300;
@@ -33,6 +37,7 @@ export function chaveValida(tipo: unknown, chave: unknown): tipo is TipoItem {
   // o CNPJ como a base guarda (oport_31): 14 posições, alfanumérico aceito
   if (tipo === "entidade") return /^[0-9A-Z]{12}[0-9]{2}$/.test(chave);
   if (tipo === "emenda_estadual") return /^20[0-9]{2}-[0-9]{4}$/.test(chave);
+  if (tipo === "emenda_municipal") return /^20[0-9]{2}-[0-9]{4}$/.test(chave);
   return false;
 }
 
@@ -45,6 +50,7 @@ export const ROTULO_TIPO_ITEM: Record<TipoItem, string> = {
   municipio: "Município",
   entidade: "Entidade",
   emenda_estadual: "Emenda estadual",
+  emenda_municipal: "Emenda municipal",
 };
 
 /** Como as frases chamam o item: "Você deixou de seguir a janela X." */
@@ -55,6 +61,7 @@ export const ARTIGO_TIPO_ITEM: Record<TipoItem, string> = {
   municipio: "o município",
   entidade: "a entidade",
   emenda_estadual: "a emenda estadual",
+  emenda_municipal: "a emenda municipal",
 };
 
 /** Nome longo (o título da janela, o objeto da proposta) vai encurtado para caber no botão e no aviso. */
@@ -77,6 +84,11 @@ export function nomeDoItemSeguido(tipo: TipoItem, chave: string, titulo: string 
   if (tipo === "instrumento") return `${ARTIGO_TIPO_ITEM.instrumento} nº ${chave}`;
   // A emenda vai pelo número, como a Assembleia escreve ("0075/2025"): o título dela já começa por "Emenda".
   if (tipo === "emenda_estadual") return `${ARTIGO_TIPO_ITEM.emenda_estadual} ${emendaDaUrl(chave) ?? chave}`;
+  // A municipal vai como o painel e o SAPL escrevem ("171/2026").
+  if (tipo === "emenda_municipal") {
+    const a = emendaJpDaUrl(chave);
+    return `${ARTIGO_TIPO_ITEM.emenda_municipal} ${a ? `${a.codigo}/${a.ano}` : chave}`;
+  }
   const proprio = titulo?.trim() && titulo.trim() !== `${ROTULO_TIPO_ITEM[tipo]} ${chave}` ? titulo : null;
   return `${ARTIGO_TIPO_ITEM[tipo]} ${proprio ? encurtar(proprio) : chave}`;
 }
@@ -152,6 +164,8 @@ export function urlDoItem(tipo: TipoItem, chave: string): string {
   if (tipo === "entidade") return `/mapa/entidade/${encodeURIComponent(chave)}`;
   // A página da emenda tem o mesmo endereço da chave (`urlEmendaEpb`).
   if (tipo === "emenda_estadual") return `${URL_ASSEMBLEIA}/emenda/${encodeURIComponent(chave)}`;
+  // A da emenda municipal também (`urlEmendaJp`).
+  if (tipo === "emenda_municipal") return `${URL_CAMARA_JP}/emenda/${encodeURIComponent(chave)}`;
   return `/mapa#janela-${chave}`;
 }
 
@@ -268,6 +282,20 @@ function valorDaEmenda(antes: string | null, depois: string | null, novo: string
     : { rotulo: mudou, detalhe: `${moedaCurta(de)} → ${moedaCurta(para)}` };
 }
 
+/** A emenda municipal em reais inteiros, sem arredondar para "mil": o valor típico é de dezenas de milhares. */
+function reaisInteiros(v: number): string {
+  return `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
+}
+
+/** O que entrou de novo e o total (J4, oport_45), como `valorDaEmenda`, com o valor exato. */
+function valorDaEmendaMunicipal(antes: string | null, depois: string | null, novo: string, mudou: string): FraseAviso {
+  const de = numero(antes) ?? 0;
+  const para = numero(depois) ?? 0;
+  return para > de
+    ? { rotulo: novo, detalhe: `${reaisInteiros(para - de)} a mais · total de ${reaisInteiros(de)} para ${reaisInteiros(para)}` }
+    : { rotulo: mudou, detalhe: `${reaisInteiros(de)} → ${reaisInteiros(para)}` };
+}
+
 function pct(v: number | null): string {
   return v === null ? "sem dado" : `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
@@ -367,7 +395,28 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
         : { rotulo: "A emenda deixou de constar como devolvida", detalhe: "Nenhum parecer da última rodada fala em devolução." };
     case "epb_credores":
       return { rotulo: "Credores com empenho da emenda", detalhe: contagem(antes, depois) };
+    case "ejp_atual":
+      return {
+        rotulo: "O valor atual da emenda mudou",
+        detalhe: `${reaisInteiros(numero(antes) ?? 0)} → ${reaisInteiros(numero(depois) ?? 0)} (remanejamento, corte ou acréscimo no painel)`,
+      };
+    case "ejp_empenhado":
+      return valorDaEmendaMunicipal(antes, depois, "Novo empenho da emenda", "O empenhado da emenda mudou");
+    case "ejp_liquidado":
+      return valorDaEmendaMunicipal(antes, depois, "Nova liquidação da emenda", "O liquidado da emenda mudou");
+    case "ejp_pago":
+      return valorDaEmendaMunicipal(antes, depois, "Novo pagamento da emenda", "O pago da emenda mudou");
+    case "ejp_unidade":
+      return { rotulo: "A emenda mudou de unidade gestora", detalhe: `${antes || "sem unidade"} → ${depois || "sem unidade"}` };
+    case "ejp_empenhos_tce":
+      return { rotulo: "Empenhos no TCE-PB que citam a emenda", detalhe: contagem(antes, depois) };
     case "fora_do_recorte":
+      if (a.tipo === "emenda_municipal") {
+        return {
+          rotulo: "Saiu do painel da Prefeitura",
+          detalhe: "A emenda não veio na última leitura do painel de emendas da Prefeitura de João Pessoa, que mostra só o exercício corrente.",
+        };
+      }
       if (a.tipo === "emenda_estadual") {
         return {
           rotulo: "Saiu da rodada das emendas estaduais",
