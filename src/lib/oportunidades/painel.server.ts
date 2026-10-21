@@ -656,10 +656,15 @@ function semNulos<T extends Record<string, unknown>>(o: T): Partial<T> {
 
 // ============================================================================ ficha do município
 
-export const LIMITE_FICHA_CONVENIOS = 50;
-export const LIMITE_FICHA_PROPOSTAS = 50;
-export const LIMITE_FICHA_RECENTES = 30;
-export const LIMITE_FICHA_MUDANCAS = 30;
+/**
+ * Os limites da ficha (onda 15, fase 3, F3.1a, 20/10/2026): 300, para que tudo fique na página e o filtro de cada
+ * coluna veja todas as linhas. O maior município tinha 125 convênios numa visão (nunca desembolsados) em 13/10; acima
+ * do limite, a tela diz "os N primeiros" e o CSV do servidor traz todos.
+ */
+export const LIMITE_FICHA_CONVENIOS = 300;
+export const LIMITE_FICHA_PROPOSTAS = 300;
+export const LIMITE_FICHA_RECENTES = 300;
+export const LIMITE_FICHA_MUDANCAS = 300;
 /** A ficha mostra a última semana de mudanças do município. */
 export const DIAS_FICHA_MUDANCAS = 7;
 

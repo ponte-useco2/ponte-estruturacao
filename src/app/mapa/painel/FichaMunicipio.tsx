@@ -1,6 +1,9 @@
 /**
  * Ficha do município: tudo o que trava num lugar, para a conversa com a prefeitura.
  * Recebe os dados já lidos e só desenha, como o PainelConteudo.
+ *
+ * Onda 15, fase 3, F3.1a (20/10/2026): as listas (mudanças, as seis visões de convênio e as propostas) são tabelas com
+ * filtro e ordem em cada coluna, com todas as linhas na página (limites de 300). O resumo por ano fica como está.
  */
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
@@ -8,22 +11,18 @@ import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import {
   DESCRICAO_SINAL,
   MOVIMENTOS,
-  ROTULO_DESFECHO,
   ROTULO_MOVIMENTO,
   ROTULO_SINAL,
   anosAssinatura,
   urlExportarFicha,
   fracao,
-  idadePorExtenso,
   parametrosPainel,
   percentual,
   periodoPorExtenso,
   resumoDe,
   urlFicha,
   urlPainel,
-  vezDaProposta,
   type ParametrosFicha,
-  type PropostaPainel,
   type Sinal,
   type Visao,
 } from "@/lib/oportunidades/painel";
@@ -31,30 +30,17 @@ import {
   DIAS_FICHA_MUDANCAS,
   LIMITE_FICHA_CONVENIOS,
   LIMITE_FICHA_MUDANCAS,
+  LIMITE_FICHA_PROPOSTAS,
+  LIMITE_FICHA_RECENTES,
   type FichaMunicipio,
   type MunicipioPainel,
 } from "@/lib/oportunidades/painel.server";
+import { TABELA_FICHA, TABELA_FICHA_MUDANCAS, TABELA_FICHA_PROPOSTAS, type VisaoConvenio } from "@/lib/oportunidades/painel-tabelas";
 import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { urlEntePix } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import { Tag } from "../../_design/primitivos";
-import { CopiarNumero } from "./CopiarNumero";
-import {
-  BotaoCsv,
-  Cartao,
-  Lista,
-  Saidas,
-  TabelaContas,
-  TabelaFisico,
-  TabelaMudancas,
-  TabelaNunca,
-  TabelaSaldo,
-  TabelaSuspensiva,
-  TabelaVigencia,
-  Urgente,
-  n,
-  type Saida,
-} from "./Pecas";
+import { BotaoCsv, Cartao, Lista, Saidas, n, type Saida } from "./Pecas";
+import { TabelaDaVisao, TabelaDasMudancas, TabelaDasPropostas } from "./TabelasConvenio";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 import { Termo } from "../_componentes/Termo";
@@ -208,9 +194,14 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
                 Ver no painel, com a contagem por tipo
               </LinkMapa>
             </p>
-            <TabelaRolagem rotuloId="ficha-mudancas">
-              <TabelaMudancas linhas={ficha.mudancas} naFicha comData />
-            </TabelaRolagem>
+            <TabelaDasMudancas
+              id={TABELA_FICHA_MUDANCAS}
+              rotulo={`O que mudou nos convênios e propostas de ${nome}`}
+              linhas={ficha.mudancas}
+              naFicha
+              comData
+              csv={{ nome: `ficha-${f.ibge}-mudancas` }}
+            />
           </>
         )}
       </section>
@@ -255,29 +246,19 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
             <Saidas saidas={[...tirarFiltros, ...verTodos]} />
           </p>
         )}
-        <Bloco titulo="Cláusula suspensiva, pelo prazo" linhas={ficha.suspensiva.length} total={r("suspensiva")("total").n} href={noPainel("suspensiva")}>
-          <TabelaSuspensiva linhas={ficha.suspensiva} naFicha />
-        </Bloco>
-        <Bloco titulo="Nunca desembolsados" linhas={ficha.nunca.length} total={r("nunca")("total").n} href={noPainel("nunca")}>
-          <TabelaNunca linhas={ficha.nunca} naFicha />
-        </Bloco>
-        <Bloco titulo="Vigência acabando com execução baixa" linhas={ficha.vigencia.length} total={r("vigencia")("total").n} href={noPainel("vigencia")}>
-          <TabelaVigencia linhas={ficha.vigencia} naFicha />
-        </Bloco>
-        <Bloco titulo="Prestação de contas, pelo valor" linhas={ficha.contas.length} href={noPainel("contas")}>
-          <TabelaContas linhas={ficha.contas} naFicha />
-        </Bloco>
-        <Bloco titulo="Saldo parado, pelo valor" linhas={ficha.saldo.length} total={r("saldo")("parado").n} href={noPainel("saldo")}>
-          <TabelaSaldo linhas={ficha.saldo} naFicha />
-        </Bloco>
-        <Bloco
-          titulo="Desembolso alto com físico baixo, pelo valor"
-          linhas={ficha.fisico.length}
-          total={r("fisico")("total").n}
-          href={noPainel("fisico")}
-        >
-          <TabelaFisico linhas={ficha.fisico} naFicha />
-        </Bloco>
+        {VISOES_DA_FICHA.map(({ visao, titulo, ordem, total }) => (
+          <Bloco key={visao} titulo={titulo} linhas={ficha[visao].length} total={total ? r(visao)(total).n : undefined} href={noPainel(visao)}>
+            <TabelaDaVisao
+              id={TABELA_FICHA[visao]}
+              rotulo={`${titulo}: ${nome}`}
+              visao={visao}
+              linhas={ficha[visao]}
+              naFicha
+              descricaoOrdemPadrao={ordem}
+              csv={{ nome: `ficha-${f.ibge}-${visao}` }}
+            />
+          </Bloco>
+        ))}
       </section>
 
       <section aria-labelledby="ficha-propostas" className="mp-radar-secao">
@@ -333,17 +314,53 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
               </table>
             </TabelaRolagem>
 
-            <Lista titulo="Sem desfecho, das mais paradas para as menos" vazio={`Nenhuma proposta ${daPrefeitura}esperando desfecho.`}>
-              {ficha.semDesfecho.length > 0 && <TabelaPropostas linhas={ficha.semDesfecho} quando="movimento" />}
+            <Lista
+              titulo={`Sem desfecho, das mais paradas para as menos${corte(ficha.semDesfecho.length, LIMITE_FICHA_PROPOSTAS)}`}
+              vazio={`Nenhuma proposta ${daPrefeitura}esperando desfecho.`}
+              semRolagem
+            >
+              {ficha.semDesfecho.length > 0 && (
+                <TabelaDasPropostas
+                  id={TABELA_FICHA_PROPOSTAS["sem-desfecho"]}
+                  rotulo={`Propostas sem desfecho: ${nome}`}
+                  linhas={ficha.semDesfecho}
+                  quando="movimento"
+                  descricaoOrdemPadrao="das mais paradas para as menos"
+                  csv={{ nome: `ficha-${f.ibge}-propostas-sem-desfecho` }}
+                />
+              )}
             </Lista>
             <Lista
-              titulo="Reprovadas, impedidas e eliminadas, as mais recentes"
+              titulo={`Reprovadas, impedidas e eliminadas, as mais recentes${corte(ficha.negadas.length, LIMITE_FICHA_RECENTES)}`}
               vazio={`Nenhuma proposta ${daPrefeitura}reprovada, impedida ou eliminada desde ${anoMinimoPropostas}.`}
+              semRolagem
             >
-              {ficha.negadas.length > 0 && <TabelaPropostas linhas={ficha.negadas} quando="movimento" />}
+              {ficha.negadas.length > 0 && (
+                <TabelaDasPropostas
+                  id={TABELA_FICHA_PROPOSTAS.negadas}
+                  rotulo={`Propostas reprovadas, impedidas e eliminadas: ${nome}`}
+                  linhas={ficha.negadas}
+                  quando="movimento"
+                  descricaoOrdemPadrao="das mais recentes para as mais antigas"
+                  csv={{ nome: `ficha-${f.ibge}-propostas-negadas` }}
+                />
+              )}
             </Lista>
-            <Lista titulo="Assinadas, as mais recentes" vazio={`Nenhuma proposta ${daPrefeitura}assinada desde ${anoMinimoPropostas}.`}>
-              {ficha.assinadas.length > 0 && <TabelaPropostas linhas={ficha.assinadas} quando="assinatura" />}
+            <Lista
+              titulo={`Assinadas, as mais recentes${corte(ficha.assinadas.length, LIMITE_FICHA_RECENTES)}`}
+              vazio={`Nenhuma proposta ${daPrefeitura}assinada desde ${anoMinimoPropostas}.`}
+              semRolagem
+            >
+              {ficha.assinadas.length > 0 && (
+                <TabelaDasPropostas
+                  id={TABELA_FICHA_PROPOSTAS.assinadas}
+                  rotulo={`Propostas assinadas: ${nome}`}
+                  linhas={ficha.assinadas}
+                  quando="assinatura"
+                  descricaoOrdemPadrao="das assinadas mais recentes para as mais antigas"
+                  csv={{ nome: `ficha-${f.ibge}-propostas-assinadas` }}
+                />
+              )}
             </Lista>
             <p className="pa-nota">
               <strong>Em lote</strong> são 100 ou mais reprovações no mesmo dia pelo mesmo órgão: encerramento de edital, não
@@ -358,6 +375,19 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
 }
 
 // ============================================================================ peças da ficha
+
+/** As seis visões na ordem da ficha, com o título, a ordem da consulta e a chave do total no resumo. */
+const VISOES_DA_FICHA: { visao: VisaoConvenio; titulo: string; ordem: string; total?: string }[] = [
+  { visao: "suspensiva", titulo: "Cláusula suspensiva, pelo prazo", ordem: "pelo prazo, do mais próximo", total: "total" },
+  { visao: "nunca", titulo: "Nunca desembolsados", ordem: "aceite parado primeiro, depois pela data do aceite e da assinatura", total: "total" },
+  { visao: "vigencia", titulo: "Vigência acabando com execução baixa", ordem: "pelo fim da vigência, do mais próximo", total: "total" },
+  { visao: "contas", titulo: "Prestação de contas, pelo valor", ordem: "pelo repasse, do maior" },
+  { visao: "saldo", titulo: "Saldo parado, pelo valor", ordem: "pelo saldo, do maior", total: "parado" },
+  { visao: "fisico", titulo: "Desembolso alto com físico baixo, pelo valor", ordem: "pelo valor desembolsado, do maior", total: "total" },
+];
+
+/** "· as N primeiras" quando a lista bateu no limite da leitura (o resto está no CSV do servidor). */
+const corte = (linhas: number, limite: number) => (linhas >= limite ? ` · as ${n(linhas)} primeiras` : "");
 
 const SINAIS_DA_FICHA: { sinal: Sinal; marca: (m: MunicipioPainel) => boolean; resumo: (m: MunicipioPainel) => string }[] = [
   { sinal: "saldo", marca: (m) => m.sinal_saldo, resumo: (m) => `${n(m.n_saldo)} · ${moedaCurta(m.valor_saldo)}` },
@@ -440,96 +470,8 @@ function Bloco({
           <LinkMapa href={href}>Ver no painel, com os números por órgão</LinkMapa>
         </p>
       )}
-      <TabelaRolagem rotulo={titulo}>{children}</TabelaRolagem>
+      {/* A tabela com filtro traz a própria caixa que rola (F3.1a). */}
+      {children}
     </div>
-  );
-}
-
-function TabelaPropostas({ linhas, quando }: { linhas: PropostaPainel[]; quando: "movimento" | "assinatura" }) {
-  return (
-    <table className="mp-tabela">
-      <thead>
-        <tr>
-          <th scope="col">Proponente e proposta</th>
-          <th scope="col">Programa e órgão</th>
-          <th scope="col">Situação</th>
-          <th scope="col">{quando === "assinatura" ? "Assinada" : "Último movimento"}</th>
-          <th scope="col" className="mp-num">Repasse pedido</th>
-        </tr>
-      </thead>
-      <tbody>
-        {linhas.map((p) => {
-          const vez = vezDaProposta(p.desfecho);
-          return (
-            <tr key={p.id_proposta}>
-              <th scope="row">
-                <span className="mp-tabela-principal">{p.proponente ?? "—"}</span>
-                <span className="mp-tabela-secundario">
-                  {p.nr_proposta ? (
-                    <>
-                      nº {p.nr_proposta} <CopiarNumero numero={p.nr_proposta} de="proposta" />
-                    </>
-                  ) : (
-                    `id ${p.id_proposta}`
-                  )}
-                  {p.dt_envio ? ` · enviada em ${formatarData(p.dt_envio)}` : ""}
-                </span>
-                {p.objeto && <span className="mp-tabela-secundario mp-painel-objeto">{p.objeto}</span>}
-              </th>
-              <td>
-                <span className="mp-tabela-principal mp-painel-programa">{p.programa ?? "—"}</span>
-                <span className="mp-tabela-secundario">
-                  {p.cod_programa && p.cod_programa !== "(sem programa)" && (
-                    <>
-                      cód. {p.cod_programa} <CopiarNumero numero={p.cod_programa} de="programa" /> ·{" "}
-                    </>
-                  )}
-                  {p.orgao_sup ?? "—"}
-                </span>
-              </td>
-              <td>
-                <span className="mp-painel-tags">
-                  <span className="mp-tabela-principal">{ROTULO_DESFECHO[p.desfecho] ?? p.desfecho}</span>
-                  {p.em_lote && <Tag>em lote</Tag>}
-                  {p.com_emenda && <Tag>emenda</Tag>}
-                  {vez && <Tag tom="proto">vez do {vez}</Tag>}
-                </span>
-                {/* N09 (onda 8, C, 09/10/2026): a palavra já estava; faltava a marca, como nos outros sinais. */}
-                {p.limbo && (
-                  <span className="mp-tabela-secundario mp-painel-urgente">
-                    <Urgente palavra="nunca analisada" />
-                  </span>
-                )}
-              </td>
-              <td className="mp-nowrap">
-                {quando === "assinatura" ? (
-                  <>
-                    {p.dt_assinatura ? formatarData(p.dt_assinatura) : "—"}
-                    {p.nr_convenio && <span className="mp-tabela-secundario">convênio {p.nr_convenio}</span>}
-                  </>
-                ) : (
-                  <>
-                    {p.dt_ultimo_evento ? formatarData(p.dt_ultimo_evento) : "—"}
-                    {p.dias_sem_evento !== null && (
-                      <span className={`mp-tabela-secundario${vez && p.dias_sem_evento > 90 ? " mp-painel-urgente" : ""}`}>
-                        {/* N09 (onda 8, C): mais de 90 dias sem andar, com a vez do lado de cá, leva "▲ parada". */}
-                        {vez && p.dias_sem_evento > 90 && (
-                          <>
-                            <Urgente palavra="parada" />
-                            {" · "}
-                          </>
-                        )}
-                        há {idadePorExtenso(p.dias_sem_evento)}
-                      </span>
-                    )}
-                  </>
-                )}
-              </td>
-              <td className="mp-num">{moedaCurta(p.valor_repasse)}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
   );
 }

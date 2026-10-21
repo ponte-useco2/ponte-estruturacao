@@ -19,7 +19,12 @@ import type {
   PlanoFundo,
 } from "./pix";
 
-export const LIMITE_LISTA = 50;
+/**
+ * As listas plano a plano (onda 15, fase 3, F3.1b, 20/10/2026): 1.200, para que o recorte inteiro fique na página e o
+ * filtro de cada coluna veja todos os planos (o maior recorte da PB tinha 1.009 em 13/10). Acima disso, a tela diz
+ * "os N primeiros".
+ */
+export const LIMITE_LISTA = 1200;
 /** O mesmo piso do job (pix_fundo/fundo.py, SALDO_MINIMO). */
 const SALDO_MINIMO = 1000;
 const DESC = { ascending: false, nullsFirst: false } as const;

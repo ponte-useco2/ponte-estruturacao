@@ -31,7 +31,19 @@ import type { ResumoPainelLaudoPix } from "@/lib/oportunidades/pix-laudo.server"
 import type { LeituraCicloPix } from "@/lib/oportunidades/pix-ciclo.server";
 import type { LeituraPix } from "@/lib/oportunidades/pix.server";
 import { LIMITE_LISTA } from "@/lib/oportunidades/pix.server";
+import {
+  TABELA_PIX_ESPECIAIS,
+  TABELA_PIX_FUNDO,
+  colunasEspeciais,
+  colunasFundo,
+  valoresDoPlanoEspecial,
+  valoresDoPlanoFundo,
+  type ListaEspeciais,
+  type ListaFundo,
+} from "@/lib/oportunidades/pix-tabelas";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { Cartao, Lista, Saidas, Urgente, n, type Saida } from "../Pecas";
 import { CicloPix } from "./CicloPix";
 import { LinkMapa } from "../../_componentes/LinkMapa";
@@ -204,20 +216,41 @@ function Especiais({
           <CicloPix leitura={ciclo} hoje={hoje} />
           {/* B14b (08/10/2026): o vazio diz qual situação e de que UF, no lugar de "nessa situação". */}
           <Lista
-            titulo={`Pagos há mais de 12 meses sem relatório entregue · os ${LIMITE_LISTA} maiores`}
+            titulo={`Pagos há mais de 12 meses sem relatório entregue${corteDaLista(leitura.especiais.semRelatorio.length)}`}
             vazio={`Nenhum plano da ${uf} pago há mais de 12 meses sem relatório de gestão entregue.`}
+            semRolagem
           >
-            {leitura.especiais.semRelatorio.length > 0 && <TabelaPlanosEspeciais linhas={leitura.especiais.semRelatorio} coluna="pago" />}
+            {leitura.especiais.semRelatorio.length > 0 && (
+              <TabelaPlanosEspeciais
+                linhas={leitura.especiais.semRelatorio}
+                coluna="pago"
+                rotulo={`Planos da ${uf} pagos há mais de 12 meses sem relatório entregue`}
+                ordem="pelo valor pago, do maior"
+              />
+            )}
           </Lista>
-          <Lista titulo={`Impedidos · os ${LIMITE_LISTA} mais recentes e maiores`} vazio={`Nenhum plano da ${uf} impedido.`}>
-            {leitura.especiais.impedidos.length > 0 && <TabelaPlanosEspeciais linhas={leitura.especiais.impedidos} coluna="motivo" />}
+          <Lista titulo={`Impedidos${corteDaLista(leitura.especiais.impedidos.length)}`} vazio={`Nenhum plano da ${uf} impedido.`} semRolagem>
+            {leitura.especiais.impedidos.length > 0 && (
+              <TabelaPlanosEspeciais
+                linhas={leitura.especiais.impedidos}
+                coluna="motivo"
+                rotulo={`Planos da ${uf} impedidos`}
+                ordem="do ano mais recente, pelo valor, do maior"
+              />
+            )}
           </Lista>
           <Lista
-            titulo={`Execução encerrada sem relatório final · os ${LIMITE_LISTA} maiores`}
+            titulo={`Execução encerrada sem relatório final${corteDaLista(leitura.especiais.encerradaSemFinal.length)}`}
             vazio={`Nenhum plano da ${uf} com a execução encerrada sem relatório final.`}
+            semRolagem
           >
             {leitura.especiais.encerradaSemFinal.length > 0 && (
-              <TabelaPlanosEspeciais linhas={leitura.especiais.encerradaSemFinal} coluna="fim" />
+              <TabelaPlanosEspeciais
+                linhas={leitura.especiais.encerradaSemFinal}
+                coluna="fim"
+                rotulo={`Planos da ${uf} com a execução encerrada sem relatório final`}
+                ordem="pelo valor pago, do maior"
+              />
             )}
           </Lista>
         </>
@@ -448,50 +481,51 @@ function ResumoLaudo({ laudo, uf }: { laudo: ResumoPainelLaudoPix | null; uf: st
   );
 }
 
-function TabelaPlanosEspeciais({ linhas, coluna }: { linhas: PlanoEspecial[]; coluna: "pago" | "motivo" | "fim" }) {
+/** "· os N primeiros" quando a lista bateu no limite da leitura (F3.1b: tudo na página até 1.200). */
+const corteDaLista = (linhas: number) => (linhas >= LIMITE_LISTA ? ` · os ${n(linhas)} primeiros` : "");
+
+/** As listas plano a plano das especiais como tabela com filtro (F3.1b): o mesmo desenho, colunas em `pix-tabelas.ts`. */
+function TabelaPlanosEspeciais({ linhas, coluna, rotulo, ordem }: { linhas: PlanoEspecial[]; coluna: ListaEspeciais; rotulo: string; ordem: string }) {
+  const tabela: LinhaTabela[] = linhas.map((l) => ({
+    chave: String(l.id_plano_acao),
+    valores: valoresDoPlanoEspecial(l, coluna),
+    celulas: {
+      ente: (
+        <>
+          {l.cnpj ? (
+            <LinkMapa href={urlEntePix(l.cnpj)} className="mp-tabela-principal">
+              {l.beneficiario ?? "—"}
+            </LinkMapa>
+          ) : (
+            <span className="mp-tabela-principal">{l.beneficiario ?? "—"}</span>
+          )}
+          <span className="mp-tabela-secundario">
+            <LinkMapa href={urlLaudoPix(l.id_plano_acao)}>laudo do plano {l.codigo_plano_acao ?? l.id_plano_acao}</LinkMapa> · {l.ano}
+            {l.numero_emenda ? ` · emenda ${l.numero_emenda}` : ""}
+            {l.duplicado ? " · contado duas vezes" : ""}
+          </span>
+        </>
+      ),
+      valor: moedaCurta(l.valor),
+      pago: moedaCurta(l.pago),
+      motivo: (
+        <>
+          {rotuloMotivo(l.motivo)}
+          {l.reapresentado && <span className="mp-tabela-secundario">reapresentado no mesmo ano</span>}
+        </>
+      ),
+      ano: l.ano === null ? "—" : String(l.ano),
+    },
+  }));
   return (
-    <table className="mp-tabela mp-pix-planos">
-      <thead>
-        <tr>
-          <th scope="col">Ente e plano</th>
-          <th scope="col" className="mp-num">{coluna === "motivo" ? "Valor" : "Pago"}</th>
-          <th scope="col">{coluna === "motivo" ? "Motivo" : coluna === "fim" ? "Fim da execução" : "Primeiro pagamento"}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {linhas.map((l) => (
-          <tr key={l.id_plano_acao}>
-            <th scope="row">
-              {l.cnpj ? (
-                <LinkMapa href={urlEntePix(l.cnpj)} className="mp-tabela-principal">
-                  {l.beneficiario ?? "—"}
-                </LinkMapa>
-              ) : (
-                <span className="mp-tabela-principal">{l.beneficiario ?? "—"}</span>
-              )}
-              <span className="mp-tabela-secundario">
-                <LinkMapa href={urlLaudoPix(l.id_plano_acao)}>laudo do plano {l.codigo_plano_acao ?? l.id_plano_acao}</LinkMapa> · {l.ano}
-                {l.numero_emenda ? ` · emenda ${l.numero_emenda}` : ""}
-                {l.duplicado ? " · contado duas vezes" : ""}
-              </span>
-            </th>
-            <td className="mp-num">{moedaCurta(coluna === "motivo" ? l.valor : l.pago)}</td>
-            <td>
-              {coluna === "motivo" ? (
-                <>
-                  {rotuloMotivo(l.motivo)}
-                  {l.reapresentado && <span className="mp-tabela-secundario">reapresentado no mesmo ano</span>}
-                </>
-              ) : coluna === "fim" ? (
-                data(l.fim_execucao)
-              ) : (
-                data(l.dt_primeira_ob)
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <TabelaFiltravel
+      id={TABELA_PIX_ESPECIAIS[coluna]}
+      rotulo={rotulo}
+      colunas={colunasEspeciais(coluna)}
+      linhas={tabela}
+      descricaoOrdemPadrao={ordem}
+      csv={{ nome: TABELA_PIX_ESPECIAIS[coluna] }}
+    />
   );
 }
 
@@ -649,22 +683,46 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
       {leitura.fundo ? (
         <>
           <Lista
-            titulo={`Parados há mais de 12 meses · os ${LIMITE_LISTA} maiores saldos`}
+            titulo={`Parados há mais de 12 meses${corteDaLista(leitura.fundo.parados.length)}`}
             vazio={`Nenhum plano da ${uf} com saldo parado há mais de 12 meses.`}
+            semRolagem
           >
-            {leitura.fundo.parados.length > 0 && <TabelaPlanosFundo linhas={leitura.fundo.parados} coluna="pagamento" />}
+            {leitura.fundo.parados.length > 0 && (
+              <TabelaPlanosFundo
+                linhas={leitura.fundo.parados}
+                coluna="pagamento"
+                rotulo={`Planos fundo a fundo da ${uf} parados há mais de 12 meses`}
+                ordem="pelo saldo, do maior"
+              />
+            )}
           </Lista>
           <Lista
-            titulo={`Vigência encerrada com saldo · os ${LIMITE_LISTA} maiores`}
+            titulo={`Vigência encerrada com saldo${corteDaLista(leitura.fundo.encerradosComSaldo.length)}`}
             vazio={`Nenhum plano da ${uf} com a vigência encerrada e saldo em conta.`}
+            semRolagem
           >
-            {leitura.fundo.encerradosComSaldo.length > 0 && <TabelaPlanosFundo linhas={leitura.fundo.encerradosComSaldo} coluna="vigencia" />}
+            {leitura.fundo.encerradosComSaldo.length > 0 && (
+              <TabelaPlanosFundo
+                linhas={leitura.fundo.encerradosComSaldo}
+                coluna="vigencia"
+                rotulo={`Planos fundo a fundo da ${uf} com a vigência encerrada e saldo`}
+                ordem="pelo saldo, do maior"
+              />
+            )}
           </Lista>
           <Lista
-            titulo={`Relatório aguardando análise · os ${LIMITE_LISTA} mais antigos`}
+            titulo={`Relatório aguardando análise${corteDaLista(leitura.fundo.aguardandoAnalise.length)}`}
             vazio={`Nenhum relatório de plano da ${uf} aguardando análise.`}
+            semRolagem
           >
-            {leitura.fundo.aguardandoAnalise.length > 0 && <TabelaPlanosFundo linhas={leitura.fundo.aguardandoAnalise} coluna="relatorio" />}
+            {leitura.fundo.aguardandoAnalise.length > 0 && (
+              <TabelaPlanosFundo
+                linhas={leitura.fundo.aguardandoAnalise}
+                coluna="relatorio"
+                rotulo={`Relatórios de planos fundo a fundo da ${uf} aguardando análise`}
+                ordem="pelo envio do relatório, do mais antigo"
+              />
+            )}
           </Lista>
         </>
       ) : (
@@ -690,54 +748,50 @@ function Fundo({ p, leitura }: { p: ParametrosPix; leitura: LeituraOk }) {
   );
 }
 
-function TabelaPlanosFundo({ linhas, coluna }: { linhas: PlanoFundo[]; coluna: "pagamento" | "vigencia" | "relatorio" }) {
+/** As listas plano a plano do fundo a fundo como tabela com filtro (F3.1b): o mesmo desenho, colunas em `pix-tabelas.ts`. */
+function TabelaPlanosFundo({ linhas, coluna, rotulo, ordem }: { linhas: PlanoFundo[]; coluna: ListaFundo; rotulo: string; ordem: string }) {
+  const tabela: LinhaTabela[] = linhas.map((l) => ({
+    chave: String(l.id_plano_acao),
+    valores: valoresDoPlanoFundo(l, coluna),
+    celulas: {
+      ente: (
+        <>
+          <span className="mp-tabela-principal">{l.ente ?? "—"}</span>
+          <span className="mp-tabela-secundario">
+            {l.orgao ?? "—"} · {l.programa ?? "—"} · {l.ano} · plano {l.codigo_plano_acao ?? l.id_plano_acao}
+          </span>
+        </>
+      ),
+      saldo: moedaCurta(l.saldo_contas),
+      repasse: moedaCurta(l.repasse),
+      "ultimo-pagamento": l.dt_ultimo_pagamento ? (
+        data(l.dt_ultimo_pagamento)
+      ) : (
+        // N09 (onda 8, C, 09/10/2026): a palavra já estava; faltava a marca dos outros sinais do painel.
+        <span className="mp-painel-urgente">
+          <Urgente palavra="nunca pagou" />
+        </span>
+      ),
+      relatorio: (
+        <>
+          {data(l.dt_relatorio)}
+          <span className="mp-tabela-secundario">
+            {l.tipo_relatorio === "FINAL" ? "final" : "parcial"} · {ROTULO_SITUACAO_RELATORIO[l.situacao_relatorio ?? ""] ?? l.situacao_relatorio}
+          </span>
+        </>
+      ),
+      ano: l.ano === null ? "—" : String(l.ano),
+    },
+  }));
   return (
-    <table className="mp-tabela mp-pix-planos">
-      <thead>
-        <tr>
-          <th scope="col">Ente e plano</th>
-          <th scope="col" className="mp-num">{coluna === "relatorio" ? "Repasse" : "Saldo"}</th>
-          <th scope="col">
-            {coluna === "pagamento" ? "Último pagamento" : coluna === "vigencia" ? "Fim da vigência" : "Relatório enviado em"}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {linhas.map((l) => (
-          <tr key={l.id_plano_acao}>
-            <th scope="row">
-              <span className="mp-tabela-principal">{l.ente ?? "—"}</span>
-              <span className="mp-tabela-secundario">
-                {l.orgao ?? "—"} · {l.programa ?? "—"} · {l.ano} · plano {l.codigo_plano_acao ?? l.id_plano_acao}
-              </span>
-            </th>
-            <td className="mp-num">{moedaCurta(coluna === "relatorio" ? l.repasse : l.saldo_contas)}</td>
-            <td>
-              {coluna === "pagamento" ? (
-                l.dt_ultimo_pagamento ? (
-                  data(l.dt_ultimo_pagamento)
-                ) : (
-                  // N09 (onda 8, C, 09/10/2026): a palavra já estava; faltava a marca dos outros sinais do painel.
-                  <span className="mp-painel-urgente">
-                    <Urgente palavra="nunca pagou" />
-                  </span>
-                )
-              ) : coluna === "vigencia" ? (
-                data(l.fim_vigencia)
-              ) : (
-                <>
-                  {data(l.dt_relatorio)}
-                  <span className="mp-tabela-secundario">
-                    {l.tipo_relatorio === "FINAL" ? "final" : "parcial"} ·{" "}
-                    {ROTULO_SITUACAO_RELATORIO[l.situacao_relatorio ?? ""] ?? l.situacao_relatorio}
-                  </span>
-                </>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <TabelaFiltravel
+      id={TABELA_PIX_FUNDO[coluna]}
+      rotulo={rotulo}
+      colunas={colunasFundo(coluna)}
+      linhas={tabela}
+      descricaoOrdemPadrao={ordem}
+      csv={{ nome: TABELA_PIX_FUNDO[coluna] }}
+    />
   );
 }
 
