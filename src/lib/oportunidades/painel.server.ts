@@ -180,11 +180,8 @@ const VAZIO = {
   contagensMudanca: [],
 };
 
-export const LIMITE_LISTA = 50;
 /** Mudanças numa página: a lista é de leitura diária, não de exportação. */
 export const LIMITE_MUDANCAS = 100;
-/** Programas na matriz de tempos: os de mais assinaturas na janela. */
-export const LIMITE_PROGRAMAS = 40;
 export const LIMITE_MUNICIPIOS = 100;
 export const LIMITE_VENCIDOS = 20;
 /**
@@ -372,14 +369,18 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
     // Brasil (por UF e ano a amostra de um programa é pequena demais e o job não grava).
     const ano = p.ano;
     const base = () => db.from("painel_etapa_ano").select("*").eq("execucao_id", execucao.id).eq("ano_fim", ano);
-    let programas = base().eq("recorte", "BR").eq("dimensao", "programa").limit(1000);
-    if (p.orgao) programas = programas.eq("orgao_sup", p.orgao);
+    // F3.4 (22/10/2026): todos os programas do ano (no Brasil, uns 350), para a tabela filtrar; antes, os 40 maiores.
+    const programas = (de: number, ate: number) => {
+      let q = base().eq("recorte", "BR").eq("dimensao", "programa");
+      if (p.orgao) q = q.eq("orgao_sup", p.orgao);
+      return q.order("chave", { ascending: true }).order("etapa", { ascending: true }).range(de, ate);
+    };
     const [r, o, pr] = await Promise.all([
       resumo,
       base().eq("recorte", recorte).eq("dimensao", "orgao").limit(1000),
-      p.dimensao === "programa" && !p.uf ? programas : Promise.resolve({ data: [], error: null }),
+      p.dimensao === "programa" && !p.uf ? lerPorFaixa<LinhaEtapa>(programas) : Promise.resolve({ linhas: [], truncado: false }),
     ]);
-    const erro = r.error ?? o.error ?? pr.error;
+    const erro = r.error ?? o.error ?? ("erro" in pr ? pr.erro : null);
     if (erro) {
       console.error("lerPainel:", erro.message);
       return { estado: "erro", mensagem: erro.message };
@@ -390,17 +391,7 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
       em_aberto: 0,
       idade_mediana_aberto: null,
     });
-    const linhasPrograma = ((pr.data ?? []) as LinhaEtapa[])
-      .map(comoEtapa)
-      // Os 40 programas com mais assinaturas no ano, como na janela.
-      .filter((l, _, todas) => {
-        const topo = todas
-          .filter((x) => x.etapa === "envio_assinatura")
-          .sort((a, b) => b.n - a.n)
-          .slice(0, LIMITE_PROGRAMAS)
-          .map((x) => x.chave);
-        return topo.includes(l.chave);
-      });
+    const linhasPrograma = ("linhas" in pr ? pr.linhas : []).map(comoEtapa);
     return {
       estado: "ok",
       execucao,
@@ -412,8 +403,8 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
   }
 
   if (p.visao === "tempos") {
-    // Órgãos sempre (tabela ou lista do filtro). Programas: os de mais assinaturas na
-    // janela, e depois todas as etapas só deles — a tabela inteira passa de mil linhas.
+    // Órgãos sempre (tabela ou lista do filtro). Programas (F3.4, 22/10/2026): todos os do recorte, em páginas — no
+    // Brasil, uns mil programas e 4 mil linhas de etapa —, para a tabela filtrar; antes, os 40 com mais assinaturas.
     const orgaos = db
       .from("painel_etapa_tempo")
       .select("*")
@@ -421,36 +412,23 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
       .eq("recorte", recorte)
       .eq("dimensao", "orgao")
       .limit(1000);
-    let topo = db
-      .from("painel_etapa_tempo")
-      .select("chave")
-      .eq("execucao_id", execucao.id)
-      .eq("recorte", recorte)
-      .eq("dimensao", "programa")
-      .eq("etapa", "envio_assinatura")
-      .order("n", { ascending: false })
-      .limit(LIMITE_PROGRAMAS);
-    if (p.orgao) topo = topo.eq("orgao_sup", p.orgao);
-    const [r, o, t] = await Promise.all([
-      resumo,
-      orgaos,
-      p.dimensao === "programa" ? topo : Promise.resolve({ data: [], error: null }),
-    ]);
-    let erro = r.error ?? o.error ?? t.error;
-    let programas: LinhaEtapa[] = [];
-    const chaves = ((t.data ?? []) as { chave: string }[]).map((x) => x.chave);
-    if (!erro && chaves.length > 0) {
-      const pr = await db
+    const programas = (de: number, ate: number) => {
+      let q = db
         .from("painel_etapa_tempo")
         .select("*")
         .eq("execucao_id", execucao.id)
         .eq("recorte", recorte)
-        .eq("dimensao", "programa")
-        .in("chave", chaves)
-        .limit(1000);
-      erro = pr.error;
-      programas = (pr.data ?? []) as LinhaEtapa[];
-    }
+        .eq("dimensao", "programa");
+      if (p.orgao) q = q.eq("orgao_sup", p.orgao);
+      return q.order("chave", { ascending: true }).order("etapa", { ascending: true }).range(de, ate);
+    };
+    const [r, o, pr] = await Promise.all([
+      resumo,
+      orgaos,
+      p.dimensao === "programa" ? lerPorFaixa<LinhaEtapa>(programas) : Promise.resolve({ linhas: [], truncado: false }),
+    ]);
+    const erro = r.error ?? o.error ?? ("erro" in pr ? pr.erro : null);
+    const programasLidos = "linhas" in pr ? pr.linhas : [];
     if (erro) {
       console.error("lerPainel:", erro.message);
       return { estado: "erro", mensagem: erro.message };
@@ -460,7 +438,7 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
       execucao,
       resumo: (r.data ?? []) as LinhaResumo[],
       ...VAZIO,
-      etapas: [...((o.data ?? []) as LinhaEtapa[]), ...programas],
+      etapas: [...((o.data ?? []) as LinhaEtapa[]), ...programasLidos],
     };
   }
 
@@ -468,17 +446,21 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
     const ano = p.ano ?? anoPadrao(execucao.referencia);
     const base = () =>
       db.from("painel_programa_desfecho").select("*").eq("execucao_id", execucao.id).eq("uf", recorte).eq("ano_envio", ano);
-    let programas = base().not("cod_programa", "is", null).order("enviadas", { ascending: false }).limit(LIMITE_LISTA);
-    if (p.orgao) programas = programas.eq("orgao_sup", p.orgao);
+    // F3.4 (22/10/2026): todos os programas do ano (no Brasil, até 1.100), para a tabela filtrar; antes, os 50 maiores.
+    const programas = (de: number, ate: number) => {
+      let q = base().not("cod_programa", "is", null);
+      if (p.orgao) q = q.eq("orgao_sup", p.orgao);
+      return q.order("enviadas", { ascending: false }).order("cod_programa", { ascending: true }).order("orgao_sup", { ascending: true }).range(de, ate);
+    };
     let total = base().is("cod_programa", null);
     total = p.orgao ? total.eq("orgao_sup", p.orgao) : total.is("orgao_sup", null);
     const [r, t, o, pr] = await Promise.all([
       resumo,
       total,
       base().is("cod_programa", null).not("orgao_sup", "is", null).order("enviadas", { ascending: false }).limit(LIMITE_ORGAOS),
-      programas,
+      lerPorFaixa<LinhaDesfecho>(programas),
     ]);
-    const erro = r.error ?? t.error ?? o.error ?? pr.error;
+    const erro = r.error ?? t.error ?? o.error ?? ("erro" in pr ? pr.erro : null);
     if (erro) {
       console.error("lerPainel:", erro.message);
       return { estado: "erro", mensagem: erro.message };
@@ -491,7 +473,7 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
       resumo: (r.data ?? []) as LinhaResumo[],
       ...VAZIO,
       ano,
-      desfechos: [...totais, ...((o.data ?? []) as LinhaDesfecho[]), ...((pr.data ?? []) as LinhaDesfecho[])],
+      desfechos: [...totais, ...((o.data ?? []) as LinhaDesfecho[]), ...("linhas" in pr ? pr.linhas : [])],
     };
   }
 

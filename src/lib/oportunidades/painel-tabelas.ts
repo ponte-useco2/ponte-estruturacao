@@ -20,9 +20,18 @@ import {
   ROTULO_MOTIVO_ADITIVO,
   ROTULO_SINAL,
   SINAIS,
+  ROTULO_ETAPA,
   definicaoMudanca,
   exigenciasDe,
+  fracao,
+  maisLento,
+  medianaComparavel,
+  semDesfecho,
+  type DimensaoTempo,
   type LadoContas,
+  type LinhaDesfecho,
+  type LinhaEtapa,
+  type LinhaMatriz,
   type MudancaPainel,
   type PropostaPainel,
 } from "./painel.ts";
@@ -484,3 +493,119 @@ export const ORDEM_MUNICIPIOS = [
   { coluna: "valor_sem_desembolso", ascendente: false },
   { coluna: "cod_ibge", ascendente: true },
 ] as const;
+
+// ============================================================================ F3.4: tempos e aprovação
+
+/**
+ * As tabelas de tempos e de aprovação (onda 15, fase 3, F3.4, 22/10/2026). Eram cortadas pelo banco (os 40 programas
+ * com mais assinaturas; os 50 com mais propostas enviadas) e a tela não filtrava. São tabelas pequenas — no Brasil,
+ * cerca de mil programas, 4 mil linhas de etapa —, então a página lê todas e o filtro roda nas linhas lidas, como na
+ * ficha do município: a mediana sai do pivô das etapas, que o banco não tem pronto.
+ */
+export const TABELA_TEMPOS_PROGRAMAS = "tempos-programas";
+export const TABELA_DESFECHOS_PROGRAMAS = "desfechos-programas";
+
+/** O id da coluna de uma etapa: o nome com hífen ("envio_aprovacao" → "envio-aprovacao"), que cabe no endereço. */
+export const idEtapa = (etapa: string) => etapa.replace(/_/g, "-");
+
+/**
+ * As colunas da matriz de tempos. As etapas mudam com o período (sem a "vez do concedente" por ano), os ids não. Por
+ * programa, o código e o órgão vão ocultos (filtram e vão ao CSV); com um órgão escolhido no filtro, o órgão sai.
+ */
+export function colunasDosTempos(etapas: readonly string[], ano: number | null, dimensao: DimensaoTempo, comOrgao = true): ColunaTabela[] {
+  const primeiras: ColunaTabela[] =
+    dimensao === "programa"
+      ? [
+          { id: "programa", titulo: "Programa", tipo: "texto" },
+          { id: "codigo", titulo: "Código do programa", tipo: "texto", textoNoCsv: true, oculta: true },
+          ...(comOrgao ? [{ id: "orgao", titulo: "Órgão", tipo: "categoria", oculta: true } satisfies ColunaTabela] : []),
+        ]
+      : [{ id: "orgao", titulo: "Órgão", tipo: "texto" }];
+  return [
+    ...primeiras,
+    ...etapas.map((e): ColunaTabela => ({ id: idEtapa(e), titulo: ROTULO_ETAPA[e] ?? e, tipo: "numero", alinhar: "direita" })),
+    { id: "lentas", titulo: "Etapas marcadas “lento”", tipo: "numero", oculta: true },
+    { id: "assinadas", titulo: ano !== null ? `Assinadas em ${ano}` : "Assinadas em 36 meses", tipo: "numero", alinhar: "direita" },
+    ...(ano !== null ? [] : [{ id: "sem-desfecho", titulo: "Propostas sem desfecho", tipo: "numero", alinhar: "direita" } satisfies ColunaTabela]),
+  ];
+}
+
+/**
+ * Os valores crus de uma linha da matriz: a mediana arredondada como na célula, vazia ("—") com menos medições que o
+ * mínimo; e as etapas "lentas" (1,5 vez a mediana do recorte inteiro), que a tela marca.
+ */
+export function valoresDosTempos(
+  l: LinhaMatriz,
+  etapas: readonly string[],
+  todos: Partial<Record<string, LinhaEtapa>>,
+  porAno: boolean,
+  dimensao: DimensaoTempo,
+): { valores: Record<string, ValorCelula>; lentas: Set<string> } {
+  const valores: Record<string, ValorCelula> =
+    dimensao === "programa" ? { programa: l.rotulo, codigo: l.chave, orgao: l.orgao_sup } : { orgao: l.rotulo };
+  const lentas = new Set<string>();
+  for (const e of etapas) {
+    const m = medianaComparavel(l.etapas[e]);
+    if (maisLento(m, medianaComparavel(todos[e]))) lentas.add(e);
+    valores[idEtapa(e)] = m === null ? null : Math.round(m);
+  }
+  valores.lentas = lentas.size;
+  valores.assinadas = l.volume;
+  if (!porAno) valores["sem-desfecho"] = l.etapas.envio_assinatura?.em_aberto ?? 0;
+  return { valores, lentas };
+}
+
+/**
+ * As colunas dos desfechos por órgão ou por programa: a porcentagem das enviadas na coluna visível, a quantidade e o
+ * lote em colunas ocultas. Por programa, o código e o órgão ocultos e o valor pedido.
+ */
+export function colunasDosDesfechos(dimensao: DimensaoTempo, comOrgao = true): ColunaTabela[] {
+  const primeiras: ColunaTabela[] =
+    dimensao === "programa"
+      ? [
+          { id: "programa", titulo: "Programa", tipo: "texto" },
+          { id: "codigo", titulo: "Código do programa", tipo: "texto", textoNoCsv: true, oculta: true },
+          ...(comOrgao ? [{ id: "orgao", titulo: "Órgão", tipo: "categoria", oculta: true } satisfies ColunaTabela] : []),
+        ]
+      : [{ id: "orgao", titulo: "Órgão", tipo: "texto" }];
+  return [
+    ...primeiras,
+    { id: "enviadas", titulo: "Enviadas", tipo: "numero", alinhar: "direita" },
+    { id: "assinadas", titulo: "Assinadas (%)", tipo: "numero", alinhar: "direita" },
+    { id: "assinadas-n", titulo: "Assinadas (quantidade)", tipo: "numero", oculta: true },
+    { id: "reprovadas", titulo: "Reprovadas (%)", tipo: "numero", alinhar: "direita" },
+    { id: "reprovadas-n", titulo: "Reprovadas (quantidade)", tipo: "numero", oculta: true },
+    { id: "reprovadas-lote", titulo: "Reprovadas em lote", tipo: "numero", oculta: true },
+    { id: "impedimento", titulo: "Impedimento (%)", tipo: "numero", alinhar: "direita" },
+    { id: "impedimento-n", titulo: "Impedimento (quantidade)", tipo: "numero", oculta: true },
+    { id: "impedimento-lote", titulo: "Impedimento em lote", tipo: "numero", oculta: true },
+    { id: "sem-desfecho", titulo: "Sem desfecho (%)", tipo: "numero", alinhar: "direita" },
+    { id: "sem-desfecho-n", titulo: "Sem desfecho (quantidade)", tipo: "numero", oculta: true },
+    ...(dimensao === "programa" ? [{ id: "pedido", titulo: "Pedido", tipo: "numero", alinhar: "direita" } satisfies ColunaTabela] : []),
+  ];
+}
+
+/** Fração das enviadas em percentual de 0 a 100, com uma casa: "de 50" no filtro é 50%. Sem enviadas, vazio. */
+export function percentualDasEnviadas(parte: number, d: LinhaDesfecho): number | null {
+  const f = fracao(parte, d.enviadas);
+  return f === null ? null : Math.round(f * 1000) / 10;
+}
+
+export function valoresDoDesfecho(d: LinhaDesfecho, dimensao: DimensaoTempo): Record<string, ValorCelula> {
+  const sem = semDesfecho(d);
+  return {
+    ...(dimensao === "programa" ? { programa: d.programa, codigo: d.cod_programa, orgao: d.orgao_sup } : { orgao: d.orgao_sup }),
+    enviadas: d.enviadas,
+    assinadas: percentualDasEnviadas(d.assinadas, d),
+    "assinadas-n": d.assinadas,
+    reprovadas: percentualDasEnviadas(d.reprovadas, d),
+    "reprovadas-n": d.reprovadas,
+    "reprovadas-lote": d.reprovadas_lote,
+    impedimento: percentualDasEnviadas(d.impedimento, d),
+    "impedimento-n": d.impedimento,
+    "impedimento-lote": d.impedimento_lote,
+    "sem-desfecho": percentualDasEnviadas(sem, d),
+    "sem-desfecho-n": sem,
+    ...(dimensao === "programa" ? { pedido: d.valor_pedido } : {}),
+  };
+}

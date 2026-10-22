@@ -197,3 +197,63 @@ test("F3.3, municípios com sinais: cada coluna tem o valor cru e o campo no ban
   assert.equal(quais({ tipo: "texto", contem: "nada" }), "cod_ibge.is.null");
   assert.deepEqual(estadosDaVisao("municipios", parametrosDaPagina({ "t.painel-municipios.sinais": "3.." })).lista?.filtros.sinais, { tipo: "numero", de: 3, ate: null });
 });
+
+test("F3.4, tempos e aprovação: todos os programas, valor cru em cada coluna, mediana com o mínimo e o lento marcado", async () => {
+  const { colunasDosTempos, valoresDosTempos, colunasDosDesfechos, valoresDoDesfecho, TABELA_TEMPOS_PROGRAMAS, TABELA_DESFECHOS_PROGRAMAS } =
+    await import("./painel-tabelas.ts");
+  const { matrizEtapas, MINIMO_MEDICOES } = await import("./painel.ts");
+  const etapa = (chave: string, e: string, n: number, mediana: number, em_aberto = 0) => ({
+    recorte: "BR", dimensao: "programa" as const, chave, rotulo: `PROGRAMA ${chave}`, orgao_sup: "MINISTERIO DA SAUDE", etapa: e, n, mediana,
+    p90: null, em_aberto, idade_mediana_aberto: null,
+  });
+  const [l] = matrizEtapas(
+    [etapa("3600020260001", "envio_aprovacao", 40, 90.4), etapa("3600020260001", "aprovacao_assinatura", MINIMO_MEDICOES - 1, 10), etapa("3600020260001", "envio_assinatura", 30, 120, 7)],
+    "programa",
+  );
+  const todos = { envio_aprovacao: { ...etapa("todos", "envio_aprovacao", 900, 50), dimensao: "orgao" as const } };
+  const etapas = ["envio_aprovacao", "aprovacao_assinatura", "envio_assinatura"];
+  for (const [ano, dimensao, comOrgao] of [[null, "programa", true], [2025, "programa", false], [null, "orgao", true]] as const) {
+    const colunas = colunasDosTempos(etapas, ano, dimensao, comOrgao);
+    const { valores } = valoresDosTempos(l, etapas, todos, ano !== null, dimensao);
+    assert.equal(new Set(colunas.map((c) => c.id)).size, colunas.length);
+    for (const c of colunas) {
+      assert.match(c.id, /^[a-z0-9-]+$/);
+      assert.ok(c.id in valores, `${dimensao} ${ano}: ${c.id}`);
+    }
+    assert.equal(colunas.some((c) => c.id === "sem-desfecho"), ano === null, "sem desfecho só existe na janela");
+  }
+  const { valores, lentas } = valoresDosTempos(l, etapas, todos, false, "programa");
+  assert.deepEqual(
+    [valores.codigo, valores["envio-aprovacao"], valores["aprovacao-assinatura"], valores.assinadas, valores["sem-desfecho"], valores.lentas],
+    ["3600020260001", 90, null, 30, 7, 1],
+    "arredonda como a célula; abaixo do mínimo, vazio",
+  );
+  assert.deepEqual([...lentas], ["envio_aprovacao"], "90 dias contra 50 do recorte é 1,5 vez ou mais");
+  assert.equal(colunasDosTempos(etapas, null, "programa", true).find((c) => c.id === "codigo")?.textoNoCsv, true);
+
+  const d = {
+    cod_programa: "3600020260001", programa: "PROGRAMA X", orgao_sup: "MINISTERIO DA SAUDE", ano_envio: 2025, uf: "BR", enviadas: 8, assinadas: 3,
+    reprovadas: 2, reprovadas_lote: 1, impedimento: 1, impedimento_lote: 0, eliminadas: 0, abertas_concedente: 1, limbo: 0, abertas_proponente: 1,
+    aguardando_assinatura: 0, com_emenda: 4, assinadas_com_emenda: 2, valor_pedido: 1_250_000,
+  };
+  for (const dimensao of ["orgao", "programa"] as const) {
+    const v = valoresDoDesfecho(d, dimensao);
+    for (const c of colunasDosDesfechos(dimensao)) assert.ok(c.id in v, `${dimensao}: ${c.id}`);
+  }
+  const v = valoresDoDesfecho(d, "programa");
+  assert.deepEqual([v.assinadas, v["assinadas-n"], v.reprovadas, v.pedido], [37.5, 3, 25, 1_250_000]);
+  assert.equal(colunasDosDesfechos("programa", false).some((c) => c.id === "orgao"), false, "com órgão no filtro, a coluna sai");
+  assert.deepEqual([TABELA_TEMPOS_PROGRAMAS, TABELA_DESFECHOS_PROGRAMAS], ["tempos-programas", "desfechos-programas"]);
+});
+
+test("F3.4: o painel lê todos os programas em páginas e a tela usa a tabela filtrável (sem o corte de 40 e 50)", () => {
+  const servidor = fs.readFileSync(path.join(import.meta.dirname, "painel.server.ts"), "utf-8");
+  assert.equal(/LIMITE_PROGRAMAS|LIMITE_LISTA\b/.test(servidor), false, "os cortes saíram");
+  assert.equal((servidor.match(/lerPorFaixa<LinhaEtapa>\(programas\)/g) ?? []).length, 2, "tempos: janela e ano");
+  assert.match(servidor, /lerPorFaixa<LinhaDesfecho>\(programas\)/);
+  const tela = fs.readFileSync(path.resolve(import.meta.dirname, "..", "..", "app", "mapa", "painel", "PainelConteudo.tsx"), "utf-8");
+  assert.equal(/function TabelaDesfechos\b/.test(tela), false, "a tabela crua dos desfechos saiu");
+  assert.match(tela, /id=\{TABELA_DESFECHOS_PROGRAMAS\}/);
+  assert.match(tela, /id=\{porPrograma \? TABELA_TEMPOS_PROGRAMAS : "tempos"\}/);
+  assert.equal(/<table className="mp-tabela mp-painel-matriz">/.test(tela), false, "a matriz crua por programa saiu");
+});

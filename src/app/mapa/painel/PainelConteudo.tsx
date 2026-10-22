@@ -66,7 +66,6 @@ import {
   fracao,
   idadePorExtenso,
   inicioJanela,
-  maisLento,
   matrizEtapas,
   medianaComparavel,
   percentual,
@@ -84,10 +83,17 @@ import {
 import type { LeituraPainel, LinhaOrgao, OpcaoMunicipio } from "@/lib/oportunidades/painel.server";
 import {
   COLUNAS_MUNICIPIOS,
+  TABELA_DESFECHOS_PROGRAMAS,
   TABELA_PAINEL,
   TABELA_PAINEL_MUNICIPIOS,
   TABELA_PAINEL_VENCIDOS,
+  TABELA_TEMPOS_PROGRAMAS,
+  colunasDosDesfechos,
+  colunasDosTempos,
+  idEtapa,
+  valoresDoDesfecho,
   valoresDoMunicipioPainel,
+  valoresDosTempos,
   opcoesFixas,
   urlCsvDaTabela,
   type VisaoConvenio,
@@ -978,11 +984,11 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
       </nav>
 
       <Lista
-        semRolagem={!porPrograma}
+        semRolagem
         titulo={
           porPrograma
             ? linhas.length > 0
-              ? `Mediana em dias, nos ${linhas.length} programas com mais assinaturas${p.orgao ? " do órgão" : ""}${porAno ? ` em ${p.ano}` : ""}`
+              ? `Mediana em dias, nos ${n(linhas.length)} programas${p.orgao ? " do órgão" : ""}${porAno ? ` com etapas terminadas em ${p.ano}` : ""}`
               : "Mediana em dias, por programa"
             : `Mediana em dias, por órgão concedente${porAno ? ` · etapas terminadas em ${p.ano}` : ""}`
         }
@@ -1002,75 +1008,23 @@ function Tempos({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
           )
         }
       >
-        {/* Uma expressão só: com a lista vazia, a `Lista` precisa receber `false` para mostrar o vazio. A tabela por programa,
-            cortada pelo banco, fica como estava (fase 3); a por órgão é a filtrável. */}
-        {linhas.length > 0 && (porPrograma ? (
-          <table className="mp-tabela mp-painel-matriz">
-            <thead>
-              <tr>
-                <th scope="col">{porPrograma ? "Programa" : "Órgão"}</th>
-                {colunas.map((e) => (
-                  <th key={e} scope="col" className="mp-num">
-                    {ROTULO_ETAPA[e]}
-                  </th>
-                ))}
-                <th scope="col" className="mp-num">{porAno ? `Assinadas em ${p.ano}` : "Assinadas em 36 meses"}</th>
-                {porAno ? null : <th scope="col" className="mp-num">Propostas sem desfecho</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l) => (
-                <tr key={l.chave} className={!porPrograma && l.chave === p.orgao ? "mp-painel-foco" : undefined}>
-                  <th scope="row">
-                    {porPrograma ? (
-                      <>
-                        <span className="mp-tabela-principal mp-painel-programa">{l.rotulo}</span>
-                        <span className="mp-tabela-secundario">
-                          cód. {l.chave} <CopiarNumero numero={l.chave} de="programa" />
-                          {!p.orgao && l.orgao_sup ? ` · ${l.orgao_sup}` : ""}
-                        </span>
-                      </>
-                    ) : (
-                      <LinkMapa href={urlPainel(p, { dimensao: "programa", orgao: l.chave })}>{l.rotulo}</LinkMapa>
-                    )}
-                  </th>
-                  {colunas.map((e) => {
-                    const m = medianaComparavel(l.etapas[e]);
-                    return (
-                      <td key={e} className="mp-num">
-                        {m === null ? (
-                          "—"
-                        ) : maisLento(m, medianaComparavel(todos[e])) ? (
-                          // N09 (onda 8, C, 09/10/2026): o destaque tinha só a cor; agora leva "▲ lento" sob o número.
-                          <span className="mp-painel-urgente">
-                            {n(Math.round(m))}
-                            <Urgente palavra="lento" />
-                          </span>
-                        ) : (
-                          n(Math.round(m))
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="mp-num">{n(l.volume)}</td>
-                  {porAno ? null : <td className="mp-num">{n(l.etapas.envio_assinatura?.em_aberto ?? 0)}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          // A classe de antes, num invólucro: o cabeçalho que quebra linha de `mp-painel-matriz` (mapa.css) vale dentro.
+        {/* Uma expressão só: com a lista vazia, a `Lista` precisa receber `false` para mostrar o vazio. As duas tabelas são
+            filtráveis; a por programa (F3.4, 22/10/2026) traz todos os programas do recorte, não mais só os 40 maiores.
+            A classe de antes, num invólucro: o cabeçalho que quebra linha de `mp-painel-matriz` (mapa.css) vale dentro. */}
+        {linhas.length > 0 && (
           <div className="mp-painel-matriz">
             <TabelaFiltravel
-              id="tempos"
-              rotulo="Mediana em dias, por órgão concedente"
-              colunas={colunasMatriz(colunas, porAno ? p.ano : null)}
+              id={porPrograma ? TABELA_TEMPOS_PROGRAMAS : "tempos"}
+              rotulo={porPrograma ? "Mediana em dias, por programa" : "Mediana em dias, por órgão concedente"}
+              colunas={colunasDosTempos(colunas, porAno ? p.ano : null, p.dimensao, !p.orgao)}
               linhas={linhas.map((l) => linhaMatriz(p, l, colunas, todos, porAno))}
               ordemPadrao={{ coluna: "assinadas", sentido: "desc" }}
-              csv={{ nome: `painel-tempos-por-orgao${p.uf ? `-${p.uf.toLowerCase()}` : ""}${porAno ? `-${p.ano}` : ""}` }}
+              csv={{
+                nome: `painel-tempos-por-${porPrograma ? "programa" : "orgao"}${p.uf ? `-${p.uf.toLowerCase()}` : ""}${porAno ? `-${p.ano}` : ""}`,
+              }}
             />
           </div>
-        ))}
+        )}
       </Lista>
       <p className="pa-nota">
         Com &ldquo;▲ lento&rdquo;, a mediana 1,5 vez ou mais a de {p.uf ? `todos os órgãos em ${onde}` : "todos os órgãos do Brasil"}.
@@ -1258,8 +1212,8 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
           <TabelaFiltravel
             id="desfechos"
             rotulo="Desfechos por órgão concedente"
-            colunas={COLUNAS_DESFECHOS_ORGAO}
-            linhas={orgaos.map((d) => linhaDesfechoOrgao(p, d))}
+            colunas={colunasDosDesfechos("orgao")}
+            linhas={orgaos.map((d) => linhaDesfecho(p, d, "orgao"))}
             ordemPadrao={{ coluna: "enviadas", sentido: "desc" }}
             csv={{ nome: `painel-desfechos-por-orgao-${ano}` }}
           />
@@ -1267,7 +1221,8 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
       )}
 
       <Lista
-        titulo={`Programas com mais propostas enviadas em ${ano}`}
+        titulo={programas.length > 0 ? `Os ${n(programas.length)} programas com propostas enviadas em ${ano}` : `Programas com propostas enviadas em ${ano}`}
+        semRolagem
         vazio={
           <VazioPainel
             p={p}
@@ -1279,74 +1234,17 @@ function Aprovacao({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) 
         }
       >
         {programas.length > 0 && (
-          <TabelaDesfechos
-            linhas={programas}
-            cabeca="Programa"
-            linha={(d) => (
-              <>
-                <span className="mp-tabela-principal mp-painel-programa">{d.programa ?? "—"}</span>
-                <span className="mp-tabela-secundario">
-                  cód. {d.cod_programa} <CopiarNumero numero={d.cod_programa ?? ""} de="programa" />
-                  {!p.orgao && d.orgao_sup ? ` · ${d.orgao_sup}` : ""}
-                </span>
-              </>
-            )}
-            valor
+          <TabelaFiltravel
+            id={TABELA_DESFECHOS_PROGRAMAS}
+            rotulo={`Desfechos por programa, enviadas em ${ano}`}
+            colunas={colunasDosDesfechos("programa", !p.orgao)}
+            linhas={programas.map((d) => linhaDesfecho(p, d, "programa"))}
+            ordemPadrao={{ coluna: "enviadas", sentido: "desc" }}
+            csv={{ nome: `painel-desfechos-por-programa${p.uf ? `-${p.uf.toLowerCase()}` : ""}-${ano}` }}
           />
         )}
       </Lista>
     </>
-  );
-}
-
-function TabelaDesfechos({
-  linhas,
-  cabeca,
-  linha,
-  valor,
-}: {
-  linhas: LinhaDesfecho[];
-  cabeca: string;
-  linha: (d: LinhaDesfecho) => ReactNode;
-  /** Com a coluna do valor pedido. */
-  valor?: boolean;
-}) {
-  const taxa = (parte: number, d: LinhaDesfecho, lote?: number) => (
-    <td className="mp-num">
-      <span className="mp-tabela-principal">{percentual(fracao(parte, d.enviadas))}</span>
-      <span className="mp-tabela-secundario">
-        {n(parte)}
-        {lote ? ` · ${n(lote)} em lote` : ""}
-      </span>
-    </td>
-  );
-  return (
-    <table className="mp-tabela">
-      <thead>
-        <tr>
-          <th scope="col">{cabeca}</th>
-          <th scope="col" className="mp-num">Enviadas</th>
-          <th scope="col" className="mp-num">Assinadas</th>
-          <th scope="col" className="mp-num">Reprovadas</th>
-          <th scope="col" className="mp-num">Impedimento</th>
-          <th scope="col" className="mp-num">Sem desfecho</th>
-          {valor && <th scope="col" className="mp-num">Pedido</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {linhas.map((d) => (
-          <tr key={`${d.orgao_sup}|${d.cod_programa}`}>
-            <th scope="row">{linha(d)}</th>
-            <td className="mp-num">{n(d.enviadas)}</td>
-            {taxa(d.assinadas, d)}
-            {taxa(d.reprovadas, d, d.reprovadas_lote)}
-            {taxa(d.impedimento, d, d.impedimento_lote)}
-            {taxa(semDesfecho(d), d)}
-            {valor && <td className="mp-num">{moedaCurta(d.valor_pedido)}</td>}
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }
 
@@ -1583,24 +1481,9 @@ function linhaMudanca(p: ParametrosPainel, l: { tipo: string; n: number; valor: 
   };
 }
 
-/** O id da coluna de uma etapa: o nome da etapa com hífen ("envio_aprovacao" → "envio-aprovacao"), que cabe no endereço. */
-const idEtapa = (etapa: string) => etapa.replace(/_/g, "-");
-
-/** As colunas da matriz por órgão: as etapas mudam com o período (sem a "vez do concedente" por ano), os ids não. */
-function colunasMatriz(etapas: string[], ano: number | null): ColunaTabela[] {
-  return [
-    { id: "orgao", titulo: "Órgão", tipo: "texto" },
-    ...etapas.map((e): ColunaTabela => ({ id: idEtapa(e), titulo: ROTULO_ETAPA[e] ?? e, tipo: "numero", alinhar: "direita" })),
-    { id: "lentas", titulo: "Etapas marcadas “lento”", tipo: "numero", oculta: true },
-    { id: "assinadas", titulo: ano !== null ? `Assinadas em ${ano}` : "Assinadas em 36 meses", tipo: "numero", alinhar: "direita" },
-    ...(ano !== null ? [] : [{ id: "sem-desfecho", titulo: "Propostas sem desfecho", tipo: "numero", alinhar: "direita" } satisfies ColunaTabela]),
-  ];
-}
-
 /**
- * Um órgão da matriz. A mediana vai arredondada, como a célula; com menos medições que o mínimo, vazia ("—"). O órgão
- * do filtro tinha a linha em destaque (`mp-painel-foco`); a tabela filtrável não marca a linha, e a célula diz em
- * palavras.
+ * Uma linha da matriz de tempos (as colunas e os valores crus em `painel-tabelas.ts`). Por órgão, o nome abre os
+ * programas dele; por programa, o código copiável e, sem órgão no filtro, o órgão embaixo do nome.
  */
 function linhaMatriz(
   p: ParametrosPainel,
@@ -1609,67 +1492,49 @@ function linhaMatriz(
   todos: ReturnType<typeof etapasDe>,
   porAno: boolean,
 ): LinhaTabela {
-  const valores: LinhaTabela["valores"] = { orgao: l.rotulo };
-  const celulas: LinhaTabela["celulas"] = {
-    orgao: (
-      <>
-        <LinkMapa href={urlPainel(p, { dimensao: "programa", orgao: l.chave })}>{l.rotulo}</LinkMapa>
-        {l.chave === p.orgao && <span className="mp-tabela-secundario">o órgão do filtro</span>}
-      </>
-    ),
-    assinadas: n(l.volume),
-  };
-  let lentas = 0;
+  const { valores, lentas } = valoresDosTempos(l, etapas, todos, porAno, p.dimensao);
+  const celulas: LinhaTabela["celulas"] =
+    p.dimensao === "programa"
+      ? {
+          programa: (
+            <>
+              <span className="mp-tabela-principal mp-painel-programa">{l.rotulo}</span>
+              <span className="mp-tabela-secundario">
+                cód. {l.chave} <CopiarNumero numero={l.chave} de="programa" />
+                {!p.orgao && l.orgao_sup ? ` · ${l.orgao_sup}` : ""}
+              </span>
+            </>
+          ),
+        }
+      : {
+          orgao: (
+            <>
+              <LinkMapa href={urlPainel(p, { dimensao: "programa", orgao: l.chave })}>{l.rotulo}</LinkMapa>
+              {l.chave === p.orgao && <span className="mp-tabela-secundario">o órgão do filtro</span>}
+            </>
+          ),
+        };
+  celulas.assinadas = n(l.volume);
   for (const e of etapas) {
-    const m = medianaComparavel(l.etapas[e]);
-    const lento = maisLento(m, medianaComparavel(todos[e]));
-    if (lento) lentas += 1;
-    valores[idEtapa(e)] = m === null ? null : Math.round(m);
+    const m = valores[idEtapa(e)];
     celulas[idEtapa(e)] =
-      m === null ? (
+      typeof m !== "number" ? (
         "—"
-      ) : lento ? (
+      ) : lentas.has(e) ? (
         // N09 (onda 8, C, 09/10/2026): o destaque tinha só a cor; agora leva "▲ lento" sob o número.
         <span className="mp-painel-urgente">
-          {n(Math.round(m))}
+          {n(m)}
           <Urgente palavra="lento" />
         </span>
       ) : (
-        n(Math.round(m))
+        n(m)
       );
   }
-  valores.lentas = lentas;
-  valores.assinadas = l.volume;
-  if (!porAno) {
-    const semDesfecho = l.etapas.envio_assinatura?.em_aberto ?? 0;
-    valores["sem-desfecho"] = semDesfecho;
-    celulas["sem-desfecho"] = n(semDesfecho);
-  }
+  if (!porAno) celulas["sem-desfecho"] = n(Number(valores["sem-desfecho"]));
   return { chave: l.chave, valores, celulas };
 }
 
-const COLUNAS_DESFECHOS_ORGAO: ColunaTabela[] = [
-  { id: "orgao", titulo: "Órgão", tipo: "texto" },
-  { id: "enviadas", titulo: "Enviadas", tipo: "numero", alinhar: "direita" },
-  { id: "assinadas", titulo: "Assinadas (%)", tipo: "numero", alinhar: "direita" },
-  { id: "assinadas-n", titulo: "Assinadas (quantidade)", tipo: "numero", oculta: true },
-  { id: "reprovadas", titulo: "Reprovadas (%)", tipo: "numero", alinhar: "direita" },
-  { id: "reprovadas-n", titulo: "Reprovadas (quantidade)", tipo: "numero", oculta: true },
-  { id: "reprovadas-lote", titulo: "Reprovadas em lote", tipo: "numero", oculta: true },
-  { id: "impedimento", titulo: "Impedimento (%)", tipo: "numero", alinhar: "direita" },
-  { id: "impedimento-n", titulo: "Impedimento (quantidade)", tipo: "numero", oculta: true },
-  { id: "impedimento-lote", titulo: "Impedimento em lote", tipo: "numero", oculta: true },
-  { id: "sem-desfecho", titulo: "Sem desfecho (%)", tipo: "numero", alinhar: "direita" },
-  { id: "sem-desfecho-n", titulo: "Sem desfecho (quantidade)", tipo: "numero", oculta: true },
-];
-
-/** Fração das enviadas em percentual de 0 a 100, com uma casa: "de 50" no filtro é 50%. Sem enviadas, vazio. */
-const percentualDasEnviadas = (parte: number, d: LinhaDesfecho) => {
-  const f = fracao(parte, d.enviadas);
-  return f === null ? null : Math.round(f * 1000) / 10;
-};
-
-/** A célula de uma taxa: a porcentagem em cima e a contagem (e o lote) embaixo, como `TabelaDesfechos`. */
+/** A célula de uma taxa: a porcentagem em cima e a contagem (e o lote) embaixo. */
 function celulaTaxa(parte: number, d: LinhaDesfecho, lote?: number): ReactNode {
   return (
     <>
@@ -1682,26 +1547,29 @@ function celulaTaxa(parte: number, d: LinhaDesfecho, lote?: number): ReactNode {
   );
 }
 
-function linhaDesfechoOrgao(p: ParametrosPainel, d: LinhaDesfecho): LinhaTabela {
+/** Uma linha dos desfechos: por órgão, o nome filtra os programas; por programa, o código copiável e o valor pedido. */
+function linhaDesfecho(p: ParametrosPainel, d: LinhaDesfecho, dimensao: "orgao" | "programa"): LinhaTabela {
   const sem = semDesfecho(d);
+  const primeira: LinhaTabela["celulas"] =
+    dimensao === "programa"
+      ? {
+          programa: (
+            <>
+              <span className="mp-tabela-principal mp-painel-programa">{d.programa ?? "—"}</span>
+              <span className="mp-tabela-secundario">
+                cód. {d.cod_programa} <CopiarNumero numero={d.cod_programa ?? ""} de="programa" />
+                {!p.orgao && d.orgao_sup ? ` · ${d.orgao_sup}` : ""}
+              </span>
+            </>
+          ),
+          pedido: moedaCurta(d.valor_pedido),
+        }
+      : { orgao: <LinkMapa href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</LinkMapa> };
   return {
-    chave: d.orgao_sup ?? "",
-    valores: {
-      orgao: d.orgao_sup,
-      enviadas: d.enviadas,
-      assinadas: percentualDasEnviadas(d.assinadas, d),
-      "assinadas-n": d.assinadas,
-      reprovadas: percentualDasEnviadas(d.reprovadas, d),
-      "reprovadas-n": d.reprovadas,
-      "reprovadas-lote": d.reprovadas_lote,
-      impedimento: percentualDasEnviadas(d.impedimento, d),
-      "impedimento-n": d.impedimento,
-      "impedimento-lote": d.impedimento_lote,
-      "sem-desfecho": percentualDasEnviadas(sem, d),
-      "sem-desfecho-n": sem,
-    },
+    chave: dimensao === "programa" ? `${d.cod_programa}|${d.orgao_sup}` : (d.orgao_sup ?? ""),
+    valores: valoresDoDesfecho(d, dimensao),
     celulas: {
-      orgao: <LinkMapa href={urlPainel(p, { orgao: d.orgao_sup })}>{d.orgao_sup}</LinkMapa>,
+      ...primeira,
       enviadas: n(d.enviadas),
       assinadas: celulaTaxa(d.assinadas, d),
       reprovadas: celulaTaxa(d.reprovadas, d, d.reprovadas_lote),
