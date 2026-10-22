@@ -24,7 +24,7 @@
  * do `dado_ate` nas que a gravam na coluna, todas em paralelo, e, na tela, uma chamada ao GitHub por workflow. Com as
  * emendas (onda 14, integração, 12/10/2026): 15 linhas, 40 consultas e 8 chamadas. Com as emendas estaduais (E1,
  * 16/10/2026): 16 linhas, 43 consultas e 9 chamadas. Com as de João Pessoa (J1, 16/10/2026): 17 linhas, 46 consultas
- * e 10 chamadas.
+ * e 10 chamadas. Com o FNAS (primeira infância, 22/10/2026): 18 linhas, 49 consultas e 11 chamadas.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";

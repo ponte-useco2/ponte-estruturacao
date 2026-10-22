@@ -193,6 +193,12 @@ export const FOLGA_EMENDAS_PB_H = ATRASO_GITHUB_H + 24 + 1;
 export const FOLGA_EMENDAS_JP_H = ATRASO_GITHUB_H + 24 + 1;
 
 /**
+ * A folga do FNAS (primeira infância, P1, 22/10/2026): o `fnas.yml` roda TODO DIA no runner da máquina do titular,
+ * como as emendas de João Pessoa, e a conta é a mesma (fila de até 24 h, atraso do agendamento, 1 h de margem).
+ */
+export const FOLGA_FNAS_H = ATRASO_GITHUB_H + 24 + 1;
+
+/**
  * As OSC (Mapa das OSC, Ipea): `contagens.versao_fonte`, a data no nome do arquivo (AAAAMMDD), que dá o mês do arquivo.
  * O Ipea publica o arquivo do mês por volta do dia 18 (agosto/2026: Last-Modified 18/08), e o job roda nos dias 20 e
  * 28: a carga do mês traz o arquivo do mês, ou o do mês anterior quando o do mês atrasa. Dois meses para trás é um mês
@@ -564,6 +570,9 @@ const DADO_MUNICIPIOS: RegraDado = {
  *
  * As emendas da Câmara de João Pessoa (`ejp`, J1, 16/10/2026) vêm com a `ejp_execucao` da `oport_44`: 15 tabelas e 17
  * linhas, pelo mesmo caminho.
+ *
+ * A assistência social do FNAS (`fnas`, primeira infância, 22/10/2026) vem com a `fnas_execucao` da `oport_47`: 16
+ * tabelas e 18 linhas, pelo mesmo caminho.
  */
 export const JOBS_RODADAS: readonly JobRodada[] = [
   // radar-propostas.yml: quatro passos no mesmo job, cada um com a sua execução.
@@ -841,6 +850,32 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
         .filter(([, t]) => t && typeof t === "object" && (t as Record<string, unknown>).arquivo === false)
         .map(([ano]) => `o TCE-PB ainda não tem o arquivo de despesas de ${ano}`),
     ],
+  },
+  {
+    // Assistência social (FNAS/MDS) na PB, primeira infância P1 (22/10/2026): saldos, repasses e emendas do Portal de
+    // Dados do FNAS (Qlik público), lidos do runner da máquina do titular, todo dia.
+    id: "fnas",
+    nome: "Assistência social (FNAS)",
+    tabela: "fnas_execucao",
+    recorte: null,
+    cadencia: "diaria",
+    workflow: "fnas.yml",
+    cron: "45 12 * * *",
+    folgaH: FOLGA_FNAS_H,
+    // O `dado_ate` é a carga do portal do MDS (`DH_CARGA`), diária por volta das 6h30.
+    dado: dadoDaConsulta("carga do portal do MDS"),
+    linhas: (c) => numero(objeto(c, "fnas_linhas"), "fnas_saldo"),
+    rotuloLinhas: "linhas de saldo (25 meses)",
+    // A rodada com falha não publica (bloqueio, cubo que não confere, meses de menos ou queda): sem falha parcial.
+    falhas: semFalhas,
+    avisos: (c) => {
+      const fora = Array.isArray(c.fnas_ibge_desconhecido) ? c.fnas_ibge_desconhecido.length : 0;
+      const descartes = soma(objeto(c, "fnas_descartes"));
+      return [
+        ...seMaior(fora, (x) => `${plural(x, "código de município", "códigos de município")} do painel fora da semente`),
+        ...seMaior(descartes, (x) => `${plural(x, "linha descartada", "linhas descartadas")} (sem CNPJ, mês ou ano)`),
+      ];
+    },
   },
   {
     id: "mun",
