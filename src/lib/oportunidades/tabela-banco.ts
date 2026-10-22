@@ -35,6 +35,11 @@ export interface CampoBanco {
   coluna: string;
   /** Texto: a versão sem acento e em minúsculas da coluna (a função `busca_*` da oport_46). */
   busca?: string;
+  /**
+   * Texto curto sem versão sem acento (o nome do município): o `ilike` troca vogal e "c" por `_`, o curinga de um
+   * caractere, e "joao pessoa" acha "JOÃO PESSOA". Pode achar a mais em texto longo; num nome, não pesa.
+   */
+  curinga?: boolean;
   /** Número: a tela mostra `valor * escala` (percentual: 100). */
   escala?: number;
   /** Número: a tela mostra `valor + ajuste` (dias contados até hoje: o deslocamento). */
@@ -75,7 +80,10 @@ export function filtrarNoBanco<Q extends ConsultaFiltravel<Q>>(q: Q, estado: Est
     switch (f.tipo) {
       case "texto": {
         const palavras = normalizarTexto(f.contem).split(" ").filter(Boolean);
-        for (const p of palavras) r = campo.busca ? r.filter(campo.busca, "like", padraoContem(p)) : r.filter(campo.coluna, "ilike", padraoContem(p));
+        for (const p of palavras) {
+          if (campo.busca) r = r.filter(campo.busca, "like", padraoContem(p));
+          else r = r.filter(campo.coluna, "ilike", campo.curinga ? padraoContem(p).replace(/[aeiouc]/g, "_") : padraoContem(p));
+        }
         break;
       }
       case "numero":

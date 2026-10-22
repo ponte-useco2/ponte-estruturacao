@@ -18,13 +18,15 @@ import {
   ROTULO_GRUPO_SUSPENSIVA,
   ROTULO_LADO_CONTAS,
   ROTULO_MOTIVO_ADITIVO,
+  ROTULO_SINAL,
+  SINAIS,
   definicaoMudanca,
   exigenciasDe,
   type LadoContas,
   type MudancaPainel,
   type PropostaPainel,
 } from "./painel.ts";
-import type { ConvenioPainel } from "./painel.server.ts";
+import type { ConvenioPainel, MunicipioPainel } from "./painel.server.ts";
 import type { CampoBanco, CamposBanco } from "./tabela-banco.ts";
 import {
   gravarEstado,
@@ -393,6 +395,7 @@ export const ehVisaoConvenioDaTabela = (v: string): v is VisaoConvenio => (VISOE
 
 /** O estado das tabelas da visão, lido do endereço (a página e a rota de exportação leem igual). */
 export function estadosDaVisao(v: string, parametros: URLSearchParams): { lista?: EstadoTabela; vencidos?: EstadoTabela } {
+  if (v === "municipios") return { lista: lerEstado(TABELA_PAINEL_MUNICIPIOS, COLUNAS_MUNICIPIOS, parametros) };
   if (!ehVisaoConvenioDaTabela(v)) return {};
   const colunas = colunasNoBanco(v);
   return {
@@ -415,3 +418,69 @@ export function parametrosDaPagina(sp: Record<string, string | string[] | undefi
   for (const [k, v] of Object.entries(sp)) for (const x of Array.isArray(v) ? v : v === undefined ? [] : [v]) q.append(k, x);
   return q;
 }
+
+// ================================================================ os municípios com sinais (F3.3, 22/10/2026)
+
+export const TABELA_PAINEL_MUNICIPIOS = "painel-municipios";
+
+export const COLUNAS_MUNICIPIOS: ColunaTabela[] = [
+  { id: "municipio", titulo: "Município", tipo: "texto" },
+  { id: "sinais", titulo: "Sinais", tipo: "numero", alinhar: "direita" },
+  { id: "saldo", titulo: "Saldo parado", tipo: "numero", alinhar: "direita" },
+  { id: "suspensivas", titulo: "Suspensivas vencendo", tipo: "numero", alinhar: "direita" },
+  { id: "contas-atrasadas", titulo: "Contas atrasadas", tipo: "numero", alinhar: "direita" },
+  { id: "contas-negativas", titulo: "Contas negativas", tipo: "numero", alinhar: "direita" },
+  { id: "sem-desembolso", titulo: "Sem desembolso", tipo: "numero", alinhar: "direita" },
+  { id: "ibge", titulo: "IBGE", tipo: "texto", textoNoCsv: true, oculta: true },
+  { id: "uf", titulo: "UF", tipo: "categoria", oculta: true },
+  { id: "quais", titulo: "Sinais acesos", tipo: "texto", ordenavel: false, oculta: true },
+  { id: "valor-sem-desembolso", titulo: "Valor sem desembolso", tipo: "numero", alinhar: "direita", oculta: true },
+];
+
+export function valoresDoMunicipioPainel(m: MunicipioPainel): Record<string, ValorCelula> {
+  const quais = SINAIS.filter((s) => m[`sinal_${s}`]).map((s) => ROTULO_SINAL[s]);
+  return {
+    municipio: m.municipio,
+    sinais: m.n_sinais,
+    saldo: m.n_saldo ? m.valor_saldo : null,
+    suspensivas: m.n_suspensiva || null,
+    "contas-atrasadas": m.n_contas_atrasadas || null,
+    "contas-negativas": m.n_contas_negativas || null,
+    "sem-desembolso": m.n_sem_desembolso || null,
+    ibge: m.cod_ibge,
+    uf: m.uf,
+    quais: quais.length ? quais.join(" · ") : null,
+    "valor-sem-desembolso": m.n_sem_desembolso ? m.valor_sem_desembolso : null,
+  };
+}
+
+/** Os sinais que um texto acha (todas as palavras no rótulo); nenhum: nada passa. */
+function sinaisNoBanco(f: FiltroColuna): string | null {
+  if (f.tipo !== "texto") return null;
+  const palavras = normalizarTexto(f.contem).split(" ").filter(Boolean);
+  if (!palavras.length) return null;
+  const achados = SINAIS.filter((s) => palavras.every((p) => normalizarTexto(ROTULO_SINAL[s]).includes(p)));
+  return achados.length ? achados.map((s) => `sinal_${s}.eq.true`).join(",") : "cod_ibge.is.null";
+}
+
+export const CAMPOS_MUNICIPIO: CamposBanco = {
+  municipio: { coluna: "municipio", curinga: true },
+  sinais: { coluna: "n_sinais" },
+  saldo: { coluna: "valor_saldo" },
+  suspensivas: { coluna: "n_suspensiva" },
+  "contas-atrasadas": { coluna: "n_contas_atrasadas" },
+  "contas-negativas": { coluna: "n_contas_negativas" },
+  "sem-desembolso": { coluna: "n_sem_desembolso" },
+  ibge: { coluna: "cod_ibge" },
+  uf: { coluna: "uf" },
+  quais: { coluna: "n_sinais", especial: sinaisNoBanco },
+  "valor-sem-desembolso": { coluna: "valor_sem_desembolso" },
+};
+
+/** A ordem da lista: mais sinais, depois o saldo parado e o valor sem desembolso; o IBGE desempata. */
+export const ORDEM_MUNICIPIOS = [
+  { coluna: "n_sinais", ascendente: false },
+  { coluna: "valor_saldo", ascendente: false },
+  { coluna: "valor_sem_desembolso", ascendente: false },
+  { coluna: "cod_ibge", ascendente: true },
+] as const;

@@ -265,11 +265,14 @@ export function listaDoMunicipio(
   ativas: OscNaLista[],
   instrumentos: ReadonlyMap<string, number>,
   filtros: { area: string | null; q: string; pagina: number },
+  /** F3.3: todas as linhas, sem a página (a tabela filtra e corta depois). */
+  tudo = false,
 ): ListaOsc {
   const filtradas = filtrarPorNome(filtrarPorArea(ativas, filtros.area), filtros.q);
   const grupos = agruparPorRaiz(filtradas)
     .map((g) => ({ ...g, instrumentos: g.cnpjs.reduce((s, c) => s + (instrumentos.get(c) ?? 0), 0) }))
     .sort((a, b) => b.instrumentos - a.instrumentos || nomeOsc(a.principal).localeCompare(nomeOsc(b.principal), "pt-BR"));
+  if (tudo) return { grupos, organizacoes: filtradas.length, linhas: grupos.length, paginas: 1 };
   const paginas = Math.max(1, Math.ceil(grupos.length / OSC_POR_PAGINA));
   const pagina = Math.min(Math.max(1, filtros.pagina), paginas);
   return {

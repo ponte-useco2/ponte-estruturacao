@@ -15,11 +15,13 @@ import {
 } from "@/lib/oportunidades/painel";
 import {
   lerConveniosParaExportar,
+  lerMunicipiosParaExportar,
   lerPropostasParaExportar,
   type ConvenioPainel,
+  type MunicipioPainel,
   type LeituraExportacao,
 } from "@/lib/oportunidades/painel.server";
-import { TABELA_PAINEL_VENCIDOS, estadosDaVisao } from "@/lib/oportunidades/painel-tabelas";
+import { TABELA_PAINEL_VENCIDOS, estadosDaVisao, valoresDoMunicipioPainel } from "@/lib/oportunidades/painel-tabelas";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 
 /**
@@ -78,6 +80,21 @@ const COLUNAS_CONVENIO: ColunaCsv<ConvenioPainel>[] = [
   { titulo: "Dias após o limite das contas (na data do arquivo)", valor: (c) => c.dias_apos_limite },
   { titulo: "Dias com o concedente (na data do arquivo)", valor: (c) => c.dias_com_concedente },
   { titulo: "Financeiro ≥ 80% com físico < 30%", valor: (c) => c.financeiro_sem_fisico },
+];
+
+/** Os municípios com sinais (F3.3): os valores da tabela da tela, com o IBGE como texto. */
+const COLUNAS_MUNICIPIO: ColunaCsv<MunicipioPainel>[] = [
+  { titulo: "Município", valor: (m) => m.municipio },
+  { titulo: "UF", valor: (m) => m.uf },
+  { titulo: "Código IBGE", valor: (m) => m.cod_ibge, texto: true },
+  { titulo: "Sinais", valor: (m) => m.n_sinais },
+  { titulo: "Sinais acesos", valor: (m) => valoresDoMunicipioPainel(m).quais },
+  { titulo: "Saldo parado (R$)", valor: (m) => valoresDoMunicipioPainel(m).saldo },
+  { titulo: "Suspensivas vencendo", valor: (m) => m.n_suspensiva },
+  { titulo: "Contas atrasadas", valor: (m) => m.n_contas_atrasadas },
+  { titulo: "Contas negativas", valor: (m) => m.n_contas_negativas },
+  { titulo: "Sem desembolso", valor: (m) => m.n_sem_desembolso },
+  { titulo: "Valor sem desembolso (R$)", valor: (m) => valoresDoMunicipioPainel(m)["valor-sem-desembolso"] },
 ];
 
 type PropostaExportada = Awaited<ReturnType<typeof lerPropostasParaExportar>> extends LeituraExportacao<infer T> ? T : never;
@@ -146,6 +163,12 @@ export async function GET(req: NextRequest) {
   }
 
   const p = parametrosPainel(sp);
+  // F3.3: os municípios com sinais, com o filtro e a ordem da tabela da tela.
+  if (p.visao === "municipios") {
+    const estado = estadosDaVisao("municipios", req.nextUrl.searchParams).lista;
+    if (!estado) return new Response("Esta visão não tem exportação.", { status: 400, headers: CABECALHOS_PRIVADOS });
+    return resposta(await lerMunicipiosParaExportar(p.uf, estado), COLUNAS_MUNICIPIO, `painel-municipios-${(p.uf ?? "brasil").toLowerCase()}`);
+  }
   if (!ehVisaoConvenio(p.visao)) {
     return new Response("Esta visão não tem exportação.", { status: 400, headers: CABECALHOS_PRIVADOS });
   }

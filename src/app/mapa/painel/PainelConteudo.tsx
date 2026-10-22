@@ -83,8 +83,11 @@ import {
 } from "@/lib/oportunidades/painel";
 import type { LeituraPainel, LinhaOrgao, OpcaoMunicipio } from "@/lib/oportunidades/painel.server";
 import {
+  COLUNAS_MUNICIPIOS,
   TABELA_PAINEL,
+  TABELA_PAINEL_MUNICIPIOS,
   TABELA_PAINEL_VENCIDOS,
+  valoresDoMunicipioPainel,
   opcoesFixas,
   urlCsvDaTabela,
   type VisaoConvenio,
@@ -832,48 +835,47 @@ function Municipios({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk })
         convênios, tendem a acender mais sinais — o filtro por UF ajuda a comparar vizinhos.
       </p>
 
-      <Lista titulo="Os com mais sinais" vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum município com sinal aceso" />}>
-        {leitura.municipios.length > 0 && (
-          <table className="mp-tabela">
-            <thead>
-              <tr>
-                <th scope="col">Município</th>
-                <th scope="col">Sinais</th>
-                <th scope="col" className="mp-num">Saldo parado</th>
-                <th scope="col" className="mp-num">Suspensivas vencendo</th>
-                <th scope="col" className="mp-num">Contas atrasadas</th>
-                <th scope="col" className="mp-num">Contas negativas</th>
-                <th scope="col" className="mp-num">Sem desembolso</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leitura.municipios.map((m) => (
-                <tr key={m.cod_ibge}>
-                  <th scope="row">
-                    <span className="mp-tabela-principal">
-                      <LinkMapa href={urlFicha({ ibge: m.cod_ibge })}>
-                        {m.municipio ?? "—"}/{m.uf ?? "—"}
-                      </LinkMapa>
-                    </span>
-                    <span className="mp-tabela-secundario">IBGE {m.cod_ibge}</span>
-                  </th>
-                  <td>
+      <Lista titulo="Os com mais sinais" vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum município com sinal aceso" />} semRolagem>
+        {(leitura.municipios.length > 0 || filtrosAtivos(leitura.estados.lista ?? ESTADO_VAZIO) > 0) && (
+          <TabelaFiltravel
+            id={TABELA_PAINEL_MUNICIPIOS}
+            rotulo="Municípios com sinais"
+            colunas={COLUNAS_MUNICIPIOS}
+            linhas={leitura.municipios.map(
+              (m): LinhaTabela => ({
+                chave: m.cod_ibge,
+                valores: valoresDoMunicipioPainel(m),
+                celulas: {
+                  municipio: (
+                    <>
+                      <span className="mp-tabela-principal">
+                        <LinkMapa href={urlFicha({ ibge: m.cod_ibge })}>
+                          {m.municipio ?? "—"}/{m.uf ?? "—"}
+                        </LinkMapa>
+                      </span>
+                      <span className="mp-tabela-secundario">IBGE {m.cod_ibge}</span>
+                    </>
+                  ),
+                  sinais: (
                     <span className="mp-painel-tags">
                       <strong className="mp-painel-contagem-sinais">{m.n_sinais}</strong>
                       {sinaisDe(m).map((s) => (
                         <Tag key={s}>{ROTULO_SINAL_CURTO[s]}</Tag>
                       ))}
                     </span>
-                  </td>
-                  <td className="mp-num">{m.n_saldo ? moedaCurta(m.valor_saldo) : "—"}</td>
-                  <td className="mp-num">{m.n_suspensiva || "—"}</td>
-                  <td className="mp-num">{m.n_contas_atrasadas || "—"}</td>
-                  <td className="mp-num">{m.n_contas_negativas || "—"}</td>
-                  <td className="mp-num">{m.n_sem_desembolso ? `${m.n_sem_desembolso} · ${moedaCurta(m.valor_sem_desembolso)}` : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  ),
+                  saldo: m.n_saldo ? moedaCurta(m.valor_saldo) : "—",
+                  "sem-desembolso": m.n_sem_desembolso ? `${m.n_sem_desembolso} · ${moedaCurta(m.valor_sem_desembolso)}` : "—",
+                },
+              }),
+            )}
+            descricaoOrdemPadrao="pelo número de sinais e, no empate, pelo saldo parado"
+            servidor={{
+              total: leitura.totalMunicipios,
+              opcoes: { uf: UFS.map((u) => ({ valor: u, linhas: null })) },
+              csvHref: urlCsvDaTabela(urlExportar(p), TABELA_PAINEL_MUNICIPIOS, leitura.estados.lista ?? ESTADO_VAZIO),
+            }}
+          />
         )}
       </Lista>
     </>

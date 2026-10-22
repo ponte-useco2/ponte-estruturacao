@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { areaDaUrl } from "@/lib/oportunidades/osc";
 import { lerOscDoMunicipio } from "@/lib/oportunidades/osc.server";
+import { COLUNAS_OSC_MUNICIPIO, TABELA_OSC_MUNICIPIO } from "@/lib/oportunidades/osc-tabela";
+import { lerEstado } from "@/lib/oportunidades/tabela-filtro";
 import { ibgeDaUrl, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { lerEntidadesDoMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
@@ -56,5 +58,9 @@ export default async function OrganizacoesPage({
   const instrumentos = new Map<string, number>();
   for (const l of linhas ?? []) if (l.cnpj) instrumentos.set(l.cnpj, (instrumentos.get(l.cnpj) ?? 0) + 1);
 
-  return <OrganizacoesConteudo ibge={ibge} osc={osc} instrumentos={instrumentos} area={area} q={q} pagina={pagina} />;
+  // F3.3 (22/10/2026): o filtro e a ordem da tabela (aplicados em memória no servidor, sobre a lista inteira).
+  const parametros = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) for (const x of Array.isArray(v) ? v : v === undefined ? [] : [v]) parametros.append(k, x);
+  const estado = lerEstado(TABELA_OSC_MUNICIPIO, COLUNAS_OSC_MUNICIPIO, parametros);
+  return <OrganizacoesConteudo ibge={ibge} osc={osc} instrumentos={instrumentos} area={area} q={q} estado={estado} />;
 }

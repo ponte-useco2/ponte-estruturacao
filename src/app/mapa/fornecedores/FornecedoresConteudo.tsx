@@ -5,7 +5,8 @@
  * Onda 15, fase 2, lote D (13/10/2026): a concentração nas prefeituras virou `TabelaFiltravel` (colunas e valores em
  * `fornecedores.ts`, com teste): toda coluna filtra e ordena (tela de administrador), e cada dado da célula que junta
  * vários (fornecedores e convênios da prefeitura, o pago ao maior, a faixa) filtra por uma coluna oculta. A lista das
- * empresas é paginada no banco (100 por página) e fica para a fase 3, com o formulário de busca, que vai ao banco.
+ * empresas é paginada no banco (100 por página); na fase 3 (F3.3, 22/10/2026) virou tabela com filtro no banco, sob o
+ * formulário de busca, que continua escolhendo o universo.
  */
 import type { ReactNode } from "react";
 import { formatarData } from "@/lib/oportunidades/central";
@@ -24,13 +25,19 @@ import {
   type FaixaConcentracao,
   type LeituraCeisCnep,
 } from "@/lib/oportunidades/fornecedores";
-import { POR_PAGINA, type FiltroFornecedores, type LeituraPainelFornecedores, type LinhaPainel } from "@/lib/oportunidades/fornecedores.server";
+import type { FiltroFornecedores, LeituraPainelFornecedores } from "@/lib/oportunidades/fornecedores.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
-import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import { ESTADO_VAZIO, filtrosAtivos, gravarEstado, type EstadoTabela, type LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import {
+  OPCOES_FORNECEDORES,
+  TABELA_FORNECEDORES,
+  colunasFornecedores,
+  urlCsvFornecedores,
+  valoresDoFornecedor,
+} from "@/lib/oportunidades/fornecedores-tabela";
 import { Saidas, type Saida } from "../painel/Pecas";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
-import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraPainelFornecedores, { estado: "ok" }>;
 
@@ -54,7 +61,7 @@ function url(f: FiltroFornecedores, troca: Partial<FiltroFornecedores>): string 
   return `/mapa/fornecedores${q ? `?${q}` : ""}`;
 }
 
-export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; filtro: FiltroFornecedores }) {
+export function FornecedoresConteudo({ leitura, filtro, estado = ESTADO_VAZIO }: { leitura: LeituraOk; filtro: FiltroFornecedores; estado?: EstadoTabela }) {
   const { linhas, total, totais, municipios } = leitura;
   const porNome = [...municipios].sort((a, b) => (a.municipio ?? "").localeCompare(b.municipio ?? "", "pt-BR"));
   const escolhido = filtro.municipio ? municipios.find((m) => m.cod_ibge === filtro.municipio) : undefined;
@@ -143,39 +150,13 @@ export function FornecedoresConteudo({ leitura, filtro }: { leitura: LeituraOk; 
       <section aria-labelledby="forn-lista" className="mp-radar-secao">
         <h2 id="forn-lista" className="mp-radar-h2" aria-live="polite">
           {escolhido ? `Fornecedores nos convênios de ${escolhido.municipio ?? "o município"}` : "Fornecedores"}: {n(total)}
-          {total > linhas.length ? ` (os ${n(linhas.length)} primeiros)` : ""}
+          {leitura.modo === "banco" && total > linhas.length ? ` (as ${n(linhas.length)} primeiras na tabela; o CSV traz todas)` : ""}
         </h2>
-        {linhas.length === 0 ? (
+        {linhas.length === 0 && filtrosAtivos(estado) === 0 ? (
           <VazioFornecedores filtro={filtro} municipio={escolhido?.municipio ?? (filtro.municipio ? `IBGE ${filtro.municipio}` : null)} />
         ) : (
-          <TabelaRolagem rotuloId="forn-lista">
-            <table className="mp-tabela">
-              <thead>
-                <tr>
-                  <th scope="col">Empresa</th>
-                  <th scope="col" className="mp-num">
-                    Municípios
-                  </th>
-                  <th scope="col" className="mp-num">
-                    {escolhido ? `Recebeu em ${escolhido.municipio ?? "lá"}` : "Recebeu na PB"}
-                  </th>
-                  <th scope="col" className="mp-num">
-                    Contratos
-                  </th>
-                  <th scope="col" className="mp-num">
-                    No Brasil
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map((l) => (
-                  <Linha key={l.cnpj} l={l} />
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
+          <TabelaEmpresas leitura={leitura} filtro={filtro} estado={estado} municipio={escolhido ? (escolhido.municipio ?? "lá") : null} />
         )}
-        {total > POR_PAGINA && <p className="pa-nota">Refine pela busca ou pelo município para ver as demais.</p>}
       </section>
 
       <section aria-labelledby="forn-concentracao" className="mp-radar-secao">
@@ -313,46 +294,90 @@ function Campo({ id, rotulo, children }: { id: string; rotulo: string; children:
   );
 }
 
-function Linha({ l }: { l: LinhaPainel }) {
-  return (
-    <tr>
-      <th scope="row">
-        <LinkMapa href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
-          {nomeFornecedor(l)}
-        </LinkMapa>
-        <span className="mp-tabela-secundario">
-          CNPJ {cnpjLegivel(l.cnpj)}
-          {l.mei ? " · MEI" : ""}
-        </span>
-        {l.inidoneo_tcu && <span className="pa-tag mp-laudo-nivel mp-laudo-critico">inidôneo (TCU)</span>}
-        {l.ceisCnep === "vigente" && <span className="pa-tag mp-laudo-nivel mp-laudo-alto">registro vigente no {l.cadastros ?? "CEIS/CNEP"}</span>}
-        {l.ceisCnep === "encerrada" && <span className="mp-tabela-secundario">registro encerrado no CEIS/CNEP</span>}
-      </th>
-      <td className="mp-num">
-        {n(l.pb_municipios)}
-        <span className="mp-tabela-secundario">
-          {n(l.pb_convenios)} {l.pb_convenios === 1 ? "convênio" : "convênios"}
-        </span>
-      </td>
-      <td className="mp-num">
-        {moedaCurta(l.noMunicipio ? l.noMunicipio.pago : l.pb_pago)}
-        {l.noMunicipio && <span className="mp-tabela-secundario">{moedaCurta(l.pb_pago)} na PB</span>}
-      </td>
-      <td className="mp-num">
-        {l.pb_contratos > 0 ? moedaCurta(l.pb_contratado) : "—"}
-        {l.pb_contratos > 0 && (
+/**
+ * A lista das empresas como tabela com filtro (onda 15, fase 3, F3.3, 22/10/2026). No caminho comum, o filtro de cada
+ * coluna vai ao banco (`modo: "banco"`), a tabela mostra as 100 primeiras e o CSV sai da rota do servidor; com município
+ * ou CEIS/CNEP, todas as linhas estão aqui e a tabela filtra na página. As células são as de antes.
+ */
+function TabelaEmpresas({
+  leitura,
+  filtro,
+  estado,
+  municipio,
+}: {
+  leitura: LeituraOk;
+  filtro: FiltroFornecedores;
+  estado: EstadoTabela;
+  municipio: string | null;
+}) {
+  const linhas: LinhaTabela[] = leitura.linhas.map((l) => ({
+    chave: l.cnpj,
+    valores: valoresDoFornecedor(l),
+    celulas: {
+      empresa: (
+        <>
+          <LinkMapa href={urlFornecedor(l.cnpj)} className="mp-tabela-principal">
+            {nomeFornecedor(l)}
+          </LinkMapa>
           <span className="mp-tabela-secundario">
-            {n(l.pb_contratos)} {l.pb_contratos === 1 ? "contrato" : "contratos"}
+            CNPJ {cnpjLegivel(l.cnpj)}
+            {l.mei ? " · MEI" : ""}
           </span>
-        )}
-      </td>
-      <td className="mp-num">
-        {moedaCurta(l.br_pago)}
-        <span className="mp-tabela-secundario">
-          {n(l.br_ufs)} {l.br_ufs === 1 ? "UF" : "UFs"} · {n(l.br_convenios)} {l.br_convenios === 1 ? "convênio" : "convênios"}
-        </span>
-      </td>
-    </tr>
+          {l.inidoneo_tcu && <span className="pa-tag mp-laudo-nivel mp-laudo-critico">inidôneo (TCU)</span>}
+          {l.ceisCnep === "vigente" && <span className="pa-tag mp-laudo-nivel mp-laudo-alto">registro vigente no {l.cadastros ?? "CEIS/CNEP"}</span>}
+          {l.ceisCnep === "encerrada" && <span className="mp-tabela-secundario">registro encerrado no CEIS/CNEP</span>}
+        </>
+      ),
+      municipios: (
+        <>
+          {n(l.pb_municipios)}
+          <span className="mp-tabela-secundario">
+            {n(l.pb_convenios)} {l.pb_convenios === 1 ? "convênio" : "convênios"}
+          </span>
+        </>
+      ),
+      recebeu: (
+        <>
+          {moedaCurta(l.noMunicipio ? l.noMunicipio.pago : l.pb_pago)}
+          {l.noMunicipio && <span className="mp-tabela-secundario">{moedaCurta(l.pb_pago)} na PB</span>}
+        </>
+      ),
+      contratado:
+        l.pb_contratos > 0 ? (
+          <>
+            {moedaCurta(l.pb_contratado)}
+            <span className="mp-tabela-secundario">
+              {n(l.pb_contratos)} {l.pb_contratos === 1 ? "contrato" : "contratos"}
+            </span>
+          </>
+        ) : (
+          "—"
+        ),
+      brasil: (
+        <>
+          {moedaCurta(l.br_pago)}
+          <span className="mp-tabela-secundario">
+            {n(l.br_ufs)} {l.br_ufs === 1 ? "UF" : "UFs"} · {n(l.br_convenios)} {l.br_convenios === 1 ? "convênio" : "convênios"}
+          </span>
+        </>
+      ),
+    },
+  }));
+  const consulta = gravarEstado(TABELA_FORNECEDORES, estado, new URLSearchParams(url(filtro, {}).split("?")[1] ?? "")).toString();
+  return (
+    <TabelaFiltravel
+      id={TABELA_FORNECEDORES}
+      rotulo={municipio ? `Fornecedores nos convênios de ${municipio}` : "Fornecedores"}
+      colunas={colunasFornecedores(municipio)}
+      linhas={linhas}
+      descricaoOrdemPadrao={filtro.ordem === "valor" ? "do que recebeu mais" : "dos que atuam em mais municípios"}
+      csv={{ nome: `fornecedores-${filtro.municipio ?? "pb"}` }}
+      servidor={
+        leitura.modo === "banco"
+          ? { total: leitura.total, opcoes: OPCOES_FORNECEDORES, csvHref: urlCsvFornecedores(consulta) }
+          : undefined
+      }
+    />
   );
 }
 

@@ -34,7 +34,10 @@ import {
   type RegistroSancao,
   type SituacaoSancao,
 } from "./fornecedores";
+import { CAMPOS_FORNECEDOR, ordemDoFormulario } from "./fornecedores-tabela";
 import { todas } from "./padroes.server";
+import { filtrarNoBanco, ordenarNoBanco, type ConsultaFiltravel } from "./tabela-banco";
+import { ESTADO_VAZIO, type EstadoTabela } from "./tabela-filtro";
 import { lerTceDoConvenio } from "./tce.server";
 
 type Falha = { estado: "nao_ativado" } | { estado: "sem_execucao" } | { estado: "erro" };
@@ -294,15 +297,25 @@ export type LeituraPainelFornecedores =
       estado: "ok";
       execucao: Execucao;
       linhas: LinhaPainel[];
-      /** Quantas empresas atendem o filtro (a lista mostra até `POR_PAGINA`). */
+      /** Quantas empresas atendem o filtro (a lista mostra até `POR_PAGINA` no modo do banco). */
       total: number;
+      /**
+       * F3.3 (22/10/2026): `banco` — o filtro da tabela já foi aplicado na consulta e as linhas são as primeiras;
+       * `pagina` — todas as linhas do recorte estão aqui (município, CEIS/CNEP) e a tabela filtra na página.
+       */
+      modo: "banco" | "pagina";
       /** `sancionadas`: empresas com registro vigente no CEIS/CNEP; `null` quando não há leitura (D1). */
       totais: { fornecedores: number; inidoneos: number; mei: number; naoVerificados: number; sancionadas: number | null };
       municipios: ConcentracaoMunicipio[];
       ceisCnep: LeituraCeisCnep;
     };
 
-export async function lerPainelFornecedores(filtro: FiltroFornecedores): Promise<LeituraPainelFornecedores> {
+export async function lerPainelFornecedores(
+  filtro: FiltroFornecedores,
+  /** F3.3: o estado da tabela (caminho comum) e, para o CSV, `tudo`: todas as linhas, sem o corte da página. */
+  opcoes: { estado?: EstadoTabela; tudo?: boolean } = {},
+): Promise<LeituraPainelFornecedores> {
+  const estado = opcoes.estado ?? ESTADO_VAZIO;
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const execucao = await execucaoAtual(db);
@@ -364,8 +377,9 @@ export async function lerPainelFornecedores(filtro: FiltroFornecedores): Promise
       .filter(casa)
       .map((f) => ({ ...f, noMunicipio: noMunicipio(f.cnpj) }))
       .sort(ordenar);
-    const linhas = await marcar(todasAsLinhas.slice(0, POR_PAGINA));
-    return { estado: "ok", execucao, linhas, total: todasAsLinhas.length, totais, municipios: ms, ceisCnep };
+    // F3.3: todas as linhas do recorte vão à tela, que filtra na página (o recorte já é pequeno).
+    const linhas = await marcar(todasAsLinhas);
+    return { estado: "ok", execucao, linhas, total: todasAsLinhas.length, totais, municipios: ms, ceisCnep, modo: "pagina" };
   };
 
   // Com município: as empresas que receberam nos convênios de lá, com o valor de lá.
@@ -403,18 +417,26 @@ export async function lerPainelFornecedores(filtro: FiltroFornecedores): Promise
     return naMemoria(fs, () => null);
   }
 
-  let q = db.from("painel_fornecedor").select(COLUNAS_FORNECEDOR, { count: "exact" }).eq("execucao_id", id);
-  if (texto) q = porCnpj ? q.like("cnpj", `${digitos}%`) : q.ilike("nome", `%${texto}%`);
-  if (filtro.marca === "inidoneos") q = q.eq("inidoneo_tcu", true);
-  if (filtro.marca === "mei") q = q.eq("mei", true);
-  q =
-    filtro.ordem === "valor"
-      ? q.order("pb_pago", { ascending: false })
-      : q.order("pb_municipios", { ascending: false }).order("pb_pago", { ascending: false });
-  const r = await q.order("cnpj").range(0, POR_PAGINA - 1);
+  // O caminho comum: o formulário e o filtro da tabela (F3.3) na consulta; a ordem da tabela, com a do formulário como
+  // desempate.
+  const consulta = (contar: boolean) => {
+    let q = db.from("painel_fornecedor").select(COLUNAS_FORNECEDOR, contar ? { count: "exact" } : undefined).eq("execucao_id", id);
+    if (texto) q = porCnpj ? q.like("cnpj", `${digitos}%`) : q.ilike("nome", `%${texto}%`);
+    if (filtro.marca === "inidoneos") q = q.eq("inidoneo_tcu", true);
+    if (filtro.marca === "mei") q = q.eq("mei", true);
+    const f = filtrarNoBanco(q as unknown as ConsultaFiltravel<typeof q>, estado, CAMPOS_FORNECEDOR);
+    return ordenarNoBanco(f, estado, CAMPOS_FORNECEDOR, ordemDoFormulario(filtro.ordem)) as unknown as typeof q;
+  };
+  if (opcoes.tudo) {
+    const todasAsLinhas = await todas<Fornecedor>("lerPainelFornecedores (CSV)", (a, b) => consulta(false).range(a, b));
+    if (ehFalha(todasAsLinhas)) return todasAsLinhas;
+    const linhas = await marcar(todasAsLinhas.map((f) => ({ ...f, noMunicipio: null })));
+    return { estado: "ok", execucao, linhas, total: linhas.length, totais, municipios: ms, ceisCnep, modo: "banco" };
+  }
+  const r = await consulta(true).range(0, POR_PAGINA - 1);
   if (r.error) return falha("lerPainelFornecedores (lista)", r.error);
   const linhas = await marcar(((r.data ?? []) as unknown as Fornecedor[]).map((f) => ({ ...f, noMunicipio: null })));
-  return { estado: "ok", execucao, linhas, total: r.count ?? linhas.length, totais, municipios: ms, ceisCnep };
+  return { estado: "ok", execucao, linhas, total: r.count ?? linhas.length, totais, municipios: ms, ceisCnep, modo: "banco" };
 }
 
 // ================================================================ dossiê

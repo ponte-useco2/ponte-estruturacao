@@ -178,3 +178,22 @@ test("F3.2: o painel usa a lista com o filtro no banco, e as peças antigas das 
   const pagina = fs.readFileSync(path.join(raiz, "page.tsx"), "utf-8");
   assert.ok(pagina.indexOf("ehAdministrador(") < pagina.indexOf("await lerPainel"), "confere o administrador antes de ler");
 });
+
+test("F3.3, municípios com sinais: cada coluna tem o valor cru e o campo no banco; os sinais acesos por palavra", async () => {
+  const { COLUNAS_MUNICIPIOS, CAMPOS_MUNICIPIO, valoresDoMunicipioPainel, estadosDaVisao, parametrosDaPagina } = await import("./painel-tabelas.ts");
+  const m = {
+    cod_ibge: "2510808", uf: "PB", municipio: "Patos", n_sinais: 2, sinal_saldo: true, n_saldo: 3, valor_saldo: 500_000, sinal_suspensiva: false,
+    n_suspensiva: 0, valor_suspensiva: 0, sinal_contas_atrasadas: true, n_contas_atrasadas: 4, sinal_contas_negativas: false, n_contas_negativas: 0,
+    sinal_sem_desembolso: false, n_sem_desembolso: 0, valor_sem_desembolso: 0,
+  };
+  const v = valoresDoMunicipioPainel(m);
+  for (const c of COLUNAS_MUNICIPIOS) {
+    assert.ok(c.id in v, c.id);
+    assert.ok(CAMPOS_MUNICIPIO[c.id], `${c.id}: tem campo no banco`);
+  }
+  assert.deepEqual([v.quais, v.saldo, v.suspensivas], ["Saldo parado · Contas atrasadas", 500_000, null]);
+  const quais = CAMPOS_MUNICIPIO.quais.especial!;
+  assert.equal(quais({ tipo: "texto", contem: "contas" }), "sinal_contas_atrasadas.eq.true,sinal_contas_negativas.eq.true");
+  assert.equal(quais({ tipo: "texto", contem: "nada" }), "cod_ibge.is.null");
+  assert.deepEqual(estadosDaVisao("municipios", parametrosDaPagina({ "t.painel-municipios.sinais": "3.." })).lista?.filtros.sinais, { tipo: "numero", de: 3, ate: null });
+});

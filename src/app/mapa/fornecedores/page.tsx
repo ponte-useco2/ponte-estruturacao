@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { lerPainelFornecedores, type Marca, type Ordem } from "@/lib/oportunidades/fornecedores.server";
+import { TABELA_FORNECEDORES, colunasFornecedores } from "@/lib/oportunidades/fornecedores-tabela";
+import { lerEstado } from "@/lib/oportunidades/tabela-filtro";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../busca/BuscaConteudo";
 import { FornecedoresConteudo } from "./FornecedoresConteudo";
@@ -32,7 +34,11 @@ export default async function FornecedoresPage({ searchParams }: { searchParams:
   const marca: Marca | null = marcaUrl === "inidoneos" || marcaUrl === "mei" || marcaUrl === "sancionadas" ? marcaUrl : null;
   const filtro = { q, municipio, ordem, marca };
 
-  const leitura = await lerPainelFornecedores(filtro);
+  // F3.3 (22/10/2026): o filtro e a ordem da tabela das empresas (no caminho comum, vão à consulta).
+  const parametros = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) for (const x of Array.isArray(v) ? v : v === undefined ? [] : [v]) parametros.append(k, x);
+  const estado = lerEstado(TABELA_FORNECEDORES, colunasFornecedores(null), parametros);
+  const leitura = await lerPainelFornecedores(filtro, { estado });
   if (leitura.estado !== "ok") {
     // B14b (08/10/2026): "Tentar de novo" com o mesmo filtro e a volta ao painel (props da B12).
     const consulta = new URLSearchParams(
@@ -47,5 +53,5 @@ export default async function FornecedoresPage({ searchParams }: { searchParams:
       />
     );
   }
-  return <FornecedoresConteudo leitura={leitura} filtro={filtro} />;
+  return <FornecedoresConteudo leitura={leitura} filtro={filtro} estado={estado} />;
 }

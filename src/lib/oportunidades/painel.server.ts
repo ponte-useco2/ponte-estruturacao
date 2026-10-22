@@ -9,7 +9,7 @@ import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import { diaBrasilia } from "./laudo";
 import { compararPor, lerPorChave, type CriterioOrdem, type ErroLeitura, type RespostaPagina } from "./paginacao";
-import { camposDoConvenio } from "./painel-tabelas";
+import { CAMPOS_MUNICIPIO, ORDEM_MUNICIPIOS, camposDoConvenio } from "./painel-tabelas";
 import { filtrarNoBanco, ordenarNoBanco, type ConsultaFiltravel } from "./tabela-banco";
 import { ESTADO_VAZIO, type EstadoTabela } from "./tabela-filtro";
 import {
@@ -134,6 +134,8 @@ export type LeituraPainel =
       /** Só na suspensiva: os já vencidos, em lista à parte (ver `lerPainel`). */
       vencidos: ConvenioPainel[];
       totalVencidos: number;
+      /** Só em municípios: quantos atendem o filtro da tabela (F3.3). */
+      totalMunicipios: number;
       /** O estado das tabelas de convênio que a leitura aplicou (a tela desenha a tabela mesmo vazia, se há filtro). */
       estados: EstadosDasTabelas;
       municipios: MunicipioPainel[];
@@ -166,6 +168,7 @@ const VAZIO = {
   totalConvenios: 0,
   vencidos: [],
   totalVencidos: 0,
+  totalMunicipios: 0,
   estados: {},
   municipios: [],
   etapas: [],
@@ -520,15 +523,18 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
   }
 
   if (p.visao === "municipios") {
-    let q = db
-      .from("painel_municipio")
-      .select("*")
-      .eq("execucao_id", execucao.id)
-      .order("n_sinais", { ascending: false })
-      .order("valor_saldo", { ascending: false })
-      .order("valor_sem_desembolso", { ascending: false })
-      .limit(LIMITE_MUNICIPIOS);
-    if (p.uf) q = q.eq("uf", p.uf);
+    // F3.3 (22/10/2026): o filtro e a ordem da tabela vão ao banco; a lista mostra os 100 primeiros e o total.
+    let base = db.from("painel_municipio").select("*", { count: "exact" }).eq("execucao_id", execucao.id);
+    if (p.uf) base = base.eq("uf", p.uf);
+    const estado = estados.lista ?? ESTADO_VAZIO;
+    const q = (
+      ordenarNoBanco(
+        filtrarNoBanco(base as unknown as ConsultaFiltravel<typeof base>, estado, CAMPOS_MUNICIPIO),
+        estado,
+        CAMPOS_MUNICIPIO,
+        ORDEM_MUNICIPIOS,
+      ) as unknown as typeof base
+    ).limit(LIMITE_MUNICIPIOS);
     const [r, m] = await Promise.all([resumo, q]);
     const erro = r.error ?? m.error;
     if (erro) {
@@ -541,6 +547,8 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
       resumo: (r.data ?? []) as LinhaResumo[],
       ...VAZIO,
       municipios: (m.data ?? []) as MunicipioPainel[],
+      totalMunicipios: m.count ?? (m.data ?? []).length,
+      estados,
     };
   }
 
@@ -715,6 +723,18 @@ export function lerConveniosParaExportar(
     ];
     return { linhas: r.linhas.sort(compararPor<ConvenioPainel>(ordem)), truncado: r.truncado };
   });
+}
+
+/** Os municípios com sinais de uma UF (ou do Brasil), com o filtro e a ordem da tabela da tela (F3.3). */
+export function lerMunicipiosParaExportar(uf: string | null, estado: EstadoTabela) {
+  return exportar<MunicipioPainel>((db, execucaoId) =>
+    lerPorFaixa((de, ate) => {
+      let q = db.from("painel_municipio").select("*").eq("execucao_id", execucaoId);
+      if (uf) q = q.eq("uf", uf);
+      const f = filtrarNoBanco(q as unknown as ConsultaFiltravel<typeof q>, estado, CAMPOS_MUNICIPIO);
+      return (ordenarNoBanco(f, estado, CAMPOS_MUNICIPIO, ORDEM_MUNICIPIOS) as unknown as typeof q).range(de, ate);
+    }),
+  );
 }
 
 /** As propostas recentes de um município, para o CSV da ficha (poucas, pelo índice do município: por faixa). */

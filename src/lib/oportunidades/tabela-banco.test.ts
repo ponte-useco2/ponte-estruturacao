@@ -22,6 +22,7 @@ class Anotada implements ConsultaFiltravel<Anotada> {
 const CAMPOS: CamposBanco = {
   nome: { coluna: "proponente", busca: "busca_proponente" },
   numero: { coluna: "nr_convenio" },
+  cidade: { coluna: "municipio", curinga: true },
   pct: { coluna: "pct_desembolsado", escala: 100 },
   dias: { coluna: "dias_sem_movimento", ajuste: 3 },
   valor: { coluna: "repasse" },
@@ -92,4 +93,9 @@ test("ordem: a escolhida (vazio no fim) e a padrão como desempate, sem repetir 
     "order repasse desc",
     "order nr_convenio asc",
   ], "o banco não ordena pelo especial: fica a padrão");
+});
+
+test("texto curto com curinga: vogal e c viram `_` (acha o nome com acento)", () => {
+  const q = filtrarNoBanco(new Anotada(), estado({ cidade: { tipo: "texto", contem: "João Pessoa" } }), CAMPOS);
+  assert.deepEqual(q.chamadas, ["municipio ilike %j___%", "municipio ilike %p_ss__%"]);
 });

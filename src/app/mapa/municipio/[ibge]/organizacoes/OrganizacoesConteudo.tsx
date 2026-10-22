@@ -12,7 +12,6 @@ import {
   listaDoMunicipio,
   nomeOsc,
   rotuloArea,
-  rotuloNatureza,
   versaoLegivel,
 } from "@/lib/oportunidades/osc";
 import type { OscDoMunicipio } from "@/lib/oportunidades/osc.server";
@@ -23,7 +22,10 @@ import { Carregando } from "../../../_componentes/Carregando";
 import { Termo } from "../../../_componentes/Termo";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { Trilha } from "../../../_componentes/Trilha";
-import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
+import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
+import { COLUNAS_OSC_MUNICIPIO, OSC_NA_TELA, TABELA_OSC_MUNICIPIO, valoresDaOsc } from "@/lib/oportunidades/osc-tabela";
+import { ESTADO_VAZIO, aplicar, gravarEstado, type EstadoTabela, type LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import type { GrupoOsc } from "@/lib/oportunidades/osc";
 
 const n = (x: number) => x.toLocaleString("pt-BR");
 
@@ -43,20 +45,26 @@ export function OrganizacoesConteudo({
   instrumentos,
   area,
   q,
-  pagina,
+  estado = ESTADO_VAZIO,
 }: {
   ibge: string;
   osc: OscDoMunicipio;
   instrumentos: ReadonlyMap<string, number>;
   area: string | null;
   q: string;
-  pagina: number;
+  /** F3.3: o estado da tabela, aplicado aqui no servidor sobre a lista inteira. */
+  estado?: EstadoTabela;
 }) {
   const r = osc.resumo;
   const municipio = osc.ativas[0]?.municipio ?? `IBGE ${ibge}`;
-  const lista = listaDoMunicipio(osc.ativas, instrumentos, { area, q, pagina });
+  const lista = listaDoMunicipio(osc.ativas, instrumentos, { area, q, pagina: 1 }, true);
   const areas = areasDaLista(osc.ativas);
-  const atual = Math.min(pagina, lista.paginas);
+  // Todas as linhas com os valores crus; o filtro e a ordem da tabela, em memória; à tela vão as primeiras.
+  const todas: LinhaTabela[] = lista.grupos.map((g) => ({ chave: g.principal.cnpj, valores: valoresDaOsc(g), celulas: celulasDaOsc(g) }));
+  const filtradas = aplicar(COLUNAS_OSC_MUNICIPIO, todas, estado);
+  const naTela = filtradas.slice(0, OSC_NA_TELA);
+  const naturezas = [...new Set(todas.map((l) => String(l.valores.natureza ?? "")).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const consulta = gravarEstado(TABELA_OSC_MUNICIPIO, estado, new URLSearchParams(urlOrganizacoes(ibge, { area, q }).split("?")[1] ?? "")).toString();
   const fora = r.inaptas + r.suspensas + r.baixadas;
   return (
     <div className="pa-pagina mp-radar mp-mun">
@@ -117,64 +125,19 @@ export function OrganizacoesConteudo({
           <SemOrganizacao ibge={ibge} municipio={osc.ativas.length ? municipio : null} ativas={r.ativas} area={area} q={q} versao={versaoLegivel(osc.fonte.versao)} />
         )}
         {lista.grupos.length > 0 && (
-          <TabelaRolagem rotuloId="osc-lista">
-            <table className="mp-tabela mp-tabela-empilha">
-              <thead>
-                <tr>
-                  <th scope="col">Organização</th>
-                  <th scope="col">
-                    <Termo slug="natureza-juridica">Natureza</Termo>
-                  </th>
-                  <th scope="col">Área</th>
-                  <th scope="col">Fundação</th>
-                  <th scope="col">Instrumentos federais</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lista.grupos.map((g) => (
-                  <tr key={g.principal.cnpj}>
-                    <td>
-                      <Link href={urlEntidade(g.principal.cnpj)} prefetch={false}>
-                        {nomeOsc(g.principal)}
-                        <Carregando />
-                      </Link>
-                      {g.principal.razao_social && fantasiaUtil(g.principal) && <span className="pa-nota"> ({fantasiaUtil(g.principal)})</span>}
-                      <br />
-                      <span className="pa-nota pa-mono">{cnpjLegivel(g.principal.cnpj)}</span>
-                      {g.filiais > 0 && (
-                        <span className="pa-nota">
-                          {" "}
-                          · e mais {n(g.filiais)} {g.filiais === 1 ? "filial" : "filiais"} aqui
-                        </span>
-                      )}
-                      {g.matrizFora && g.principal.matriz === false && <span className="pa-nota"> · filial (a matriz fica fora desta lista)</span>}
-                    </td>
-                    <td data-rotulo="Natureza">{rotuloNatureza(g.principal.natureza_juridica)}</td>
-                    <td data-rotulo="Área">{g.principal.areas.length ? g.principal.areas.map(rotuloArea).join("; ") : "—"}</td>
-                    <td data-rotulo="Fundação">{g.principal.dt_fundacao?.slice(0, 4) ?? "—"}</td>
-                    <td data-rotulo="Instrumentos federais" className="mp-rel-num">{g.instrumentos ? n(g.instrumentos) : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TabelaRolagem>
-        )}
-        {lista.paginas > 1 && (
-          <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
-            {atual > 1 && (
-              <LinkMapa href={urlOrganizacoes(ibge, { area, q, p: atual - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
-                ← Anteriores
-              </LinkMapa>
-            )}
-            <span className="pa-nota">
-              Página {n(atual)} de {n(lista.paginas)}
-            </span>
-            {atual < lista.paginas && (
-              <LinkMapa href={urlOrganizacoes(ibge, { area, q, p: atual + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
-                Próximas →
-              </LinkMapa>
-            )}
-          </nav>
+          <TabelaFiltravel
+            id={TABELA_OSC_MUNICIPIO}
+            rotulo={`Organizações da sociedade civil em ${municipio}`}
+            colunas={COLUNAS_OSC_MUNICIPIO}
+            linhas={naTela}
+            descricaoOrdemPadrao="primeiro as que têm instrumento federal, depois pelo nome"
+            empilhar
+            servidor={{
+              total: filtradas.length,
+              opcoes: { natureza: naturezas.map((valor) => ({ valor, linhas: todas.filter((l) => l.valores.natureza === valor).length })) },
+              csvHref: `/mapa/municipio/${ibge}/organizacoes/exportar${consulta ? `?${consulta}` : ""}`,
+            }}
+          />
         )}
         <p className="pa-nota">
           Fonte: Mapa das Organizações da Sociedade Civil (Ipea), arquivo de divulgação da versão de {versaoLegivel(osc.fonte.versao)}, com o
@@ -245,4 +208,30 @@ function SemOrganizacao({
       </p>
     </div>
   );
+}
+
+/** As células da linha de uma organização (o desenho de antes: nome com link, nome fantasia, CNPJ e filiais). */
+function celulasDaOsc(g: GrupoOsc & { instrumentos: number }) {
+  return {
+    organizacao: (
+      <>
+        <Link href={urlEntidade(g.principal.cnpj)} prefetch={false}>
+          {nomeOsc(g.principal)}
+          <Carregando />
+        </Link>
+        {g.principal.razao_social && fantasiaUtil(g.principal) && <span className="pa-nota"> ({fantasiaUtil(g.principal)})</span>}
+        <br />
+        <span className="pa-nota pa-mono">{cnpjLegivel(g.principal.cnpj)}</span>
+        {g.filiais > 0 && (
+          <span className="pa-nota">
+            {" "}
+            · e mais {n(g.filiais)} {g.filiais === 1 ? "filial" : "filiais"} aqui
+          </span>
+        )}
+        {g.matrizFora && g.principal.matriz === false && <span className="pa-nota"> · filial (a matriz fica fora desta lista)</span>}
+      </>
+    ),
+    fundacao: g.principal.dt_fundacao?.slice(0, 4) ?? "—",
+    instrumentos: g.instrumentos ? n(g.instrumentos) : "—",
+  };
 }
