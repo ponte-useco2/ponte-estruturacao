@@ -82,6 +82,15 @@ import {
   type Visao,
 } from "@/lib/oportunidades/painel";
 import type { LeituraPainel, LinhaOrgao, OpcaoMunicipio } from "@/lib/oportunidades/painel.server";
+import {
+  TABELA_PAINEL,
+  TABELA_PAINEL_VENCIDOS,
+  opcoesFixas,
+  urlCsvDaTabela,
+  type VisaoConvenio,
+} from "@/lib/oportunidades/painel-tabelas";
+import { ESTADO_VAZIO, filtrosAtivos } from "@/lib/oportunidades/tabela-filtro";
+import { TabelaDaVisao } from "./TabelasConvenio";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../_design/primitivos";
@@ -90,13 +99,7 @@ import {
   Cartao,
   Lista,
   Saidas,
-  TabelaContas,
-  TabelaFisico,
   TabelaMudancas,
-  TabelaNunca,
-  TabelaSaldo,
-  TabelaSuspensiva,
-  TabelaVigencia,
   Urgente,
   n,
   type Saida,
@@ -419,22 +422,37 @@ function Suspensiva({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk })
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Repasse" colunaDestaque="Vence em até 90 dias" />
 
-      <Lista
+      <ListaDaVisao
+        p={p}
+        leitura={leitura}
+        visao="suspensiva"
         titulo="Os próximos a vencer"
+        ordem="pelo prazo, do mais próximo"
         vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhuma cláusula suspensiva a vencer" />}
-        csv={urlExportar(p)}
-      >
-        {leitura.convenios.length > 0 && <TabelaSuspensiva linhas={leitura.convenios} />}
-      </Lista>
+      />
       {/* B14b (08/10/2026): antes, com `vazio=""`, a lista vazia sumia sem dizer nada. Agora fica e diz o recorte;
           as saídas só aparecem se a lista de cima não as tiver dado. */}
       <Lista
+        semRolagem
         titulo="Já vencidos, dos mais recentes aos mais antigos"
         vazio={
           <VazioPainel p={p} leitura={leitura} oQue="Nenhuma cláusula suspensiva já vencida" semSaidas={leitura.convenios.length === 0} />
         }
       >
-        {leitura.vencidos.length > 0 && <TabelaSuspensiva linhas={leitura.vencidos} />}
+        {(leitura.vencidos.length > 0 || filtrosAtivos(leitura.estados.vencidos ?? ESTADO_VAZIO) > 0) && (
+          <TabelaDaVisao
+            id={TABELA_PAINEL_VENCIDOS}
+            rotulo="Cláusulas suspensivas já vencidas"
+            visao="suspensiva"
+            linhas={leitura.vencidos}
+            descricaoOrdemPadrao="pelo prazo, do mais recente ao mais antigo"
+            servidor={{
+              total: leitura.totalVencidos,
+              opcoes: opcoesDoOrgao(leitura.porOrgao),
+              csvHref: urlCsvDaTabela(urlExportar(p), TABELA_PAINEL_VENCIDOS, leitura.estados.vencidos ?? ESTADO_VAZIO),
+            }}
+          />
+        )}
       </Lista>
     </>
   );
@@ -488,13 +506,14 @@ function NuncaDesembolsado({ p, leitura }: { p: ParametrosPainel; leitura: Leitu
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Repasse" colunaDestaque="Aceite há +90 dias" />
 
-      <Lista
+      <ListaDaVisao
+        p={p}
+        leitura={leitura}
+        visao="nunca"
         titulo="Aceitos há mais tempo, depois os assinados há mais tempo"
+        ordem="aceite parado primeiro, depois pela data do aceite e da assinatura"
         vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum convênio assinado sem desembolso" />}
-        csv={urlExportar(p)}
-      >
-        {leitura.convenios.length > 0 && <TabelaNunca linhas={leitura.convenios} />}
-      </Lista>
+      />
     </>
   );
 }
@@ -526,13 +545,14 @@ function Vigencia({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="A desembolsar" colunaDestaque="Termina em até 90 dias" />
 
-      <Lista
+      <ListaDaVisao
+        p={p}
+        leitura={leitura}
+        visao="vigencia"
         titulo="Os que terminam primeiro"
+        ordem="pelo fim da vigência, do mais próximo"
         vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum convênio com a vigência em risco" />}
-        csv={urlExportar(p)}
-      >
-        {leitura.convenios.length > 0 && <TabelaVigencia linhas={leitura.convenios} />}
-      </Lista>
+      />
     </>
   );
 }
@@ -662,7 +682,10 @@ function Contas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
         ))}
       </nav>
 
-      <Lista
+      <ListaDaVisao
+        p={p}
+        leitura={leitura}
+        visao="contas"
         titulo={
           {
             atrasada: "Atrasadas mais recentes — onde ainda dá para regularizar",
@@ -671,11 +694,16 @@ function Contas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
             concedente: "Esperando análise há mais tempo",
           }[p.lado]
         }
+        ordem={
+          {
+            atrasada: "pelos dias depois do prazo das contas, dos mais recentes",
+            negativo: "pelo repasse, do maior",
+            tce: "pelo repasse, do maior",
+            concedente: "pelos dias com o concedente, do maior",
+          }[p.lado]
+        }
         vazio={<VazioPainel p={p} leitura={leitura} oQue={`Nenhum convênio na lista “${ROTULO_LADO_CONTAS[p.lado]}”`} />}
-        csv={urlExportar(p)}
-      >
-        {leitura.convenios.length > 0 && <TabelaContas linhas={leitura.convenios} />}
-      </Lista>
+      />
     </>
   );
 }
@@ -715,13 +743,14 @@ function Saldo({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Saldo parado" colunaDestaque="Nunca pagaram" />
 
-      <Lista
+      <ListaDaVisao
+        p={p}
+        leitura={leitura}
+        visao="saldo"
         titulo="Os maiores saldos parados"
+        ordem="pelo saldo, do maior"
         vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhuma conta parada há mais de um ano" />}
-        csv={urlExportar(p)}
-      >
-        {leitura.convenios.length > 0 && <TabelaSaldo linhas={leitura.convenios} />}
-      </Lista>
+      />
     </>
   );
 }
@@ -766,13 +795,14 @@ function Fisico({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
 
       <PorOrgao p={p} linhas={leitura.porOrgao} colunaValor="Desembolsado" colunaDestaque="Parados há +1 ano" />
 
-      <Lista
+      <ListaDaVisao
+        p={p}
+        leitura={leitura}
+        visao="fisico"
         titulo="Os maiores valores desembolsados"
+        ordem="pelo valor desembolsado, do maior"
         vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhum convênio com desembolso alto e físico baixo" />}
-        csv={urlExportar(p)}
-      >
-        {leitura.convenios.length > 0 && <TabelaFisico linhas={leitura.convenios} />}
-      </Lista>
+      />
     </>
   );
 }
@@ -1731,5 +1761,54 @@ export function PainelIndisponivel({
         </p>
       </div>
     </div>
+  );
+}
+
+// ============================================================================ as listas de convênio (F3.2)
+
+/** As opções do filtro de órgão: os órgãos do quadro por órgão da própria visão, com a contagem dele. */
+function opcoesDoOrgao(linhas: LinhaOrgao[]): Record<string, { valor: string; linhas: number | null }[]> {
+  return { orgao: linhas.map((l) => ({ valor: l.orgao, linhas: l.n })) };
+}
+
+/**
+ * A lista de uma visão de convênio como tabela com filtro (onda 15, fase 3, F3.2, 20/10/2026): o filtro e a ordem de
+ * cada coluna vão ao banco; a tabela mostra os 100 primeiros e quantos atendem o filtro, e o CSV traz todos. Com filtro
+ * que não acha nada, a tabela continua à vista (para tirar o filtro); sem nenhum convênio no recorte, o vazio de sempre.
+ */
+function ListaDaVisao({
+  p,
+  leitura,
+  visao,
+  titulo,
+  ordem,
+  vazio,
+}: {
+  p: ParametrosPainel;
+  leitura: LeituraOk;
+  visao: VisaoConvenio;
+  titulo: string;
+  ordem: string;
+  vazio: ReactNode;
+}) {
+  const estado = leitura.estados.lista ?? ESTADO_VAZIO;
+  const comTabela = leitura.convenios.length > 0 || filtrosAtivos(estado) > 0;
+  return (
+    <Lista titulo={titulo} vazio={vazio} semRolagem>
+      {comTabela && (
+        <TabelaDaVisao
+          id={TABELA_PAINEL[visao]}
+          rotulo={titulo}
+          visao={visao}
+          linhas={leitura.convenios}
+          descricaoOrdemPadrao={ordem}
+          servidor={{
+            total: leitura.totalConvenios,
+            opcoes: { ...opcoesDoOrgao(leitura.porOrgao), ...opcoesFixas(visao) },
+            csvHref: urlCsvDaTabela(urlExportar(p), TABELA_PAINEL[visao], estado),
+          }}
+        />
+      )}
+    </Lista>
   );
 }

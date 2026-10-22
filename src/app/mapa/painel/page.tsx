@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { parametrosPainel, urlPainel } from "@/lib/oportunidades/painel";
 import { lerPainel } from "@/lib/oportunidades/painel.server";
+import { estadosDaVisao, parametrosDaPagina } from "@/lib/oportunidades/painel-tabelas";
 import { PainelConteudo, PainelIndisponivel } from "./PainelConteudo";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 
@@ -29,8 +30,10 @@ export default async function PainelPage({
   if (!visitante || visitante.status !== "aprovado") return null;
   if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
-  const p = parametrosPainel(await searchParams);
-  const leitura = await lerPainel(p);
+  const sp = await searchParams;
+  const p = parametrosPainel(sp);
+  // F3.2: o filtro e a ordem das tabelas de convênio vão à consulta (o endereço guarda o estado de cada tabela).
+  const leitura = await lerPainel(p, estadosDaVisao(p.visao, parametrosDaPagina(sp)));
 
   if (leitura.estado !== "ok") {
     // B14b (08/10/2026): o mesmo recorte vira "Tentar de novo".

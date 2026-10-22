@@ -39,9 +39,15 @@
  * - **Empilhar** (`empilhar`): a classe `mp-tabela-empilha` e o `data-rotulo` (o título da coluna) em cada célula, o
  *   padrão das tabelas de registro no celular (H07, `mapa.css`).
  * - **Impressão:** com filtro ou ordem escolhida, o papel diz qual ("Filtro aplicado: …"), porque sai só o filtrado.
+ *
+ * **Modo servidor** (`servidor`, onda 15, fase 3, F3.2, 20/10/2026): para a lista que o banco corta (o painel lê os 100
+ * primeiros de até 26 mil convênios). As linhas chegam JÁ filtradas e ordenadas pelo servidor, que leu o mesmo estado do
+ * endereço (`tabela-banco.ts`); aqui nada se filtra. A escrita no endereço passa a ser `router.replace` (é a ida ao
+ * servidor que traz as linhas novas), a contagem é "N de M" com o total do banco, as opções das categorias vêm do
+ * servidor e o CSV é a rota de exportação do servidor, com o mesmo filtro e todas as linhas.
  */
-import { memo, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { memo, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   aplicar,
   chaveDoEstado,
@@ -83,6 +89,18 @@ export interface PropsTabelaFiltravel {
   csv?: { nome: string };
   /** No celular, cada linha vira um bloco com o rótulo de cada célula (`mp-tabela-empilha`). */
   empilhar?: boolean;
+  /** Lista cortada pelo banco: o filtro e a ordem vão ao servidor (ver o topo). */
+  servidor?: ModoServidor;
+}
+
+/** O que a tela do servidor diz à tabela no modo servidor. */
+export interface ModoServidor {
+  /** Quantas linhas atendem o filtro no banco (as `linhas` são as primeiras delas). */
+  total: number;
+  /** As opções das colunas de categoria (o servidor sabe; as linhas carregadas não têm todas). */
+  opcoes?: Record<string, { valor: string; linhas: number | null }[]>;
+  /** A rota de exportação com o mesmo filtro: o CSV traz todas as linhas. */
+  csvHref?: string;
 }
 
 /** Espera entre a última tecla e a escrita no endereço, e entre a última mudança e a fala da região viva. */
@@ -102,8 +120,21 @@ const mesmaOrdem = (a: Ordem | null | undefined, b: Ordem | null | undefined) =>
 
 type Mudanca = (fn: (e: EstadoTabela) => EstadoTabela, opcoes?: { adiar?: boolean; recomecar?: boolean }) => void;
 
-export function TabelaFiltravel({ id, rotulo, colunas, linhas, ordemPadrao = null, descricaoOrdemPadrao, csv, empilhar = false }: PropsTabelaFiltravel) {
+export function TabelaFiltravel({
+  id,
+  rotulo,
+  colunas,
+  linhas,
+  ordemPadrao = null,
+  descricaoOrdemPadrao,
+  csv,
+  empilhar = false,
+  servidor,
+}: PropsTabelaFiltravel) {
   const sp = useSearchParams();
+  const router = useRouter();
+  const [carregando, iniciar] = useTransition();
+  const noServidor = servidor !== undefined;
   const textoUrl = sp?.toString() ?? "";
 
   const [estado, setEstado] = useState<EstadoTabela>(() => lerEstado(id, colunas, new URLSearchParams(textoUrl)));
@@ -156,9 +187,14 @@ export function TabelaFiltravel({ id, rotulo, colunas, linhas, ordemPadrao = nul
     if (destino === null) return;
     const chave = chaveDoEstado(id, atual.current);
     setEmVoo((fila) => [...fila, chave].slice(-20));
+    // Modo servidor: a ida ao servidor traz as linhas filtradas (sem rolar a página para o topo).
+    if (noServidor) {
+      iniciar(() => router.replace(destino, { scroll: false }));
+      return;
+    }
     // `null` de propósito: com o estado interno do Next, o remendo dele não sincronizaria o `useSearchParams`.
     window.history.replaceState(null, "", destino);
-  }, [id]);
+  }, [id, noServidor, router]);
 
   const mudar = useCallback<Mudanca>(
     (fn, opcoes = {}) => {
@@ -194,8 +230,8 @@ export function TabelaFiltravel({ id, rotulo, colunas, linhas, ordemPadrao = nul
   const estadoAdiado = useDeferredValue(estado);
   const ordemAdiada = estadoAdiado.ordem ?? ordemPadrao;
   const visiveis = useMemo(
-    () => aplicar(colunas, linhas, { filtros: estadoAdiado.filtros, ordem: ordemAdiada }),
-    [colunas, linhas, estadoAdiado.filtros, ordemAdiada],
+    () => (noServidor ? linhas : aplicar(colunas, linhas, { filtros: estadoAdiado.filtros, ordem: ordemAdiada })),
+    [noServidor, colunas, linhas, estadoAdiado.filtros, ordemAdiada],
   );
   const nFiltros = filtrosAtivos(estado);
   const porId = useMemo(() => new Map(colunas.map((c) => [c.id, c])), [colunas]);
@@ -210,7 +246,11 @@ export function TabelaFiltravel({ id, rotulo, colunas, linhas, ordemPadrao = nul
       : descricaoOrdemPadrao
         ? `Ordem padrão: ${descricaoOrdemPadrao}.`
         : "Ordem padrão.";
-  const textoContagem = `Mostrando ${fmt(visiveis.length)} de ${fmt(linhas.length)}. ${textoOrdem}`;
+  const textoContagem = servidor
+    ? `${carregando ? "Atualizando… " : ""}Mostrando ${fmt(visiveis.length)} de ${fmt(servidor.total)}${
+        servidor.total > visiveis.length ? " (as primeiras; o CSV traz todas)" : ""
+      }. ${textoOrdem}`
+    : `Mostrando ${fmt(visiveis.length)} de ${fmt(linhas.length)}. ${textoOrdem}`;
   const [contagem, setContagem] = useState(textoContagem);
   useEffect(() => {
     if (contagem === textoContagem) return;
@@ -268,10 +308,17 @@ export function TabelaFiltravel({ id, rotulo, colunas, linhas, ordemPadrao = nul
             Limpar filtros
           </button>
         )}
-        {csv && (
-          <button type="button" className="pa-btn" onClick={baixarCsv} disabled={visiveis.length === 0}>
+        {servidor?.csvHref ? (
+          <a className="pa-btn" href={servidor.csvHref} download>
             Baixar CSV (filtrado)
-          </button>
+          </a>
+        ) : (
+          csv &&
+          !noServidor && (
+            <button type="button" className="pa-btn" onClick={baixarCsv} disabled={visiveis.length === 0}>
+              Baixar CSV (filtrado)
+            </button>
+          )
         )}
         <p className="mp-tf-contagem" role="status" aria-live="polite">
           {contagem}
@@ -288,6 +335,7 @@ export function TabelaFiltravel({ id, rotulo, colunas, linhas, ordemPadrao = nul
             estado={estado}
             ordemPadrao={ordemPadrao}
             descricaoOrdemPadrao={descricaoOrdemPadrao}
+            servidor={servidor}
             mudar={mudar}
             fechar={() => {
               setAberto(false);
@@ -363,7 +411,14 @@ export function TabelaFiltravel({ id, rotulo, colunas, linhas, ordemPadrao = nul
               })}
             </tr>
           </thead>
-          <CorpoDaTabela colunas={desenhadas} linhas={visiveis} vazia={linhas.length === 0} comFiltro={nFiltros > 0} limpar={limpar} empilhar={empilhar} />
+          <CorpoDaTabela
+            colunas={desenhadas}
+            linhas={visiveis}
+            vazia={servidor ? servidor.total === 0 && nFiltros === 0 : linhas.length === 0}
+            comFiltro={nFiltros > 0}
+            limpar={limpar}
+            empilhar={empilhar}
+          />
         </table>
       </TabelaRolagem>
     </div>
@@ -448,6 +503,7 @@ function Painel({
   estado,
   ordemPadrao,
   descricaoOrdemPadrao,
+  servidor,
   mudar,
   fechar,
 }: {
@@ -457,6 +513,7 @@ function Painel({
   estado: EstadoTabela;
   ordemPadrao: Ordem | null;
   descricaoOrdemPadrao?: string;
+  servidor?: ModoServidor;
   mudar: Mudanca;
   fechar: () => void;
 }) {
@@ -510,8 +567,10 @@ function Painel({
         </div>
       )}
       <p className="mp-tf-dica">
-        Os filtros valem juntos e a tabela muda enquanto você digita. Texto: as palavras em qualquer ordem, sem acento. Número como na tela
-        (1.234,5, 350 mil ou 1,2 mi) e data, com os limites incluídos.
+        {servidor
+          ? "Os filtros valem juntos e vão ao banco: a lista muda quando você para de digitar."
+          : "Os filtros valem juntos e a tabela muda enquanto você digita."}{" "}
+        Texto: as palavras em qualquer ordem, sem acento. Número como na tela (1.234,5, 350 mil ou 1,2 mi) e data, com os limites incluídos.
       </p>
       <div className="mp-tf-campos">
         {filtraveis.map((c) => {
@@ -554,6 +613,7 @@ function Painel({
                   id={idCampo}
                   coluna={c}
                   linhas={linhas}
+                  doServidor={servidor?.opcoes?.[c.id]}
                   escolhidas={f?.tipo === "categoria" ? f.valores : []}
                   aoMudar={(valores) => mudarFiltro(c.id, { tipo: "categoria", valores })}
                 />
@@ -708,16 +768,20 @@ function CampoCategoria({
   id,
   coluna,
   linhas,
+  doServidor,
   escolhidas,
   aoMudar,
 }: {
   id: string;
   coluna: ColunaTabela;
   linhas: LinhaTabela[];
+  /** Modo servidor: as opções (e, quando o servidor sabe, quantas linhas cada uma tem). */
+  doServidor?: { valor: string; linhas: number | null }[];
   escolhidas: string[];
   aoMudar: (valores: string[]) => void;
 }) {
   const opcoes = useMemo(() => {
+    if (doServidor) return doServidor;
     const conta = new Map<string, number>();
     for (const l of linhas) {
       const v = l.valores[coluna.id];
@@ -726,12 +790,12 @@ function CampoCategoria({
       if (s) conta.set(s, (conta.get(s) ?? 0) + 1);
     }
     return opcoesDaCategoria(coluna.id, linhas).map((o) => ({ valor: o, linhas: conta.get(o) ?? 0 }));
-  }, [coluna.id, linhas]);
+  }, [coluna.id, linhas, doServidor]);
   const marcadas = new Set(escolhidas.map(normalizarTexto));
   const conhecidas = new Set(opcoes.map((o) => normalizarTexto(o.valor)));
   // O que veio no endereço e não está em nenhuma linha também aparece, marcado, para poder ser desmarcado.
   const soNoEndereco = escolhidas.filter((v) => !conhecidas.has(normalizarTexto(v)));
-  const todas = [...opcoes, ...soNoEndereco.map((v) => ({ valor: v, linhas: 0 }))];
+  const todas: { valor: string; linhas: number | null }[] = [...opcoes, ...soNoEndereco.map((v) => ({ valor: v, linhas: 0 }))];
 
   const alternar = (valor: string, marcar: boolean) => {
     const alvo = normalizarTexto(valor);
@@ -756,7 +820,7 @@ function CampoCategoria({
                   onChange={(ev) => alternar(o.valor, ev.target.checked)}
                 />
                 <span>
-                  {o.valor} <span className="pa-chip-contagem">{fmt(o.linhas)}</span>
+                  {o.valor} {o.linhas !== null && <span className="pa-chip-contagem">{fmt(o.linhas)}</span>}
                 </span>
               </label>
             </li>

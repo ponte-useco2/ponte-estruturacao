@@ -19,6 +19,7 @@ import {
   type ConvenioPainel,
   type LeituraExportacao,
 } from "@/lib/oportunidades/painel.server";
+import { TABELA_PAINEL_VENCIDOS, estadosDaVisao } from "@/lib/oportunidades/painel-tabelas";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 
 /**
@@ -148,15 +149,25 @@ export async function GET(req: NextRequest) {
   if (!ehVisaoConvenio(p.visao)) {
     return new Response("Esta visão não tem exportação.", { status: 400, headers: CABECALHOS_PRIVADOS });
   }
-  const leitura = await lerConveniosParaExportar(p.visao, p.lado, {
-    uf: p.uf,
-    orgao: p.orgao,
-    ibge: p.municipio,
-    assinadoDe: p.assinadoDe,
-    assinadoAte: p.assinadoAte,
-    movimento: p.movimento,
-  });
+  // F3.2: o CSV de uma tabela do painel (`tabela=<id>`) sai com o filtro e a ordem dela; sem `tabela`, a visão inteira.
+  const estados = estadosDaVisao(p.visao, req.nextUrl.searchParams);
+  const vencidos = sp.tabela === TABELA_PAINEL_VENCIDOS;
+  const estado = sp.tabela ? (vencidos ? estados.vencidos : estados.lista) : undefined;
+  const leitura = await lerConveniosParaExportar(
+    p.visao,
+    p.lado,
+    {
+      uf: p.uf,
+      orgao: p.orgao,
+      ibge: p.municipio,
+      assinadoDe: p.assinadoDe,
+      assinadoAte: p.assinadoAte,
+      movimento: p.movimento,
+    },
+    estado ? { estado, vencidos } : undefined,
+  );
   const lado = p.visao === "contas" ? `-${p.lado}` : "";
   const onde = p.municipio ?? (p.uf ?? "brasil").toLowerCase();
-  return resposta(leitura, COLUNAS_CONVENIO, `painel-${p.visao}${lado}-${onde}`);
+  const parte = estado ? (vencidos ? "-vencidos" : p.visao === "suspensiva" ? "-a-vencer" : "") + "-filtrado" : "";
+  return resposta(leitura, COLUNAS_CONVENIO, `painel-${p.visao}${lado}-${onde}${parte}`);
 }

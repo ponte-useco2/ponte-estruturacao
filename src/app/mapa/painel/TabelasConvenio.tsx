@@ -30,6 +30,7 @@ import {
 import type { ConvenioPainel } from "@/lib/oportunidades/painel.server";
 import {
   colunasDaVisao,
+  colunasNoBanco,
   colunasMudancas,
   colunasPropostas,
   ondeParou,
@@ -42,7 +43,7 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../_design/primitivos";
 import { LinkMapa } from "../_componentes/LinkMapa";
-import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
+import { TabelaFiltravel, type ModoServidor } from "../_componentes/TabelaFiltravel";
 import { CopiarNumero } from "./CopiarNumero";
 import { Urgente, palavraDoPrazo } from "./Pecas";
 
@@ -240,6 +241,7 @@ export function TabelaDaVisao({
   naFicha,
   descricaoOrdemPadrao,
   csv,
+  servidor,
 }: {
   id: string;
   rotulo: string;
@@ -248,6 +250,8 @@ export function TabelaDaVisao({
   naFicha?: boolean;
   descricaoOrdemPadrao: string;
   csv?: { nome: string };
+  /** No painel (F3.2): as linhas já vêm filtradas e ordenadas pelo banco. */
+  servidor?: ModoServidor;
 }) {
   const tabela: LinhaTabela[] = linhas.map((c) => ({
     chave: c.nr_convenio,
@@ -258,10 +262,11 @@ export function TabelaDaVisao({
     <TabelaFiltravel
       id={id}
       rotulo={rotulo}
-      colunas={colunasDaVisao(visao, { comMunicipio: !naFicha })}
+      colunas={servidor ? colunasNoBanco(visao) : colunasDaVisao(visao, { comMunicipio: !naFicha })}
       linhas={tabela}
       descricaoOrdemPadrao={descricaoOrdemPadrao}
       csv={csv}
+      servidor={servidor}
     />
   );
 }

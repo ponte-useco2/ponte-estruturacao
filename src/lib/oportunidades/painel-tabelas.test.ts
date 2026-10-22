@@ -123,3 +123,58 @@ test("a ficha usa as tabelas com filtro, sem caixa de rolagem dupla, e lê até 
     assert.match(servidor, new RegExp(`export const ${limite} = 300;`), limite);
   }
 });
+
+test("F3.2, o painel: toda coluna que filtra ou ordena no banco tem campo; as exceções são as calculadas", async () => {
+  const { camposDoConvenio, colunasNoBanco, TABELA_PAINEL, TABELA_PAINEL_VENCIDOS } = await import("./painel-tabelas.ts");
+  const campos = camposDoConvenio(2);
+  for (const v of VISOES_CONVENIO) {
+    for (const c of colunasNoBanco(v)) {
+      if (c.filtravel === false && c.ordenavel === false) continue;
+      assert.ok(campos[c.id], `${v}.${c.id}: tem campo no banco`);
+    }
+    assert.ok(colunasNoBanco(v).some((c) => c.id === "municipio"), `${v}: o município entra no painel`);
+  }
+  const vig = colunasNoBanco("vigencia").find((c) => c.id === "a-desembolsar");
+  assert.deepEqual([vig?.filtravel, vig?.ordenavel], [false, false], "calculada na tela: sem filtro e sem ordem");
+  assert.equal(colunasNoBanco("contas").find((c) => c.id === "situacao")?.tipo, "texto");
+  assert.equal(new Set([...Object.values(TABELA_PAINEL), TABELA_PAINEL_VENCIDOS]).size, 7);
+});
+
+test("F3.2: exigências e 'onde parou' no banco; o texto que não acha nada não deixa passar nada", async () => {
+  const { camposDoConvenio } = await import("./painel-tabelas.ts");
+  const campos = camposDoConvenio(0);
+  const ex = campos.exigencias.especial!;
+  assert.equal(ex({ tipo: "texto", contem: "licença" }), "exige_licenca.eq.true");
+  assert.equal(ex({ tipo: "texto", contem: "plano" }), "exige_sustentabilidade.eq.true");
+  assert.equal(ex({ tipo: "texto", contem: "xyz" }), "nr_convenio.is.null");
+  assert.equal(ex({ tipo: "texto", contem: "  " }), null);
+  const op = campos["onde-parou"].especial!;
+  assert.equal(op({ tipo: "categoria", valores: ["nada disso"] }), "nr_convenio.is.null");
+  assert.equal(op({ tipo: "categoria", valores: [] }), null);
+  assert.equal(campos.parado.ajuste, 0);
+  assert.equal(camposDoConvenio(5)["sem-movimento"].ajuste, 5, "os dias da tela contam até hoje");
+});
+
+test("F3.2: o estado das tabelas no endereço e o CSV de uma tabela com o mesmo filtro", async () => {
+  const { estadosDaVisao, urlCsvDaTabela, parametrosDaPagina } = await import("./painel-tabelas.ts");
+  const q = parametrosDaPagina({ visao: "suspensiva", "t.painel-suspensiva.repasse": "1000000..", "t.painel-suspensiva-vencidos.o": "repasse.desc", uf: ["PB"] });
+  const e = estadosDaVisao("suspensiva", q);
+  assert.deepEqual(e.lista?.filtros.repasse, { tipo: "numero", de: 1_000_000, ate: null });
+  assert.deepEqual(e.vencidos?.ordem, { coluna: "repasse", sentido: "desc" });
+  assert.deepEqual(estadosDaVisao("mudancas", q), {}, "visão sem tabela de convênio");
+  const url = urlCsvDaTabela("/mapa/painel/exportar?visao=suspensiva&uf=PB", "painel-suspensiva", e.lista!);
+  const lida = new URL(url, "http://x").searchParams;
+  assert.deepEqual([lida.get("visao"), lida.get("uf"), lida.get("tabela"), lida.get("t.painel-suspensiva.repasse")], ["suspensiva", "PB", "painel-suspensiva", "1000000.."]);
+});
+
+test("F3.2: o painel usa a lista com o filtro no banco, e as peças antigas das visões saíram", () => {
+  const raiz = path.resolve(import.meta.dirname, "..", "..", "app", "mapa", "painel");
+  const painel = fs.readFileSync(path.join(raiz, "PainelConteudo.tsx"), "utf-8");
+  assert.equal((painel.match(/<ListaDaVisao\b/g) ?? []).length, 6);
+  const pecas = fs.readFileSync(path.join(raiz, "Pecas.tsx"), "utf-8");
+  for (const peca of ["TabelaSuspensiva", "TabelaNunca", "TabelaVigencia", "TabelaContas", "TabelaSaldo", "TabelaFisico"]) {
+    assert.equal(new RegExp(`function ${peca}\b`).test(pecas), false, peca);
+  }
+  const pagina = fs.readFileSync(path.join(raiz, "page.tsx"), "utf-8");
+  assert.ok(pagina.indexOf("ehAdministrador(") < pagina.indexOf("await lerPainel"), "confere o administrador antes de ler");
+});

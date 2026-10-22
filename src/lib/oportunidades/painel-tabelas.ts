@@ -11,6 +11,7 @@
  * Telas de administrador: toda coluna ordena. Percentuais vão de 0 a 100, inteiros, como a tela escreve ("37%").
  */
 import {
+  EXIGENCIAS,
   ROTULO_DESFECHO,
   ROTULO_ETAPA_LICITACAO,
   ROTULO_EXIGENCIA,
@@ -24,7 +25,16 @@ import {
   type PropostaPainel,
 } from "./painel.ts";
 import type { ConvenioPainel } from "./painel.server.ts";
-import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
+import type { CampoBanco, CamposBanco } from "./tabela-banco.ts";
+import {
+  gravarEstado,
+  lerEstado,
+  normalizarTexto,
+  type ColunaTabela,
+  type EstadoTabela,
+  type FiltroColuna,
+  type ValorCelula,
+} from "./tabela-filtro.ts";
 
 /** As seis visões de convênio que a ficha e o painel listam. */
 export type VisaoConvenio = "suspensiva" | "nunca" | "vigencia" | "contas" | "saldo" | "fisico";
@@ -275,4 +285,133 @@ export function valoresDaProposta(p: PropostaPainel, quando: "movimento" | "assi
     orgao: p.orgao_sup,
     objeto: p.objeto,
   };
+}
+
+// ================================================================ no painel, o filtro vai ao banco (F3.2, 20/10/2026)
+
+/** O id de cada tabela do painel no endereço; a suspensiva tem duas listas (a vencer e vencidos). */
+export const TABELA_PAINEL: Readonly<Record<VisaoConvenio, string>> = Object.freeze({
+  suspensiva: "painel-suspensiva",
+  nunca: "painel-nunca",
+  vigencia: "painel-vigencia",
+  contas: "painel-contas",
+  saldo: "painel-saldo",
+  fisico: "painel-fisico",
+});
+export const TABELA_PAINEL_VENCIDOS = "painel-suspensiva-vencidos";
+
+/** Rótulo da tela → valor do banco (o inverso de um mapa de rótulos). */
+const inverso = (m: Readonly<Record<string, string>>): Record<string, string> => Object.fromEntries(Object.entries(m).map(([v, r]) => [r, v]));
+
+/** As exigências que um texto acha (todas as palavras no rótulo), como expressão `or` do PostgREST; nenhuma: nada passa. */
+function exigenciasNoBanco(f: FiltroColuna): string | null {
+  if (f.tipo !== "texto") return null;
+  const palavras = normalizarTexto(f.contem).split(" ").filter(Boolean);
+  if (!palavras.length) return null;
+  const achadas = EXIGENCIAS.filter((e) => palavras.every((p) => normalizarTexto(ROTULO_EXIGENCIA[e]).includes(p)));
+  return achadas.length ? achadas.map((e) => `exige_${e}.eq.true`).join(",") : "nr_convenio.is.null";
+}
+
+/** "Onde parou": a etapa da licitação ou, sem ela, o grupo da suspensiva (`ondeParou`). */
+function ondeParouNoBanco(f: FiltroColuna): string | null {
+  if (f.tipo !== "categoria" || !f.valores.length) return null;
+  const alvo = new Set(f.valores.map(normalizarTexto));
+  const etapas = Object.entries(ROTULO_ETAPA_LICITACAO).filter(([, r]) => alvo.has(normalizarTexto(r))).map(([v]) => v);
+  const grupos = Object.entries(ROTULO_GRUPO_SUSPENSIVA).filter(([, r]) => alvo.has(normalizarTexto(r))).map(([v]) => v);
+  const partes = [
+    ...(etapas.length ? [`etapa_licitacao.in.(${etapas.join(",")})`] : []),
+    ...(grupos.length ? [`and(etapa_licitacao.is.null,grupo_suspensiva.in.(${grupos.join(",")}))`] : []),
+  ];
+  return partes.length ? partes.join(",") : "nr_convenio.is.null";
+}
+
+/** As colunas que o banco não sabe filtrar nem ordenar (calculadas na tela ou juntando várias colunas). */
+const SO_NA_TELA = new Set(["a-desembolsar"]);
+const SEM_ORDEM_NO_BANCO = new Set(["exigencias", "onde-parou", "a-desembolsar"]);
+/** Categoria cuja lista de valores o painel não tem à mão: no banco, vira texto ("contém"). */
+const TEXTO_NO_BANCO = new Set(["situacao"]);
+
+/**
+ * As colunas do painel: as mesmas da ficha, com o município (oculto) e os ajustes do banco — a calculada fica sem filtro
+ * e sem ordem; a que junta colunas filtra mas não ordena; a situação das contas filtra como texto.
+ */
+export function colunasNoBanco(v: VisaoConvenio): ColunaTabela[] {
+  return colunasDaVisao(v, { comMunicipio: true }).map((c) => ({
+    ...c,
+    ...(TEXTO_NO_BANCO.has(c.id) ? { tipo: "texto" as const } : {}),
+    ...(SO_NA_TELA.has(c.id) ? { filtravel: false } : {}),
+    ...(SEM_ORDEM_NO_BANCO.has(c.id) ? { ordenavel: false } : {}),
+  }));
+}
+
+/** Cada coluna da tela no banco. `deslocamento`: os dias que a tela soma às contagens do arquivo (`contarAteHoje`). */
+export function camposDoConvenio(deslocamento: number): CamposBanco {
+  const idade = (coluna: string): CampoBanco => ({ coluna, ajuste: deslocamento });
+  return {
+    proponente: { coluna: "proponente", busca: "busca_proponente" },
+    convenio: { coluna: "nr_convenio" },
+    municipio: { coluna: "municipio", busca: "busca_municipio" },
+    "sem-movimento": idade("dias_sem_movimentacao"),
+    programa: { coluna: "programa", busca: "busca_programa" },
+    orgao: { coluna: "orgao_sup" },
+    objeto: { coluna: "objeto", busca: "busca_objeto" },
+    prazo: { coluna: "suspensiva_prazo" },
+    exigencias: { coluna: "exige_projeto", especial: exigenciasNoBanco },
+    repasse: { coluna: "repasse" },
+    assinatura: { coluna: "dt_assinatura" },
+    "onde-parou": { coluna: "etapa_licitacao", especial: ondeParouNoBanco },
+    empenhado: { coluna: "empenhado" },
+    aceite: { coluna: "dt_aceite" },
+    "fim-vigencia": { coluna: "dt_fim_vigencia" },
+    "desembolsado-pct": { coluna: "pct_desembolsado", escala: 100 },
+    extensoes: { coluna: "n_extensoes" },
+    motivo: { coluna: "motivo_aditivo", valores: inverso(ROTULO_MOTIVO_ADITIVO) },
+    situacao: { coluna: "situacao", busca: "busca_situacao" },
+    "prazo-contas": idade("dias_apos_limite"),
+    lado: { coluna: "contas_lado", valores: inverso(ROTULO_LADO_CONTAS) },
+    "dias-concedente": idade("dias_com_concedente"),
+    "ultimo-pagamento": { coluna: "dt_ultimo_pagamento" },
+    parado: idade("dias_sem_movimento"),
+    saldo: { coluna: "saldo_conta" },
+    rendimento: { coluna: "rendimento_implicito" },
+    "fisico-pct": { coluna: "pct_fisico", escala: 100 },
+    desembolsado: { coluna: "desembolsado" },
+  };
+}
+
+/** As opções das categorias que o painel conhece sem ler o banco (o órgão vem do quadro por órgão da própria visão). */
+export function opcoesFixas(v: VisaoConvenio): Record<string, { valor: string; linhas: number | null }[]> {
+  const de = (m: Readonly<Record<string, string>>) => [...new Set(Object.values(m))].map((valor) => ({ valor, linhas: null }));
+  if (v === "nunca") return { "onde-parou": de({ ...ROTULO_ETAPA_LICITACAO, ...ROTULO_GRUPO_SUSPENSIVA }) };
+  if (v === "vigencia") return { motivo: de(ROTULO_MOTIVO_ADITIVO) };
+  if (v === "contas") return { lado: de(ROTULO_LADO_CONTAS) };
+  return {};
+}
+
+/** A visão do painel é uma das seis de convênio (as outras visões não têm estas tabelas). */
+export const ehVisaoConvenioDaTabela = (v: string): v is VisaoConvenio => (VISOES_CONVENIO as readonly string[]).includes(v);
+
+/** O estado das tabelas da visão, lido do endereço (a página e a rota de exportação leem igual). */
+export function estadosDaVisao(v: string, parametros: URLSearchParams): { lista?: EstadoTabela; vencidos?: EstadoTabela } {
+  if (!ehVisaoConvenioDaTabela(v)) return {};
+  const colunas = colunasNoBanco(v);
+  return {
+    lista: lerEstado(TABELA_PAINEL[v], colunas, parametros),
+    ...(v === "suspensiva" ? { vencidos: lerEstado(TABELA_PAINEL_VENCIDOS, colunas, parametros) } : {}),
+  };
+}
+
+/** O endereço do CSV de uma tabela do painel: a exportação da visão com o estado da tabela e o id dela. */
+export function urlCsvDaTabela(urlExportacao: string, tabela: string, estado: EstadoTabela): string {
+  const [caminho, consulta = ""] = urlExportacao.split("?");
+  const q = gravarEstado(tabela, estado, new URLSearchParams(consulta));
+  q.set("tabela", tabela);
+  return `${caminho}?${q.toString()}`;
+}
+
+/** Os parâmetros da página (o `searchParams` do Next) como `URLSearchParams`, com as chaves repetidas. */
+export function parametrosDaPagina(sp: Record<string, string | string[] | undefined>): URLSearchParams {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) for (const x of Array.isArray(v) ? v : v === undefined ? [] : [v]) q.append(k, x);
+  return q;
 }

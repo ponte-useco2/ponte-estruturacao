@@ -9,6 +9,9 @@ import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import { diaBrasilia } from "./laudo";
 import { compararPor, lerPorChave, type CriterioOrdem, type ErroLeitura, type RespostaPagina } from "./paginacao";
+import { camposDoConvenio } from "./painel-tabelas";
+import { filtrarNoBanco, ordenarNoBanco, type ConsultaFiltravel } from "./tabela-banco";
+import { ESTADO_VAZIO, type EstadoTabela } from "./tabela-filtro";
 import {
   ANOS_MOTIVOS,
   DESFECHOS_ABERTOS,
@@ -126,8 +129,13 @@ export type LeituraPainel =
       resumo: LinhaResumo[];
       porOrgao: LinhaOrgao[];
       convenios: ConvenioPainel[];
+      /** Quantos convênios da lista atendem o filtro da tabela no banco (`convenios` são os primeiros). F3.2. */
+      totalConvenios: number;
       /** Só na suspensiva: os já vencidos, em lista à parte (ver `lerPainel`). */
       vencidos: ConvenioPainel[];
+      totalVencidos: number;
+      /** O estado das tabelas de convênio que a leitura aplicou (a tela desenha a tabela mesmo vazia, se há filtro). */
+      estados: EstadosDasTabelas;
       municipios: MunicipioPainel[];
       /** Só em tempos: linhas de órgão (sempre) e de programa (na dimensão programa). */
       etapas: LinhaEtapa[];
@@ -155,7 +163,10 @@ export interface OpcaoMunicipio {
 const VAZIO = {
   porOrgao: [],
   convenios: [],
+  totalConvenios: 0,
   vencidos: [],
+  totalVencidos: 0,
+  estados: {},
   municipios: [],
   etapas: [],
   desfechos: [],
@@ -173,6 +184,12 @@ export const LIMITE_MUDANCAS = 100;
 export const LIMITE_PROGRAMAS = 40;
 export const LIMITE_MUNICIPIOS = 100;
 export const LIMITE_VENCIDOS = 20;
+/**
+ * As listas de convênio do painel (onda 15, fase 3, F3.2, 20/10/2026): os 100 primeiros do recorte, já com o filtro e a
+ * ordem da tabela aplicados no banco; a contagem diz quantos atendem o filtro, e o CSV traz todos.
+ */
+export const LIMITE_LISTA_CONVENIOS = 100;
+export const LIMITE_LISTA_VENCIDOS = 50;
 /** Órgãos na tabela; a lista do filtro usa o mesmo recorte com folga. */
 export const LIMITE_ORGAOS = 60;
 
@@ -198,9 +215,12 @@ export interface FiltrosConvenio {
 }
 
 /** Os filtros comuns a painel, ficha e exportação, sobre `painel_convenio`. */
-function consultaConvenios(db: Banco, execucaoId: number, f: FiltrosConvenio) {
+function consultaConvenios(db: Banco, execucaoId: number, f: FiltrosConvenio, contar = false) {
   const datas = datasAssinatura(f.assinadoDe ?? null, f.assinadoAte ?? null);
-  let b = db.from("painel_convenio").select(COLUNAS_CONVENIO).eq("execucao_id", execucaoId);
+  let b = db
+    .from("painel_convenio")
+    .select(COLUNAS_CONVENIO, contar ? { count: "exact" } : undefined)
+    .eq("execucao_id", execucaoId);
   if (f.uf) b = b.eq("uf", f.uf);
   if (f.orgao) b = b.eq("orgao_sup", f.orgao);
   if (f.ibge) b = b.eq("cod_ibge", f.ibge);
@@ -295,7 +315,31 @@ function naVisao(q: ConsultaConvenios, visao: Visao, lado: LadoContas, prazo?: P
   );
 }
 
-export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
+/**
+ * A visão com o estado da tabela da tela (F3.2): o universo da visão, o filtro de cada coluna e a ordem escolhida, com a
+ * ordem da visão como desempate. `deslocamento` leva os dias da tela (contados até hoje) aos do arquivo.
+ */
+function naVisaoComTabela(
+  q: ConsultaConvenios,
+  visao: Visao,
+  lado: LadoContas,
+  estado: EstadoTabela,
+  deslocamento: number,
+  prazo?: PrazoSuspensiva,
+): ConsultaConvenios {
+  const campos = camposDoConvenio(deslocamento);
+  const filtrada = filtrarNoBanco(filtrarVisao(q, visao, lado, prazo) as unknown as ConsultaFiltravel<ConsultaConvenios>, estado, campos);
+  const padrao = [...ordemDaVisao(visao, lado, prazo?.vencidos ?? false), { coluna: "nr_convenio", ascendente: true }];
+  return ordenarNoBanco(filtrada as unknown as ConsultaFiltravel<ConsultaConvenios>, estado, campos, padrao) as unknown as ConsultaConvenios;
+}
+
+/** O estado das tabelas das visões de convênio, lido do endereço pela página (F3.2). */
+export interface EstadosDasTabelas {
+  lista?: EstadoTabela;
+  vencidos?: EstadoTabela;
+}
+
+export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas = {}): Promise<LeituraPainel> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
 
@@ -512,11 +556,26 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
     movimento: p.movimento,
   };
   const prazo = (vencidos: boolean): PrazoSuspensiva => ({ referencia: execucao.referencia, vencidos });
-  const lista = naVisao(consultaConvenios(db, execucao.id, filtrosConvenio), p.visao, p.lado, prazo(false)).limit(LIMITE_LISTA);
+  const desloc = deslocamentoAteHoje(execucao.referencia, diaBrasilia(new Date().toISOString()));
+  const lista = naVisaoComTabela(
+    consultaConvenios(db, execucao.id, filtrosConvenio, true),
+    p.visao,
+    p.lado,
+    estados.lista ?? ESTADO_VAZIO,
+    desloc,
+    prazo(false),
+  ).limit(LIMITE_LISTA_CONVENIOS);
   const vencidos =
     p.visao === "suspensiva"
-      ? naVisao(consultaConvenios(db, execucao.id, filtrosConvenio), "suspensiva", p.lado, prazo(true)).limit(LIMITE_VENCIDOS)
-      : Promise.resolve({ data: [], error: null });
+      ? naVisaoComTabela(
+          consultaConvenios(db, execucao.id, filtrosConvenio, true),
+          "suspensiva",
+          p.lado,
+          estados.vencidos ?? ESTADO_VAZIO,
+          desloc,
+          prazo(true),
+        ).limit(LIMITE_LISTA_VENCIDOS)
+      : Promise.resolve({ data: [], error: null, count: 0 });
   // "Por que se prorroga": aditivos de vigência do recorte nos últimos anos.
   const anoDado = Number(execucao.referencia.slice(0, 4));
   const motivos =
@@ -547,7 +606,6 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
   }
   // O seletor de município é conveniência: sem ele, o resto do painel continua de pé.
   if (m.error) console.error("lerPainel (municípios):", m.error.message);
-  const desloc = deslocamentoAteHoje(execucao.referencia, diaBrasilia(new Date().toISOString()));
   return {
     estado: "ok",
     execucao,
@@ -555,7 +613,10 @@ export async function lerPainel(p: ParametrosPainel): Promise<LeituraPainel> {
     ...VAZIO,
     porOrgao: (o.data ?? []) as LinhaOrgao[],
     convenios: ((c.data ?? []) as unknown as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    totalConvenios: c.count ?? (c.data ?? []).length,
     vencidos: ((v.data ?? []) as unknown as ConvenioPainel[]).map((x) => contarAteHoje(x, desloc)),
+    totalVencidos: v.count ?? (v.data ?? []).length,
+    estados,
     opcoesMunicipio: m.error ? [] : ((m.data ?? []) as OpcaoMunicipio[]),
     aditivosMotivo: (a.data ?? []) as LinhaAditivoMotivo[],
   };
@@ -573,7 +634,7 @@ export type LeituraExportacao<T> =
 type LeituraLinhas<T> = { linhas: T[]; truncado: boolean } | { erro: ErroLeitura };
 
 /** A última execução concluída e, nela, as linhas que `ler` trouxer. */
-async function exportar<T>(ler: (db: Banco, execucaoId: number) => Promise<LeituraLinhas<T>>): Promise<LeituraExportacao<T>> {
+async function exportar<T>(ler: (db: Banco, execucaoId: number, execucao: ExecucaoPainel) => Promise<LeituraLinhas<T>>): Promise<LeituraExportacao<T>> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const ultima = await db.rpc("painel_ultima_execucao");
@@ -584,7 +645,7 @@ async function exportar<T>(ler: (db: Banco, execucaoId: number) => Promise<Leitu
   const execucao = (ultima.data as ExecucaoPainel[] | null)?.[0];
   if (!execucao) return { estado: "sem_execucao" };
 
-  const r = await ler(db, execucao.id);
+  const r = await ler(db, execucao.id, execucao);
   if ("erro" in r) {
     console.error("exportar:", r.erro.message);
     return { estado: "erro", mensagem: r.erro.message };
@@ -615,22 +676,43 @@ async function lerPorFaixa<T>(consulta: (de: number, ate: number) => PromiseLike
  * número). Acima do teto de 50 mil linhas o corte passaria a ser pelos números, não pela ordem da tela — nenhuma
  * visão chega perto (a maior, "nunca" no Brasil, tem 21 mil).
  */
-export function lerConveniosParaExportar(visao: Visao | null, lado: LadoContas, filtros: FiltrosConvenio) {
-  return exportar<ConvenioPainel>(async (db, execucaoId) => {
+export function lerConveniosParaExportar(
+  visao: Visao | null,
+  lado: LadoContas,
+  filtros: FiltrosConvenio,
+  /**
+   * F3.2: o estado da tabela da tela (o CSV sai com o mesmo filtro e a mesma ordem) e, na suspensiva, qual das duas
+   * listas (a vencer ou vencidos). Sem ele, a visão inteira, como antes.
+   */
+  tabela?: { estado: EstadoTabela; vencidos?: boolean },
+) {
+  return exportar<ConvenioPainel>(async (db, execucaoId, execucao) => {
+    const desloc = deslocamentoAteHoje(execucao.referencia, diaBrasilia(new Date().toISOString()));
+    const campos = camposDoConvenio(desloc);
+    const prazo: PrazoSuspensiva | undefined =
+      tabela && visao === "suspensiva" ? { referencia: execucao.referencia, vencidos: tabela.vencidos ?? false } : undefined;
     const r = await lerPorChave<ConvenioPainel>(
       (c) => c.nr_convenio,
       (depois, tamanho) => {
         const base = consultaConvenios(db, execucaoId, filtros);
-        // Na suspensiva o CSV leva os vencidos junto, pelo prazo; a tela os separa em duas listas.
-        let q = visao === null ? base : filtrarVisao(base, visao, lado);
+        // Sem a tabela, na suspensiva o CSV leva os vencidos junto, pelo prazo; com ela, só a lista da tabela.
+        let q = visao === null ? base : filtrarVisao(base, visao, lado, prazo);
+        if (tabela) q = filtrarNoBanco(q as unknown as ConsultaFiltravel<ConsultaConvenios>, tabela.estado, campos) as unknown as ConsultaConvenios;
         if (depois !== null) q = q.gt("nr_convenio", depois);
         return q.order("nr_convenio", { ascending: true }).limit(tamanho);
       },
       { teto: LIMITE_EXPORTACAO, pagina: PAGINA_EXPORTACAO },
     );
     if ("erro" in r) return r;
-    // Desempate pelo número, como antes: a ordem é total.
-    const ordem: CriterioOrdem[] = [...(visao === null ? [] : ordemDaVisao(visao, lado)), { coluna: "nr_convenio", ascendente: true }];
+    // A ordem escolhida na tabela (se o banco a sabe), depois a da visão e, por fim, o número: a ordem é total.
+    const escolhida = tabela?.estado.ordem ? campos[tabela.estado.ordem.coluna] : undefined;
+    const ordem: CriterioOrdem[] = [
+      ...(escolhida && !escolhida.especial && tabela?.estado.ordem
+        ? [{ coluna: escolhida.coluna, ascendente: tabela.estado.ordem.sentido === "asc", nulosPrimeiro: false }]
+        : []),
+      ...(visao === null ? [] : ordemDaVisao(visao, lado, prazo?.vencidos ?? false)),
+      { coluna: "nr_convenio", ascendente: true },
+    ];
     return { linhas: r.linhas.sort(compararPor<ConvenioPainel>(ordem)), truncado: r.truncado };
   });
 }
