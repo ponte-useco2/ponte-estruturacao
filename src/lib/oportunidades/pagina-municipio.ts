@@ -36,7 +36,7 @@ import {
 
 export type NivelAcesso = 0 | 1 | 2 | 3;
 
-export type AbaMunicipio = "trava" | "resumo" | "dinheiro" | "contas" | "controle" | "indicadores" | "relatorio";
+export type AbaMunicipio = "trava" | "resumo" | "dinheiro" | "contas" | "controle" | "primeira-infancia" | "indicadores" | "relatorio";
 
 /**
  * O nome das abas que se repetem nos 4 níveis do território — Brasil, UF, município e entidade (B11, 08/10/2026;
@@ -69,6 +69,7 @@ export const ORDEM_DAS_ABAS: readonly string[] = [
   "dinheiro",
   "contas",
   "controle",
+  "primeira-infancia",
   "indicadores",
   "tempos",
   "relatorio",
@@ -80,6 +81,8 @@ export const ABAS_MUNICIPIO: readonly { id: AbaMunicipio; nome: string; minimo: 
   { id: "dinheiro", nome: NOME_ABA.dinheiro, minimo: 0 },
   { id: "contas", nome: "Contas públicas", minimo: 1 },
   { id: "controle", nome: NOME_ABA.controle, minimo: 1 },
+  // P2 da primeira infância (22/10/2026): creches, Criança Feliz, Pix, FUNDEB e saúde do município; cadastrado e acima.
+  { id: "primeira-infancia", nome: "Primeira infância", minimo: 1 },
   { id: "indicadores", nome: "Indicadores", minimo: 0 },
   { id: "relatorio", nome: NOME_ABA.relatorio, minimo: 1 },
 ];

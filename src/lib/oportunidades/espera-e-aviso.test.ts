@@ -69,9 +69,10 @@ test("abasDoEsqueleto: o público vê o mesmo número de abas que a página dese
     assert.equal(visto(abas, true).n, abas.filter((a) => a.minimo <= 0).length);
     assert.equal(visto(abas, false).n, abas.length);
   }
-  // Os números da auditoria R1: o município desenhava 7, e o público vê 3.
+  // Os números da auditoria R1: o município desenhava 7, e o público vê 3. Desde a primeira infância (22/10/2026), 8
+  // para o cadastrado; o público continua com 3.
   assert.equal(visto(ABAS_MUNICIPIO, true).n, 3);
-  assert.equal(visto(ABAS_MUNICIPIO, false).n, 7);
+  assert.equal(visto(ABAS_MUNICIPIO, false).n, 8);
 });
 
 test("abasDoEsqueleto: a aba acesa é a que a página abre sem `?aba=`, para o público e para o cadastrado", () => {

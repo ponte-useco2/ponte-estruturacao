@@ -19,6 +19,7 @@ import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { abasSoComCadastro, chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerResumoOscMunicipio } from "@/lib/oportunidades/osc.server";
+import { lerPrimeiraInfancia } from "@/lib/oportunidades/primeira-infancia.server";
 import { lerEntidadesDoMunicipio, lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
 import { tituloDaPagina } from "@/lib/oportunidades/titulo-pagina";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
@@ -141,6 +142,8 @@ export default async function MunicipioPage({
       ? await Promise.all([lerEntidadesDoMunicipio(ibge), lerResumoOscMunicipio(ibge), emendasDoMunicipio, estaduais, tceEstado, federalPorAno, camaraJp])
       : [undefined, null, undefined, undefined, undefined, undefined, undefined];
   const entidades = linhas === undefined ? undefined : linhas ? quemRecebe(linhas) : null;
+  // P2 da primeira infância (22/10/2026): só na aba dela (nível ≥ 1, pelo `minimo` de `ABAS_MUNICIPIO`).
+  const primeiraInfancia = aba === "primeira-infancia" ? await lerPrimeiraInfancia(ibge) : undefined;
   const conteudo = (
     <MunicipioConteudo
       r={r}
@@ -154,6 +157,7 @@ export default async function MunicipioPage({
       tceEstado={tce}
       federalPorAno={federal}
       camaraJp={camara}
+      primeiraInfancia={primeiraInfancia}
     />
   );
   if (!acesso.sessao) return conteudo;

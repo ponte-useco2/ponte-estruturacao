@@ -12,6 +12,9 @@
  * Onda 15, fase 2, lote B (13/10/2026): os blocos de convênios e de emendas recebem o nível, só para o CSV filtrado das
  * tabelas, que é do cadastro (D1); as abas usam `LinkMapa`.
  */
+import type { LeituraPI } from "@/lib/oportunidades/primeira-infancia.server";
+import { resumoMunicipio } from "@/lib/oportunidades/primeira-infancia";
+import { CartoesPI, DetalheMunicipioPI } from "../../primeira-infancia/PecasPrimeiraInfancia";
 import { formatarData } from "@/lib/oportunidades/central";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
@@ -194,6 +197,41 @@ function SemIndicadores({ r }: { r: Relatorio }) {
   );
 }
 
+/** Os indicadores da camada 2 que dizem a necessidade da primeira infância, na ordem de leitura. */
+const NECESSIDADE_PI = ["creche_0a3", "pre_escola_4a5", "mortalidade_infantil", "mortalidade_materna"];
+
+function AbaPrimeiraInfancia({ r, nivel, leitura }: { r: Relatorio; nivel: NivelAcesso; leitura?: LeituraPI }) {
+  if (!leitura || leitura.estado !== "ok") {
+    return (
+      <p className="pa-cartao pa-cartao-plano">
+        A primeira infância do município está indisponível agora.{" "}
+        <LinkMapa href={urlMunicipio(r.ibge, "primeira-infancia")}>Tentar de novo</LinkMapa>
+      </p>
+    );
+  }
+  const m = leitura.municipios[0];
+  if (!m) return null;
+  const l = r.indicadores;
+  const todos = l ? [...l.municipio, ...l.social.flatMap((b) => b.itens), ...(l.economia?.itens ?? []), ...(l.territorio?.itens ?? [])] : [];
+  const necessidade = NECESSIDADE_PI.map((id) => todos.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => Boolean(x));
+  return (
+    <Secao id="mun-primeira-infancia" titulo="Primeira infância">
+      {leitura.faltas.length > 0 && (
+        <p className="pa-nota" role="status">
+          Não foi possível ler agora: {leitura.faltas.join(", ")}.
+        </p>
+      )}
+      <CartoesPI t={resumoMunicipio(m)} datas={leitura.datas} estadual={false} />
+      <DetalheMunicipioPI m={m} datas={leitura.datas} nivel={nivel} necessidade={necessidade} />
+      <Mais>
+        <LinkMapa href="/mapa/primeira-infancia" className="pa-btn pa-btn-pequeno">
+          A primeira infância nos 223 municípios
+        </LinkMapa>
+      </Mais>
+    </Secao>
+  );
+}
+
 export function MunicipioConteudo({
   r: relatorio,
   aba,
@@ -206,6 +244,7 @@ export function MunicipioConteudo({
   tceEstado,
   federalPorAno,
   camaraJp,
+  primeiraInfancia,
 }: {
   r: Relatorio;
   aba: AbaMunicipio;
@@ -228,6 +267,8 @@ export function MunicipioConteudo({
   federalPorAno?: LeituraFederalPorAno;
   /** As emendas da Câmara de João Pessoa (J2): só na página de João Pessoa, com a mesma regra. */
   camaraJp?: LeituraCamaraJp;
+  /** A primeira infância do município (P2, 22/10/2026): lida só na aba dela. */
+  primeiraInfancia?: LeituraPI;
 }) {
   // C4a: o recorte do público mora no dado, e não só na tela (ver `relatorioDoPublico`); do nível 1 em diante, o inteiro.
   const r = relatorioDoNivel(relatorio, nivel);
@@ -331,6 +372,8 @@ export function MunicipioConteudo({
           )}
         </>
       )}
+
+      {aba === "primeira-infancia" && <AbaPrimeiraInfancia r={r} nivel={nivel} leitura={primeiraInfancia} />}
 
       {aba === "indicadores" && (r.indicadores ? <BlocosIndicadoresMunicipio r={r} destino={destino} /> : <SemIndicadores r={r} />)}
 

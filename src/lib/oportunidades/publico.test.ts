@@ -394,7 +394,8 @@ test("C4a: o nível do público é o 0 da D1, e é o que as regras de nível já
 });
 
 test("C4a: o convite lê das listas de abas o que só o cadastro abre (D1: fiscal e relatório completo com cadastro)", () => {
-  assert.equal(abasSoComCadastro(ABAS_MUNICIPIO), "“O que trava e o que destrava”, “Contas públicas”, “Controle” e “Relatório e dados”");
+  // Primeira infância (22/10/2026): a aba nova também é do cadastro.
+  assert.equal(abasSoComCadastro(ABAS_MUNICIPIO), "“O que trava e o que destrava”, “Contas públicas”, “Controle”, “Primeira infância” e “Relatório e dados”");
   assert.equal(abasSoComCadastro(ABAS_BRASIL), "“Tempos e funil” e “Relatório e dados”");
   assert.equal(abasSoComCadastro(ABAS_UF), "“Tempos e funil” e “Relatório e dados”");
   assert.equal(abasSoComCadastro(ABAS_ENTIDADE), "“O que trava e o que destrava”, “Controle” e “Relatório e dados”");
