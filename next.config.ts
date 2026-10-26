@@ -67,7 +67,29 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      /**
+       * A única exceção ao `frame-ancestors 'none'`: as peças do Observatório
+       * do Diário Oficial (26/10/2026), que a página /mapa/diario-oficial
+       * emoldura. Só do próprio site (`'self'` e SAMEORIGIN); a rota confere o
+       * administrador e devolve 404 aos outros. Esta entrada vem depois da
+       * geral de propósito: quando duas casam com o caminho, a última vale.
+       */
+      {
+        source: "/mapa/diario-oficial/peca/:peca",
+        headers: [
+          { key: "Content-Security-Policy", value: csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'") },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
     ];
+  },
+  /**
+   * As peças do Observatório do Diário Oficial são lidas do disco pela rota
+   * (src/conteudo/doe/, fora de public/); sem esta linha, o rastreio do build
+   * não as leva para a função na Vercel.
+   */
+  outputFileTracingIncludes: {
+    "/mapa/diario-oficial/peca/[peca]": ["./src/conteudo/doe/*.html"],
   },
   async rewrites() {
     return [

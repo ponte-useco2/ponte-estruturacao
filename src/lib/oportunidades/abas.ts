@@ -124,6 +124,8 @@ export const ABAS_MENU: readonly AbaMenu[] = [
   // Os autores das emendas com destino à PB (onda 14, parte 2, C, 13/10/2026): a lista acende a aba, e a ficha de cada
   // autor (/mapa/parlamentar/<código>) também. Só administrador, até a revisão jurídica.
   { href: "/mapa/parlamentares", nome: "Parlamentares", exata: false, admin: true, municipio: false, tambem: ["/mapa/parlamentar/"] },
+  // O Observatório do Diário Oficial da PB (26/10/2026): peças de due diligence lidas no Diário. Só administrador.
+  { href: "/mapa/diario-oficial", nome: "Diário Oficial", exata: false, admin: true, municipio: false },
 ];
 
 /** Quem está olhando o menu: administrador, organização de município com IBGE, organização com CNPJ. */

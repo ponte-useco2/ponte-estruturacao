@@ -1448,3 +1448,11 @@ html:has(.pa-root.mp-root) { scroll-padding-top: calc(60px + 2.75rem + 1px + 1re
   .pa-root .mp-tf-barra .pa-btn { flex: 1 1 auto; }
   .pa-root .mp-tf-painel { padding: 0.8rem; }
 }
+
+/* O Observatório do Diário Oficial (26/10/2026): a peça num iframe com sandbox, na largura da página. */
+.pa-root .mp-doe-aviso { border-left: 3px solid var(--pa-border); padding-left: 0.7rem; }
+.pa-root .mp-doe-peca { display: block; width: 100%; max-width: 100%; height: 80vh; min-height: 32rem; border: 1px solid var(--pa-border); border-radius: 4px; }
+.pa-root .mp-doe-metodo { padding-left: 1.2rem; display: grid; gap: 0.35rem; }
+@media screen and (max-width: 640px) {
+  .pa-root .mp-doe-peca { height: 75vh; min-height: 24rem; }
+}

@@ -95,7 +95,7 @@ test("B11: o menu tem a aba «Território», para todo aprovado, logo depois da 
   assert.deepEqual(nomes("aprovado"), ["Janelas", "Avisos", "Carteira", "Busca", "Território"]);
   assert.deepEqual(nomes("prefeitura"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Meu município"]);
   assert.deepEqual(nomes("osc"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Minha organização"]);
-  assert.deepEqual(nomes("administrador"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Radar", "Painel", "Fiscal", "Suspensivas", "Fornecedores", "Parlamentares"]);
+  assert.deepEqual(nomes("administrador"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Radar", "Painel", "Fiscal", "Suspensivas", "Fornecedores", "Parlamentares", "Diário Oficial"]);
   assert.equal(ABAS_MENU.find((a) => a.nome === "Território")?.href, "/mapa/brasil", "a porta leva ao topo da descida");
 });
 
@@ -155,7 +155,7 @@ test("B11: uma aba acesa por vez — o laudo do Pix do administrador com prefeit
 
 // ================================================================ onda 14, parte 2, C: a aba «Parlamentares»
 
-test("onda 14: «Parlamentares» é só do administrador, no fim do menu dele, e leva à lista", () => {
+test("onda 14: «Parlamentares» é só do administrador, perto do fim do menu dele, e leva à lista", () => {
   const aba = ABAS_MENU.find((a) => a.nome === "Parlamentares");
   assert.ok(aba);
   assert.equal(aba.href, "/mapa/parlamentares");
@@ -163,7 +163,7 @@ test("onda 14: «Parlamentares» é só do administrador, no fim do menu dele, e
   for (const perfil of ["aprovado", "prefeitura", "osc"] as const) {
     assert.ok(!abasDoMenu(PERFIS[perfil].perfil).some((a) => a.nome === "Parlamentares"), perfil);
   }
-  assert.equal(abasDoMenu(PERFIS["administrador com prefeitura"].perfil).at(-1)?.nome, "Parlamentares");
+  assert.equal(abasDoMenu(PERFIS["administrador com prefeitura"].perfil).at(-2)?.nome, "Parlamentares");
   assert.equal(rotaPublica("/mapa/parlamentares"), false, "a lista pede cadastro, e a página, o administrador");
   assert.equal(rotaPublica("/mapa/parlamentar/4270"), false);
 });
@@ -180,6 +180,22 @@ test("onda 14: «Parlamentares» acende na lista e na ficha de cada autor, e só
   assert.equal(acesa("administrador", `/mapa/municipio/${OUTRO_IBGE}`), "Território");
   // Sem a aba no menu (quem não é administrador), a ficha não acende nenhuma.
   assert.equal(acesa("aprovado", "/mapa/parlamentar/4270"), null);
+});
+
+// ================================================================ 26/10/2026: a aba «Diário Oficial»
+
+test("o Observatório do Diário Oficial é só do administrador, no fim do menu, e acende na página dele", () => {
+  const aba = ABAS_MENU.find((a) => a.nome === "Diário Oficial");
+  assert.ok(aba);
+  assert.equal(aba.href, "/mapa/diario-oficial");
+  assert.equal(aba.admin, true);
+  for (const perfil of ["aprovado", "prefeitura", "osc"] as const) {
+    assert.ok(!abasDoMenu(PERFIS[perfil].perfil).some((a) => a.nome === "Diário Oficial"), perfil);
+  }
+  assert.equal(abasDoMenu(PERFIS["administrador com prefeitura"].perfil).at(-1)?.nome, "Diário Oficial");
+  assert.equal(acesa("administrador", "/mapa/diario-oficial"), "Diário Oficial");
+  assert.equal(rotaPublica("/mapa/diario-oficial"), false);
+  assert.equal(rotaPublica("/mapa/diario-oficial/peca/cehap"), false);
 });
 
 // ================================================================ C4a: o menu da versão pública
