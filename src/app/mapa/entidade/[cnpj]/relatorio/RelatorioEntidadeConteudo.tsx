@@ -57,6 +57,7 @@ import {
   entidadeLegivel,
   temAvisoFiscal,
 } from "../EntidadeConteudo";
+import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
 
 // Os mesmos avisos do relatório do município (lá não são exportados); o do cadastro é só desta página.
 const AVISO_INTERNO =
@@ -141,6 +142,8 @@ function Cabeca({
           </LinkMapa>
         )}
       </p>
+      {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
+      <MontarRelatorio />
       <p className="mp-fiscal-aviso">{soCadastro ? AVISO_CADASTRO : PODE.interno(nivel) ? AVISO_INTERNO : AVISO}</p>
     </div>
   );

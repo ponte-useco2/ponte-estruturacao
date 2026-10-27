@@ -1,0 +1,108 @@
+/*
+ * A descida em 3D (onda 16, M0, 27/10/2026; opção (c) da folha C3b). Os nomes `mp-descer` e `mp-subir` são os tipos que
+ * o `LinkMapa` põe na navegação (`descida.ts`) e as classes que o `<Descida>` dá à transição.
+ *
+ * Descer: a página de cima afunda (recua no eixo Z, sobe um pouco e perde a cor) e a de baixo chega da frente.
+ * Subir: a página de baixo sai pela frente e a de cima volta do fundo. Só transform e opacidade: o navegador anima no
+ * compositor, sem refazer o layout.
+ */
+
+/* A página inteira não faz a troca padrão (o fade de 0,25 s do navegador): só o conteúdo, com a nossa direção. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+/* Clique durante a animação vai para a página viva (o Next devolve o controle na hora). */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(.mp-descer),
+::view-transition-group(.mp-subir) {
+  animation-duration: 0.42s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+::view-transition-image-pair(.mp-descer),
+::view-transition-image-pair(.mp-subir) {
+  perspective: 1400px;
+  perspective-origin: 50% 0;
+}
+
+::view-transition-old(.mp-descer),
+::view-transition-new(.mp-descer),
+::view-transition-old(.mp-subir),
+::view-transition-new(.mp-subir) {
+  transform-origin: 50% 0;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(.mp-descer) {
+  animation: mp-afunda 0.26s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(.mp-descer) {
+  animation: mp-chega-da-frente 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+::view-transition-old(.mp-subir) {
+  animation: mp-sai-pela-frente 0.26s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(.mp-subir) {
+  animation: mp-volta-do-fundo 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+
+/* O esqueleto se apaga quando a página chega. */
+::view-transition-old(.mp-esqueleto-sai) {
+  animation: mp-apaga 0.15s ease-out both;
+}
+
+@keyframes mp-afunda {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -24px, -160px);
+    filter: saturate(0.4);
+  }
+}
+@keyframes mp-chega-da-frente {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 36px, 110px);
+  }
+}
+@keyframes mp-sai-pela-frente {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 36px, 110px);
+  }
+}
+@keyframes mp-volta-do-fundo {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -24px, -160px);
+    filter: saturate(0.4);
+  }
+}
+@keyframes mp-apaga {
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * Movimento reduzido: sem deslocamento nem profundidade. Fica só a troca de opacidade, curta, que não dá enjoo e ainda
+ * diz que a página mudou.
+ */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.mp-descer),
+  ::view-transition-group(.mp-subir) {
+    animation-duration: 0s;
+  }
+  ::view-transition-old(.mp-descer),
+  ::view-transition-old(.mp-subir) {
+    animation: mp-apaga 0.12s linear both;
+  }
+  ::view-transition-new(.mp-descer),
+  ::view-transition-new(.mp-subir) {
+    animation: mp-apaga 0.12s linear reverse both;
+  }
+}

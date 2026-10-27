@@ -32,6 +32,7 @@ import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
 import { Termo } from "../../../_componentes/Termo";
 import { Trilha } from "../../../_componentes/Trilha";
+import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
 
 const AVISO =
   "Leitura automática de registros públicos do Transferegov (Acesso Livre e dados abertos). Não substitui o termo assinado, " +
@@ -120,6 +121,8 @@ export function LaudoConteudo({
             </LinkMapa>
           )}
         </p>
+        {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
+        <MontarRelatorio />
         <p className="mp-fiscal-aviso">{AVISO}</p>
       </div>
 

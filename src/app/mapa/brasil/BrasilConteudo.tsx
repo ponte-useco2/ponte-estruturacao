@@ -97,7 +97,8 @@ function Cartao({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?:
   );
 }
 
-function MapaDoBrasil() {
+/** Onda 16, M1: `vivo` na página (marcador, prévia, zoom no celular); parado no relatório para imprimir. */
+function MapaDoBrasil({ vivo = false }: { vivo?: boolean }) {
   const cor = new Map(ORDEM_MACRORREGIAO.map((r, i) => [r, i]));
   const areas = new Map<string, AreaMapa>(
     Object.keys(NOME_UF).map((sigla) => [sigla, { nome: `${NOME_UF[sigla]} (${ROTULO_MACRORREGIAO[MACRORREGIAO[sigla]]})`, href: urlUf(sigla), grupo: cor.get(MACRORREGIAO[sigla]) ?? 0 }]),
@@ -109,6 +110,7 @@ function MapaDoBrasil() {
       legenda={ORDEM_MACRORREGIAO.map((r) => ({ grupo: cor.get(r) ?? 0, rotulo: ROTULO_MACRORREGIAO[r] }))}
       titulo="Mapa do Brasil por UF, cor pela macrorregião"
       rotulos
+      vivo={vivo}
     />
   );
 }
@@ -164,7 +166,7 @@ export function Resumo({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; an
           </>
         }
       >
-        <MapaDoBrasil />
+        <MapaDoBrasil vivo={!noRelatorio} />
         {!noRelatorio && (
           <p className="mp-nao-imprimir mp-laudo-acoes">
             <LinkMapa href={urlBrasil("estados")} className="pa-btn pa-btn-pequeno">

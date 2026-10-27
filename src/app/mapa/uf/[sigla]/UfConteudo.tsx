@@ -343,11 +343,23 @@ export function Resumo({ l, peca = false }: { l: LeituraUfOk; peca?: boolean }) 
  * O mapa dos municípios da PB (a única UF com a malha municipal), cor pela região intermediária do IBGE. `alternativa`
  * (C1a): onde está a lista com os mesmos links, quando não é logo abaixo do mapa (no relatório, é a aba Municípios).
  */
-export function MapaDaUf({ municipios, alternativa }: { municipios: MunicipioUf[]; alternativa?: React.ReactNode }) {
+/**
+ * Onda 16, M1: `vivo` na página da UF (marcador, prévia com os números do município, zoom no celular); parado no
+ * relatório para imprimir.
+ */
+export function MapaDaUf({ municipios, alternativa, vivo = false }: { municipios: MunicipioUf[]; alternativa?: React.ReactNode; vivo?: boolean }) {
   const intermediarias = intermediariasDaUf(municipios);
   const cor = gruposDeCor(intermediarias);
   const areas = new Map<string, AreaMapa>(
-    municipios.map((m) => [m.ibge, { nome: m.regiao ? `${m.nome} (região imediata de ${m.regiao})` : m.nome, href: urlMunicipio(m.ibge), grupo: cor.get(m.intermediaria ?? "") ?? 0 }]),
+    municipios.map((m) => [
+      m.ibge,
+      {
+        nome: m.regiao ? `${m.nome} (região imediata de ${m.regiao})` : m.nome,
+        href: urlMunicipio(m.ibge),
+        grupo: cor.get(m.intermediaria ?? "") ?? 0,
+        detalhe: detalheDoMunicipio(m),
+      },
+    ]),
   );
   return (
     <MapaTerritorio
@@ -356,8 +368,17 @@ export function MapaDaUf({ municipios, alternativa }: { municipios: MunicipioUf[
       legenda={intermediarias.map((r) => ({ grupo: cor.get(r) ?? 0, rotulo: `Região intermediária de ${r}` }))}
       titulo="Mapa dos 223 municípios da Paraíba, cor pela região intermediária do IBGE"
       alternativa={alternativa}
+      vivo={vivo}
     />
   );
+}
+
+/** Os números da prévia no mapa vivo (onda 16, M1): os mesmos da lista dos municípios, que o público já vê. */
+function detalheDoMunicipio(m: MunicipioUf): string {
+  const partes = [`${m.instrumentos.toLocaleString("pt-BR")} ${m.instrumentos === 1 ? "instrumento" : "instrumentos"} desde 2008`];
+  if (m.em_execucao > 0) partes.push(`${m.em_execucao.toLocaleString("pt-BR")} em execução`);
+  if (m.populacao) partes.push(`${m.populacao.toLocaleString("pt-BR")} habitantes`);
+  return partes.join(" · ");
 }
 
 /** A frase que diz, ao público, que os números da tabela filtram mas não ordenam (onda 15, fase 2, lote A, 13/10/2026). */
@@ -426,7 +447,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
   );
   return (
     <Secao id="uf-municipios" titulo="Os municípios" nota={nota}>
-      {l.completa && <MapaDaUf municipios={l.municipios} />}
+      {l.completa && <MapaDaUf municipios={l.municipios} vivo />}
       {regioes.length > 1 && (
         <nav aria-label="Filtrar pela região imediata" className="mp-nao-imprimir">
           <p className="pa-nota">Cada região imediata filtra a tabela; a amostra é a cor da região intermediária no mapa.</p>

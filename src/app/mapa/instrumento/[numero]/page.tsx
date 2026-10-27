@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { numeroValido, urlInstrumento } from "@/lib/oportunidades/busca";
 import { podeVerInstrumento } from "@/lib/oportunidades/cliente";
 import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
-import { lerInstrumento } from "@/lib/oportunidades/busca.server";
+import { lerEmpresasDaExecucao, lerInstrumento } from "@/lib/oportunidades/busca.server";
+import { abaDoInstrumento } from "@/lib/oportunidades/pagina-instrumento";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { urlBrasil } from "@/lib/oportunidades/pagina-brasil";
@@ -33,8 +34,16 @@ export async function generateMetadata({ params }: { params: Promise<{ numero: s
  * Sem conta, sem estrela de seguir (`seguindo` null) e sem o atalho do laudo, que é do administrador e do cliente; o
  * laudo (`/laudo`, debaixo desta rota) fica fora da lista branca.
  */
-export default async function InstrumentoPage({ params }: { params: Promise<{ numero: string }> }) {
-  const [visitanteOuNao, { numero }] = await Promise.all([visitanteAtual(), params]);
+export default async function InstrumentoPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ numero: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [visitanteOuNao, { numero }, sp] = await Promise.all([visitanteAtual(), params, searchParams]);
+  // Onda 16, M2: a página em abas (visão geral, fase, execução); a aba vem na busca do endereço.
+  const aba = abaDoInstrumento(sp.aba);
   const acesso = quemAPaginaAtende(visitanteOuNao, chaveDoAmbiente(), `/mapa/instrumento/${encodeURIComponent(numero)}`);
   if (!acesso) return null;
   const visitante = acesso.aprovado;
@@ -85,17 +94,22 @@ export default async function InstrumentoPage({ params }: { params: Promise<{ nu
         {acesso.sessao && (
           <ConvitePublico sessao={acesso.sessao} caminho={urlInstrumento(numero)} acao="seguir este convênio e ser avisado quando ele mudar" />
         )}
-        <InstrumentoConteudo leitura={leitura} seguindo={null} laudo={false} publico />
+        <InstrumentoConteudo leitura={leitura} seguindo={null} laudo={false} publico aba={aba} />
       </>
     );
   }
   const admin = ehAdministrador(visitante.email);
   const laudo = admin || (i.tipo_agente === "municipio" && podeVerInstrumento((await lerAcessoFicha(visitante)).acesso, i).ok);
+  // D1: a empresa com nome é só do administrador. A leitura acontece só na aba Execução, e só para ele.
+  const empresas = admin && aba === "execucao" ? await lerEmpresasDaExecucao(i.nr_convenio, leitura.execucao.id) : null;
   return (
     <InstrumentoConteudo
       leitura={leitura}
       seguindo={seguidas ? seguidas.has(chaveSeguida("instrumento", i.nr_convenio)) : null}
       laudo={laudo}
+      aba={aba}
+      administrador={admin}
+      empresas={empresas}
     />
   );
 }

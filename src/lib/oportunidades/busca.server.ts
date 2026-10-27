@@ -430,6 +430,59 @@ export async function lerInstrumento(nr: string): Promise<LeituraInstrumento> {
   return { estado: "ok", execucao: ex, instrumento, eventos, eventosTruncados: eventos.length >= LIMITE_EVENTOS };
 }
 
+// ============================ EXECUÇÃO: AS EMPRESAS ============================
+
+/** Uma empresa que recebeu no convênio, com o que o painel sabe dos pagamentos a ela (sem ordem bancária a ordem bancária). */
+export interface EmpresaDaExecucao {
+  cnpj: string;
+  nome: string | null;
+  pago: number;
+  n_pagamentos: number;
+  primeiro_pagamento: string | null;
+  ultimo_pagamento: string | null;
+  /** Fatia no que o convênio pagou a pessoa jurídica (0 a 1). */
+  fatia: number | null;
+  n_contratos: number;
+  contratado: number;
+}
+
+export type LeituraEmpresasDaExecucao = Falha | { estado: "ok"; empresas: EmpresaDaExecucao[] };
+
+/** Quantas empresas a aba Execução lista; o laudo e a página do fornecedor têm a lista inteira. */
+const LIMITE_EMPRESAS = 100;
+
+/**
+ * As empresas que receberam num convênio, da que recebeu mais para a que recebeu menos (onda 16, M2, 27/10/2026), para
+ * a aba Execução do instrumento. **Só o administrador** (D1: empresa com nome é do nível 3); a página confere antes de
+ * chamar. Leve de propósito: dois pedidos (os pares do convênio pela chave e os nomes dos CNPJs), sem TCE-PB nem
+ * CEIS/CNEP, que ficam no laudo. Pessoa física não está aqui: o painel guarda só a soma, na linha do instrumento.
+ */
+export async function lerEmpresasDaExecucao(nr: string, execucaoId: number): Promise<LeituraEmpresasDaExecucao> {
+  if (!authConfigurada()) return { estado: "nao_ativado" };
+  const db = clienteServidor();
+  const pares = await db
+    .from("painel_fornecedor_convenio")
+    .select("cnpj,pago,n_pagamentos,primeiro_pagamento,ultimo_pagamento,fatia,n_contratos,contratado")
+    .eq("execucao_id", execucaoId)
+    .eq("nr_convenio", nr)
+    .order("pago", { ascending: false })
+    .limit(LIMITE_EMPRESAS);
+  if (pares.error) return falhaDe("lerEmpresasDaExecucao", pares.error);
+  const linhas = (pares.data ?? []) as Omit<EmpresaDaExecucao, "nome">[];
+  if (linhas.length === 0) return { estado: "ok", empresas: [] };
+  const nomes = await db
+    .from("painel_fornecedor")
+    .select("cnpj,nome")
+    .eq("execucao_id", execucaoId)
+    .in(
+      "cnpj",
+      linhas.map((l) => l.cnpj),
+    );
+  if (nomes.error) return falhaDe("lerEmpresasDaExecucao (nomes)", nomes.error);
+  const porCnpj = new Map(((nomes.data ?? []) as { cnpj: string; nome: string | null }[]).map((x) => [x.cnpj, x.nome]));
+  return { estado: "ok", empresas: linhas.map((l) => ({ ...l, nome: porCnpj.get(l.cnpj) ?? null })) };
+}
+
 // ============================ PROPOSTA ============================
 
 export interface PropostaCompleta extends PropostaPainel {

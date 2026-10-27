@@ -1,8 +1,9 @@
 /**
  * Mapa 2D de navegação (U2, 08/10/2026): a malha do IBGE em SVG, cada área um link para a página dela (UF ou
  * município). Cor só por região (decisão do titular: nunca cor de problema). Server Component, sem JavaScript: o
- * nome aparece no `title` (dica do navegador), e a tabela continua sendo a forma completa de navegar. Links simples
- * (`<a>`): nada de pré-carga.
+ * nome aparece no `title` (dica do navegador), e a tabela continua sendo a forma completa de navegar. Desde a onda 16 (M0, 27/10/2026), cada
+ * área é um `LinkArea` (o `<Link>` do Next sem pré-carga): o clique entra na transição da descida em vez de recarregar
+ * a página inteira.
  *
  * Teclado e leitor de tela (onda 2 de UX, B9, 08/10/2026; auditoria B1+B2, A02 e A15). Antes, o `role="img"` tirava
  * os links da árvore de acessibilidade, mas eles continuavam no Tab: 223 paradas sem nome na PB, na ordem da malha.
@@ -18,6 +19,8 @@
  */
 import type { ReactNode } from "react";
 import type { AreaMapa, Malha } from "@/lib/oportunidades/pagina-brasil";
+import { MapaVivo } from "../_movimento/MapaVivo";
+import { LinkArea } from "./LinkMapa";
 
 /**
  * Até quantas áreas com link o mapa entra no Tab. 27 paradas (as UFs), com "Pular o mapa" e em ordem alfabética,
@@ -47,6 +50,7 @@ export function MapaTerritorio({
   rotulos = false,
   navegavel,
   alternativa,
+  vivo = false,
 }: {
   malha: Malha;
   areas: ReadonlyMap<string, AreaMapa>;
@@ -61,6 +65,11 @@ export function MapaTerritorio({
   navegavel?: boolean;
   /** No modo decorativo, o texto visível que diz onde estão os mesmos links (padrão: "a lista logo abaixo do mapa"). */
   alternativa?: ReactNode;
+  /**
+   * Onda 16, M1: o mapa vivo (`MapaVivo`): entrada por região, marcador, prévia antes de descer e zoom no celular. Só
+   * nas páginas de navegação (Brasil e UF); o relatório para imprimir continua com o mapa parado.
+   */
+  vivo?: boolean;
 }) {
   const nomeDe = (id: string) => areas.get(id)?.nome ?? id;
   const comLink = malha.areas.filter((a) => areas.get(a.id)?.href);
@@ -84,6 +93,56 @@ export function MapaTerritorio({
         ? ({ "aria-hidden": true, focusable: "false" } as const)
         : ({ role: "img", "aria-label": titulo } as const);
 
+  // A legenda e a nota: as mesmas no mapa parado e no vivo (no vivo, vão para depois do mapa, dentro do cliente).
+  const rodape = (
+    <figcaption id={modo === "navegavel" ? `${id}-depois` : undefined} tabIndex={modo === "navegavel" ? -1 : undefined}>
+      <ul className="mp-mapa-legenda">
+        {legenda.map((l) => (
+          <li key={l.rotulo}>
+            <span className={`mp-mapa-amostra mp-mapa-g${l.grupo}`} aria-hidden="true" />
+            {l.rotulo}
+          </li>
+        ))}
+      </ul>
+      <span className="pa-nota">
+        Malha: {malha.fonte}.
+        {/* No papel não há toque nem teclado: a fonte fica, o resto sai (relatórios da onda 3, 08/10/2026). */}
+        <span className="mp-nao-imprimir">
+          {vivo ? " Toque ou clique numa área para ver a prévia; de novo, ou em “Entrar”, para abrir a página dela." : " Toque ou clique numa área para abrir a página dela."}
+          {modo === "navegavel" && " Pelo teclado, as áreas vêm em ordem alfabética."}
+          {modo === "decorativo" && <> {alternativa ?? TEXTO_ALTERNATIVA}</>}
+        </span>
+      </span>
+    </figcaption>
+  );
+
+  if (vivo) {
+    const ordemDasRegioes: number[] = [];
+    // A ordem de entrada de cada cor é a ordem dela na legenda.
+    for (const [k, l] of legenda.entries()) ordemDasRegioes[l.grupo] = ordemDasRegioes[l.grupo] ?? k;
+    return (
+      <figure className="mp-mapa mp-mapa-vivo">
+        {modo === "navegavel" && (
+          <a href={`#${id}-depois`} className="mp-mapa-pular">
+            Pular o mapa
+          </a>
+        )}
+        <MapaVivo
+          viewBox={malha.viewBox}
+          areas={ordem.map((a) => {
+            const info = areas.get(a.id);
+            return { id: a.id, d: a.d, x: a.x, y: a.y, nome: info?.nome ?? a.id, href: info?.href ?? null, grupo: info?.grupo ?? 0, detalhe: info?.detalhe ?? null };
+          })}
+          ordemDasRegioes={ordemDasRegioes}
+          atributosSvg={atributosSvg}
+          tabIndexDasAreas={modo === "decorativo" ? -1 : undefined}
+          rotulos={rotulos}
+          depois={rodape}
+        />
+      </figure>
+    );
+  }
+
   return (
     <figure className="mp-mapa">
       {modo === "navegavel" && (
@@ -98,10 +157,10 @@ export function MapaTerritorio({
           // O nome vem do `<title>` (nome acessível do link no SVG); um `aria-label` igual faria o leitor de tela
           // repetir o nome como descrição.
           return info?.href ? (
-            <a key={a.id} href={info.href} tabIndex={modo === "decorativo" ? -1 : undefined}>
+            <LinkArea key={a.id} href={info.href} tabIndex={modo === "decorativo" ? -1 : undefined}>
               <title>{info.nome}</title>
               {forma}
-            </a>
+            </LinkArea>
           ) : (
             <g key={a.id} aria-hidden={modo === "navegavel" ? true : undefined}>
               <title>{info?.nome ?? a.id}</title>
@@ -116,25 +175,7 @@ export function MapaTerritorio({
             </text>
           ))}
       </svg>
-      <figcaption id={modo === "navegavel" ? `${id}-depois` : undefined} tabIndex={modo === "navegavel" ? -1 : undefined}>
-        <ul className="mp-mapa-legenda">
-          {legenda.map((l) => (
-            <li key={l.rotulo}>
-              <span className={`mp-mapa-amostra mp-mapa-g${l.grupo}`} aria-hidden="true" />
-              {l.rotulo}
-            </li>
-          ))}
-        </ul>
-        <span className="pa-nota">
-          Malha: {malha.fonte}.
-          {/* No papel não há toque nem teclado: a fonte fica, o resto sai (relatórios da onda 3, 08/10/2026). */}
-          <span className="mp-nao-imprimir">
-            {" "}Toque ou clique numa área para abrir a página dela.
-            {modo === "navegavel" && " Pelo teclado, as áreas vêm em ordem alfabética."}
-            {modo === "decorativo" && <> {alternativa ?? TEXTO_ALTERNATIVA}</>}
-          </span>
-        </span>
-      </figcaption>
+      {rodape}
     </figure>
   );
 }

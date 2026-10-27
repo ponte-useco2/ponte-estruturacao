@@ -72,6 +72,11 @@ import {
   type Ordem,
 } from "@/lib/oportunidades/tabela-filtro";
 import { TabelaRolagem } from "./TabelaRolagem";
+import { AnimatePresence, m } from "framer-motion";
+import { Movimento } from "../_movimento/Movimento";
+
+/** Até quantas linhas a tabela anima o filtro (onda 16, M1): acima disso, a troca é seca, para não pesar. */
+const LINHAS_ANIMADAS = 80;
 
 export interface PropsTabelaFiltravel {
   /** O prefixo no endereço (`?t.<id>.…`): só letras minúsculas, dígitos e hífen; único na página. */
@@ -444,6 +449,24 @@ const CorpoDaTabela = memo(function CorpoDaTabela({
   limpar: () => void;
   empilhar: boolean;
 }) {
+  // As células de uma linha: as mesmas na linha animada e na comum.
+  const celulasDaLinha = (l: LinhaTabela) =>
+    colunas.map((c, i) => {
+      const celula = l.celulas[c.id] !== undefined ? l.celulas[c.id] : textoDoValor(c, l.valores[c.id]);
+      const classe = c.alinhar === "direita" ? "mp-num" : undefined;
+      // A 1ª coluna que é código, número ou data (o número do convênio, por exemplo) não ganha a largura e o
+      // negrito do nome: `mp-th-celula`, a classe do Mapa para esse caso (integração da onda 15, pedido do lote B).
+      const leve = c.textoNoCsv || c.tipo === "numero" || c.tipo === "data";
+      return i === 0 ? (
+        <th key={c.id} scope="row" className={[classe, leve ? "mp-th-celula" : undefined].filter(Boolean).join(" ") || undefined}>
+          {celula}
+        </th>
+      ) : (
+        <td key={c.id} className={classe} data-rotulo={empilhar ? c.titulo : undefined}>
+          {celula}
+        </td>
+      );
+    });
   return (
     <tbody>
       {linhas.length === 0 ? (
@@ -460,27 +483,20 @@ const CorpoDaTabela = memo(function CorpoDaTabela({
             )}
           </td>
         </tr>
+      ) : linhas.length <= LINHAS_ANIMADAS ? (
+        // Onda 16, M1: com poucas linhas, as que saem do filtro se apagam e as que entram aparecem (AnimatePresence).
+        // A primeira pintura não anima (`initial={false}`): as linhas vêm prontas do servidor.
+        <Movimento>
+          <AnimatePresence initial={false}>
+            {linhas.map((l) => (
+              <m.tr key={l.chave} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: "easeOut" }}>
+                {celulasDaLinha(l)}
+              </m.tr>
+            ))}
+          </AnimatePresence>
+        </Movimento>
       ) : (
-        linhas.map((l) => (
-          <tr key={l.chave}>
-            {colunas.map((c, i) => {
-              const celula = l.celulas[c.id] !== undefined ? l.celulas[c.id] : textoDoValor(c, l.valores[c.id]);
-              const classe = c.alinhar === "direita" ? "mp-num" : undefined;
-              // A 1ª coluna que é código, número ou data (o número do convênio, por exemplo) não ganha a largura e o
-              // negrito do nome: `mp-th-celula`, a classe do Mapa para esse caso (integração da onda 15, pedido do lote B).
-              const leve = c.textoNoCsv || c.tipo === "numero" || c.tipo === "data";
-              return i === 0 ? (
-                <th key={c.id} scope="row" className={[classe, leve ? "mp-th-celula" : undefined].filter(Boolean).join(" ") || undefined}>
-                  {celula}
-                </th>
-              ) : (
-                <td key={c.id} className={classe} data-rotulo={empilhar ? c.titulo : undefined}>
-                  {celula}
-                </td>
-              );
-            })}
-          </tr>
-        ))
+        linhas.map((l) => <tr key={l.chave}>{celulasDaLinha(l)}</tr>)
       )}
     </tbody>
   );

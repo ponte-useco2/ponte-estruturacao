@@ -17,6 +17,7 @@ import { LinkMapa } from "../../_componentes/LinkMapa";
 import { Trilha } from "../../_componentes/Trilha";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { DinheiroDoBrasil, Estados, FontesDoBrasil, Resumo, Tempos } from "../BrasilConteudo";
+import { MontarRelatorio } from "../../_movimento/MontarRelatorio";
 
 const AVISO =
   "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). Fora da Paraíba a base guarda só os " +
@@ -48,6 +49,8 @@ export function RelatorioBrasilConteudo({ l, nivel, hoje }: { l: LeituraBrasilOk
             Abrir a página do Brasil
           </LinkMapa>
         </p>
+        {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
+        <MontarRelatorio />
         <p className="mp-fiscal-aviso">{AVISO}</p>
       </div>
 

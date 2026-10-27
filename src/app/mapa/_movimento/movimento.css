@@ -1,0 +1,310 @@
+/*
+ * As peças com movimento do Mapa (onda 16, 27/10/2026): abas com sublinhado que desliza, barras com mola, gráfico de
+ * pagamentos, fases e empresas da execução. Só tokens do Mapa (`--pa-*`, azul petróleo). O movimento em si vem do
+ * Framer Motion; aqui só o desenho parado, que é o que se vê no papel, sem JavaScript e com movimento reduzido.
+ */
+
+/* ---------------------------------------------------------------- parado no papel e sem JavaScript */
+/* O Framer Motion escreve o estado inicial (invisível, deslocado, encolhido) no HTML do servidor. No papel e sem
+   JavaScript (`<noscript>` da moldura), tudo aparece no lugar final. */
+@media print {
+  .pa-root [data-mp-mov] { opacity: 1 !important; transform: none !important; }
+}
+
+/* ---------------------------------------------------------------- abas */
+.pa-root .mp-abas-mola a { position: relative; }
+.pa-root .mp-abas-mola a[aria-current="page"] { border-bottom-color: transparent; }
+.pa-root .mp-aba-sob {
+  position: absolute;
+  left: 0.35rem;
+  right: 0.35rem;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--pa-brand);
+}
+
+/* ---------------------------------------------------------------- barras com mola */
+.pa-root .mp-mola-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.85rem; }
+.pa-root .mp-mola-linha {
+  display: grid;
+  grid-template-columns: minmax(10rem, 15rem) minmax(0, 1fr) 5.5rem;
+  gap: 0.4rem 1rem;
+  align-items: center;
+}
+.pa-root .mp-mola-rotulo { display: grid; gap: 0.1rem; }
+.pa-root .mp-mola-explica { font-size: 0.78rem; color: var(--pa-muted); }
+.pa-root .mp-mola-valor { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.pa-root .mp-mola-trilha {
+  display: block;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: var(--pa-surface-2);
+  overflow: hidden;
+}
+.pa-root .mp-mola-cheia { display: block; height: 100%; border-radius: inherit; background: var(--pa-brand); }
+.pa-root .mp-mola-claro .mp-mola-cheia { background: var(--pa-brand-2); }
+.pa-root .mp-mola-neutro .mp-mola-cheia { background: color-mix(in srgb, var(--pa-brand) 60%, var(--pa-surface-2)); }
+@media (max-width: 40rem) {
+  .pa-root .mp-mola-linha { grid-template-columns: minmax(0, 1fr) auto; }
+  .pa-root .mp-mola-linha .mp-mola-trilha { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* ---------------------------------------------------------------- gráfico de pagamentos */
+.pa-root .mp-graf { margin: 1.25rem 0 0; display: grid; gap: 0.4rem; }
+.pa-root .mp-graf-titulo { font-size: 0.75rem; color: var(--pa-muted); }
+.pa-root .mp-graf-area { position: relative; padding-top: 2.4rem; overflow-x: auto; }
+.pa-root .mp-graf-colunas {
+  display: grid;
+  gap: 2px;
+  align-items: end;
+  height: 9rem;
+  min-width: min(100%, 28rem);
+  border-bottom: 1px solid var(--pa-border);
+}
+.pa-root .mp-graf-coluna {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.pa-root .mp-graf-coluna:focus-visible { outline: 2px solid var(--pa-brand); outline-offset: 1px; }
+.pa-root .mp-graf-barra { display: block; width: 100%; border-radius: 3px 3px 0 0; background: var(--pa-brand); opacity: 0.85; }
+.pa-root .mp-graf-coluna:hover .mp-graf-barra,
+.pa-root .mp-graf-coluna:focus-visible .mp-graf-barra { opacity: 1; background: var(--pa-brand-2); }
+.pa-root .mp-graf-vazio { background: transparent; }
+.pa-root .mp-graf-dica {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--pa-r);
+  background: var(--pa-dark);
+  color: #fff;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pa-root .mp-graf-eixo { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--pa-muted); }
+
+/* ---------------------------------------------------------------- fases */
+.pa-root .mp-fases { list-style: none; margin: 0; padding: 0; display: grid; }
+.pa-root .mp-fase {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+}
+.pa-root .mp-fase::before {
+  content: "";
+  position: absolute;
+  left: calc(0.7rem - 1px);
+  top: 1.2rem;
+  bottom: 0;
+  width: 2px;
+  background: var(--pa-border);
+}
+.pa-root .mp-fase:last-child::before { display: none; }
+.pa-root .mp-fase-ponto {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  border: 2px solid var(--pa-brand);
+  background: var(--pa-surface);
+}
+.pa-root .mp-fase-atual .mp-fase-ponto { background: var(--pa-brand); box-shadow: 0 0 0 5px var(--pa-brand-soft); }
+.pa-root .mp-fase-texto { display: grid; gap: 0.1rem; padding-top: 0.1rem; }
+.pa-root .mp-fase-desde { font-size: 0.75rem; color: var(--pa-muted); }
+
+/* ---------------------------------------------------------------- empresas da execução */
+.pa-root .mp-mola-lista + .mp-radar-h3,
+.pa-root .mp-mola-lista + .pa-nota + .mp-radar-h3 { margin-top: 1.5rem; }
+.pa-root .mp-empresas { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.5rem; }
+.pa-root .mp-empresa { border: 1px solid var(--pa-border); border-radius: var(--pa-r-lg); background: var(--pa-surface); overflow: hidden; }
+.pa-root .mp-empresa-aberta { border-color: var(--pa-brand); }
+.pa-root .mp-empresa-cabeca {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 1.5rem;
+  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.8rem 1rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pa-root .mp-empresa-cabeca:focus-visible { outline: 2px solid var(--pa-brand); outline-offset: -2px; }
+.pa-root .mp-empresa-nome,
+.pa-root .mp-empresa-valor { display: grid; gap: 0.1rem; }
+.pa-root .mp-empresa-nome .pa-mono,
+.pa-root .mp-empresa-valor .pa-mono { font-size: 0.72rem; color: var(--pa-muted); }
+.pa-root .mp-empresa-valor { text-align: right; font-variant-numeric: tabular-nums; }
+.pa-root .mp-empresa-seta { font-size: 1.2rem; color: var(--pa-brand); text-align: center; }
+.pa-root .mp-empresa-detalhe { overflow: hidden; padding: 0 1rem; }
+.pa-root .mp-empresa-detalhe > :first-child { margin-top: 0.25rem; }
+.pa-root .mp-empresa-detalhe > :last-child { margin-bottom: 1rem; }
+.pa-root .mp-empresa-janela { position: relative; height: 0.5rem; margin: 0.75rem 0; border-radius: 999px; background: var(--pa-surface-2); }
+.pa-root .mp-empresa-janela-faixa { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: var(--pa-brand); }
+@media (max-width: 40rem) {
+  .pa-root .mp-empresa-cabeca { grid-template-columns: minmax(0, 1fr) 1.5rem; }
+  .pa-root .mp-empresa-valor { grid-column: 1; text-align: left; }
+  .pa-root .mp-empresa-seta { grid-column: 2; grid-row: 1 / span 2; }
+}
+
+/* ---------------------------------------------------------------- mapa vivo (M1) */
+.pa-root .mp-mapa-vivo { max-width: 760px; }
+.pa-root .mp-vivo-palco { position: relative; overflow: hidden; border-radius: var(--pa-r-lg); touch-action: pan-y; }
+.pa-root .mp-vivo-ampliado .mp-vivo-palco { touch-action: none; outline: 1px solid var(--pa-border); }
+.pa-root .mp-vivo-camera { position: relative; transform-origin: 50% 50%; }
+/* Entrada por região: cada área sobe do fundo com o atraso da sua cor (`animation-delay`, do componente). */
+.pa-root .mp-vivo-area { animation: mp-area-surge 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; transform-box: fill-box; transform-origin: center; }
+@keyframes mp-area-surge {
+  from { opacity: 0; transform: scale(0.94); }
+}
+/* Passar o mouse: a área sobe um pouco, com o leve passo além de uma mola (curva que ultrapassa e volta). */
+.pa-root .mp-mapa-vivo a path { transition: fill 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pa-root .mp-mapa-vivo a:hover path { transform: translateY(-2px) scale(1.015); }
+.pa-root .mp-vivo-escolhida { fill: var(--mp-mapa-foco); stroke-width: 1.4; }
+/* O clique de mouse dá foco ao link da área; o retângulo do navegador em volta da caixa dela não serve (o foco de
+   teclado continua no preenchimento escuro, como no mapa parado). */
+.pa-root .mp-mapa-vivo a:focus { outline: none; }
+.pa-root .mp-vivo-depois { animation: mp-area-surge 0.4s ease-out 0.55s both; }
+
+.pa-root .mp-vivo-marcador {
+  position: absolute;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: -1.3rem 0 0 -0.45rem;
+  border-radius: 50% 50% 50% 0;
+  rotate: -45deg;
+  background: var(--pa-brand);
+  border: 2px solid var(--pa-surface);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
+  pointer-events: none;
+}
+
+.pa-root .mp-vivo-previa {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  width: min(18rem, calc(100% - 1.5rem));
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-r-lg);
+  background: var(--pa-surface);
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.35);
+  display: grid;
+  gap: 0.4rem;
+}
+.pa-root .mp-vivo-previa p { margin: 0; }
+.pa-root .mp-vivo-previa-nome strong { color: var(--pa-text); }
+.pa-root .mp-vivo-previa-detalhe { font-size: 0.86rem; color: var(--pa-muted); }
+.pa-root .mp-vivo-previa-acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem; }
+.pa-root .mp-vivo-previa-dica { font-size: 0.75rem; color: var(--pa-muted); }
+/* No celular, a prévia é uma folha presa embaixo da tela, arrastável para baixo. */
+.pa-root .mp-vivo-folha {
+  position: fixed;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  padding: 0.6rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  touch-action: none;
+}
+.pa-root .mp-vivo-folha .pa-btn { min-height: 44px; }
+.pa-root .mp-vivo-alca { justify-self: center; width: 2.5rem; height: 4px; border-radius: 4px; background: var(--pa-border); margin-bottom: 0.25rem; }
+.pa-root .mp-vivo-zoom { position: absolute; left: 0.5rem; bottom: 0.5rem; z-index: 1; display: flex; flex-direction: column; gap: 0.35rem; }
+.pa-root .mp-vivo-zoom .pa-btn { min-width: 44px; min-height: 44px; font-size: 1.2rem; background: var(--pa-surface); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-root .mp-vivo-area, .pa-root .mp-vivo-depois { animation: none; }
+  .pa-root .mp-mapa-vivo a path { transition: fill 0.15s ease; }
+  .pa-root .mp-mapa-vivo a:hover path { transform: none; }
+}
+@media print {
+  .pa-root .mp-vivo-area, .pa-root .mp-vivo-depois { animation: none; }
+  .pa-root .mp-vivo-zoom, .pa-root .mp-vivo-previa, .pa-root .mp-vivo-marcador { display: none; }
+}
+
+/* ---------------------------------------------------------------- contorno do município (M1) */
+.pa-root .mp-mun-titulo { display: flex; align-items: center; gap: 0.85rem; }
+.pa-root .mp-contorno { flex: none; width: 3.25rem; height: 3.25rem; overflow: visible; }
+.pa-root .mp-contorno-linha {
+  fill: var(--pa-brand);
+  fill-opacity: 0.18;
+  stroke: var(--pa-brand);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: mp-contorno-desenha 1.1s cubic-bezier(0.16, 1, 0.3, 1) both, mp-contorno-enche 0.5s ease-out 0.7s both;
+}
+@keyframes mp-contorno-desenha { from { stroke-dashoffset: 1; } }
+@keyframes mp-contorno-enche { from { fill-opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pa-root .mp-contorno-linha { animation: none; } }
+@media print { .pa-root .mp-contorno-linha { animation: none; } }
+
+/* ---------------------------------------------------------------- montar o relatório (M4) */
+.pa-root [data-mp-fora] { display: none !important; }
+.pa-root .mp-montar { display: grid; gap: 0.6rem; margin: 0.25rem 0 0.5rem; padding: 0.75rem; border: 1px solid var(--pa-border); border-radius: var(--pa-r-lg); background: var(--pa-surface); }
+.pa-root .mp-montar-modo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; }
+.pa-root .mp-montar-botao { position: relative; min-height: 40px; padding: 0.45rem 0.9rem; border: 1px solid var(--pa-border); border-radius: 999px; background: none; color: var(--pa-text); font: inherit; font-size: 0.9rem; cursor: pointer; }
+.pa-root .mp-montar-botao[aria-pressed="true"] { color: #fff; border-color: transparent; }
+.pa-root .mp-montar-pilula { position: absolute; inset: -1px; border-radius: 999px; background: var(--pa-brand); }
+.pa-root .mp-montar-rotulo { position: relative; }
+.pa-root .mp-montar-botao:focus-visible { outline: 2px solid var(--pa-brand); outline-offset: 2px; }
+.pa-root .mp-montar-nome { font-size: 0.78rem; color: var(--pa-muted); }
+.pa-root .mp-montar-lista { overflow: hidden; }
+.pa-root .mp-montar-lista ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.25rem 1rem; }
+.pa-root .mp-montar-lista label { display: flex; align-items: flex-start; gap: 0.5rem; min-height: 32px; padding: 0.2rem 0; cursor: pointer; font-size: 0.9rem; }
+.pa-root .mp-montar-lista input { margin-top: 0.2rem; accent-color: var(--pa-brand); }
+.pa-root .mp-montar-atalhos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0; }
+.pa-root .mp-montar-dica { font-size: 0.75rem; color: var(--pa-muted); }
+
+/* ---------------------------------------------------------------- gráficos que vêm do servidor (M3) */
+/*
+ * As barras de sempre (por tema, por situação, das OSC, a do laudo, a do design system) crescem ao aparecer com a
+ * curva da mola `barra` (a mesma do Framer Motion), amostrada por `curvaDaMola(MOLA.barra)` em `molas.ts`. O teste
+ * `molas.test.ts` confere que a curva e a duração abaixo são as da mola: mudou a mola, o teste pede para regerar.
+ * Anima só `transform` a partir da esquerda; a largura continua a do servidor.
+ */
+.pa-root {
+  --mp-mola-barra: linear(0, 0.026, 0.086, 0.171, 0.261, 0.352, 0.44, 0.526, 0.599, 0.665, 0.722, 0.771, 0.815, 0.85, 0.88, 0.904, 0.925, 0.941, 0.954, 0.964, 0.973, 0.979, 0.984, 0.988, 0.992, 0.994, 0.996, 0.997, 0.998, 0.999, 0.999, 1, 1);
+  --mp-mola-barra-ms: 647ms;
+}
+.pa-root :is(.mp-barra-cheia, .mp-ent-barra, .pa-barra > span, .mp-laudo-barra > span) {
+  transform-origin: left center;
+  animation: mp-barra-cresce var(--mp-mola-barra-ms) var(--mp-mola-barra) both;
+}
+.pa-root tr:nth-child(n + 2) :is(.mp-barra-cheia, .mp-ent-barra) { animation-delay: 40ms; }
+.pa-root tr:nth-child(n + 4) :is(.mp-barra-cheia, .mp-ent-barra) { animation-delay: 80ms; }
+.pa-root tr:nth-child(n + 8) :is(.mp-barra-cheia, .mp-ent-barra) { animation-delay: 120ms; }
+.pa-root .mp-laudo-barra > span + span { animation-delay: 90ms; }
+@keyframes mp-barra-cresce { from { transform: scaleX(0); } }
+
+/* A linha da despesa com pessoal (relatório do município) se desenha da esquerda para a direita; os pontos aparecem
+   depois, com o leve passo da mola `pin`. */
+.pa-root .mp-rel-linha { stroke-dasharray: 1; animation: mp-linha-desenha 1.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes mp-linha-desenha { from { stroke-dashoffset: 1; } }
+.pa-root :is(.mp-rel-ponto, .mp-rel-ponto-acima) { transform-box: fill-box; transform-origin: center; animation: mp-ponto-surge 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both; }
+@keyframes mp-ponto-surge { from { transform: scale(0); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-root :is(.mp-barra-cheia, .mp-ent-barra, .pa-barra > span, .mp-laudo-barra > span, .mp-rel-linha, .mp-rel-ponto, .mp-rel-ponto-acima) { animation: none; }
+}
+@media print {
+  .pa-root :is(.mp-barra-cheia, .mp-ent-barra, .pa-barra > span, .mp-laudo-barra > span, .mp-rel-linha, .mp-rel-ponto, .mp-rel-ponto-acima) { animation: none; }
+}

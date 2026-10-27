@@ -23,6 +23,7 @@ import { Trilha } from "../../../_componentes/Trilha";
 import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { Secao } from "../../../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { AtalhosAdmin, AvisoCobertura, Dinheiro, Estado, FontesUf, MapaDaUf, Resumo, Tempos } from "../UfConteudo";
+import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
 
 const AVISO =
   "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). Os números dizem o que a base guarda, não fazem juízo " +
@@ -190,6 +191,8 @@ export function RelatorioUfConteudo({ l, nivel, hoje }: { l: LeituraUfOk; nivel:
           </LinkMapa>
           <AtalhosAdmin l={l} nivel={nivel} />
         </p>
+        {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
+        <MontarRelatorio />
         <p className="mp-fiscal-aviso">{admin ? AVISO_INTERNO : AVISO}</p>
         <AvisoCobertura l={l} />
       </div>

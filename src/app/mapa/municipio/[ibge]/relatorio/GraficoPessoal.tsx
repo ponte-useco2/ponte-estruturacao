@@ -54,7 +54,7 @@ export function GraficoPessoal({ serie }: { serie: PontoSerie[] }) {
           <text x={L - M.dir + 6} y={y(prudencial) + 4} className="mp-rel-eixo">
             prud. {pct(prudencial)}
           </text>
-          <polyline points={pontos.map((p, k) => `${x(k)},${y(p.dtp_pct)}`).join(" ")} className="mp-rel-linha" />
+          <polyline points={pontos.map((p, k) => `${x(k)},${y(p.dtp_pct)}`).join(" ")} className="mp-rel-linha" pathLength={1} />
           {pontos.map((p, k) => (
             <circle key={`${p.exercicio}-${p.periodo}`} cx={x(k)} cy={y(p.dtp_pct)} r={3.5} className={p.dtp_pct > maximo ? "mp-rel-ponto-acima" : "mp-rel-ponto"}>
               <title>{`${rotuloPeriodo(p)}: ${pct(p.dtp_pct)}`}</title>

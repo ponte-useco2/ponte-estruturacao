@@ -66,6 +66,7 @@ import {
   Secao,
 } from "./relatorio/RelatorioConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { ContornoDoMunicipio } from "../../_movimento/ContornoDoMunicipio";
 
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
 
@@ -75,7 +76,11 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <Trilha elos={trilha({ uf: "PB", regiaoImediata: g?.regiao_imediata, municipio: { ibge: r.ibge, nome: r.nome } })} />
-      <h1 className="pa-titulo">{r.nome}</h1>
+      {/* Onda 16, M1: o contorno do município se desenha ao lado do nome. */}
+      <div className="mp-mun-titulo">
+        <ContornoDoMunicipio ibge={r.ibge} />
+        <h1 className="pa-titulo">{r.nome}</h1>
+      </div>
       <p className="pa-sub mp-mun-chips">
         <span>IBGE {r.ibge}</span>
         {pop && (

@@ -11,6 +11,7 @@ import { ehAdministrador } from "@/lib/supabase-auth";
 import { AbrirAoImprimir } from "./AbrirAoImprimir";
 import { EsperaDoMapa } from "./Carregando";
 import { LinkMapa } from "./LinkMapa";
+import { Descida } from "../_movimento/Descida";
 import "./pular.css";
 
 /** A versão pública não tem conta: nem organização ativa, nem avisos para contar (C4a). */
@@ -92,6 +93,11 @@ export async function MapaFrame(
         <AbrirAoImprimir />
         {/* B12 (08/10/2026; A15 da auditoria B1+B2): o primeiro Tab da página. São até 14 paradas no cabeçalho antes do
             conteúdo (12 abas para o administrador desde a onda 14, com "Parlamentares"). Âncora da própria página, não rota: <a> simples, sem LinkMapa. */}
+        {/* Onda 16: o Framer Motion escreve o estado inicial (invisível, deslocado) no HTML. Sem JavaScript, nada anima:
+            tudo aparece parado no lugar final. */}
+        <noscript>
+          <style>{"[data-mp-mov]{opacity:1!important;transform:none!important}"}</style>
+        </noscript>
         <a href="#conteudo" className="mp-pular">
           Pular para o conteúdo
         </a>
@@ -127,8 +133,10 @@ export async function MapaFrame(
         </header>
 
         {/* `tabIndex={-1}`: o salto do "Pular para o conteúdo" leva também o foco, e o próximo Tab segue daqui. */}
+        {/* Onda 16, M0 (27/10/2026): a descida em 3D entre as páginas de nível anima só o conteúdo; o cabeçalho, fora
+            dela, fica parado como âncora. */}
         <main id="conteudo" tabIndex={-1} className="pa-main">
-          {children}
+          <Descida>{children}</Descida>
         </main>
 
         <footer className="mp-rodape">

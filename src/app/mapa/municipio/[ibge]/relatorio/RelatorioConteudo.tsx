@@ -67,6 +67,7 @@ import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { Termo } from "../../../_componentes/Termo";
 import { Trilha } from "../../../_componentes/Trilha";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
+import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
 
 const AVISO_INTERNO =
   "Uso interno da PONTE. Leitura automática de fontes públicas, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, " +
@@ -983,6 +984,8 @@ export function RelatorioConteudo({
             </LinkMapa>
           )}
         </p>
+        {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
+        <MontarRelatorio />
         <p className="mp-fiscal-aviso">{PODE.interno(nivel) ? AVISO_INTERNO : AVISO}</p>
       </div>
 

@@ -41,6 +41,8 @@ export interface AreaMapa {
   href: string | null;
   /** O índice da cor (0 a 4): a região, nunca um problema. */
   grupo: number;
+  /** Os números da prévia do mapa vivo (onda 16, M1), quando a página tem: "12 instrumentos · 3 em execução". */
+  detalhe?: string | null;
 }
 
 /** Os grupos de cor de uma lista de regiões, na ordem dada; o que não estiver na lista fica no grupo 0. */

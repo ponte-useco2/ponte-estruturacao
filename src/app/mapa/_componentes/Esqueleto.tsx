@@ -25,6 +25,7 @@
 import type { ReactNode } from "react";
 import { AvisoDeEspera } from "./Carregando";
 import { abasDoEsqueleto, type AbaComNivel } from "./espera";
+import { SaidaDoEsqueleto } from "../_movimento/Descida";
 import "./esqueleto.css";
 
 /** Larguras que se revezam, para as linhas não saírem todas iguais. */
@@ -77,53 +78,56 @@ export function Esqueleto({
   children?: ReactNode;
 }) {
   const listaDeAbas = abasDoEsqueleto(abas);
+  // Onda 16, M0: quando a página chega, o esqueleto se apaga em vez de sumir de uma vez (`_movimento/Descida.tsx`).
   return (
-    <div className="pa-pagina mp-radar mp-esq">
-      <p aria-hidden="true" className="pa-mono mp-esq-status">
-        {texto}
-      </p>
-      <AvisoDeEspera texto={texto} />
-      <div aria-hidden="true">
-        <div className="pa-pilha mp-radar-cabeca">
-          {trilha > 0 ? (
-            <div className="mp-esq-trilha">{repete(trilha, (i) => <Osso key={i} largura={i === trilha - 1 ? "9rem" : "4.5rem"} />)}</div>
-          ) : (
-            <Osso tipo="rotulo" largura="14rem" />
-          )}
-          <Osso tipo="titulo" largura="min(28rem, 75%)" />
-          {repete(linhas, (i) => (
-            <Osso key={i} largura={i === 0 ? "min(34rem, 90%)" : "min(24rem, 70%)"} />
-          ))}
-          {acoes > 0 && <div className="mp-laudo-acoes">{repete(acoes, (i) => <Osso key={i} tipo="botao" largura={i === 0 ? "6.5rem" : "5.5rem"} />)}</div>}
-          {aviso && (
-            <div className="mp-fiscal-aviso">
-              <Osso largura="96%" />
-              <Osso largura="58%" />
+    <SaidaDoEsqueleto>
+      <div className="pa-pagina mp-radar mp-esq">
+        <p aria-hidden="true" className="pa-mono mp-esq-status">
+          {texto}
+        </p>
+        <AvisoDeEspera texto={texto} />
+        <div aria-hidden="true">
+          <div className="pa-pilha mp-radar-cabeca">
+            {trilha > 0 ? (
+              <div className="mp-esq-trilha">{repete(trilha, (i) => <Osso key={i} largura={i === trilha - 1 ? "9rem" : "4.5rem"} />)}</div>
+            ) : (
+              <Osso tipo="rotulo" largura="14rem" />
+            )}
+            <Osso tipo="titulo" largura="min(28rem, 75%)" />
+            {repete(linhas, (i) => (
+              <Osso key={i} largura={i === 0 ? "min(34rem, 90%)" : "min(24rem, 70%)"} />
+            ))}
+            {acoes > 0 && <div className="mp-laudo-acoes">{repete(acoes, (i) => <Osso key={i} tipo="botao" largura={i === 0 ? "6.5rem" : "5.5rem"} />)}</div>}
+            {aviso && (
+              <div className="mp-fiscal-aviso">
+                <Osso largura="96%" />
+                <Osso largura="58%" />
+              </div>
+            )}
+          </div>
+          {listaDeAbas.length > 0 && (
+            <div className="mp-mun-abas">
+              {listaDeAbas.map((a, i) => (
+                <span
+                  key={i}
+                  className={[
+                    "mp-esq-aba",
+                    a.entrada && "mp-esq-aba-atual",
+                    a.entradaDoPublico && "mp-esq-aba-atual-publico",
+                    a.cadastro && "mp-esq-aba-cadastro",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <Osso largura={i === 0 ? "9rem" : i % 2 ? "5rem" : "6.5rem"} />
+                </span>
+              ))}
             </div>
           )}
+          {children}
         </div>
-        {listaDeAbas.length > 0 && (
-          <div className="mp-mun-abas">
-            {listaDeAbas.map((a, i) => (
-              <span
-                key={i}
-                className={[
-                  "mp-esq-aba",
-                  a.entrada && "mp-esq-aba-atual",
-                  a.entradaDoPublico && "mp-esq-aba-atual-publico",
-                  a.cadastro && "mp-esq-aba-cadastro",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                <Osso largura={i === 0 ? "9rem" : i % 2 ? "5rem" : "6.5rem"} />
-              </span>
-            ))}
-          </div>
-        )}
-        {children}
       </div>
-    </div>
+    </SaidaDoEsqueleto>
   );
 }
 

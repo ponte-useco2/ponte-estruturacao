@@ -55,6 +55,7 @@ import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
 import { Termo } from "../../../_componentes/Termo";
 import { Trilha } from "../../../_componentes/Trilha";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
+import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
 
 const aviso = (cliente: boolean) =>
   `Leitura automática dos dados abertos do Transferegov${cliente ? "" : " e do painel fiscal"}. Não substitui o termo, o parecer do ` +
@@ -203,6 +204,8 @@ export function DiagnosticoConteudo({
             </LinkMapa>
           )}
         </p>
+        {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
+        <MontarRelatorio />
         <p className="mp-fiscal-aviso">{aviso(cliente)}</p>
       </div>
 
