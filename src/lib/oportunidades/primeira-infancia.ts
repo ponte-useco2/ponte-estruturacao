@@ -63,7 +63,7 @@ export const ROTULO_ESTADO: Record<EstadoTermo, string> = {
   recente: "liberado há pouco",
   pagando: "pagando",
   a_liberar: "assinado, a liberar",
-  par: "PAR4 (conferir no SIMEC)",
+  par: "PAR4 (ver as obras do município)",
 };
 
 /**
@@ -122,11 +122,41 @@ export interface ContextoPI {
   saude: Partial<Record<"custeio" | "investimento" | "emenda" | "outras", number>> | null;
 }
 
+/**
+ * Uma obra de creche ou educação infantil no Obrasgov.br (job `obras/`, oport_49, P0.4 de 27/10/2026). A fonte não traz
+ * o número do termo: obra e termo se ligam só pelo município. `origem` diz de onde veio o município.
+ */
+export interface ObraCreche {
+  id: string;
+  ibge: string | null;
+  origem: "tomador" | "nome" | "geometria" | "nao_identificado";
+  nome: string;
+  situacao: string | null;
+  sistema: string | null;
+  pct: number | null;
+  inicio: string | null;
+  fimPrevista: string | null;
+  dataSituacao: string | null;
+  justificativa: string | null;
+}
+
+export const SITUACAO_PARALISADA = "Paralisada";
+export const SITUACAO_EM_EXECUCAO = "Em execução";
+
+/** A ordem das obras na tela: paralisadas, em execução, cadastradas, o resto; dentro, o nome. */
+export function ordenarObras(obras: ObraCreche[]): ObraCreche[] {
+  const peso = (o: ObraCreche) =>
+    o.situacao === SITUACAO_PARALISADA ? 0 : o.situacao === SITUACAO_EM_EXECUCAO ? 1 : o.situacao === "Cadastrada" ? 2 : 3;
+  return [...obras].sort((a, b) => peso(a) - peso(b) || a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
 export interface MunicipioPI {
   ibge: string;
   nome: string;
   termos: TermoCreche[];
   pix: PlanoPixPI[];
+  /** As obras de creche do município no Obrasgov.br (as sem município identificado ficam fora). */
+  obras: ObraCreche[];
   contexto: ContextoPI;
   /** Matrículas em creche por 100 crianças de 0 a 3 anos (camada 2), quando há. */
   creche03: number | null;
@@ -151,6 +181,9 @@ export interface ResumoPI {
   fundebAcimaDoLimite: boolean;
   salarioEducacao: number | null;
   saude: number | null;
+  /** Obras de creche no Obrasgov.br: paralisadas e em execução. */
+  obrasParalisadas: number;
+  obrasEmExecucao: number;
 }
 
 export const LIMITE_FUNDEB_NAO_APLICADO = 10;
@@ -183,12 +216,14 @@ export function resumoMunicipio(m: MunicipioPI): ResumoPI {
     fundebAcimaDoLimite: pctNaoAplicado !== null && pctNaoAplicado > LIMITE_FUNDEB_NAO_APLICADO,
     salarioEducacao: s?.["166"] ?? null,
     saude: m.contexto.saude ? soma(Object.values(m.contexto.saude)) : null,
+    obrasParalisadas: m.obras.filter((o) => o.situacao === SITUACAO_PARALISADA).length,
+    obrasEmExecucao: m.obras.filter((o) => o.situacao === SITUACAO_EM_EXECUCAO).length,
   };
 }
 
 /** Se o município tem algo carimbado para mostrar (termo, plano do Pix ou saldo do Criança Feliz). */
 export function temCarimbado(m: MunicipioPI): boolean {
-  return m.termos.length > 0 || m.pix.length > 0 || (m.contexto.cfSaldo ?? 0) > 0;
+  return m.termos.length > 0 || m.pix.length > 0 || (m.contexto.cfSaldo ?? 0) > 0 || m.obras.some((o) => o.situacao === SITUACAO_PARALISADA);
 }
 
 export function totais(lista: MunicipioPI[]): ResumoPI & { municipios: number; acimaDoLimite: string[] } {
@@ -211,6 +246,8 @@ export function totais(lista: MunicipioPI[]): ResumoPI & { municipios: number; a
     fundebAcimaDoLimite: rs.some((r) => r.fundebAcimaDoLimite),
     salarioEducacao: s("salarioEducacao"),
     saude: s("saude"),
+    obrasParalisadas: s("obrasParalisadas"),
+    obrasEmExecucao: s("obrasEmExecucao"),
     municipios: lista.length,
     acimaDoLimite: lista.filter((_, i) => rs[i].fundebAcimaDoLimite).map((m) => m.nome),
   };
@@ -239,6 +276,7 @@ export function colunasPI(administrador: boolean): ColunaTabela[] {
     valor("a-liberar", "Creche: assinado, a liberar"),
     valor("par", "PAR4: saldo (conferir)"),
     valor("pix", "Pix só de creche: saldo"),
+    valor("obras-paralisadas", "Obras de creche paralisadas (Obrasgov)"),
     valor("crianca-feliz", "Criança Feliz: saldo"),
     valor("fundeb", "FUNDEB não usado no ano"),
     valor("fundeb-ei", "dele, proporção da educação infantil (estimativa)", true),
@@ -259,6 +297,7 @@ export function valoresPI(m: MunicipioPI): Record<string, ValorCelula> {
     "a-liberar": ou(r.aLiberar),
     par: ou(r.parSaldo),
     pix: ou(r.pixSaldo),
+    "obras-paralisadas": ou(r.obrasParalisadas),
     "crianca-feliz": ou(r.cfSaldo),
     fundeb: r.fundebNaoUsado,
     "fundeb-ei": r.fundebEiEstimado,

@@ -199,6 +199,12 @@ export const FOLGA_EMENDAS_JP_H = ATRASO_GITHUB_H + 24 + 1;
 export const FOLGA_FNAS_H = ATRASO_GITHUB_H + 24 + 1;
 
 /**
+ * A folga das obras de creche (P0.4 da primeira infância, 27/10/2026): o `obras.yml` roda TODA QUARTA no runner da
+ * máquina do titular; a conta é a do FNAS (fila de até 24 h, atraso do agendamento, 1 h de margem).
+ */
+export const FOLGA_OBRAS_H = ATRASO_GITHUB_H + 24 + 1;
+
+/**
  * A folga do radar (com o Pix em curso, o painel e o TCE-PB) desde 27/10/2026, no runner da máquina do titular: o
  * painel leva ~57 min lá (no GitHub, ~11), e o `radar-propostas.yml` passou a ter 3 h de tempo-limite. A conta é a da
  * `FOLGA_EMENDAS_H` (atraso do GitHub, tempo-limite e margem), mais 1 h pela distância entre o disparo da Vercel e o
@@ -884,6 +890,27 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
         ...seMaior(descartes, (x) => `${plural(x, "linha descartada", "linhas descartadas")} (sem CNPJ, mês ou ano)`),
       ];
     },
+  },
+  {
+    // Obras de creche e educação infantil da PB no Obrasgov.br (P0.4 da primeira infância, 27/10/2026): situação,
+    // execução física e paralisação, lidas do runner da máquina do titular, toda quarta.
+    id: "obr",
+    nome: "Obras de creche (Obrasgov)",
+    tabela: "obr_execucao",
+    recorte: null,
+    cadencia: "semanal",
+    workflow: "obras.yml",
+    cron: "15 13 * * 3",
+    folgaH: FOLGA_OBRAS_H,
+    // A API não informa a data do dado; vale o instante da leitura.
+    dado: dadoDaConsulta("leitura da API do Obrasgov"),
+    linhas: (c) => numero(c, "obr_obras"),
+    rotuloLinhas: "obras de creche",
+    // A rodada com falha não publica (API fora, projetos de menos ou queda): sem falha parcial.
+    falhas: semFalhas,
+    avisos: (c) =>
+      seMaior(numero(objeto(c, "obr_ibge_origem"), "nao_identificado"), (x) =>
+        `${plural(x, "obra sem município identificado", "obras sem município identificado")} na fonte`),
   },
   {
     id: "mun",

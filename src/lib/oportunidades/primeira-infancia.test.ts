@@ -9,11 +9,13 @@ import {
   colunasPI,
   ehCreche,
   estadoTermo,
+  ordenarObras,
   resumoMunicipio,
   temCarimbado,
   totais,
   valoresPI,
   type MunicipioPI,
+  type ObraCreche,
   type TermoCreche,
 } from "./primeira-infancia.ts";
 
@@ -24,7 +26,7 @@ const termo = (x: Partial<TermoCreche>): TermoCreche => ({
 });
 
 const municipio = (x: Partial<MunicipioPI>): MunicipioPI => ({
-  ibge: "2516706", nome: "Teixeira", termos: [], pix: [], contexto: { cfSaldo: null, cfRepasse12: null, siope: null, saude: null },
+  ibge: "2516706", nome: "Teixeira", termos: [], pix: [], obras: [], contexto: { cfSaldo: null, cfRepasse12: null, siope: null, saude: null },
   creche03: null, ...x,
 });
 
@@ -100,6 +102,26 @@ test("a lista: cada coluna tem o valor cru; fora da casa, as colunas de valor n�
   assert.ok(colunasPI(true).every((c) => c.ordenavel !== false));
   assert.equal(v.parado, 855_705.76);
   assert.equal(v["a-liberar"], null, "zero vira vazio: a célula mostra '—'");
+});
+
+const obra = (x: Partial<ObraCreche>): ObraCreche => ({
+  id: "87529.25-60", ibge: "2507507", origem: "nome", nome: "Gramame - João Pessoa - PB", situacao: "Paralisada", sistema: "SIMEC-FNDE",
+  pct: 16.17, inicio: "2023-12-19", fimPrevista: "2025-12-27", dataSituacao: "2026-02-02", justificativa: "Paralisada", ...x,
+});
+
+test("P0.4: as obras do Obrasgov contam paralisadas e em execução, entram na lista e põem o município na fila", () => {
+  const m = municipio({ obras: [obra({}), obra({ id: "2.25-1", situacao: "Em execução" }), obra({ id: "3.25-1", situacao: "Concluída" })] });
+  const r = resumoMunicipio(m);
+  assert.deepEqual([r.obrasParalisadas, r.obrasEmExecucao], [1, 1]);
+  assert.equal(valoresPI(m)["obras-paralisadas"], 1);
+  assert.equal(valoresPI(municipio({}))["obras-paralisadas"], null);
+  assert.ok(temCarimbado(municipio({ obras: [obra({})] })), "obra paralisada põe o município na lista");
+  assert.ok(!temCarimbado(municipio({ obras: [obra({ situacao: "Concluída" })] })));
+  assert.equal(totais([m, m]).obrasParalisadas, 2);
+  assert.deepEqual(
+    ordenarObras([obra({ id: "a", situacao: "Concluída", nome: "A" }), obra({ id: "b", situacao: "Em execução" }), obra({ id: "c" })]).map((o) => o.id),
+    ["c", "b", "a"],
+  );
 });
 
 test("a página: cadastrado e acima; a aba do município também", () => {

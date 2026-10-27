@@ -8,7 +8,7 @@ import { tituloDaPagina } from "@/lib/oportunidades/titulo-pagina";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { DadoIndisponivel } from "../busca/BuscaConteudo";
-import { CartoesPI, NotasPI, TabelaMunicipiosPI } from "./PecasPrimeiraInfancia";
+import { CartoesPI, NotasPI, ObrasPI, TabelaMunicipiosPI } from "./PecasPrimeiraInfancia";
 
 export const metadata: Metadata = {
   title: tituloDaPagina("Primeira infância na PB"),
@@ -66,6 +66,20 @@ export default async function PrimeiraInfanciaPage({
         </p>
       )}
       <CartoesPI t={t} datas={leitura.datas} estadual />
+
+      <h2 className="mp-radar-h3">Obras de creche paralisadas no Obrasgov.br</h2>
+      <ObrasPI
+        obras={[...leitura.municipios.flatMap((m) => m.obras), ...leitura.obrasSemMunicipio].filter((o) => o.situacao === "Paralisada")}
+        data={leitura.datas.obras}
+        vazio="Nenhuma obra de creche paralisada na PB no Obrasgov.br."
+        comMunicipio
+      />
+      {leitura.obrasSemMunicipio.length > 0 && (
+        <p className="pa-nota">
+          {leitura.obrasSemMunicipio.length} obras de creche da PB estão no Obrasgov.br sem município identificado (sem tomador, sem o nome do
+          município e com a localização padrão): entram aqui, mas não na página de nenhum município.
+        </p>
+      )}
 
       <h2 className="mp-radar-h3">Por município</h2>
       <p className="pa-nota">

@@ -11,17 +11,21 @@ import {
   DIAS_PARADO_LONGO,
   LIMITE_FUNDEB_NAO_APLICADO,
   ROTULO_ESTADO,
+  SITUACAO_PARALISADA,
   TABELA_PRIMEIRA_INFANCIA,
   colunasPI,
   estadoTermo,
+  ordenarObras,
   resumoMunicipio,
   totais,
   valoresPI,
   type MunicipioPI,
+  type ObraCreche,
   type ResumoPI,
 } from "@/lib/oportunidades/primeira-infancia";
 import type { DatasPI } from "@/lib/oportunidades/primeira-infancia.server";
 import type { IndicadorLido } from "@/lib/oportunidades/indicadores-municipio";
+import { MUNICIPIOS_PB } from "@/lib/oportunidades/municipios-pb";
 import { frasesReferencia } from "@/lib/oportunidades/indicadores-municipio";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
@@ -73,7 +77,7 @@ export function CartoesPI({ t, datas, estadual }: { t: ResumoPI & { acimaDoLimit
         <Cartao
           rotulo="Pix só de creche e PAR4"
           valor={moedaCurta(t.pixSaldo + t.parSaldo)}
-          nota={`Pix ${moedaCurta(t.pixSaldo)} (data do saldo varia por plano); PAR4 ${moedaCurta(t.parSaldo)} em conta, a conferir no SIMEC.`}
+          nota={`Pix ${moedaCurta(t.pixSaldo)} (data do saldo varia por plano); PAR4 ${moedaCurta(t.parSaldo)} em conta.${t.obrasParalisadas ? ` ${plural(t.obrasParalisadas, "obra de creche paralisada", "obras de creche paralisadas")} no Obrasgov.` : ""}`}
         />
       </div>
       <h3 className="mp-radar-h3">Contexto: dinheiro que pode ir para a primeira infância, mas não é carimbado</h3>
@@ -126,6 +130,7 @@ export function TabelaMunicipiosPI({ municipios, administrador }: { municipios: 
             "a-liberar": cel(r.aLiberar),
             par: cel(r.parSaldo),
             pix: cel(r.pixSaldo),
+            "obras-paralisadas": r.obrasParalisadas ? n(r.obrasParalisadas) : "—",
             "crianca-feliz": cel(r.cfSaldo),
             fundeb: (
               <>
@@ -182,6 +187,9 @@ export function DetalheMunicipioPI({
           ))}
         </ul>
       )}
+
+      <h3 className="mp-radar-h3">Obras de creche no Obrasgov.br</h3>
+      <ObrasPI obras={m.obras} data={datas.obras} vazio="Nenhuma obra de creche ou educação infantil deste município no Obrasgov.br." />
 
       {m.pix.length > 0 && (
         <>
@@ -244,7 +252,8 @@ export function NotasPI({ datas }: { datas: DatasPI }) {
       <ul>
         <li>
           <strong>Datas.</strong> SICONV de {datas.siconv ? formatarDataBr(datas.siconv) : "—"}; saldos do FNAS de {mes(datas.fnasMes)}; SIOPE de{" "}
-          {datas.siopeAno ?? "—"}, 6º bimestre; FNS com saldos de {datas.saudeData ? formatarDataBr(datas.saudeData) : "—"}.
+          {datas.siopeAno ?? "—"}, 6º bimestre; FNS com saldos de {datas.saudeData ? formatarDataBr(datas.saudeData) : "—"}; Obrasgov.br lido em{" "}
+          {datas.obras ? formatarDataBr(datas.obras) : "—"}.
         </li>
         <li>
           <strong>&ldquo;Em conta, sem pagamento&rdquo;</strong> é a 1ª parcela do MEC depositada, sem nenhum pagamento da prefeitura e com{" "}
@@ -252,8 +261,14 @@ export function NotasPI({ datas }: { datas: DatasPI }) {
           É ponto para olhar, não irregularidade: o mais comum é a licitação ou o início da obra atrasados.
         </li>
         <li>
-          <strong>PAR4.</strong> Os termos do SIMEC/PAR aparecem no SICONV sem a execução, que corre no SIMEC: o saldo existe, mas só o SIMEC diz se
-          a obra andou.
+          <strong>PAR4.</strong> Os termos do SIMEC/PAR aparecem no SICONV sem a execução, que corre no SIMEC. A situação e o percentual das obras
+          vêm do Obrasgov.br (o cadastro federal de obras, que espelha o SIMEC), lido toda quarta.
+        </li>
+        <li>
+          <strong>Obras no Obrasgov.br.</strong> A fonte não traz o número do termo: obra e termo se ligam só pelo município, nunca como &ldquo;é esta
+          obra&rdquo;. O município vem do tomador, do nome da obra (&ldquo;Município/PB&rdquo;) ou da localização, quando não é a de João Pessoa, que a
+          fonte usa quando não sabe; sem nenhum deles, a obra fica como &ldquo;município não identificado&rdquo;. Paralisada é ponto para olhar, não
+          irregularidade: pode estar em repactuação (Pacto pela Retomada de Obras, Lei 14.719/2023).
         </li>
         <li>
           <strong>Pix.</strong> Entra na soma só o plano cujo objeto é inteiramente creche ou educação infantil; o misto aparece, sem somar.
@@ -275,6 +290,65 @@ export function NotasPI({ datas }: { datas: DatasPI }) {
         </li>
       </ul>
     </details>
+  );
+}
+
+const SECUNDARIAS = new Set(["Concluída", "Cancelada", "Inacabada"]);
+const NOME_MUNICIPIO = new Map(MUNICIPIOS_PB.map(([codigo, nome]) => [codigo, nome]));
+
+/** As obras de creche, uma por linha: as vivas primeiro; as concluídas e canceladas, recolhidas. */
+export function ObrasPI({
+  obras,
+  data,
+  vazio,
+  comMunicipio = false,
+}: {
+  obras: ObraCreche[];
+  data: string | null;
+  vazio: string;
+  comMunicipio?: boolean;
+}) {
+  if (!data) return <p className="pa-nota">O Obrasgov.br ainda não foi lido (o job das obras roda toda quarta).</p>;
+  if (obras.length === 0) return <p className="pa-nota">{vazio}</p>;
+  const ordem = ordenarObras(obras);
+  const vivas = ordem.filter((o) => !SECUNDARIAS.has(o.situacao ?? ""));
+  const outras = ordem.filter((o) => SECUNDARIAS.has(o.situacao ?? ""));
+  const item = (o: ObraCreche) => (
+    <li key={o.id}>
+      <strong>{o.situacao ?? "—"}</strong>
+      {o.pct !== null ? ` · ${pct(o.pct)} executado` : ""} · {o.nome}
+      {comMunicipio &&
+        (o.ibge ? (
+          <>
+            {" · "}
+            <LinkMapa href={urlMunicipio(o.ibge, "primeira-infancia")}>{NOME_MUNICIPIO.get(o.ibge) ?? o.ibge}</LinkMapa>
+          </>
+        ) : (
+          " · município não identificado na fonte"
+        ))}
+      <br />
+      <span className="mp-tabela-secundario">
+        {o.inicio ? `início ${formatarDataBr(o.inicio)}` : "sem início registrado"}
+        {o.fimPrevista ? ` · fim previsto ${formatarDataBr(o.fimPrevista)}` : ""}
+        {o.situacao === SITUACAO_PARALISADA && o.dataSituacao ? ` · paralisada em ${formatarDataBr(o.dataSituacao)}` : ""}
+        {o.justificativa && o.justificativa !== o.situacao ? ` · ${o.justificativa.slice(0, 160)}` : ""}
+        {` · ${o.sistema ?? "Obrasgov"} ${o.id}`}
+      </span>
+    </li>
+  );
+  return (
+    <>
+      {vivas.length > 0 ? <ul className="mp-laudo-lista">{vivas.map(item)}</ul> : <p className="pa-nota">Nenhuma obra em andamento ou parada.</p>}
+      {outras.length > 0 && (
+        <details className="mp-fiscal-detalhe">
+          <summary>{plural(outras.length, "obra concluída ou cancelada", "obras concluídas ou canceladas")}</summary>
+          <ul className="mp-laudo-lista">{outras.map(item)}</ul>
+        </details>
+      )}
+      <p className="pa-nota">
+        Obrasgov.br lido em {formatarDataBr(data)}. A ligação com os termos do SICONV é pelo município, não pelo número do termo.
+      </p>
+    </>
   );
 }
 

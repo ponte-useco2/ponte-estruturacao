@@ -3,6 +3,9 @@
  * do job `fnas/` (Criança Feliz, SIOPE, saúde) e a creche de 0 a 3 anos da camada 2. Cada fonte falha sozinha: o que
  * não leu vai em `faltas`, e a página diz. Sem município, os 223 (a lista estadual); com município, só ele (a aba).
  *
+ * As obras de creche do Obrasgov.br (job `obras/`, oport_49, 27/10/2026) entram do mesmo jeito: ~250 linhas no estado;
+ * as sem município identificado ficam em `obrasSemMunicipio`, só na lista estadual.
+ *
  * Volume da lista estadual (22/10/2026): ~60 termos, ~25 planos, ~200 saldos, ~2.400 repasses dos 12 meses, ~2.400
  * valores do SIOPE, ~1.000 saldos da saúde e 223 indicadores — páginas de mil, todas em paralelo.
  */
@@ -16,6 +19,7 @@ import {
   ehCreche,
   type ContextoPI,
   type MunicipioPI,
+  type ObraCreche,
   type PlanoPixPI,
   type Siope,
   type TermoCreche,
@@ -32,10 +36,12 @@ export interface DatasPI {
   fnasCarga: string | null;
   siopeAno: number | null;
   saudeData: string | null;
+  /** O dia da leitura do Obrasgov.br. */
+  obras: string | null;
 }
 
 export type LeituraPI =
-  | { estado: "ok"; municipios: MunicipioPI[]; datas: DatasPI; faltas: string[] }
+  | { estado: "ok"; municipios: MunicipioPI[]; obrasSemMunicipio: ObraCreche[]; datas: DatasPI; faltas: string[] }
   | { estado: "nao_ativado" | "erro" };
 
 async function paginas<T>(consulta: (de: number, ate: number) => PromiseLike<Resposta>): Promise<T[]> {
@@ -220,6 +226,30 @@ async function lerFnas(db: Banco, ibge: string | null, faltas: string[]): Promis
   return saida;
 }
 
+async function lerObras(db: Banco, ibge: string | null): Promise<{ obras: ObraCreche[]; data: string | null }> {
+  const ex = await ultima(db, "obr_ultima_execucao");
+  if (!ex) return { obras: [], data: null };
+  type Linha = {
+    id_projeto: string; ibge: string | null; ibge_origem: ObraCreche["origem"]; nome: string; situacao: string | null; sistema: string | null;
+    pct_fisico: number | null; dt_inicio: string | null; dt_fim_prevista: string | null; dt_situacao: string | null; justificativa: string | null;
+  };
+  const linhas = await paginas<Linha>((de, ate) => {
+    let q = db.from("obr_obra")
+      .select("id_projeto,ibge,ibge_origem,nome,situacao,sistema,pct_fisico,dt_inicio,dt_fim_prevista,dt_situacao,justificativa")
+      .eq("execucao_id", ex.id);
+    if (ibge) q = q.eq("ibge", ibge);
+    return q.order("id_projeto").range(de, ate);
+  });
+  return {
+    data: ex.referencia ?? null,
+    obras: linhas.map((l) => ({
+      id: l.id_projeto, ibge: l.ibge, origem: l.ibge_origem, nome: l.nome, situacao: l.situacao, sistema: l.sistema,
+      pct: l.pct_fisico === null ? null : Number(l.pct_fisico), inicio: l.dt_inicio, fimPrevista: l.dt_fim_prevista,
+      dataSituacao: l.dt_situacao, justificativa: l.justificativa,
+    })),
+  };
+}
+
 async function lerCreche03(db: Banco, ibge: string | null): Promise<Map<string, number>> {
   const ex = await ultima(db, "mun_ultima_execucao");
   const m = new Map<string, number>();
@@ -237,11 +267,12 @@ export async function lerPrimeiraInfancia(ibge: string | null = null): Promise<L
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const faltas: string[] = [];
-  const [termos, pix, fnas, creche] = await Promise.all([
+  const [termos, pix, fnas, creche, obras] = await Promise.all([
     fonte("creches no SICONV", faltas, { termos: [] as TermoCreche[], data: null as string | null }, () => lerTermos(db, ibge)),
     fonte("planos do Pix", faltas, [] as PlanoPixPI[], () => lerPix(db, ibge)),
     lerFnas(db, ibge, faltas),
     fonte("creche de 0 a 3 anos (indicadores)", faltas, new Map<string, number>(), () => lerCreche03(db, ibge)),
+    fonte("obras de creche (Obrasgov)", faltas, { obras: [] as ObraCreche[], data: null as string | null }, () => lerObras(db, ibge)),
   ]);
   const lista = MUNICIPIOS_PB.filter(([codigo]) => !ibge || codigo === ibge);
   const municipios: MunicipioPI[] = lista.map(([codigo, nome]) => ({
@@ -249,6 +280,7 @@ export async function lerPrimeiraInfancia(ibge: string | null = null): Promise<L
     nome,
     termos: termos.termos.filter((t) => t.ibge === codigo),
     pix: pix.filter((p) => p.ibge === codigo),
+    obras: obras.obras.filter((o) => o.ibge === codigo),
     contexto: {
       cfSaldo: fnas.cf.get(codigo) ?? null,
       cfRepasse12: fnas.cfRepasse12.get(codigo) ?? null,
@@ -260,7 +292,10 @@ export async function lerPrimeiraInfancia(ibge: string | null = null): Promise<L
   return {
     estado: "ok",
     municipios,
+    obrasSemMunicipio: ibge ? [] : obras.obras.filter((o) => !o.ibge),
     faltas,
-    datas: { siconv: termos.data, fnasMes: fnas.mes, fnasCarga: fnas.carga, siopeAno: fnas.siopeAno, saudeData: fnas.saudeData },
+    datas: {
+      siconv: termos.data, fnasMes: fnas.mes, fnasCarga: fnas.carga, siopeAno: fnas.siopeAno, saudeData: fnas.saudeData, obras: obras.data,
+    },
   };
 }
