@@ -42,6 +42,7 @@ import { moedaCurta } from "./radar.ts";
 import { marcasPix, resumirConciliacao, type TceFederalMunicipio, type TcePixMunicipio } from "./tce.ts";
 import { riscoTceTcu, type ConsultaTcu, type TceTcu } from "./tce-tcu.ts";
 import { tituloOrgao } from "./padroes.ts";
+import { DIAS_PARADO_LONGO, ehCreche } from "./primeira-infancia.ts";
 import type { ColunaTabela, Ordem, ValorCelula } from "./tabela-filtro.ts";
 
 export const VERSAO_RELATORIO = "2026-10-01.2";
@@ -661,6 +662,33 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
       acao: "Retomar a execução (licitar, contratar, pagar) ou tratar com o concedente a rescisão e a devolução do saldo, antes do bloqueio da conta.",
       peso: 4,
       numeros: s.semMovimento.map((l) => l.nr_convenio),
+    });
+  }
+  // Primeira infância, P2b (23/10/2026): a creche com a parcela em conta e nenhum pagamento há mais de 180 dias desde a
+  // última liberação (o "parado longo" da página da primeira infância). O que já está em "sem movimento há mais de um
+  // ano" não se repete aqui.
+  const jaSemMovimento = new Set(s.semMovimento.map((l) => l.nr_convenio));
+  const crechesParadas = is.filter((i) => {
+    const liberou = i.dt_ultimo_desembolso ?? i.dt_primeiro_desembolso;
+    return (
+      i.situacao === "Em execução" && ehCreche(i.programa, i.objeto) && (i.vl_desembolsado ?? 0) > 0 && !i.dt_ultimo_pagamento &&
+      liberou !== null && diasEntre(liberou, hoje) >= DIAS_PARADO_LONGO && !jaSemMovimento.has(i.nr_convenio)
+    );
+  });
+  if (crechesParadas.length) {
+    a.push({
+      nivel: "alto",
+      dimensao: "convenios",
+      classe: "cobranca",
+      quem: "municipio",
+      titulo:
+        crechesParadas.length === 1
+          ? `Creche com dinheiro em conta e nenhum pagamento há mais de ${DIAS_PARADO_LONGO} dias`
+          : `${n(crechesParadas.length)} creches com dinheiro em conta e nenhum pagamento há mais de ${DIAS_PARADO_LONGO} dias`,
+      fato: `${lista(crechesParadas.map((i) => `${i.nr_convenio} (${moedaCurta(i.vl_saldo_conta ?? 0)} em conta, liberado em ${data(i.dt_ultimo_desembolso ?? i.dt_primeiro_desembolso)})`))}: a parcela chegou e nada foi pago desde então.`,
+      acao: "Destravar com a secretaria de educação a licitação ou o início da obra: enquanto nada é pago, o dinheiro da creche fica parado na conta.",
+      peso: 4,
+      numeros: crechesParadas.map((i) => i.nr_convenio),
     });
   }
   if (s.liminar.length) {

@@ -567,3 +567,26 @@ test("CAUC com data estranha (integração da onda 12; regras 2026-10-12.1): nã
     ["sem pendência", "Nenhum item pendente no relatório do Tesouro de 02/10/2062. A data da posição é posterior a esta rodada: é estranha e não vale como a de hoje.", "moderado"],
   );
 });
+
+test("primeira infância (P2b, 23/10/2026): creche com parcela em conta e nenhum pagamento há 180+ dias vira cobrança do município", () => {
+  const creche = (nr: string, ultimo: string, x: Partial<InstrumentoRelatorio> = {}) =>
+    inst({
+      nr_convenio: nr, programa: "Novo PAC - FORMALIZAÇÃO - Creches e Escolas de Educação Infantil", vl_desembolsado: 777_544.31,
+      vl_pago: 0, vl_saldo_conta: 855_705.76, dt_primeiro_desembolso: ultimo, dt_ultimo_desembolso: ultimo, dt_ultimo_pagamento: null, ...x,
+    });
+  const r = montarRelatorio(
+    patos({
+      instrumentos: [
+        creche("957750", "2025-12-16"),
+        creche("960805", "2026-10-14"),
+        creche("958406", "2025-06-04", { dt_ultimo_pagamento: "2026-09-18", vl_pago: 1_000_000 }),
+        inst({ nr_convenio: "900001", dt_ultimo_pagamento: null, vl_pago: 0, dt_ultimo_desembolso: "2025-01-01" }),
+      ],
+    }),
+    HOJE,
+  );
+  const a = r.achados.find((x) => x.titulo.startsWith("Creche com dinheiro em conta"));
+  assert.ok(a, JSON.stringify(r.achados.map((x) => x.titulo)));
+  assert.deepEqual([a.nivel, a.classe, a.quem, a.numeros], ["alto", "cobranca", "municipio", ["957750"]], "o liberado há pouco, o que já paga e o que não é creche ficam fora");
+  assert.match(a.fato, /R\$ 856 mil em conta/);
+});

@@ -146,6 +146,12 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
       {PODE.cadastro(nivel) && (
         <p className="mp-nao-imprimir mp-laudo-acoes">
           <BotaoImprimir />
+          {/* Primeira infância, P2b (23/10/2026): a página estadual, do cadastro em diante; só a PB tem o dado. */}
+          {l.completa && (
+            <LinkMapa href="/mapa/primeira-infancia" className="pa-btn pa-btn-pequeno">
+              Primeira infância
+            </LinkMapa>
+          )}
           <AtalhosAdmin l={l} nivel={nivel} />
         </p>
       )}

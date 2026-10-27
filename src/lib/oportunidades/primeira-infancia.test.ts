@@ -109,3 +109,13 @@ test("a página: cadastrado e acima; a aba do município também", () => {
   const mun = fs.readFileSync(path.join(raiz, "municipio", "[ibge]", "page.tsx"), "utf-8");
   assert.match(mun, /aba === "primeira-infancia" \? await lerPrimeiraInfancia\(ibge\)/);
 });
+
+test("P2b: a porta de entrada na página da PB (do cadastro em diante) e o ponto da fila no relatório", () => {
+  const raiz = path.resolve(import.meta.dirname, "..", "..", "app", "mapa");
+  const uf = fs.readFileSync(path.join(raiz, "uf", "[sigla]", "UfConteudo.tsx"), "utf-8");
+  const cadastro = uf.indexOf("PODE.cadastro(nivel) && (");
+  const link = uf.indexOf('href="/mapa/primeira-infancia"');
+  assert.ok(cadastro > 0 && link > cadastro, "o botão fica dentro do bloco do cadastro");
+  const rel = fs.readFileSync(path.join(import.meta.dirname, "relatorio-municipio.ts"), "utf-8");
+  assert.match(rel, /ehCreche\(i\.programa, i\.objeto\)/);
+});
