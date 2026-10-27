@@ -199,6 +199,14 @@ export const FOLGA_EMENDAS_JP_H = ATRASO_GITHUB_H + 24 + 1;
 export const FOLGA_FNAS_H = ATRASO_GITHUB_H + 24 + 1;
 
 /**
+ * A folga do radar (com o Pix em curso, o painel e o TCE-PB) desde 27/10/2026, no runner da máquina do titular: o
+ * painel leva ~57 min lá (no GitHub, ~11), e o `radar-propostas.yml` passou a ter 3 h de tempo-limite. A conta é a da
+ * `FOLGA_EMENDAS_H` (atraso do GitHub, tempo-limite e margem), mais 1 h pela distância entre o disparo da Vercel e o
+ * cron de reserva.
+ */
+export const FOLGA_RADAR_H = ATRASO_GITHUB_H + 3 + 2;
+
+/**
  * As OSC (Mapa das OSC, Ipea): `contagens.versao_fonte`, a data no nome do arquivo (AAAAMMDD), que dá o mês do arquivo.
  * O Ipea publica o arquivo do mês por volta do dia 18 (agosto/2026: Last-Modified 18/08), e o job roda nos dias 20 e
  * 28: a carga do mês traz o arquivo do mês, ou o do mês anterior quando o do mês atrasa. Dois meses para trás é um mês
@@ -584,7 +592,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     cadencia: "diaria",
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
-    folgaH: FOLGA_PADRAO_H,
+    folgaH: FOLGA_RADAR_H,
     dado: DADO_TRANSFEREGOV,
     linhas: (c) => numero(c, "janelas_abertas"),
     rotuloLinhas: "janelas abertas",
@@ -599,7 +607,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     cadencia: "diaria",
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
-    folgaH: FOLGA_PADRAO_H,
+    folgaH: FOLGA_RADAR_H,
     // O `dado_ate` do ciclo é o instante da rodada; a data do dado é a que a API dos especiais informa.
     dado: {
       onde: "contagens.especiais_data_atualizacao: a data de atualização que a API dos especiais informa",
@@ -625,7 +633,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     cadencia: "diaria",
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
-    folgaH: FOLGA_PADRAO_H,
+    folgaH: FOLGA_RADAR_H,
     dado: DADO_TRANSFEREGOV,
     linhas: (c) => numero(c, "instrumentos"),
     rotuloLinhas: "instrumentos",
@@ -643,7 +651,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     cadencia: "diaria",
     workflow: "radar-propostas.yml",
     cron: "45 12 * * *",
-    folgaH: FOLGA_PADRAO_H,
+    folgaH: FOLGA_RADAR_H,
     dado: {
       onde: "coluna dado_ate: o maior Last-Modified dos arquivos de despesas lidos",
       rotulo: "arquivos do TCE-PB",

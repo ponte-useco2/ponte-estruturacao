@@ -232,9 +232,9 @@ test("rodadas: atrasadas e com aviso, uma por linha, atrasadas primeiro, no topo
 });
 
 test("rodadas: o e-mail segue o prazo da tela, minuto a minuto", () => {
-  // Radar diário: 24 h + 8 h de folga. No limite, em dia; um minuto depois, atrasada.
-  assert.equal(escolherRodadas(rodadas({ radar: concluida(32) })).tipo, "em_dia");
-  const tarde = escolherRodadas(rodadas({ radar: concluida(32 + 1 / 60) }));
+  // Radar diário: 24 h + 10 h de folga (FOLGA_RADAR_H, desde 27/10/2026). No limite, em dia; um minuto depois, atrasada.
+  assert.equal(escolherRodadas(rodadas({ radar: concluida(34) })).tipo, "em_dia");
+  const tarde = escolherRodadas(rodadas({ radar: concluida(34 + 1 / 60) }));
   assert.ok(tarde.tipo === "com_problema" && tarde.problemas[0].job.id === "radar" && tarde.problemas[0].estado === "atrasada");
   // A coleta assistida velha não atrasa: a regra é a mesma da tela.
   assert.equal(escolherRodadas(rodadas({ "al:obras": concluida(900) })).tipo, "em_dia");

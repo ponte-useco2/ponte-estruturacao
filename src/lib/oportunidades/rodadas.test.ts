@@ -20,6 +20,7 @@ import {
   FOLGA_EMENDAS_JP_H,
   FOLGA_EMENDAS_PB_H,
   FOLGA_PADRAO_H,
+  FOLGA_RADAR_H,
   FONTE_CAGED,
   INTERVALO_H,
   JOBS_RODADAS,
@@ -189,7 +190,8 @@ test("onda 9, C: cadenciaDoCron e descreverCron", () => {
 });
 
 test("onda 9, C: o prazo é o intervalo da cadência mais a folga; a coleta assistida não tem prazo", () => {
-  assert.equal(prazoH(job("radar")), 24 + FOLGA_PADRAO_H);
+  assert.equal(prazoH(job("radar")), 24 + FOLGA_RADAR_H);
+  assert.equal(FOLGA_RADAR_H, 10, "27/10/2026: o radar no runner do titular, com 3 h de tempo-limite");
   assert.equal(prazoH(job("pix")), 7 * 24 + FOLGA_PADRAO_H);
   assert.equal(prazoH(job("mun")), 31 * 24 + FOLGA_PADRAO_H);
   assert.equal(prazoH(job("osc")), 31 * 24 + 8 * 24 + FOLGA_PADRAO_H);
