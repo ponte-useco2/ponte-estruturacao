@@ -19,7 +19,7 @@
  */
 import type { ReactNode } from "react";
 import type { AreaMapa, Malha } from "@/lib/oportunidades/pagina-brasil";
-import { MapaVivo } from "../_movimento/MapaVivo";
+import { MapaVivo, type TemasDoMapa } from "../_movimento/MapaVivo";
 import { LinkArea } from "./LinkMapa";
 
 /**
@@ -51,6 +51,7 @@ export function MapaTerritorio({
   navegavel,
   alternativa,
   vivo = false,
+  temas,
 }: {
   malha: Malha;
   areas: ReadonlyMap<string, AreaMapa>;
@@ -70,6 +71,8 @@ export function MapaTerritorio({
    * nas páginas de navegação (Brasil e UF); o relatório para imprimir continua com o mapa parado.
    */
   vivo?: boolean;
+  /** Onda 17: o filtro por tema acima do mapa vivo (só com `vivo`, e só para quem tem cadastro: quem decide é a página). */
+  temas?: TemasDoMapa;
 }) {
   const nomeDe = (id: string) => areas.get(id)?.nome ?? id;
   const comLink = malha.areas.filter((a) => areas.get(a.id)?.href);
@@ -138,6 +141,7 @@ export function MapaTerritorio({
           tabIndexDasAreas={modo === "decorativo" ? -1 : undefined}
           rotulos={rotulos}
           depois={rodape}
+          temas={temas}
         />
       </figure>
     );

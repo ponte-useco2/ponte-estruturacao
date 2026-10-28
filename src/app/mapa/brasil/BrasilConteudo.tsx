@@ -36,6 +36,7 @@ import { NOME_UF, funil, ordemLivre, porSituacao, totalTerritorio, urlUf } from 
 import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, medianaComparavel } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import type { TemasPorArea } from "@/lib/oportunidades/tema-no-mapa";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { MapaTerritorio } from "../_componentes/MapaTerritorio";
@@ -98,7 +99,8 @@ function Cartao({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?:
 }
 
 /** Onda 16, M1: `vivo` na página (marcador, prévia, zoom no celular); parado no relatório para imprimir. */
-function MapaDoBrasil({ vivo = false }: { vivo?: boolean }) {
+/** Onda 17: com `temas` (quem tem cadastro), o filtro por tema; o tema escolhido desce junto para a UF. */
+function MapaDoBrasil({ vivo = false, temas }: { vivo?: boolean; temas?: TemasPorArea | null }) {
   const cor = new Map(ORDEM_MACRORREGIAO.map((r, i) => [r, i]));
   const areas = new Map<string, AreaMapa>(
     Object.keys(NOME_UF).map((sigla) => [sigla, { nome: `${NOME_UF[sigla]} (${ROTULO_MACRORREGIAO[MACRORREGIAO[sigla]]})`, href: urlUf(sigla), grupo: cor.get(MACRORREGIAO[sigla]) ?? 0 }]),
@@ -111,6 +113,7 @@ function MapaDoBrasil({ vivo = false }: { vivo?: boolean }) {
       titulo="Mapa do Brasil por UF, cor pela macrorregião"
       rotulos
       vivo={vivo}
+      temas={vivo && temas ? { porArea: temas, unidade: { um: "UF", varios: "UFs" }, temaDesce: true } : undefined}
     />
   );
 }
@@ -119,7 +122,7 @@ function MapaDoBrasil({ vivo = false }: { vivo?: boolean }) {
  * A aba "Resumo": os números do país e o mapa. `noRelatorio` (C1b): sem o botão que leva à aba das UFs (no relatório a
  * tabela vem logo depois) e sem a nota do que faltou, que lá sai nas fontes.
  */
-export function Resumo({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; ano: number; noRelatorio?: boolean }) {
+export function Resumo({ l, ano, nivel = 0, noRelatorio = false }: { l: LeituraBrasilOk; ano: number; nivel?: NivelAcesso; noRelatorio?: boolean }) {
   const t = l.territorio;
   const vivos = t ? totalTerritorio(t, "BR", "vivos") : null;
   const grupos = t ? porSituacao(t, "BR", true) : [];
@@ -166,7 +169,8 @@ export function Resumo({ l, ano, noRelatorio = false }: { l: LeituraBrasilOk; an
           </>
         }
       >
-        <MapaDoBrasil vivo={!noRelatorio} />
+        {/* O tema por UF é do cadastro, como a tabela "Por tema" da UF (onda 17). */}
+        <MapaDoBrasil vivo={!noRelatorio} temas={nivel >= 1 ? (l.temasPorUf ?? null) : null} />
         {!noRelatorio && (
           <p className="mp-nao-imprimir mp-laudo-acoes">
             <LinkMapa href={urlBrasil("estados")} className="pa-btn pa-btn-pequeno">
@@ -236,6 +240,7 @@ export function DinheiroDoBrasil({ l, nivel }: { l: LeituraBrasilOk; nivel: Nive
         territorio: l.territorio,
         proponentes: null,
         municipios: null,
+        temasPorMunicipio: null,
         etapas: null,
         desfechos: null,
         pix: l.pix,
@@ -401,7 +406,7 @@ export function BrasilConteudo({ l, aba, nivel }: { l: LeituraBrasilOk; aba: Aba
       <Cabeca l={l} publico={publico} />
       <Abas aba={aba} nivel={nivel} />
       <p className="mp-so-imprimir pa-kicker">{nomeAba}</p>
-      {aba === "resumo" && <Resumo l={l} ano={ano} />}
+      {aba === "resumo" && <Resumo l={l} ano={ano} nivel={nivel} />}
       {aba === "estados" && <Estados l={l} ano={ano} nivel={nivel} />}
       {aba === "dinheiro" && <DinheiroDoBrasil l={l} nivel={nivel} />}
       {aba === "tempos" && <Tempos l={l} />}

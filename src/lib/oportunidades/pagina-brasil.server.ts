@@ -25,6 +25,7 @@ import type { LeituraUfOk } from "./pagina-uf.server";
 import { todas } from "./padroes.server";
 import type { LinhaDesfecho, LinhaEtapa } from "./painel";
 import type { LinhaEspecialAno, LinhaFundoAno } from "./pix";
+import { temasDasUfs, type TemasPorArea } from "./tema-no-mapa";
 
 type Resposta = { data: unknown; error: { message: string; code?: string } | null };
 
@@ -38,6 +39,8 @@ export interface LeituraBrasilOk {
   pix: LinhaEspecialAno[] | null;
   fundo: LinhaFundoAno[] | null;
   janelas: Map<string, number> | null;
+  /** Onda 17 (28/10/2026): os instrumentos vivos de cada UF por tema, para o filtro do mapa. */
+  temasPorUf: TemasPorArea | null;
   /** Programas distintos com janela aberta em alguma UF. */
   programasAbertos: number | null;
   /**
@@ -113,9 +116,11 @@ async function lerDoBanco(): Promise<LeituraBrasil> {
   const radarId = radarEx?.id ?? null;
   const colunas = "recorte,dimensao,chave,vivo,n,em_execucao,valor,desembolsado,municipios,proponentes";
 
-  const [ufs, nacional, desfechos, etapas, pix, fundo, janelas] = await Promise.all([
+  const [ufs, nacional, temas, desfechos, etapas, pix, fundo, janelas] = await Promise.all([
     ler<LinhaTerritorio[]>(faltas, "somas por UF", db.from("painel_territorio").select(colunas).eq("execucao_id", ex.id).in("dimensao", ["total", "situacao"]).limit(1000)),
     ler<LinhaTerritorio[]>(faltas, "somas do Brasil", db.from("painel_territorio").select(colunas).eq("execucao_id", ex.id).eq("recorte", "BR").in("dimensao", ["orgao", "tema"]).limit(1000)),
+    // onda 17: o tema por UF (~500 linhas), só para o filtro do mapa
+    ler<LinhaTerritorio[]>(faltas, "temas por UF", db.from("painel_territorio").select("recorte,dimensao,chave,n,valor").eq("execucao_id", ex.id).eq("dimensao", "tema").neq("recorte", "BR").limit(2000)),
     ler<LinhaDesfecho[]>(faltas, "funil", db.from("painel_programa_desfecho").select("*").eq("execucao_id", ex.id).is("cod_programa", null).is("orgao_sup", null).limit(1000)),
     ler<LinhaEtapa[]>(faltas, "tempos", db.from("painel_etapa_tempo").select("*").eq("execucao_id", ex.id).eq("recorte", "BR").eq("dimensao", "orgao").limit(1000)),
     pixId ? ler<LinhaEspecialAno[]>(faltas, "Pix", db.from("pix_especial_ano").select("*").eq("execucao_id", pixId).limit(1000)) : Promise.resolve(null),
@@ -133,6 +138,7 @@ async function lerDoBanco(): Promise<LeituraBrasil> {
     pix: pix ? pix.map((p) => ({ ...p, pago: Number(p.pago) })) : null,
     fundo,
     janelas: janelas ? janelasPorUf(janelas) : null,
+    temasPorUf: temas ? temasDasUfs(temas) : null,
     programasAbertos: janelas ? new Set(janelas.map((j) => j.cod_programa).filter(Boolean)).size : null,
     pixDadoAte: pixEx?.dado_ate ?? null,
     janelasDadoAte: radarEx?.dado_ate ?? null,

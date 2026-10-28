@@ -74,6 +74,7 @@ import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { CHAVE_TODOS, MINIMO_MEDICOES } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
+import type { TemasPorArea } from "@/lib/oportunidades/tema-no-mapa";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../_componentes/Carregando";
@@ -347,7 +348,18 @@ export function Resumo({ l, peca = false }: { l: LeituraUfOk; peca?: boolean }) 
  * Onda 16, M1: `vivo` na página da UF (marcador, prévia com os números do município, zoom no celular); parado no
  * relatório para imprimir.
  */
-export function MapaDaUf({ municipios, alternativa, vivo = false }: { municipios: MunicipioUf[]; alternativa?: React.ReactNode; vivo?: boolean }) {
+export function MapaDaUf({
+  municipios,
+  alternativa,
+  vivo = false,
+  temas,
+}: {
+  municipios: MunicipioUf[];
+  alternativa?: React.ReactNode;
+  vivo?: boolean;
+  /** Onda 17: o filtro por tema (quem tem cadastro), dos instrumentos vivos de cada município. */
+  temas?: TemasPorArea | null;
+}) {
   const intermediarias = intermediariasDaUf(municipios);
   const cor = gruposDeCor(intermediarias);
   const areas = new Map<string, AreaMapa>(
@@ -369,6 +381,7 @@ export function MapaDaUf({ municipios, alternativa, vivo = false }: { municipios
       titulo="Mapa dos 223 municípios da Paraíba, cor pela região intermediária do IBGE"
       alternativa={alternativa}
       vivo={vivo}
+      temas={vivo && temas ? { porArea: temas, unidade: { um: "município", varios: "municípios" } } : undefined}
     />
   );
 }
@@ -447,7 +460,7 @@ function Municipios({ l, nivel, ordenarPorSinais }: { l: LeituraUfOk; nivel: Niv
   );
   return (
     <Secao id="uf-municipios" titulo="Os municípios" nota={nota}>
-      {l.completa && <MapaDaUf municipios={l.municipios} vivo />}
+      {l.completa && <MapaDaUf municipios={l.municipios} vivo temas={nivel >= 1 ? (l.temasPorMunicipio ?? null) : null} />}
       {regioes.length > 1 && (
         <nav aria-label="Filtrar pela região imediata" className="mp-nao-imprimir">
           <p className="pa-nota">Cada região imediata filtra a tabela; a amostra é a cor da região intermediária no mapa.</p>

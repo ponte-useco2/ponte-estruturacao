@@ -171,7 +171,9 @@
   from { opacity: 0; transform: scale(0.94); }
 }
 /* Passar o mouse: a área sobe um pouco, com o leve passo além de uma mola (curva que ultrapassa e volta). */
-.pa-root .mp-mapa-vivo a path { transition: fill 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pa-root .mp-mapa-vivo a path {
+  transition: fill 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), fill-opacity 0.4s ease var(--mp-atraso-tema, 0ms);
+}
 .pa-root .mp-mapa-vivo a:hover path { transform: translateY(-2px) scale(1.015); }
 .pa-root .mp-vivo-escolhida { fill: var(--mp-mapa-foco); stroke-width: 1.4; }
 /* O clique de mouse dá foco ao link da área; o retângulo do navegador em volta da caixa dela não serve (o foco de
@@ -228,9 +230,35 @@
 .pa-root .mp-vivo-zoom { position: absolute; left: 0.5rem; bottom: 0.5rem; z-index: 1; display: flex; flex-direction: column; gap: 0.35rem; }
 .pa-root .mp-vivo-zoom .pa-btn { min-width: 44px; min-height: 44px; font-size: 1.2rem; background: var(--pa-surface); }
 
+/* Filtro por tema (onda 17): a área fora do tema se apaga (fill-opacity, que a animação de entrada não toca), em onda
+   por região (`--mp-atraso-tema`); a do tema fica com a cor da região. Passar o mouse numa apagada a acende um pouco,
+   para ela continuar clicável à vista. */
+.pa-root .mp-vivo-fora-tema { fill-opacity: 0.16; }
+.pa-root .mp-mapa-vivo a:hover .mp-vivo-fora-tema { fill-opacity: 0.45; }
+.pa-root .mp-vivo-previa-tema { font-size: 0.86rem; font-weight: 600; color: var(--pa-text); }
+.pa-root .mp-tema { display: grid; gap: 0.35rem; margin-bottom: 0.6rem; }
+.pa-root .mp-tema-fila { position: relative; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.pa-root .mp-tema-botao {
+  position: relative; min-height: 36px; padding: 0.3rem 0.75rem; border: 1px solid var(--pa-border); border-radius: 999px;
+  background: none; color: var(--pa-text); font: inherit; font-size: 0.84rem; cursor: pointer; white-space: nowrap;
+}
+.pa-root .mp-tema-botao:hover { border-color: var(--pa-brand-2); }
+.pa-root .mp-tema-botao[aria-pressed="true"] { color: #fff; border-color: transparent; }
+.pa-root .mp-tema-botao:focus-visible { outline: 2px solid var(--pa-brand); outline-offset: 2px; }
+.pa-root .mp-tema-pilula { position: absolute; inset: -1px; border-radius: 999px; background: var(--pa-brand); }
+.pa-root .mp-tema-rotulo { position: relative; }
+.pa-root .mp-tema-resumo { margin: 0; min-height: 1.4em; font-size: 0.86rem; color: var(--pa-muted); }
+.pa-root .mp-tema-resumo span { display: inline-block; }
+/* No celular, a fila rola para o lado em vez de ocupar meia tela. */
+@media (pointer: coarse), (max-width: 640px) {
+  .pa-root .mp-tema-fila { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.15rem; scroll-snap-type: x proximity; }
+  .pa-root .mp-tema-fila::-webkit-scrollbar { display: none; }
+  .pa-root .mp-tema-botao { min-height: 40px; scroll-snap-align: start; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pa-root .mp-vivo-area, .pa-root .mp-vivo-depois { animation: none; }
-  .pa-root .mp-mapa-vivo a path { transition: fill 0.15s ease; }
+  .pa-root .mp-mapa-vivo a path { transition: fill 0.15s ease, fill-opacity 0.15s ease; }
   .pa-root .mp-mapa-vivo a:hover path { transform: none; }
 }
 @media print {

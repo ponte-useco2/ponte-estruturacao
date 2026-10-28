@@ -29,6 +29,7 @@ import { tituloOrgao } from "./padroes";
 import { todas } from "./padroes.server";
 import type { LinhaDesfecho, LinhaEtapa } from "./painel";
 import type { LinhaEspecialAno, LinhaFundoAno } from "./pix";
+import { temasDosMunicipios, type TemasPorArea } from "./tema-no-mapa";
 
 type Banco = ReturnType<typeof clienteServidor>;
 type Resposta = { data: unknown; error: { message: string; code?: string } | null };
@@ -50,6 +51,8 @@ export interface LeituraUfOk {
   indicadores: IndicadorUf[] | null;
   /** Só a PB: as OSC ativas no Mapa das OSC e a versão do arquivo. */
   osc: { ativas: number; versao: string | null } | null;
+  /** Onda 17 (28/10/2026), só a PB: os instrumentos vivos de cada município por tema, para o filtro do mapa. */
+  temasPorMunicipio: TemasPorArea | null;
   faltas: string[];
 }
 
@@ -115,7 +118,7 @@ async function lerDoBanco(sigla: string, administrador: boolean): Promise<Leitur
   const ex = ((painel.data as { id: number; referencia: string | null; dado_ate: string | null }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
-  const [territorio, proponentes, porMunicipio, etapas, desfechos, pix, fundo, janelas, refs, grupos, oscMun, oscVersao, fiscal, sinais] =
+  const [territorio, proponentes, porMunicipio, etapas, desfechos, pix, fundo, janelas, refs, grupos, oscMun, oscVersao, fiscal, sinais, temasMun] =
     await Promise.all([
       ler<LinhaTerritorio[]>(faltas, "somas do território",
         db.from("painel_territorio").select("recorte,dimensao,chave,vivo,n,em_execucao,valor,desembolsado,municipios,proponentes").eq("execucao_id", ex.id).in("recorte", [sigla, "BR"]).limit(5000)),
@@ -144,6 +147,7 @@ async function lerDoBanco(sigla: string, administrador: boolean): Promise<Leitur
       completa && administrador
         ? ler<{ cod_ibge: string; n_sinais: number | null }[]>(faltas, "sinais do painel", db.from("painel_municipio").select("cod_ibge,n_sinais").eq("execucao_id", ex.id).like("cod_ibge", "25%").limit(1000))
         : Promise.resolve(null),
+      completa ? lerTemasDosMunicipios(db, ex.id, sigla).then((r) => r ?? (faltas.push("temas por município"), null)) : Promise.resolve(null),
     ]);
 
   // A lista dos municípios: na PB, os 223 do fiscal (nome com acento e população) com as somas, a região e as OSC;
@@ -192,6 +196,47 @@ async function lerDoBanco(sigla: string, administrador: boolean): Promise<Leitur
     janelas,
     indicadores: refs ? indicadoresDaUf(refs, (catalogoIndicadores as { indicadores: ItemCatalogo[] }).indicadores, sigla) : null,
     osc: oscMun ? { ativas: oscMun.reduce((s, o) => s + o.ativas, 0), versao: oscVersao } : null,
+    temasPorMunicipio: temasMun,
     faltas,
   };
+}
+
+type LinhaTemaInstrumento = { cod_ibge: string | null; temas: string[] | null; vl_global: number | string | null };
+
+/** As páginas lidas ao mesmo tempo: na PB, em 28/10/2026, eram 2.691 instrumentos vivos (258 com a lista de temas vazia), 3 páginas de mil. */
+const PAGINAS_DE_TEMA = 3;
+
+/**
+ * Os temas dos instrumentos vivos da UF, somados por município (onda 17, 28/10/2026). Só três colunas, com as três
+ * primeiras páginas de mil ao mesmo tempo (uma ida e volta, e não três); se a última vier cheia, o resto segue página a
+ * página. Ordem pelo número do convênio, para as páginas não se cruzarem.
+ */
+async function lerTemasDosMunicipios(db: Banco, execucao: number, sigla: string): Promise<TemasPorArea | null> {
+  const pagina = (i: number) =>
+    db
+      .from("painel_instrumento")
+      .select("cod_ibge,temas,vl_global")
+      .eq("execucao_id", execucao)
+      .eq("uf", sigla)
+      .eq("vivo", true)
+      .not("temas", "is", null)
+      .order("nr_convenio")
+      .range(i * 1000, i * 1000 + 999);
+  const primeiras = await Promise.all(Array.from({ length: PAGINAS_DE_TEMA }, (_, i) => pagina(i)));
+  const linhas: LinhaTemaInstrumento[] = [];
+  for (const r of primeiras) {
+    if (r.error) {
+      if (!ehEsquemaAusente(r.error.code)) console.error("página da UF (temas por município):", r.error.message);
+      return null;
+    }
+    linhas.push(...((r.data ?? []) as LinhaTemaInstrumento[]));
+  }
+  for (let i = PAGINAS_DE_TEMA; (primeiras.at(-1)?.data?.length ?? 0) === 1000 && i < 50; i++) {
+    const r = await pagina(i);
+    if (r.error) return null;
+    const lote = (r.data ?? []) as LinhaTemaInstrumento[];
+    linhas.push(...lote);
+    if (lote.length < 1000) break;
+  }
+  return temasDosMunicipios(linhas);
 }
