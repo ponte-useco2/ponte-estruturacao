@@ -1341,6 +1341,11 @@ html:has(.pa-root.mp-root) { scroll-padding-top: calc(60px + 2.75rem + 1px + 1re
 /* N23: o cabeçalho de linha da busca é só o número; a largura de 13rem era para o número, a estrela e o proponente
    juntos. Vem depois da regra do celular (9rem), de mesma especificidade. */
 .pa-root .mp-busca-tabela th.mp-busca-numero-celula { min-width: 0; }
+/* F3.5b (28/10/2026): a busca virou `TabelaFiltravel`, que marca o número na 1ª coluna com `mp-th-celula`; as larguras
+   de programa, situação e proponente vão no bloco de dentro da célula (as mesmas classes de antes). */
+.pa-root .mp-busca-tabela th.mp-th-celula { min-width: 0; }
+.pa-root .mp-busca-tabela th.mp-th-celula .mp-tabela-principal { white-space: nowrap; }
+.pa-root .mp-busca-tabela :is(.mp-busca-programa, .mp-busca-situacao, .mp-busca-proponente) { display: block; }
 
 /* A09: a 1ª coluna que virou cabeçalho de linha (`th`) guarda a cara da célula comum: o peso 600 e a largura mínima de
    16rem do cabeçalho de linha mudariam a tabela. Na tabela empilhada do celular, a regra dela continua pondo o título

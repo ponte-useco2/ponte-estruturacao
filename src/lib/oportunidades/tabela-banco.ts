@@ -44,6 +44,11 @@ export interface CampoBanco {
   escala?: number;
   /** Número: a tela mostra `valor + ajuste` (dias contados até hoje: o deslocamento). */
   ajuste?: number;
+  /**
+   * Data sobre um carimbo de tempo (o dia do dado das mudanças): o "até" vale o dia inteiro, então vira "antes do dia
+   * seguinte". Sem isso, `<= 2026-10-16` deixaria de fora o carimbo das 21h51 desse dia.
+   */
+  fimDoDia?: boolean;
   /** Categoria: rótulo da tela → valor do banco. Sem mapa, o rótulo é o valor. */
   valores?: Readonly<Record<string, string>>;
   /** Filtro que não cabe na regra geral (várias colunas): devolve a expressão do `or` do PostgREST, ou null. */
@@ -65,6 +70,13 @@ function noBanco(v: number, campo: CampoBanco, margem: number): number {
 
 /** Com escala, a tela arredonda (37% é de 36,5% a 37,5%): o intervalo do banco abre meia unidade para cada lado. */
 const meia = (campo: CampoBanco) => (campo.escala ? 0.5 : 0);
+
+/** "2026-10-16" → "2026-10-17" (em UTC: o dia do calendário, sem fuso). */
+export function diaSeguinte(dia: string): string {
+  const d = new Date(`${dia}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
 
 /** Aplica os filtros do estado. Coluna sem campo, filtro de outro tipo ou vazio: ignorados. */
 export function filtrarNoBanco<Q extends ConsultaFiltravel<Q>>(q: Q, estado: EstadoTabela, campos: CamposBanco): Q {
@@ -92,7 +104,7 @@ export function filtrarNoBanco<Q extends ConsultaFiltravel<Q>>(q: Q, estado: Est
         break;
       case "data":
         if (f.de) r = r.gte(campo.coluna, f.de);
-        if (f.ate) r = r.lte(campo.coluna, f.ate);
+        if (f.ate) r = campo.fimDoDia ? r.filter(campo.coluna, "lt", diaSeguinte(f.ate)) : r.lte(campo.coluna, f.ate);
         break;
       case "categoria": {
         if (!f.valores.length) break;

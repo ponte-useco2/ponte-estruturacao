@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { parametrosBusca, urlBusca } from "@/lib/oportunidades/busca";
+import { LIMITE_POR_PAGINA, PAGINA_MAXIMA, parametrosBusca, urlBusca } from "@/lib/oportunidades/busca";
+import { estadoDaBusca, tetoDePaginas } from "@/lib/oportunidades/busca-tabelas";
+import { parametrosDaPagina } from "@/lib/oportunidades/painel-tabelas";
 import { lerBusca, lerBuscaUnificada } from "@/lib/oportunidades/busca.server";
 import { classificarEntrada, pedeDireto } from "@/lib/oportunidades/busca-unificada";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
 import { registrarUso } from "@/lib/oportunidades/uso.server";
-import { visitanteAtual } from "@/lib/supabase-auth";
+import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { BuscaConteudo, DadoIndisponivel } from "./BuscaConteudo";
 import { BuscaUnificada } from "./BuscaUnificada";
 
@@ -52,10 +54,15 @@ export default async function BuscaPage({
     return <BuscaUnificada p={p} entrada={entrada} leitura={leitura} />;
   }
 
-  const [leitura, seguidas] = await Promise.all([lerBusca(p), lerSeguidas()]);
+  // F3.5b (28/10/2026): o filtro e a ordem da tabela vão ao banco; quem não administra percorre até 34 páginas (a busca
+  // é a porta da raspagem), e a página pedida além do teto vira a última permitida.
+  const estado = estadoDaBusca(p.aba, parametrosDaPagina(sp));
+  const teto = tetoDePaginas(LIMITE_POR_PAGINA, ehAdministrador(visitante.email), PAGINA_MAXIMA);
+  const naPagina = { ...p, pagina: Math.min(p.pagina, teto) };
+  const [leitura, seguidas] = await Promise.all([lerBusca(naPagina, estado), lerSeguidas()]);
   // "Tentar de novo" refaz a mesma busca, na mesma página (B12).
   if (leitura.estado !== "ok") {
-    return <DadoIndisponivel kicker="Busca" titulo="A busca está indisponível agora" endereco={urlBusca(p, { pagina: p.pagina })} />;
+    return <DadoIndisponivel kicker="Busca" titulo="A busca está indisponível agora" endereco={urlBusca(naPagina, { pagina: naPagina.pagina })} />;
   }
-  return <BuscaConteudo p={p} leitura={leitura} seguidas={seguidas} />;
+  return <BuscaConteudo p={naPagina} leitura={leitura} seguidas={seguidas} estado={estado} tetoPaginas={teto} />;
 }

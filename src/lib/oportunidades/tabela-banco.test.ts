@@ -99,3 +99,12 @@ test("texto curto com curinga: vogal e c viram `_` (acha o nome com acento)", ()
   const q = filtrarNoBanco(new Anotada(), estado({ cidade: { tipo: "texto", contem: "João Pessoa" } }), CAMPOS);
   assert.deepEqual(q.chamadas, ["municipio ilike %j___%", "municipio ilike %p_ss__%"]);
 });
+
+test("F3.5a: data sobre carimbo de tempo, o `até` vale o dia inteiro (antes do dia seguinte, com a virada do mês e do ano)", async () => {
+  const { diaSeguinte } = await import("./tabela-banco.ts");
+  assert.deepEqual([diaSeguinte("2026-10-31"), diaSeguinte("2026-12-31"), diaSeguinte("2028-02-28")], ["2026-11-01", "2027-01-01", "2028-02-29"]);
+  const q = filtrarNoBanco(new Anotada(), estado({ dia: { tipo: "data", de: "2026-10-16", ate: "2026-10-16" } }), {
+    dia: { coluna: "dado_ate", fimDoDia: true },
+  });
+  assert.deepEqual(q.chamadas, ["dado_ate >= 2026-10-16", "dado_ate lt 2026-10-17"]);
+});

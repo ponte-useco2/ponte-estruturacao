@@ -32,6 +32,7 @@ import {
   colunasDaVisao,
   colunasNoBanco,
   colunasMudancas,
+  colunasMudancasNoBanco,
   colunasPropostas,
   ondeParou,
   valoresDaMudanca,
@@ -281,6 +282,7 @@ export function TabelaDasMudancas({
   naFicha,
   comData,
   csv,
+  servidor,
 }: {
   id: string;
   rotulo: string;
@@ -288,6 +290,8 @@ export function TabelaDasMudancas({
   naFicha?: boolean;
   comData?: boolean;
   csv?: { nome: string };
+  /** No painel (F3.5a): as linhas já vêm filtradas e ordenadas pelo banco. */
+  servidor?: ModoServidor;
 }) {
   const tabela: LinhaTabela[] = linhas.map((m) => {
     const def = definicaoMudanca(m.tipo);
@@ -322,10 +326,11 @@ export function TabelaDasMudancas({
     <TabelaFiltravel
       id={id}
       rotulo={rotulo}
-      colunas={colunasMudancas({ comMunicipio: !naFicha, comData })}
+      colunas={servidor ? colunasMudancasNoBanco(comData ?? false) : colunasMudancas({ comMunicipio: !naFicha, comData })}
       linhas={tabela}
-      descricaoOrdemPadrao="das mais recentes para as mais antigas"
+      descricaoOrdemPadrao={servidor ? "do dado mais recente para o mais antigo e, no mesmo dia, pelo valor" : "das mais recentes para as mais antigas"}
       csv={csv}
+      servidor={servidor}
     />
   );
 }

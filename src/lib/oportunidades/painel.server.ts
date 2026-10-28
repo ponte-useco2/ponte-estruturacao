@@ -9,7 +9,7 @@ import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import { diaBrasilia } from "./laudo";
 import { compararPor, lerPorChave, type CriterioOrdem, type ErroLeitura, type RespostaPagina } from "./paginacao";
-import { CAMPOS_MUNICIPIO, ORDEM_MUNICIPIOS, camposDoConvenio } from "./painel-tabelas";
+import { CAMPOS_MUDANCA, CAMPOS_MUNICIPIO, ORDEM_MUDANCAS, ORDEM_MUNICIPIOS, camposDoConvenio } from "./painel-tabelas";
 import { filtrarNoBanco, ordenarNoBanco, type ConsultaFiltravel } from "./tabela-banco";
 import { ESTADO_VAZIO, type EstadoTabela } from "./tabela-filtro";
 import {
@@ -151,6 +151,8 @@ export type LeituraPainel =
       aditivosMotivo: LinhaAditivoMotivo[];
       /** Só em mudanças: a lista (filtrada pelo tipo) e as contagens por tipo do período. */
       mudancas: MudancaPainel[];
+      /** Só em mudanças: quantas atendem o tipo e o filtro da tabela no banco (F3.5a); `mudancas` são as primeiras. */
+      totalMudancas: number;
       contagensMudanca: ContagemMudanca[];
     };
 
@@ -177,6 +179,7 @@ const VAZIO = {
   opcoesMunicipio: [],
   aditivosMotivo: [],
   mudancas: [],
+  totalMudancas: 0,
   contagensMudanca: [],
 };
 
@@ -479,20 +482,24 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
 
   if (p.visao === "mudancas") {
     const filtrosMudanca = semNulos({ p_dias: p.dias, p_uf: p.uf, p_ibge: p.municipio });
+    // F3.5a (28/10/2026): a janela inteira (oport_50) com o tipo, o filtro e a ordem da tabela, os 100 primeiros e o total.
+    const estado = estadoDasMudancas(estados.lista ?? ESTADO_VAZIO, p.dias);
     const [r, c, l, m] = await Promise.all([
       resumo,
       db.rpc("painel_mudancas_resumo", filtrosMudanca),
-      db.rpc("painel_mudancas", { ...filtrosMudanca, ...semNulos({ p_tipo: p.tipo }), p_limite: LIMITE_MUDANCAS }),
+      consultaMudancas(db, filtrosMudanca, p.tipo, estado).limit(LIMITE_MUDANCAS),
       p.uf ? db.rpc("painel_municipios", { p_uf: p.uf }) : Promise.resolve({ data: [], error: null }),
     ]);
-    // Sem a oport_11 as funções não existem: o resto do painel segue, e a visão avisa.
+    // Sem a oport_11 (ou a oport_50) as funções não existem: o resto do painel segue, e a visão avisa.
     const semTabela = (e: { code?: string } | null) => e !== null && ehEsquemaAusente(e.code);
     const erro = r.error ?? (semTabela(c.error) ? null : c.error) ?? (semTabela(l.error) ? null : l.error);
     if (erro) {
       console.error("lerPainel:", erro.message);
       return { estado: "erro", mensagem: erro.message };
     }
+    if (l.error) console.error("lerPainel (mudanças):", l.error.message);
     if (m.error) console.error("lerPainel (municípios):", m.error.message);
+    const mudancas = l.error ? [] : ((l.data ?? []) as MudancaPainel[]);
     return {
       estado: "ok",
       execucao,
@@ -500,7 +507,9 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
       ...VAZIO,
       opcoesMunicipio: m.error ? [] : ((m.data ?? []) as OpcaoMunicipio[]),
       contagensMudanca: c.error ? [] : ((c.data ?? []) as ContagemMudanca[]),
-      mudancas: l.error ? [] : ((l.data ?? []) as MudancaPainel[]),
+      mudancas,
+      totalMudancas: l.error ? 0 : (l.count ?? mudancas.length),
+      estados: { lista: estado },
     };
   }
 
@@ -716,6 +725,33 @@ export function lerMunicipiosParaExportar(uf: string | null, estado: EstadoTabel
       const f = filtrarNoBanco(q as unknown as ConsultaFiltravel<typeof q>, estado, CAMPOS_MUNICIPIO);
       return (ordenarNoBanco(f, estado, CAMPOS_MUNICIPIO, ORDEM_MUNICIPIOS) as unknown as typeof q).range(de, ate);
     }),
+  );
+}
+
+type FiltrosMudanca = { p_dias?: number; p_uf?: string | null; p_ibge?: string | null };
+
+/** No último dado não há coluna do dia: um filtro dela que tenha ficado no endereço não vale. */
+function estadoDasMudancas(estado: EstadoTabela, dias: number): EstadoTabela {
+  if (dias > 1 || (!estado.filtros.dia && estado.ordem?.coluna !== "dia")) return estado;
+  const filtros = { ...estado.filtros };
+  delete filtros.dia;
+  return { ...estado, filtros, ordem: estado.ordem?.coluna === "dia" ? null : estado.ordem };
+}
+
+/** As mudanças da janela (oport_50) com o tipo do chip, o filtro e a ordem da tabela, e a contagem. */
+function consultaMudancas(db: Banco, filtros: FiltrosMudanca, tipo: string | null, estado: EstadoTabela) {
+  let q = db.rpc("painel_mudancas_janela", filtros, { count: "exact" });
+  if (tipo) q = q.eq("tipo", tipo);
+  const f = filtrarNoBanco(q as unknown as ConsultaFiltravel<typeof q>, estado, CAMPOS_MUDANCA);
+  return ordenarNoBanco(f, estado, CAMPOS_MUDANCA, ORDEM_MUDANCAS) as unknown as typeof q;
+}
+
+/** As mudanças da visão com o filtro e a ordem da tabela da tela (F3.5a): o CSV traz todas (cerca de 12 mil em 30 dias). */
+export function lerMudancasParaExportar(p: Pick<ParametrosPainel, "dias" | "uf" | "municipio" | "tipo">, estado: EstadoTabela) {
+  return exportar<MudancaPainel>((db) =>
+    lerPorFaixa((de, ate) =>
+      consultaMudancas(db, semNulos({ p_dias: p.dias, p_uf: p.uf, p_ibge: p.municipio }), p.tipo, estadoDasMudancas(estado, p.dias)).range(de, ate),
+    ),
   );
 }
 

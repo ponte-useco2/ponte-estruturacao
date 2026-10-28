@@ -161,7 +161,7 @@ test("F3.2: o estado das tabelas no endereço e o CSV de uma tabela com o mesmo 
   const e = estadosDaVisao("suspensiva", q);
   assert.deepEqual(e.lista?.filtros.repasse, { tipo: "numero", de: 1_000_000, ate: null });
   assert.deepEqual(e.vencidos?.ordem, { coluna: "repasse", sentido: "desc" });
-  assert.deepEqual(estadosDaVisao("mudancas", q), {}, "visão sem tabela de convênio");
+  assert.deepEqual(estadosDaVisao("tempos", q), {}, "visão sem tabela no banco");
   const url = urlCsvDaTabela("/mapa/painel/exportar?visao=suspensiva&uf=PB", "painel-suspensiva", e.lista!);
   const lida = new URL(url, "http://x").searchParams;
   assert.deepEqual([lida.get("visao"), lida.get("uf"), lida.get("tabela"), lida.get("t.painel-suspensiva.repasse")], ["suspensiva", "PB", "painel-suspensiva", "1000000.."]);
@@ -196,6 +196,58 @@ test("F3.3, municípios com sinais: cada coluna tem o valor cru e o campo no ban
   assert.equal(quais({ tipo: "texto", contem: "contas" }), "sinal_contas_atrasadas.eq.true,sinal_contas_negativas.eq.true");
   assert.equal(quais({ tipo: "texto", contem: "nada" }), "cod_ibge.is.null");
   assert.deepEqual(estadosDaVisao("municipios", parametrosDaPagina({ "t.painel-municipios.sinais": "3.." })).lista?.filtros.sinais, { tipo: "numero", de: 3, ate: null });
+});
+
+test("F3.5a, mudanças: toda coluna tem campo na janela; o tipo vai pelo rótulo, o alvo pelo valor e o dia inteiro conta", async () => {
+  const { colunasMudancasNoBanco, CAMPOS_MUDANCA, OPCOES_MUDANCA, estadosDaVisao, parametrosDaPagina, TABELA_PAINEL_MUDANCAS } = await import("./painel-tabelas.ts");
+  const { filtrarNoBanco } = await import("./tabela-banco.ts");
+  const { TIPOS_MUDANCA } = await import("./painel.ts");
+  for (const c of colunasMudancasNoBanco(true)) assert.ok(CAMPOS_MUDANCA[c.id], `${c.id}: tem campo no banco`);
+  assert.equal(colunasMudancasNoBanco(false).some((c) => c.id === "dia"), false, "no último dado não há coluna do dia");
+  assert.equal(colunasMudancasNoBanco(true).find((c) => c.id === "orgao")?.tipo, "texto", "órgão como texto: a lista não está à mão");
+  assert.equal(OPCOES_MUDANCA.mudanca.length, TIPOS_MUDANCA.length);
+
+  const chamadas: string[] = [];
+  class Anotada {
+    filter(c: string, op: string, v: unknown) { chamadas.push(`${c} ${op} ${String(v)}`); return this; }
+    gte(c: string, v: unknown) { chamadas.push(`${c} >= ${String(v)}`); return this; }
+    lte(c: string, v: unknown) { chamadas.push(`${c} <= ${String(v)}`); return this; }
+    in(c: string, v: readonly unknown[]) { chamadas.push(`${c} in (${v.join("|")})`); return this; }
+    or(f: string) { chamadas.push(`or ${f}`); return this; }
+    order() { return this; }
+  }
+  const q = new Anotada();
+  const e = estadosDaVisao(
+    "mudancas",
+    parametrosDaPagina({
+      [`t.${TABELA_PAINEL_MUDANCAS}.mudanca`]: "Primeiro desembolso",
+      [`t.${TABELA_PAINEL_MUDANCAS}.alvo`]: "Proposta",
+      [`t.${TABELA_PAINEL_MUDANCAS}.dia`]: "2026-10-31..2026-10-31",
+      [`t.${TABELA_PAINEL_MUDANCAS}.quem`]: "saúde",
+    }),
+  ).lista!;
+  filtrarNoBanco(q, e, CAMPOS_MUDANCA);
+  assert.deepEqual(chamadas.sort(), [
+    "alvo in (proposta)",
+    "busca_proponente like %saude%",
+    "dado_ate lt 2026-11-01",
+    "dado_ate >= 2026-10-31",
+    "tipo in (primeiro_desembolso)",
+  ].sort());
+});
+
+test("F3.5a: o painel lê a janela (oport_50) com contagem e a tela usa a tabela das mudanças no modo servidor", () => {
+  const raiz = path.resolve(import.meta.dirname, "..", "..", "app", "mapa", "painel");
+  const painel = fs.readFileSync(path.join(raiz, "PainelConteudo.tsx"), "utf-8");
+  assert.match(painel, /<TabelaDasMudancas[\s\S]*?servidor=\{\{/);
+  assert.equal(/<TabelaMudancas\b/.test(painel), false, "a peça antiga saiu do painel");
+  const leitura = fs.readFileSync(path.resolve(import.meta.dirname, "painel.server.ts"), "utf-8");
+  assert.match(leitura, /rpc\("painel_mudancas_janela", filtros, \{ count: "exact" \}\)/);
+  const rota = fs.readFileSync(path.join(raiz, "exportar", "route.ts"), "utf-8");
+  assert.match(rota, /lerMudancasParaExportar\(/);
+  const sql = fs.readFileSync(path.resolve(import.meta.dirname, "..", "..", "..", "supabase", "migrations", "oport_50_painel_mudancas_janela.sql"), "utf-8");
+  assert.match(sql, /grant execute on function public\.painel_mudancas_janela\(integer, text, text, text\) to service_role;/);
+  assert.equal(/to (anon|authenticated)\b/.test(sql), false, "só a chave de serviço");
 });
 
 test("F3.4, tempos e aprovação: todos os programas, valor cru em cada coluna, mediana com o mínimo e o lento marcado", async () => {

@@ -5,16 +5,21 @@ import {
   ROTULO_ETAPA_LICITACAO,
   ROTULO_EXIGENCIA,
   ROTULO_FONTE_MOVIMENTACAO,
+  ROTULO_GRUPO_MUDANCA,
   ROTULO_MOTIVO_ADITIVO,
+  definicaoMudanca,
+  diaDoDado,
   ehVisaoConvenio,
   exigenciasDe,
   paraCsv,
   parametrosFicha,
   parametrosPainel,
   type ColunaCsv,
+  type MudancaPainel,
 } from "@/lib/oportunidades/painel";
 import {
   lerConveniosParaExportar,
+  lerMudancasParaExportar,
   lerMunicipiosParaExportar,
   lerPropostasParaExportar,
   type ConvenioPainel,
@@ -97,6 +102,26 @@ const COLUNAS_MUNICIPIO: ColunaCsv<MunicipioPainel>[] = [
   { titulo: "Valor sem desembolso (R$)", valor: (m) => valoresDoMunicipioPainel(m)["valor-sem-desembolso"] },
 ];
 
+/** As mudanças (F3.5a): uma linha por evento, com o antes e o depois que a frase da tela resume. */
+const COLUNAS_MUDANCA: ColunaCsv<MudancaPainel>[] = [
+  { titulo: "Dado de", valor: (m) => diaDoDado(m.dado_ate) },
+  { titulo: "O que mudou", valor: (m) => definicaoMudanca(m.tipo).rotulo },
+  { titulo: "Grupo", valor: (m) => ROTULO_GRUPO_MUDANCA[definicaoMudanca(m.tipo).grupo] },
+  { titulo: "Convênio ou proposta", valor: (m) => (m.alvo === "proposta" ? "Proposta" : "Convênio") },
+  { titulo: "Número", valor: (m) => m.numero ?? m.chave, texto: true },
+  { titulo: "Proponente", valor: (m) => m.proponente },
+  { titulo: "Tipo de proponente", valor: (m) => agente(m.tipo_agente) },
+  { titulo: "Município", valor: (m) => m.municipio },
+  { titulo: "UF", valor: (m) => m.uf },
+  { titulo: "Código IBGE", valor: (m) => m.cod_ibge, texto: true },
+  { titulo: "Órgão concedente", valor: (m) => m.orgao_sup },
+  { titulo: "Programa", valor: (m) => m.programa },
+  { titulo: "Objeto", valor: (m) => m.objeto },
+  { titulo: "Antes", valor: (m) => m.antes },
+  { titulo: "Depois", valor: (m) => m.depois },
+  { titulo: "Valor (R$)", valor: (m) => m.valor },
+];
+
 type PropostaExportada = Awaited<ReturnType<typeof lerPropostasParaExportar>> extends LeituraExportacao<infer T> ? T : never;
 
 const COLUNAS_PROPOSTA: ColunaCsv<PropostaExportada>[] = [
@@ -168,6 +193,13 @@ export async function GET(req: NextRequest) {
     const estado = estadosDaVisao("municipios", req.nextUrl.searchParams).lista;
     if (!estado) return new Response("Esta visão não tem exportação.", { status: 400, headers: CABECALHOS_PRIVADOS });
     return resposta(await lerMunicipiosParaExportar(p.uf, estado), COLUNAS_MUNICIPIO, `painel-municipios-${(p.uf ?? "brasil").toLowerCase()}`);
+  }
+  // F3.5a: as mudanças do período, com o tipo do chip e o filtro e a ordem da tabela da tela.
+  if (p.visao === "mudancas") {
+    const estado = estadosDaVisao("mudancas", req.nextUrl.searchParams).lista;
+    if (!estado) return new Response("Esta visão não tem exportação.", { status: 400, headers: CABECALHOS_PRIVADOS });
+    const onde = p.municipio ?? (p.uf ?? "brasil").toLowerCase();
+    return resposta(await lerMudancasParaExportar(p, estado), COLUNAS_MUDANCA, `painel-mudancas-${p.dias}d-${onde}${p.tipo ? `-${p.tipo}` : ""}`);
   }
   if (!ehVisaoConvenio(p.visao)) {
     return new Response("Esta visão não tem exportação.", { status: 400, headers: CABECALHOS_PRIVADOS });

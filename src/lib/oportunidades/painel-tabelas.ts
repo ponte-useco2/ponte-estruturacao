@@ -21,6 +21,7 @@ import {
   ROTULO_SINAL,
   SINAIS,
   ROTULO_ETAPA,
+  TIPOS_MUDANCA,
   definicaoMudanca,
   exigenciasDe,
   fracao,
@@ -390,6 +391,46 @@ export function camposDoConvenio(deslocamento: number): CamposBanco {
   };
 }
 
+// ================================================================ as mudanças no painel (F3.5a, 28/10/2026)
+
+export const TABELA_PAINEL_MUDANCAS = "painel-mudancas";
+
+/** As colunas das mudanças no banco: as da ficha, com o município; o órgão filtra como texto (a lista não está à mão). */
+export function colunasMudancasNoBanco(comData: boolean): ColunaTabela[] {
+  return colunasMudancas({ comMunicipio: true, comData }).map((c) => (c.id === "orgao" ? { ...c, tipo: "texto" as const } : c));
+}
+
+/** Cada coluna das mudanças em `painel_mudancas_janela` (oport_50); o texto pelos campos sem acento. */
+export const CAMPOS_MUDANCA: CamposBanco = {
+  quem: { coluna: "proponente", busca: "busca_proponente" },
+  mudanca: { coluna: "tipo", valores: Object.fromEntries(TIPOS_MUDANCA.map((d) => [d.rotulo, d.tipo])) },
+  programa: { coluna: "programa", busca: "busca_programa" },
+  valor: { coluna: "valor" },
+  dia: { coluna: "dado_ate", fimDoDia: true },
+  numero: { coluna: "numero" },
+  alvo: { coluna: "alvo", valores: { Convênio: "convenio", Proposta: "proposta" } },
+  municipio: { coluna: "municipio", busca: "busca_municipio" },
+  orgao: { coluna: "orgao_sup", curinga: true },
+  objeto: { coluna: "objeto", busca: "busca_objeto" },
+};
+
+/** A ordem da v1: o dado mais recente, o maior valor, o tipo e a chave (total: uma mudança por tipo e chave no dia). */
+export const ORDEM_MUDANCAS = [
+  { coluna: "dado_ate", ascendente: false },
+  { coluna: "valor", ascendente: false, nulosPrimeiro: false },
+  { coluna: "tipo", ascendente: true },
+  { coluna: "chave", ascendente: true },
+] as const;
+
+/** As opções das categorias das mudanças: os tipos na ordem de leitura e os dois alvos. */
+export const OPCOES_MUDANCA: Record<string, { valor: string; linhas: number | null }[]> = {
+  mudanca: TIPOS_MUDANCA.map((d) => ({ valor: d.rotulo, linhas: null })),
+  alvo: [
+    { valor: "Convênio", linhas: null },
+    { valor: "Proposta", linhas: null },
+  ],
+};
+
 /** As opções das categorias que o painel conhece sem ler o banco (o órgão vem do quadro por órgão da própria visão). */
 export function opcoesFixas(v: VisaoConvenio): Record<string, { valor: string; linhas: number | null }[]> {
   const de = (m: Readonly<Record<string, string>>) => [...new Set(Object.values(m))].map((valor) => ({ valor, linhas: null }));
@@ -405,6 +446,8 @@ export const ehVisaoConvenioDaTabela = (v: string): v is VisaoConvenio => (VISOE
 /** O estado das tabelas da visão, lido do endereço (a página e a rota de exportação leem igual). */
 export function estadosDaVisao(v: string, parametros: URLSearchParams): { lista?: EstadoTabela; vencidos?: EstadoTabela } {
   if (v === "municipios") return { lista: lerEstado(TABELA_PAINEL_MUNICIPIOS, COLUNAS_MUNICIPIOS, parametros) };
+  // O dia do dado só aparece em períodos de mais de um dia; lido sempre, a leitura o solta no último dado.
+  if (v === "mudancas") return { lista: lerEstado(TABELA_PAINEL_MUDANCAS, colunasMudancasNoBanco(true), parametros) };
   if (!ehVisaoConvenioDaTabela(v)) return {};
   const colunas = colunasNoBanco(v);
   return {

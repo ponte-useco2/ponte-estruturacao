@@ -16,6 +16,9 @@ import { ehEsquemaAusente } from "./esquema";
 import { criarMemoria } from "./memoria";
 import type { CadastroOsc, FonteOsc, OscNaLista, ResumoOscMunicipio } from "./osc";
 import { todas } from "./padroes.server";
+import { CAMPOS_ORGANIZACAO, ORDEM_ORGANIZACOES } from "./busca-tabelas";
+import { filtrarNoBanco, ordenarNoBanco, type ConsultaFiltravel } from "./tabela-banco";
+import { ESTADO_VAZIO, type EstadoTabela } from "./tabela-filtro";
 
 type Banco = ReturnType<typeof clienteServidor>;
 
@@ -151,6 +154,8 @@ export async function buscarOsc(
   ibge: string | null,
   limite: number,
   deslocamento: number,
+  /** F3.5b (28/10/2026): o filtro e a ordem da tabela da busca, pelo tradutor. Sem ele, a ordem de sempre. */
+  estado: EstadoTabela = ESTADO_VAZIO,
 ): Promise<{ linhas: OscBusca[]; total: number; fonte: FonteOsc } | null> {
   if (!authConfigurada()) return null;
   const db = clienteServidor();
@@ -162,7 +167,9 @@ export async function buscarOsc(
     .eq("execucao_id", carga.id);
   for (const t of termos) q = q.like("texto_busca", `%${t.replace(/[%_\\]/g, "")}%`);
   if (ibge) q = q.eq("cod_ibge", ibge);
-  const r = await q.order("ativa", { ascending: false }).order("razao_social").order("cnpj").range(deslocamento, deslocamento + limite - 1);
+  const f = filtrarNoBanco(q as unknown as ConsultaFiltravel<typeof q>, estado, CAMPOS_ORGANIZACAO);
+  const ordenada = ordenarNoBanco(f, estado, CAMPOS_ORGANIZACAO, ORDEM_ORGANIZACOES) as unknown as typeof q;
+  const r = await ordenada.range(deslocamento, deslocamento + limite - 1);
   if (r.error) {
     console.error("busca de OSC:", r.error.message);
     return null;

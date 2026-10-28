@@ -18,6 +18,7 @@ import {
   GRUPOS_DESFECHO,
   GRUPOS_SITUACAO,
   LIMITE_POR_PAGINA,
+  PAGINA_MAXIMA,
   contagem,
   totalDePaginas,
   urlBusca,
@@ -41,10 +42,24 @@ import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA, TEMAS_RAIZ } from "@/lib/oportunidades/temas";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { MARCA_PEDE_CADASTRO, linkNoPublico } from "@/lib/oportunidades/publico";
+import {
+  COLUNAS_ORGANIZACOES,
+  OPCOES_CONVENIOS,
+  OPCOES_ORGANIZACOES,
+  OPCOES_PROPOSTAS,
+  TABELA_BUSCA_CONVENIOS,
+  TABELA_BUSCA_ORGANIZACOES,
+  TABELA_BUSCA_PROPOSTAS,
+  colunasDasPropostas,
+  colunasDosConvenios,
+  rotuloSituacaoOsc,
+  urlComTabela,
+} from "@/lib/oportunidades/busca-tabelas";
+import { ESTADO_VAZIO, filtrosAtivos, type EstadoTabela, type LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { AvisoSeguir, EstrelaSeguir } from "../_componentes/EstrelaSeguir";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import "./busca.css";
-import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 type LeituraOk = Extract<LeituraBusca, { estado: "ok" }>;
 
@@ -55,14 +70,25 @@ export function BuscaConteudo({
   p,
   leitura,
   seguidas = null,
+  estado = ESTADO_VAZIO,
+  tetoPaginas = PAGINA_MAXIMA,
 }: {
   p: ParametrosBusca;
   leitura: LeituraOk;
   /** Chaves `tipo:chave` seguidas. Null sem a oport_15: as linhas ficam sem estrela. */
   seguidas?: ReadonlySet<string> | null;
+  /** O filtro e a ordem da tabela da aba, que a leitura aplicou (F3.5b). */
+  estado?: EstadoTabela;
+  /** A última página que a pessoa pode abrir (`tetoDePaginas`). */
+  tetoPaginas?: number;
 }) {
   const grupos = p.aba === "instrumentos" ? GRUPOS_SITUACAO : GRUPOS_DESFECHO;
-  const paginas = totalDePaginas(leitura.total);
+  // F3.5b: quem não administra percorre até `tetoPaginas` páginas (a porta da raspagem); o total é sempre dito.
+  const paginas = Math.min(totalDePaginas(leitura.total), tetoPaginas);
+  const cortadas = leitura.total > paginas * LIMITE_POR_PAGINA;
+  const comFiltroNaTabela = filtrosAtivos(estado) > 0;
+  // A página seguinte e a anterior levam o filtro e a ordem da tabela junto.
+  const paginaDa = (pagina: number) => urlComTabela(urlBusca(p, { pagina }), p.aba === "tudo" ? "instrumentos" : p.aba, estado);
   const vazio = leitura.instrumentos.length === 0 && leitura.propostas.length === 0 && leitura.organizacoes.length === 0;
   const org = p.aba === "organizacoes";
 
@@ -197,19 +223,29 @@ export function BuscaConteudo({
             A busca procura em toda a base do Mapa: digite um número, uma palavra do programa ou do objeto, o nome do proponente ou o CNPJ, ou
             escolha a UF, o tema ou a situação.
           </p>
-        ) : vazio ? (
+        ) : vazio && !comFiltroNaTabela ? (
           <BuscaVazia p={p} temMunicipio={leitura.municipiosAchados.length > 0} />
-        ) : p.aba === "instrumentos" ? (
-          <TabelaInstrumentos linhas={leitura.instrumentos} seguidas={seguidas} />
-        ) : org ? (
-          <TabelaOrganizacoes linhas={leitura.organizacoes} />
         ) : (
-          <TabelaPropostas linhas={leitura.propostas} seguidas={seguidas} />
+          <NaBusca>
+            {p.aba === "instrumentos" ? (
+              <TabelaInstrumentos linhas={leitura.instrumentos} seguidas={seguidas} total={leitura.total} />
+            ) : org ? (
+              <TabelaOrganizacoes linhas={leitura.organizacoes} total={leitura.total} />
+            ) : (
+              <TabelaPropostas linhas={leitura.propostas} seguidas={seguidas} total={leitura.total} />
+            )}
+          </NaBusca>
+        )}
+        {cortadas && (
+          <p className="mp-busca-ajuda">
+            A lista mostra até {n(paginas * LIMITE_POR_PAGINA)} dos {n(leitura.total)} resultados. Para chegar aos outros, refine a busca: um termo
+            a mais, a UF, o município, o tema ou o filtro de uma coluna.
+          </p>
         )}
         {paginas > 1 && (
           <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
             {p.pagina > 1 && (
-              <LinkMapa href={urlBusca(p, { pagina: p.pagina - 1 })} className="pa-btn pa-btn-pequeno" rel="prev">
+              <LinkMapa href={paginaDa(p.pagina - 1)} className="pa-btn pa-btn-pequeno" rel="prev">
                 ← Página anterior
               </LinkMapa>
             )}
@@ -217,7 +253,7 @@ export function BuscaConteudo({
               Página {n(p.pagina)} de {n(paginas)} · {LIMITE_POR_PAGINA} por página
             </span>
             {p.pagina < paginas && (
-              <LinkMapa href={urlBusca(p, { pagina: p.pagina + 1 })} className="pa-btn pa-btn-pequeno" rel="next">
+              <LinkMapa href={paginaDa(p.pagina + 1)} className="pa-btn pa-btn-pequeno" rel="next">
                 Próxima página →
               </LinkMapa>
             )}
@@ -329,186 +365,205 @@ function Temas({ temas }: { temas: string[] }) {
 }
 
 /**
- * Onda 7, C (09/10/2026; N23 da auditoria R1): o cabeçalho de linha (`th`) é só o número. Juntava o número, a estrela
- * ("Seguir o convênio nº …") e o proponente, e o leitor de tela repetia tudo isso a cada célula na navegação por tabela.
- * A estrela vem na coluna logo depois do número, ainda colada a ele (B8: a estrela longe do nome do item foi
- * confundida com a do vizinho), e o proponente ganha coluna própria.
+ * O número com o link da página, na primeira coluna (o cabeçalho da linha). Onda 7, C (09/10/2026; N23 da auditoria
+ * R1): o cabeçalho de linha é só o número; a estrela vem na coluna logo depois dele (B8: a estrela longe do nome do item
+ * foi confundida com a do vizinho), e o proponente tem coluna própria.
  */
-function CabecaDaLinha({ href, numero }: { href: string; numero: string }) {
+function Numero({ href, numero }: { href: string; numero: string }) {
   return (
-    <th scope="row" className="mp-busca-numero-celula">
-      <LinkMapa href={href} className="mp-tabela-principal">
-        nº {numero}
-      </LinkMapa>
-    </th>
+    <LinkMapa href={href} className="mp-tabela-principal">
+      nº {numero}
+    </LinkMapa>
   );
 }
 
 /** O proponente com link para a entidade quando há CNPJ, e o município. */
-function CelulaProponente({
-  cnpj,
-  proponente,
-  municipio,
-  uf,
-}: {
-  cnpj?: string | null;
-  proponente?: string | null;
-  municipio?: string | null;
-  uf?: string | null;
-}) {
+function Proponente({ cnpj, proponente, municipio, uf }: { cnpj?: string | null; proponente?: string | null; municipio?: string | null; uf?: string | null }) {
   return (
-    <td className="mp-busca-proponente">
+    <div className="mp-busca-proponente">
       <span className="mp-tabela-principal">{cnpj ? <LinkMapa href={urlEntidade(cnpj)}>{proponente ?? "—"}</LinkMapa> : (proponente ?? "—")}</span>
       <span className="mp-tabela-secundario">
         {municipio ?? "—"}/{uf ?? "—"}
       </span>
-    </td>
+    </div>
   );
 }
 
-function TabelaInstrumentos({ linhas, seguidas }: { linhas: InstrumentoBusca[]; seguidas: ReadonlySet<string> | null }) {
+function ProgramaEObjeto({ programa, objeto, temas }: { programa: string | null; objeto: string | null; temas: string[] }) {
   return (
-    <TabelaRolagem rotulo="Convênios encontrados">
-      <table className="mp-tabela mp-busca-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Convênio</th>
-            {seguidas && (
-              <th scope="col">
-                <span className="pa-sr">Seguir</span>
-              </th>
-            )}
-            <th scope="col">Proponente</th>
-            <th scope="col">Programa e objeto</th>
-            <th scope="col">Situação</th>
-            <th scope="col" className="mp-num">Repasse</th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((l) => (
-            <tr key={l.nr_convenio}>
-              <CabecaDaLinha href={urlInstrumento(l.nr_convenio)} numero={l.nr_convenio} />
-              {/* Com texto ("☆ Seguir"), não a compacta: o que a ★ faz não pode depender do title, que o toque não mostra (B12). */}
-              {seguidas && (
-                <td className="mp-busca-seguir">
-                  <EstrelaSeguir
-                    tipo="instrumento"
-                    chave={l.nr_convenio}
-                    nome={`o convênio nº ${l.nr_convenio}`}
-                    seguindo={seguidas.has(chaveSeguida("instrumento", l.nr_convenio))}
-                  />
-                </td>
-              )}
-              <CelulaProponente cnpj={l.cnpj} proponente={l.proponente} municipio={l.municipio} uf={l.uf} />
-              <td className="mp-busca-programa">
-                <span className="mp-tabela-principal">{l.programa ?? "—"}</span>
-                {l.objeto && <span className="mp-tabela-secundario">{l.objeto}</span>}
-                <Temas temas={l.temas} />
-              </td>
-              <td className="mp-busca-situacao">
+    <div className="mp-busca-programa">
+      <span className="mp-tabela-principal">{programa ?? "—"}</span>
+      {objeto && <span className="mp-tabela-secundario">{objeto}</span>}
+      <Temas temas={temas} />
+    </div>
+  );
+}
+
+/** A tabela dentro do bloco que dá as larguras da busca (`mp-busca-tabela`, em `mapa.css`). */
+function NaBusca({ children }: { children: ReactNode }) {
+  return <div className="mp-busca-tabela">{children}</div>;
+}
+
+/**
+ * F3.5b (28/10/2026): as três listas são `TabelaFiltravel` no modo servidor. A página lê o estado da tabela do
+ * endereço e o manda ao banco; mudar o filtro ou a ordem solta a página (o filtro novo começa na primeira). Sem CSV: a
+ * busca é a porta da raspagem.
+ */
+const MODO = (total: number, opcoes: Record<string, { valor: string; linhas: number | null }[]>) => ({ total, opcoes, soltar: ["pagina"] });
+
+function TabelaInstrumentos({ linhas, seguidas, total }: { linhas: InstrumentoBusca[]; seguidas: ReadonlySet<string> | null; total: number }) {
+  return (
+    <TabelaFiltravel
+      id={TABELA_BUSCA_CONVENIOS}
+      rotulo="Convênios encontrados"
+      colunas={colunasDosConvenios(seguidas !== null)}
+      linhas={linhas.map(
+        (l): LinhaTabela => ({
+          chave: l.nr_convenio,
+          valores: {
+            numero: l.nr_convenio,
+            seguir: null,
+            proponente: l.proponente,
+            programa: l.programa,
+            situacao: l.situacao,
+            repasse: l.vl_repasse,
+            municipio: l.municipio,
+            objeto: l.objeto,
+            orgao: l.orgao_sup,
+            assinatura: l.dt_assinatura,
+            desembolsado: l.vl_desembolsado,
+          },
+          celulas: {
+            numero: <Numero href={urlInstrumento(l.nr_convenio)} numero={l.nr_convenio} />,
+            // Com texto ("☆ Seguir"), não a compacta: o que a ★ faz não pode depender do title, que o toque não mostra (B12).
+            seguir: seguidas && (
+              <span className="mp-busca-seguir">
+                <EstrelaSeguir
+                  tipo="instrumento"
+                  chave={l.nr_convenio}
+                  nome={`o convênio nº ${l.nr_convenio}`}
+                  seguindo={seguidas.has(chaveSeguida("instrumento", l.nr_convenio))}
+                />
+              </span>
+            ),
+            proponente: <Proponente cnpj={l.cnpj} proponente={l.proponente} municipio={l.municipio} uf={l.uf} />,
+            programa: <ProgramaEObjeto programa={l.programa} objeto={l.objeto} temas={l.temas} />,
+            situacao: (
+              <div className="mp-busca-situacao">
                 {l.situacao ?? "—"}
                 <span className="mp-tabela-secundario">assinado em {data(l.dt_assinatura)}</span>
-              </td>
-              <td className="mp-num">
+              </div>
+            ),
+            repasse: (
+              <>
                 {moedaCurta(l.vl_repasse)}
                 <span className="mp-tabela-secundario">
                   {l.vl_desembolsado ? `${moedaCurta(l.vl_desembolsado)} desembolsados` : "nada desembolsado"}
                 </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+              </>
+            ),
+          },
+        }),
+      )}
+      descricaoOrdemPadrao="o número exato primeiro, depois os vivos e a assinatura mais recente"
+      servidor={MODO(total, OPCOES_CONVENIOS)}
+    />
   );
 }
 
-function TabelaPropostas({ linhas, seguidas }: { linhas: PropostaBusca[]; seguidas: ReadonlySet<string> | null }) {
+function TabelaPropostas({ linhas, seguidas, total }: { linhas: PropostaBusca[]; seguidas: ReadonlySet<string> | null; total: number }) {
   return (
-    <TabelaRolagem rotulo="Propostas encontradas">
-      <table className="mp-tabela mp-busca-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Proposta</th>
-            {seguidas && (
-              <th scope="col">
-                <span className="pa-sr">Seguir</span>
-              </th>
-            )}
-            <th scope="col">Proponente</th>
-            <th scope="col">Programa e objeto</th>
-            <th scope="col">Desfecho</th>
-            <th scope="col" className="mp-num">Repasse pedido</th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((l) => (
-            <tr key={l.id_proposta}>
-              <CabecaDaLinha href={urlProposta(l.id_proposta)} numero={l.nr_proposta ?? l.id_proposta} />
-              {seguidas && (
-                <td className="mp-busca-seguir">
-                  <EstrelaSeguir
-                    tipo="proposta"
-                    chave={l.id_proposta}
-                    nome={`a proposta nº ${l.nr_proposta ?? l.id_proposta}`}
-                    seguindo={seguidas.has(chaveSeguida("proposta", l.id_proposta))}
-                  />
-                </td>
-              )}
-              <CelulaProponente cnpj={l.cnpj} proponente={l.proponente} municipio={l.municipio} uf={l.uf} />
-              <td className="mp-busca-programa">
-                <span className="mp-tabela-principal">{l.programa ?? "—"}</span>
-                {l.objeto && <span className="mp-tabela-secundario">{l.objeto}</span>}
-                <Temas temas={l.temas} />
-              </td>
-              <td className="mp-busca-situacao">
+    <TabelaFiltravel
+      id={TABELA_BUSCA_PROPOSTAS}
+      rotulo="Propostas encontradas"
+      colunas={colunasDasPropostas(seguidas !== null)}
+      linhas={linhas.map(
+        (l): LinhaTabela => ({
+          chave: l.id_proposta,
+          valores: {
+            numero: l.nr_proposta ?? l.id_proposta,
+            seguir: null,
+            proponente: l.proponente,
+            programa: l.programa,
+            desfecho: l.desfecho ? (ROTULO_DESFECHO[l.desfecho] ?? l.desfecho) : null,
+            repasse: l.valor_repasse,
+            municipio: l.municipio,
+            objeto: l.objeto,
+            orgao: l.orgao_sup,
+            envio: l.dt_envio,
+          },
+          celulas: {
+            numero: <Numero href={urlProposta(l.id_proposta)} numero={l.nr_proposta ?? l.id_proposta} />,
+            seguir: seguidas && (
+              <span className="mp-busca-seguir">
+                <EstrelaSeguir
+                  tipo="proposta"
+                  chave={l.id_proposta}
+                  nome={`a proposta nº ${l.nr_proposta ?? l.id_proposta}`}
+                  seguindo={seguidas.has(chaveSeguida("proposta", l.id_proposta))}
+                />
+              </span>
+            ),
+            proponente: <Proponente cnpj={l.cnpj} proponente={l.proponente} municipio={l.municipio} uf={l.uf} />,
+            programa: <ProgramaEObjeto programa={l.programa} objeto={l.objeto} temas={l.temas} />,
+            desfecho: (
+              <div className="mp-busca-situacao">
                 {l.desfecho ? (ROTULO_DESFECHO[l.desfecho] ?? l.desfecho) : "—"}
                 <span className="mp-tabela-secundario">enviada em {data(l.dt_envio)}</span>
-              </td>
-              <td className="mp-num">{moedaCurta(l.valor_repasse)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+              </div>
+            ),
+            repasse: moedaCurta(l.valor_repasse),
+          },
+        }),
+      )}
+      descricaoOrdemPadrao="o número exato primeiro, depois o envio mais recente"
+      servidor={MODO(total, OPCOES_PROPOSTAS)}
+    />
   );
 }
 
-function TabelaOrganizacoes({ linhas }: { linhas: OscBusca[] }) {
+function TabelaOrganizacoes({ linhas, total }: { linhas: OscBusca[]; total: number }) {
   return (
-    <TabelaRolagem rotulo="Organizações encontradas">
-      <table className="mp-tabela mp-busca-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Organização</th>
-            <th scope="col">Natureza e área</th>
-            <th scope="col">Situação</th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((l) => {
-            const s = situacaoNaReceita(l);
-            return (
-              <tr key={l.cnpj}>
-                <th scope="row">
-                  <LinkMapa href={urlEntidade(l.cnpj)} className="mp-tabela-principal">
-                    {nomeOsc(l)}
-                  </LinkMapa>
-                  <span className="mp-tabela-secundario">
-                    {cnpjLegivel(l.cnpj)} · {l.municipio ?? "—"}/PB{l.matriz === false ? " · filial" : ""}
-                  </span>
-                </th>
-                <td className="mp-busca-programa">
-                  <span className="mp-tabela-principal">{rotuloNatureza(l.natureza_juridica)}</span>
-                  <span className="mp-tabela-secundario">{l.areas.length ? l.areas.map(rotuloArea).join(" · ") : "área não informada"}</span>
-                </td>
-                <td className="mp-busca-situacao">{s.atencao ? <strong>{s.texto}</strong> : s.texto}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </TabelaRolagem>
+    <TabelaFiltravel
+      id={TABELA_BUSCA_ORGANIZACOES}
+      rotulo="Organizações encontradas"
+      colunas={COLUNAS_ORGANIZACOES}
+      linhas={linhas.map((l): LinhaTabela => {
+        const s = situacaoNaReceita(l);
+        return {
+          chave: l.cnpj,
+          valores: {
+            organizacao: nomeOsc(l),
+            natureza: rotuloNatureza(l.natureza_juridica),
+            situacao: rotuloSituacaoOsc(l.ativa),
+            cnpj: l.cnpj,
+            municipio: l.municipio ?? null,
+            area: l.areas.length ? l.areas.map(rotuloArea).join(" · ") : null,
+          },
+          celulas: {
+            organizacao: (
+              <>
+                <LinkMapa href={urlEntidade(l.cnpj)} className="mp-tabela-principal">
+                  {nomeOsc(l)}
+                </LinkMapa>
+                <span className="mp-tabela-secundario">
+                  {cnpjLegivel(l.cnpj)} · {l.municipio ?? "—"}/PB{l.matriz === false ? " · filial" : ""}
+                </span>
+              </>
+            ),
+            natureza: (
+              <div className="mp-busca-programa">
+                <span className="mp-tabela-principal">{rotuloNatureza(l.natureza_juridica)}</span>
+                <span className="mp-tabela-secundario">{l.areas.length ? l.areas.map(rotuloArea).join(" · ") : "área não informada"}</span>
+              </div>
+            ),
+            situacao: <div className="mp-busca-situacao">{s.atencao ? <strong>{s.texto}</strong> : s.texto}</div>,
+          },
+        };
+      })}
+      descricaoOrdemPadrao="as ativas primeiro, depois pelo nome"
+      servidor={MODO(total, OPCOES_ORGANIZACOES)}
+    />
   );
 }
 

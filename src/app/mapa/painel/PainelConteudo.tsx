@@ -83,8 +83,10 @@ import {
 import type { LeituraPainel, LinhaOrgao, OpcaoMunicipio } from "@/lib/oportunidades/painel.server";
 import {
   COLUNAS_MUNICIPIOS,
+  OPCOES_MUDANCA,
   TABELA_DESFECHOS_PROGRAMAS,
   TABELA_PAINEL,
+  TABELA_PAINEL_MUDANCAS,
   TABELA_PAINEL_MUNICIPIOS,
   TABELA_PAINEL_VENCIDOS,
   TABELA_TEMPOS_PROGRAMAS,
@@ -99,7 +101,7 @@ import {
   type VisaoConvenio,
 } from "@/lib/oportunidades/painel-tabelas";
 import { ESTADO_VAZIO, filtrosAtivos } from "@/lib/oportunidades/tabela-filtro";
-import { TabelaDaVisao } from "./TabelasConvenio";
+import { TabelaDaVisao, TabelaDasMudancas } from "./TabelasConvenio";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../_design/primitivos";
@@ -108,7 +110,6 @@ import {
   Cartao,
   Lista,
   Saidas,
-  TabelaMudancas,
   Urgente,
   n,
   type Saida,
@@ -319,7 +320,6 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
   const desde = extremo("desde", true);
   const ate = extremo("ate", false) ?? leitura.execucao.dado_ate;
   const total = contagens.reduce((s, l) => s + l.n, 0);
-  const mostrados = p.tipo ? (contagens.find((l) => l.tipo === p.tipo)?.n ?? 0) : total;
 
   return (
     <>
@@ -379,13 +379,25 @@ function Mudancas({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk }) {
         </div>
       )}
 
+      {/* F3.5a (28/10/2026): o filtro e a ordem de cada coluna vão ao banco; a lista mostra as 100 primeiras e o total. */}
       <Lista
-        titulo={`${
-          mostrados > leitura.mudancas.length ? `As ${n(leitura.mudancas.length)} primeiras, de ${n(mostrados)}` : "Uma a uma"
-        }${p.dias > 1 ? ", do dado mais recente e pelo valor" : ", pelo valor"}`}
+        titulo="Uma a uma"
         vazio={<VazioPainel p={p} leitura={leitura} oQue="Nenhuma mudança" />}
+        semRolagem
       >
-        {leitura.mudancas.length > 0 && <TabelaMudancas linhas={leitura.mudancas} comData={p.dias > 1} />}
+        {(leitura.mudancas.length > 0 || filtrosAtivos(leitura.estados.lista ?? ESTADO_VAZIO) > 0) && (
+          <TabelaDasMudancas
+            id={TABELA_PAINEL_MUDANCAS}
+            rotulo="Mudanças, uma a uma"
+            linhas={leitura.mudancas}
+            comData={p.dias > 1}
+            servidor={{
+              total: leitura.totalMudancas,
+              opcoes: OPCOES_MUDANCA,
+              csvHref: urlCsvDaTabela(urlExportar(p), TABELA_PAINEL_MUDANCAS, leitura.estados.lista ?? ESTADO_VAZIO),
+            }}
+          />
+        )}
       </Lista>
       <p className="pa-nota">
         Valor é o repasse do convênio ou da proposta; no primeiro desembolso, o desembolsado; no saldo, o saldo em conta; na

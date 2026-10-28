@@ -41,6 +41,8 @@ import {
   type GrupoLido,
   type ProponenteBusca,
 } from "./busca-unificada";
+import { parametrosDaTabela } from "./busca-tabelas";
+import { ESTADO_VAZIO, type EstadoTabela } from "./tabela-filtro";
 import { VALIDADE_DADOS_MS } from "./cache-dados";
 import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { ehEsquemaAusente } from "./esquema";
@@ -143,7 +145,11 @@ async function nomesForaDaPb(db: Banco, execucaoId: number, q: string): Promise<
 const comoCandidatos = (lista: OpcaoMunicipioBusca[]): MunicipioNome[] =>
   lista.flatMap((m) => (m.municipio ? [{ ibge: m.cod_ibge, nome: m.municipio }] : []));
 
-export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
+/**
+ * F3.5b (28/10/2026): `estado` é o filtro e a ordem da tabela da aba (o do endereço). Convênios e propostas vão às
+ * funções v2 (oport_51) com ele; as organizações, ao cadastro pelo tradutor. Sem estado, a lista de antes.
+ */
+export async function lerBusca(p: ParametrosBusca, estado: EstadoTabela = ESTADO_VAZIO): Promise<LeituraBusca> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
   const ex = await execucaoAtual(db, "lerBusca");
@@ -151,6 +157,7 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
 
   const termos = termosDaBusca(p.q);
   const nenhumMunicipio = { municipiosAchados: [], maisMunicipios: false };
+  // O filtro das colunas não basta sozinho: sem termo nem filtro de cima, o universo seria o painel inteiro.
   if (buscaSemFiltro(p)) {
     return { estado: "ok", execucao: ex, instrumentos: [], propostas: [], organizacoes: [], fonteOsc: null, total: 0, municipios: [], ...nenhumMunicipio, semFiltro: true };
   }
@@ -176,7 +183,7 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
 
   if (p.aba === "organizacoes") {
     const [osc, municipios] = await Promise.all([
-      buscarOsc(termos, p.municipio, LIMITE_POR_PAGINA, (p.pagina - 1) * LIMITE_POR_PAGINA),
+      buscarOsc(termos, p.municipio, LIMITE_POR_PAGINA, (p.pagina - 1) * LIMITE_POR_PAGINA, estado),
       db.rpc("painel_municipios", { p_uf: "PB" }),
     ]);
     if (municipios.error) console.error("lerBusca (municípios):", municipios.error.message);
@@ -202,8 +209,8 @@ export async function lerBusca(p: ParametrosBusca): Promise<LeituraBusca> {
   };
   const [lista, municipios, deFora] = await Promise.all([
     p.aba === "instrumentos"
-      ? db.rpc("painel_busca_instrumentos", { ...comuns, p_situacoes: situacoesDoGrupo(p.grupo) })
-      : db.rpc("painel_busca_propostas", { ...comuns, p_desfechos: desfechosDoGrupo(p.grupo) }),
+      ? db.rpc("painel_busca_instrumentos_v2", { ...comuns, ...parametrosDaTabela("instrumentos", estado), p_situacoes: situacoesDoGrupo(p.grupo) })
+      : db.rpc("painel_busca_propostas_v2", { ...comuns, ...parametrosDaTabela("propostas", estado), p_desfechos: desfechosDoGrupo(p.grupo) }),
     p.uf ? db.rpc("painel_municipios", { p_uf: p.uf }) : Promise.resolve({ data: [], error: null }),
     fora,
   ]);
@@ -376,13 +383,14 @@ export async function lerBuscaUnificada(p: ParametrosBusca, entrada: Entrada, di
       return r ? { estado: "ok", itens: r.linhas, total: r.total } : { estado: "erro" };
     }),
     convenios: sozinho("convênios", async () => {
-      const r = await db.rpc("painel_busca_instrumentos", { ...rpcComuns, p_situacoes: null });
+      // v2 (oport_51) sem filtro de coluna: a mesma lista, com a linha sem `nr_proposta` fora do topo (na v1 ela subia).
+      const r = await db.rpc("painel_busca_instrumentos_v2", { ...rpcComuns, p_situacoes: null });
       if (r.error) throw new Error(r.error.message);
       const linhas = (r.data ?? []) as InstrumentoBusca[];
       return { estado: "ok", itens: linhas, total: Number(linhas[0]?.total ?? 0) };
     }),
     propostas: sozinho("propostas", async () => {
-      const r = await db.rpc("painel_busca_propostas", { ...rpcComuns, p_desfechos: null });
+      const r = await db.rpc("painel_busca_propostas_v2", { ...rpcComuns, p_desfechos: null });
       if (r.error) throw new Error(r.error.message);
       const linhas = (r.data ?? []) as PropostaBusca[];
       return { estado: "ok", itens: linhas, total: Number(linhas[0]?.total ?? 0) };

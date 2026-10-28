@@ -106,6 +106,11 @@ export interface ModoServidor {
   opcoes?: Record<string, { valor: string; linhas: number | null }[]>;
   /** A rota de exportação com o mesmo filtro: o CSV traz todas as linhas. */
   csvHref?: string;
+  /**
+   * Lista paginada (a busca, F3.5b, 28/10/2026): os parâmetros que saem do endereço a cada mudança do filtro ou da
+   * ordem (a página: o filtro novo começa na primeira). Sem CSV, a contagem diz "nesta página".
+   */
+  soltar?: readonly string[];
 }
 
 /** Espera entre a última tecla e a escrita no endereço, e entre a última mudança e a fala da região viva. */
@@ -140,6 +145,7 @@ export function TabelaFiltravel({
   const router = useRouter();
   const [carregando, iniciar] = useTransition();
   const noServidor = servidor !== undefined;
+  const soltar = servidor?.soltar;
   const textoUrl = sp?.toString() ?? "";
 
   const [estado, setEstado] = useState<EstadoTabela>(() => lerEstado(id, colunas, new URLSearchParams(textoUrl)));
@@ -188,7 +194,7 @@ export function TabelaFiltravel({
       relogio.current = null;
     }
     setPendente(false);
-    const destino = gravarNoEndereco(id, atual.current);
+    const destino = gravarNoEndereco(id, atual.current, soltar);
     if (destino === null) return;
     const chave = chaveDoEstado(id, atual.current);
     setEmVoo((fila) => [...fila, chave].slice(-20));
@@ -199,7 +205,7 @@ export function TabelaFiltravel({
     }
     // `null` de propósito: com o estado interno do Next, o remendo dele não sincronizaria o `useSearchParams`.
     window.history.replaceState(null, "", destino);
-  }, [id, noServidor, router]);
+  }, [id, noServidor, router, soltar]);
 
   const mudar = useCallback<Mudanca>(
     (fn, opcoes = {}) => {
@@ -253,7 +259,7 @@ export function TabelaFiltravel({
         : "Ordem padrão.";
   const textoContagem = servidor
     ? `${carregando ? "Atualizando… " : ""}Mostrando ${fmt(visiveis.length)} de ${fmt(servidor.total)}${
-        servidor.total > visiveis.length ? " (as primeiras; o CSV traz todas)" : ""
+        servidor.total > visiveis.length ? (servidor.csvHref ? " (as primeiras; o CSV traz todas)" : " (nesta página)") : ""
       }. ${textoOrdem}`
     : `Mostrando ${fmt(visiveis.length)} de ${fmt(linhas.length)}. ${textoOrdem}`;
   const [contagem, setContagem] = useState(textoContagem);
@@ -503,10 +509,13 @@ const CorpoDaTabela = memo(function CorpoDaTabela({
 });
 
 /** O endereço com o estado desta tabela, ou null se ele já está lá (a comparação é pela forma normalizada). */
-function gravarNoEndereco(id: string, estado: EstadoTabela): string | null {
+function gravarNoEndereco(id: string, estado: EstadoTabela, soltar?: readonly string[]): string | null {
   const agora = new URLSearchParams(window.location.search);
-  const novo = gravarEstado(id, estado, agora).toString();
-  if (novo === agora.toString()) return null;
+  const gravado = gravarEstado(id, estado, agora);
+  // Só solta quando o estado desta tabela mudou: a mesma escrita repetida não leva a pessoa de volta à página 1.
+  if (gravado.toString() === agora.toString()) return null;
+  for (const k of soltar ?? []) gravado.delete(k);
+  const novo = gravado.toString();
   return `${window.location.pathname}${novo ? `?${novo}` : ""}${window.location.hash}`;
 }
 
