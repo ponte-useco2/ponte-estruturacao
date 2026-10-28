@@ -78,6 +78,7 @@ import type { TemasPorArea } from "@/lib/oportunidades/tema-no-mapa";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { Carregando } from "../../_componentes/Carregando";
+import { ContornoDaUf } from "../../_movimento/Contorno";
 import { MapaTerritorio } from "../../_componentes/MapaTerritorio";
 import { TabelaFiltravel } from "../../_componentes/TabelaFiltravel";
 import { Termo } from "../../_componentes/Termo";
@@ -137,7 +138,11 @@ function Cabeca({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
   return (
     <div className="pa-pilha mp-radar-cabeca">
       <Trilha elos={trilha({ uf: l.sigla })} />
-      <h1 className="pa-titulo">{nome}</h1>
+      {/* Onda 18: o contorno da UF ao lado do nome, destino do morph de quem desce pelo mapa do Brasil. */}
+      <div className="mp-mun-titulo">
+        <ContornoDaUf sigla={l.sigla} />
+        <h1 className="pa-titulo">{nome}</h1>
+      </div>
       <p className="pa-sub mp-mun-chips">
         <span>{l.sigla}</span>
         <span>{l.completa ? "dado completo: todos os instrumentos desde 2008" : "cobertura parcial: instrumentos vivos e propostas desde 2019"}</span>
@@ -382,6 +387,7 @@ export function MapaDaUf({
       alternativa={alternativa}
       vivo={vivo}
       temas={vivo && temas ? { porArea: temas, unidade: { um: "município", varios: "municípios" } } : undefined}
+      morfa={vivo ? "municipio" : undefined}
     />
   );
 }

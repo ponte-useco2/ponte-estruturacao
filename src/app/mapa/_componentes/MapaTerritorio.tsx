@@ -18,6 +18,7 @@
  * O realce de foco e de passagem do mouse troca o preenchimento da área (mapa.css, A03).
  */
 import type { ReactNode } from "react";
+import type { NivelDoMorph } from "@/lib/oportunidades/mapa-vivo";
 import type { AreaMapa, Malha } from "@/lib/oportunidades/pagina-brasil";
 import { MapaVivo, type TemasDoMapa } from "../_movimento/MapaVivo";
 import { LinkArea } from "./LinkMapa";
@@ -52,6 +53,7 @@ export function MapaTerritorio({
   alternativa,
   vivo = false,
   temas,
+  morfa,
 }: {
   malha: Malha;
   areas: ReadonlyMap<string, AreaMapa>;
@@ -73,6 +75,8 @@ export function MapaTerritorio({
   vivo?: boolean;
   /** Onda 17: o filtro por tema acima do mapa vivo (só com `vivo`, e só para quem tem cadastro: quem decide é a página). */
   temas?: TemasDoMapa;
+  /** Onda 18: o nível da página de destino, quando ela tem contorno no alto (a área voa até ele ao descer). */
+  morfa?: NivelDoMorph;
 }) {
   const nomeDe = (id: string) => areas.get(id)?.nome ?? id;
   const comLink = malha.areas.filter((a) => areas.get(a.id)?.href);
@@ -142,6 +146,7 @@ export function MapaTerritorio({
           rotulos={rotulos}
           depois={rodape}
           temas={temas}
+          morfa={morfa}
         />
       </figure>
     );

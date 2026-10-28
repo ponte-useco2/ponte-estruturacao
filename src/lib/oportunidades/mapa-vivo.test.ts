@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ESCALA_MAXIMA, acaoDoClique, atrasoDaRegiao, limitesDoArraste, posicaoNoMapa, proximaEscala, type Clique } from "./mapa-vivo.ts";
+import { ESCALA_MAXIMA, TIPO_MORFAR, acaoDoClique, atrasoDaRegiao, caixaNaTela, limitesDoArraste, posicaoNoMapa, proximaEscala, tiposComMorph, type Clique } from "./mapa-vivo.ts";
 
 const clique = (x: Partial<Clique> = {}): Clique => ({ detail: 1, button: 0, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...x });
 
@@ -54,4 +54,18 @@ test("M1: a caixa do contorno é quadrada, centrada e com folga", async () => {
   assert.equal(caixaDoCaminho("M10 10L30 10L30 30L10 30Z", 0.1), "8 8 24 24");
   assert.equal(caixaDoCaminho("M5 5Z", 0), "4.5 4.5 1 1");
   assert.equal(caixaDoCaminho(""), null);
+});
+
+test("onda 18: a caixa do contorno vai para a tela pela matriz do SVG", () => {
+  assert.deepEqual(caixaNaTela("10 20 100 100", { a: 0.5, d: 0.5, e: 30, f: 200 }), { left: 35, top: 210, width: 50, height: 50 });
+  assert.equal(caixaNaTela("10 20 100", { a: 1, d: 1, e: 0, f: 0 }), null);
+  assert.equal(caixaNaTela("10 20 100 100", { a: 0, d: 1, e: 0, f: 0 }), null);
+});
+
+test("onda 18: o morph só entra na descida e só com destino", () => {
+  assert.deepEqual(tiposComMorph(["mp-descer"], "municipio", "mp-descer"), ["mp-descer", TIPO_MORFAR.municipio]);
+  assert.deepEqual(tiposComMorph(["mp-descer"], "uf", "mp-descer"), ["mp-descer", "mp-morfar-uf"]);
+  assert.deepEqual(tiposComMorph(["mp-subir"], "uf", "mp-descer"), ["mp-subir"]);
+  assert.deepEqual(tiposComMorph(["mp-descer"], undefined, "mp-descer"), ["mp-descer"]);
+  assert.equal(tiposComMorph(undefined, "uf", "mp-descer"), undefined);
 });

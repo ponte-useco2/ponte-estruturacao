@@ -51,6 +51,32 @@
   animation: mp-volta-do-fundo 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
 }
 
+/*
+ * O morph da área para o contorno (onda 18, 28/10/2026). A peça que o mapa vivo solta leva o nome `mp-morfa`; na página
+ * nova, o contorno do nível certo ganha o mesmo nome só enquanto a transição desse tipo está ativa. O nível separa os
+ * dois casos porque a página da UF tem o próprio contorno e é também a origem da descida para o município: com um
+ * nome só, os dois contornos se chamariam igual e o navegador cancelaria a transição.
+ */
+:root:active-view-transition-type(mp-morfar-uf) [data-mp-contorno="uf"],
+:root:active-view-transition-type(mp-morfar-municipio) [data-mp-contorno="municipio"] {
+  view-transition-name: mp-morfa;
+}
+
+/* A peça sai devagar, acelera e pousa macio, um pouco depois da página: o caminho dela fica à vista. */
+::view-transition-group(mp-morfa) {
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.5, 0, 0.15, 1);
+}
+/* A peça cheia (cor da região) se apaga no caminho e o contorno, que se desenha sozinho, assume. */
+::view-transition-old(mp-morfa) {
+  animation: mp-apaga 0.42s ease-in 0.12s both;
+  mix-blend-mode: normal;
+}
+::view-transition-new(mp-morfa) {
+  animation: mp-apaga 0.24s ease-out reverse both;
+  mix-blend-mode: normal;
+}
+
 /* O esqueleto se apaga quando a página chega. */
 ::view-transition-old(.mp-esqueleto-sai) {
   animation: mp-apaga 0.15s ease-out both;
@@ -93,6 +119,9 @@
  * diz que a página mudou.
  */
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(mp-morfa) {
+    animation-duration: 0s;
+  }
   ::view-transition-group(.mp-descer),
   ::view-transition-group(.mp-subir) {
     animation-duration: 0s;

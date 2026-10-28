@@ -32,7 +32,7 @@ import {
 } from "@/lib/oportunidades/pagina-brasil";
 import type { LeituraBrasilOk } from "@/lib/oportunidades/pagina-brasil.server";
 import { PODE, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
-import { NOME_UF, funil, ordemLivre, porSituacao, totalTerritorio, urlUf } from "@/lib/oportunidades/pagina-uf";
+import { NOME_UF, ehUfCompleta, funil, ordemLivre, porSituacao, totalTerritorio, urlUf } from "@/lib/oportunidades/pagina-uf";
 import { CHAVE_TODOS, ETAPAS_CAMINHO, ROTULO_ETAPA, medianaComparavel } from "@/lib/oportunidades/painel";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
@@ -99,7 +99,13 @@ function Cartao({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?:
 }
 
 /** Onda 16, M1: `vivo` na página (marcador, prévia, zoom no celular); parado no relatório para imprimir. */
-/** Onda 17: com `temas` (quem tem cadastro), o filtro por tema; o tema escolhido desce junto para a UF. */
+/** As UFs com o mapa dos municípios por tema (onda 18): só para elas o tema desce, e já na aba Municípios. */
+const UFS_COM_MAPA = Object.keys(NOME_UF).filter(ehUfCompleta);
+
+/**
+ * Onda 17: com `temas` (quem tem cadastro), o filtro por tema; o tema escolhido desce junto para a UF. Onda 18: a UF
+ * clicada voa até o contorno no alto da página dela (`morfa`).
+ */
 function MapaDoBrasil({ vivo = false, temas }: { vivo?: boolean; temas?: TemasPorArea | null }) {
   const cor = new Map(ORDEM_MACRORREGIAO.map((r, i) => [r, i]));
   const areas = new Map<string, AreaMapa>(
@@ -113,7 +119,8 @@ function MapaDoBrasil({ vivo = false, temas }: { vivo?: boolean; temas?: TemasPo
       titulo="Mapa do Brasil por UF, cor pela macrorregião"
       rotulos
       vivo={vivo}
-      temas={vivo && temas ? { porArea: temas, unidade: { um: "UF", varios: "UFs" }, temaDesce: true } : undefined}
+      temas={vivo && temas ? { porArea: temas, unidade: { um: "UF", varios: "UFs" }, temaDesce: { aba: "municipios", areas: UFS_COM_MAPA } } : undefined}
+      morfa={vivo ? "uf" : undefined}
     />
   );
 }

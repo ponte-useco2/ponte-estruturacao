@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { enderecoComTema, lerTema, linhaDoTema, opcoesDeTema, resumoDoTema, somaNoTema, temasDasUfs, temasDosMunicipios } from "./tema-no-mapa.ts";
+import { enderecoComTema, hrefComTema, lerTema, linhaDoTema, opcoesDeTema, resumoDoTema, somaNoTema, temasDasUfs, temasDosMunicipios } from "./tema-no-mapa.ts";
 
 test("onda 17: as UFs por tema vêm do território, sem o Brasil e sem soma zerada", () => {
   const t = temasDasUfs([
@@ -59,4 +59,12 @@ test("onda 17: o tema vai para o endereço sem perder a aba, o filtro da tabela 
   assert.equal(enderecoComTema("/mapa/uf/pb?aba=municipios&t.mun.porte=Pequeno#mapa", "saude"), "/mapa/uf/pb?aba=municipios&t.mun.porte=Pequeno&tema=saude#mapa");
   assert.equal(enderecoComTema("/mapa/brasil?tema=saude&aba=resumo", null), "/mapa/brasil?aba=resumo");
   assert.equal(enderecoComTema("/mapa/brasil?tema=saude", "cultura"), "/mapa/brasil?tema=cultura");
+});
+
+test("onda 18: o tema desce já na aba do mapa, e só para quem tem o mapa por tema", () => {
+  const desce = { aba: "municipios", areas: ["PB"] };
+  assert.equal(hrefComTema("/mapa/uf/pb", "PB", "saude", desce), "/mapa/uf/pb?aba=municipios&tema=saude");
+  assert.equal(hrefComTema("/mapa/uf/pe", "PE", "saude", desce), "/mapa/uf/pe");
+  assert.equal(hrefComTema("/mapa/uf/pb", "PB", null, desce), "/mapa/uf/pb");
+  assert.equal(hrefComTema("/mapa/uf/pb", "PB", "saude", undefined), "/mapa/uf/pb");
 });

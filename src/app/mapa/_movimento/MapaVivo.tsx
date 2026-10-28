@@ -12,19 +12,37 @@
  * - **Celular (D16-2):** sem mouse não há marcador; o toque abre a prévia como folha que sobe de baixo e desce
  *   arrastada para fechar. Botões +/− ampliam o mapa (1 a 4×) e, ampliado, ele se arrasta com o dedo.
  * - **Esc** fecha a prévia. Com movimento reduzido, tudo aparece no lugar, sem deslocamento.
+ * - **Morph para o contorno (onda 18, 28/10/2026):** com `morfa`, ao descer (2º clique ou "Entrar") a área se solta do
+ *   mapa: uma peça com o mesmo desenho a cobre, deixa o buraco no mapa e, quando a página chega, voa até o contorno no
+ *   alto dela (`NOME_DO_MORPH`, transição nativa, sem pré-carga). Teclado, Ctrl+clique e movimento reduzido descem sem
+ *   a peça.
  * - **Filtro por tema (onda 17, 28/10/2026):** com `temas`, uma fila de temas acima do mapa. O tema escolhido acende as
  *   áreas com instrumento vivo nele e apaga as outras, em onda por região; a cor continua a da região. A prévia ganha a
  *   linha do tema, e o tema vai para o endereço (`?tema=`). No Brasil (`temaDesce`), o tema desce junto para a UF.
  */
 import { AnimatePresence, m, useMotionValue, type PanInfo } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
-import { tiposDaTransicao } from "@/lib/oportunidades/descida";
-import { ESCALA_MINIMA, acaoDoClique, atrasoDaRegiao, limitesDoArraste, posicaoNoMapa, proximaEscala } from "@/lib/oportunidades/mapa-vivo";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { TIPO_DESCER, tiposDaTransicao } from "@/lib/oportunidades/descida";
+import {
+  ESCALA_MINIMA,
+  NOME_DO_MORPH,
+  acaoDoClique,
+  atrasoDaRegiao,
+  caixaDoCaminho,
+  caixaNaTela,
+  limitesDoArraste,
+  posicaoNoMapa,
+  proximaEscala,
+  tiposComMorph,
+  type NivelDoMorph,
+} from "@/lib/oportunidades/mapa-vivo";
 import { MOLA } from "@/lib/oportunidades/molas";
 import {
   PARAMETRO_TEMA,
   enderecoComTema,
+  hrefComTema,
   lerTema,
   linhaDoTema,
   opcoesDeTema,
@@ -52,8 +70,33 @@ export interface AreaViva {
 export interface TemasDoMapa {
   porArea: TemasPorArea;
   unidade: { um: string; varios: string };
-  /** No Brasil: o tema escolhido vai junto no link da UF (`?tema=`), e a descida continua filtrada. */
-  temaDesce?: boolean;
+  /**
+   * No Brasil: o tema escolhido vai junto no link das UFs que têm o mapa por tema, já na aba dele (`aba`), e a descida
+   * continua filtrada.
+   */
+  temaDesce?: { aba: string; areas: readonly string[] };
+}
+
+/** A peça que se solta do mapa no morph (onda 18): o desenho da área, na caixa do contorno, em pixels da tela. */
+interface Peca {
+  id: string;
+  d: string;
+  caixa: string;
+  estilo: CSSProperties;
+}
+
+const semMovimento = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** A peça de uma área: o mesmo `d`, a caixa quadrada do contorno de destino posta na tela pela matriz do SVG. */
+function pecaDaArea(svg: SVGSVGElement | null, a: { id: string; d: string }): Peca | null {
+  const caminho = svg?.querySelector<SVGPathElement>(`path[data-area="${CSS.escape(a.id)}"]`);
+  const matriz = caminho?.getScreenCTM();
+  const caixa = caixaDoCaminho(a.d);
+  if (!caminho || !matriz || !caixa) return null;
+  const tela = caixaNaTela(caixa, matriz);
+  if (!tela) return null;
+  const cor = getComputedStyle(caminho).fill;
+  return { id: a.id, d: a.d, caixa, estilo: { ...tela, fill: cor, viewTransitionName: NOME_DO_MORPH } };
 }
 
 const TOQUE = "(pointer: coarse)";
@@ -72,6 +115,7 @@ export function MapaVivo({
   rotulos,
   depois,
   temas,
+  morfa,
 }: {
   viewBox: string;
   /** Na ordem do DOM (a do Tab, no modo navegável). */
@@ -86,6 +130,8 @@ export function MapaVivo({
   depois: ReactNode;
   /** O filtro por tema (onda 17); sem ele, o mapa é o de sempre. */
   temas?: TemasDoMapa;
+  /** O morph para o contorno da página de destino (onda 18); sem ele, a descida é a de sempre. */
+  morfa?: NivelDoMorph;
 }) {
   const router = useRouter();
   const [sobre, setSobre] = useState<string | null>(null);
@@ -110,7 +156,16 @@ export function MapaVivo({
   const [tema, setTema] = useState<string | null>(() => lerTema(busca.get(PARAMETRO_TEMA), opcoes));
   const somaDa = (id: string) => (temas && tema ? somaNoTema(temas.porArea, id, tema) : null);
   const foraDoTema = (id: string) => tema !== null && somaDa(id) === null;
-  const hrefDa = (a: AreaViva) => (a.href && tema && temas?.temaDesce ? enderecoComTema(a.href, tema) : a.href);
+  const hrefDa = (a: AreaViva) => (a.href ? hrefComTema(a.href, a.id, tema, temas?.temaDesce) : null);
+  const desenho = useRef<SVGSVGElement>(null);
+  const [peca, setPeca] = useState<Peca | null>(null);
+
+  // Se a página não chegar (erro, ou o clique foi para outro lugar), a peça não fica presa por cima do mapa.
+  useEffect(() => {
+    if (!peca) return;
+    const t = window.setTimeout(() => setPeca(null), 12_000);
+    return () => window.clearTimeout(t);
+  }, [peca]);
 
   const escolherTema = (novo: string | null) => {
     setTema(novo);
@@ -136,9 +191,21 @@ export function MapaVivo({
   }, [selecionada]);
 
   const entrar = useCallback(
-    (href: string) => router.push(href, { transitionTypes: tiposDaTransicao(window.location.pathname, href) }),
-    [router],
+    (a: AreaViva, href: string) => {
+      const tipos = tiposDaTransicao(window.location.pathname, href);
+      const p = morfa && tipos?.includes(TIPO_DESCER) && !semMovimento() ? pecaDaArea(desenho.current, a) : null;
+      if (p) setPeca(p);
+      router.push(href, { transitionTypes: p ? tiposComMorph(tipos, morfa, TIPO_DESCER) : tipos });
+    },
+    [router, morfa],
   );
+
+  /** O "Entrar" da prévia: link de verdade (Ctrl+clique abre outra aba), mas o clique simples desce com a peça. */
+  const entrarPelaPrevia = (a: AreaViva, href: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    entrar(a, href);
+  };
 
   const clicou = (a: AreaViva) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (arrastou.current) {
@@ -150,7 +217,7 @@ export function MapaVivo({
     if (acao === "navegar") return;
     e.preventDefault();
     const href = hrefDa(a);
-    if (acao === "entrar" && href) entrar(href);
+    if (acao === "entrar" && href) entrar(a, href);
     else setSelecionada(a.id);
   };
 
@@ -192,12 +259,13 @@ export function MapaVivo({
             dragElastic={0.08}
             onDragStart={() => (arrastou.current = true)}
           >
-            <svg viewBox={viewBox} {...atributosSvg}>
+            <svg ref={desenho} viewBox={viewBox} {...atributosSvg}>
               {areas.map((a) => {
                 const forma = (
                   <path
                     d={a.d}
-                    className={`mp-mapa-g${a.grupo} mp-vivo-area${a.id === selecionada ? " mp-vivo-escolhida" : ""}${foraDoTema(a.id) ? " mp-vivo-fora-tema" : ""}`}
+                    data-area={a.id}
+                    className={`mp-mapa-g${a.grupo} mp-vivo-area${a.id === selecionada ? " mp-vivo-escolhida" : ""}${foraDoTema(a.id) ? " mp-vivo-fora-tema" : ""}${peca?.id === a.id ? " mp-vivo-saindo" : ""}`}
                     style={{ animationDelay: `${atrasoDaRegiao(ordemDasRegioes[a.grupo] ?? 0)}ms`, ["--mp-atraso-tema" as string]: `${(ordemDasRegioes[a.grupo] ?? 0) * 40}ms` }}
                   />
                 );
@@ -269,7 +337,11 @@ export function MapaVivo({
                 {escolhida.detalhe && <p className="mp-vivo-previa-detalhe">{escolhida.detalhe}</p>}
                 {tema && <p className="mp-vivo-previa-tema">{linhaDoTema(rotuloDoTema(tema), somaDa(escolhida.id))}</p>}
                 <p className="mp-vivo-previa-acoes">
-                  <LinkMapa href={hrefDa(escolhida) ?? escolhida.href} className="pa-btn pa-btn-pequeno">
+                  <LinkMapa
+                    href={hrefDa(escolhida) ?? escolhida.href}
+                    className="pa-btn pa-btn-pequeno"
+                    onClick={entrarPelaPrevia(escolhida, hrefDa(escolhida) ?? escolhida.href)}
+                  >
                     Entrar
                   </LinkMapa>
                   <button type="button" className="pa-btn pa-btn-pequeno mp-vivo-fechar" onClick={() => setSelecionada(null)}>
@@ -283,6 +355,13 @@ export function MapaVivo({
         </div>
         <div className="mp-vivo-depois">{depois}</div>
       </div>
+      {peca &&
+        createPortal(
+          <svg className="mp-vivo-peca" style={peca.estilo} viewBox={peca.caixa} aria-hidden="true" focusable="false">
+            <path d={peca.d} />
+          </svg>,
+          document.body,
+        )}
     </Movimento>
   );
 }

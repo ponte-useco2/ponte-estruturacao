@@ -90,6 +90,20 @@ export function resumoDoTema(rotulo: string, comTema: number, total: number, uni
   return `${rotulo}: ${comTema.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} ${total === 1 ? unidade.um : unidade.varios} com instrumento vivo no tema.`;
 }
 
+/**
+ * O link da área com o tema que desce (onda 18, 28/10/2026): só para as áreas cujo destino tem o mapa por tema (no
+ * Brasil, as UFs completas), e já na aba desse mapa; na aba Resumo da UF não há mapa, e o tema chegava sem efeito.
+ */
+export function hrefComTema(href: string, area: string, tema: string | null, desce: { aba: string; areas: readonly string[] } | undefined): string {
+  if (!tema || !desce || !desce.areas.includes(area)) return href;
+  const [semAncora, ancora = ""] = href.split("#", 2);
+  const [caminho, busca = ""] = semAncora.split("?", 2);
+  const p = new URLSearchParams(busca);
+  p.set("aba", desce.aba);
+  p.set(PARAMETRO_TEMA, tema);
+  return `${caminho}?${p.toString()}${ancora ? `#${ancora}` : ""}`;
+}
+
 /** O endereço de agora com o tema (ou sem o parâmetro, no mapa inteiro), preservando o resto. */
 export function enderecoComTema(atual: string, tema: string | null): string {
   const [semAncora, ancora = ""] = atual.split("#", 2);

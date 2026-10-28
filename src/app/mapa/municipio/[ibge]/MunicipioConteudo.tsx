@@ -66,7 +66,7 @@ import {
   Secao,
 } from "./relatorio/RelatorioConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
-import { ContornoDoMunicipio } from "../../_movimento/ContornoDoMunicipio";
+import { ContornoDoMunicipio } from "../../_movimento/Contorno";
 
 const data = (iso: string | null | undefined) => (iso ? formatarData(iso.slice(0, 10)) : "—");
 

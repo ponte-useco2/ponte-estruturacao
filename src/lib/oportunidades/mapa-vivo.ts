@@ -86,3 +86,41 @@ export function caixaDoCaminho(d: string, folga = 0.08): string | null {
   const cy = (y0 + y1) / 2;
   return `${r(cx - lado / 2 - f)} ${r(cy - lado / 2 - f)} ${r(lado + 2 * f)} ${r(lado + 2 * f)}`;
 }
+
+// ================================================================ o morph da área para o contorno (onda 18)
+
+/**
+ * Onda 18 (28/10/2026): ao descer pelo mapa, a área clicada se solta e voa até o contorno no alto da página seguinte
+ * (o da UF ou o do município), com a transição nativa do navegador e sem pré-carga. Na hora do clique, uma peça com o
+ * mesmo desenho da área cobre a área no mapa e leva o nome `NOME_DO_MORPH`; na página nova, o contorno do nível certo
+ * ganha o mesmo nome só durante a transição (pelo tipo, em `transicoes.css`). Como a peça e o contorno têm a mesma
+ * caixa (`caixaDoCaminho`), o navegador só move e escala: a forma é a mesma.
+ */
+export type NivelDoMorph = "uf" | "municipio";
+
+export const NOME_DO_MORPH = "mp-morfa";
+
+/** O tipo da transição que acende o nome no contorno de destino (um por nível: a UF de origem também tem contorno). */
+export const TIPO_MORFAR: Record<NivelDoMorph, string> = { uf: "mp-morfar-uf", municipio: "mp-morfar-municipio" };
+
+/** A matriz do SVG para a tela (`getScreenCTM`): só escala e translação, que é o que a malha usa. */
+export interface MatrizDaTela {
+  a: number;
+  d: number;
+  e: number;
+  f: number;
+}
+
+/** A caixa do contorno (`caixaDoCaminho`, em unidades da malha) em pixels da tela, para pôr a peça por cima da área. */
+export function caixaNaTela(caixa: string, m: MatrizDaTela): { left: number; top: number; width: number; height: number } | null {
+  const v = caixa.trim().split(/[\s,]+/).map(Number);
+  if (v.length !== 4 || v.some((n) => !Number.isFinite(n)) || !(m.a > 0) || !(m.d > 0)) return null;
+  const r = (n: number) => Math.round(n * 10) / 10;
+  return { left: r(m.a * v[0] + m.e), top: r(m.d * v[1] + m.f), width: r(m.a * v[2]), height: r(m.d * v[3]) };
+}
+
+/** Os tipos da descida com o do morph, quando o mapa tem destino com contorno e a navegação é de descer. */
+export function tiposComMorph(tipos: readonly string[] | undefined, nivel: NivelDoMorph | undefined, tipoDescer: string): string[] | undefined {
+  if (!tipos?.length) return tipos ? [...tipos] : undefined;
+  return nivel && tipos.includes(tipoDescer) ? [...tipos, TIPO_MORFAR[nivel]] : [...tipos];
+}
