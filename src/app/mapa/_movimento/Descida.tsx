@@ -9,9 +9,12 @@
  *
  * O cabeçalho fica fora da foto: ele é a âncora parada enquanto o conteúdo se move. Sem "use client": o
  * `<ViewTransition>` vale no servidor.
+ *
+ * Onda 19: o voltar e o avançar do navegador, que não levam tipo, ganham a direção pelo `VoltaDoNavegador`.
  */
 import { ViewTransition, type ReactNode } from "react";
 import { TIPO_DESCER, TIPO_SUBIR } from "@/lib/oportunidades/descida";
+import { VoltaDoNavegador } from "./VoltaDoNavegador";
 import "./transicoes.css";
 import "./movimento.css";
 
@@ -19,9 +22,12 @@ const POR_TIPO = { [TIPO_DESCER]: "mp-descer", [TIPO_SUBIR]: "mp-subir", default
 
 export function Descida({ children }: { children: ReactNode }) {
   return (
-    <ViewTransition update={POR_TIPO} enter="none" exit="none" default="none">
-      {children}
-    </ViewTransition>
+    <>
+      <VoltaDoNavegador />
+      <ViewTransition update={POR_TIPO} enter="none" exit="none" default="none">
+        {children}
+      </ViewTransition>
+    </>
   );
 }
 

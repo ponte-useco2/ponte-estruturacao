@@ -43,6 +43,7 @@ import {
 } from "@/lib/oportunidades/pagina-instrumento";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import { ROTULO_MOTIVO_ADITIVO, percentual } from "@/lib/oportunidades/painel";
+import { documentoLegivel, listaCompleta, pagamentosPorEmpresa, posicaoNaJanela, type PagamentoEmpresa } from "@/lib/oportunidades/pagamentos-empresa";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { ROTULO_TEMA } from "@/lib/oportunidades/temas";
 import { eloInstrumento, trilha } from "@/lib/oportunidades/trilha";
@@ -76,6 +77,7 @@ export function InstrumentoConteudo({
   aba = "geral",
   administrador = false,
   empresas = null,
+  pagamentos = null,
 }: {
   leitura: LeituraOk;
   seguindo?: boolean | null;
@@ -88,6 +90,8 @@ export function InstrumentoConteudo({
   administrador?: boolean;
   /** As empresas da execução, lidas só para o administrador e só na aba Execução. */
   empresas?: LeituraEmpresasDaExecucao | null;
+  /** Onda 19: os pagamentos um a um às empresas (oport_52), com a mesma regra das empresas. */
+  pagamentos?: PagamentoEmpresa[] | null;
 }) {
   const i = leitura.instrumento;
   const proposta = i.id_proposta ? linkNoPublico(urlProposta(i.id_proposta), publico) : null;
@@ -298,7 +302,7 @@ export function InstrumentoConteudo({
             </section>
           </>
         )}
-        {aba === "execucao" && <Execucao leitura={leitura} publico={publico} administrador={administrador} empresas={empresas} />}
+        {aba === "execucao" && <Execucao leitura={leitura} publico={publico} administrador={administrador} empresas={empresas} pagamentos={pagamentos} />}
       </DeslizarAbas>
     </div>
   );
@@ -383,11 +387,13 @@ function Execucao({
   publico,
   administrador,
   empresas,
+  pagamentos,
 }: {
   leitura: LeituraOk;
   publico: boolean;
   administrador: boolean;
   empresas: LeituraEmpresasDaExecucao | null;
+  pagamentos: PagamentoEmpresa[] | null;
 }) {
   const i = leitura.instrumento as LeituraOk["instrumento"] & ValoresExecucao;
   const barras = barrasDaExecucao(i);
@@ -425,7 +431,7 @@ function Execucao({
         {publico ? (
           <p className="pa-cartao pa-cartao-plano">Os fornecedores do convênio aparecem a partir do cadastro, somados por tipo de quem recebeu.</p>
         ) : (
-          <Fornecedores i={i} administrador={administrador} empresas={empresas} />
+          <Fornecedores i={i} administrador={administrador} empresas={empresas} pagamentos={pagamentos} />
         )}
       </section>
     </>
@@ -436,10 +442,12 @@ function Fornecedores({
   i,
   administrador,
   empresas,
+  pagamentos,
 }: {
   i: LeituraOk["instrumento"] & ValoresExecucao;
   administrador: boolean;
   empresas: LeituraEmpresasDaExecucao | null;
+  pagamentos: PagamentoEmpresa[] | null;
 }) {
   const r = resumoFornecedores(i);
   if (r.total === null || r.total <= 0) {
@@ -453,6 +461,8 @@ function Fornecedores({
   const lista = administrador && empresas?.estado === "ok" ? empresas.empresas : null;
   const inicio = lista?.reduce<string | null>((m, e) => (e.primeiro_pagamento && (!m || e.primeiro_pagamento < m) ? e.primeiro_pagamento : m), null) ?? null;
   const fim = lista?.reduce<string | null>((m, e) => (e.ultimo_pagamento && (!m || e.ultimo_pagamento > m) ? e.ultimo_pagamento : m), null) ?? null;
+  const porEmpresa = pagamentos ? pagamentosPorEmpresa(pagamentos) : null;
+  const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   return (
     <>
       <ul className="mp-mola-lista">
@@ -486,6 +496,20 @@ function Fornecedores({
               janela: janelaDoPagamento(e.primeiro_pagamento, e.ultimo_pagamento, inicio, fim),
               contratado: e.contratado > 0 ? moedaCurta(e.contratado) : null,
               nContratos: e.n_contratos,
+              pagamentos: (() => {
+                const linhas = porEmpresa?.get(e.cnpj);
+                if (!linhas) return null;
+                return {
+                  completa: listaCompleta(linhas.length, e.n_pagamentos),
+                  linhas: linhas.map((p) => ({
+                    chave: p.nr_mov_fin ?? `${p.data}-${p.valor}`,
+                    data: p.data ? data(p.data) : "sem data",
+                    valor: reais(p.valor),
+                    documento: documentoLegivel(p.documento, p.nr_documento),
+                    posicao: posicaoNaJanela(p.data, inicio, fim),
+                  })),
+                };
+              })(),
             }))}
           />
           <p className="pa-nota">Pessoa física nunca aparece com nome, nem para a equipe: só a soma, acima.</p>

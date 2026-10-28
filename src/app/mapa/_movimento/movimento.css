@@ -154,6 +154,18 @@
 .pa-root .mp-empresa-detalhe > :last-child { margin-bottom: 1rem; }
 .pa-root .mp-empresa-janela { position: relative; height: 0.5rem; margin: 0.75rem 0; border-radius: 999px; background: var(--pa-surface-2); }
 .pa-root .mp-empresa-janela-faixa { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: var(--pa-brand); }
+/* Onda 19: cada pagamento é um ponto sobre a faixa; a lista vem logo abaixo, com rolagem quando aberta inteira. */
+.pa-root .mp-empresa-ponto {
+  position: absolute; top: 50%; width: 0.55rem; height: 0.55rem; margin: -0.275rem 0 0 -0.275rem; border-radius: 50%;
+  background: var(--pa-surface); border: 2px solid var(--pa-brand-2); pointer-events: none;
+}
+.pa-root .mp-empresa-pagamentos { display: grid; gap: 0.5rem; justify-items: start; margin: 0.25rem 0 0.75rem; }
+.pa-root .mp-empresa-pagamentos table { width: auto; max-width: 100%; }
+.pa-root .mp-empresa-pagamentos-todos table { max-height: 22rem; overflow-y: auto; display: block; }
+.pa-root .mp-empresa-pagamentos caption { text-align: left; font-size: 0.75rem; color: var(--pa-muted); padding-bottom: 0.25rem; }
+.pa-root .mp-empresa-pagamentos th, .pa-root .mp-empresa-pagamentos td { padding: 0.25rem 0.75rem 0.25rem 0; font-size: 0.86rem; text-align: left; }
+.pa-root .mp-empresa-pagamentos .mp-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media print { .pa-root .mp-empresa-pagamentos-todos table { max-height: none; overflow: visible; display: table; } }
 @media (max-width: 40rem) {
   .pa-root .mp-empresa-cabeca { grid-template-columns: minmax(0, 1fr) 1.5rem; }
   .pa-root .mp-empresa-valor { grid-column: 1; text-align: left; }

@@ -4,6 +4,7 @@ import { numeroValido, urlInstrumento } from "@/lib/oportunidades/busca";
 import { podeVerInstrumento } from "@/lib/oportunidades/cliente";
 import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
 import { lerEmpresasDaExecucao, lerInstrumento } from "@/lib/oportunidades/busca.server";
+import { lerPagamentosDoConvenio } from "@/lib/oportunidades/pagamentos-empresa.server";
 import { abaDoInstrumento } from "@/lib/oportunidades/pagina-instrumento";
 import { chaveSeguida } from "@/lib/oportunidades/favoritos";
 import { lerSeguidas } from "@/lib/oportunidades/favoritos.server";
@@ -100,8 +101,12 @@ export default async function InstrumentoPage({
   }
   const admin = ehAdministrador(visitante.email);
   const laudo = admin || (i.tipo_agente === "municipio" && podeVerInstrumento((await lerAcessoFicha(visitante)).acesso, i).ok);
-  // D1: a empresa com nome é só do administrador. A leitura acontece só na aba Execução, e só para ele.
-  const empresas = admin && aba === "execucao" ? await lerEmpresasDaExecucao(i.nr_convenio, leitura.execucao.id) : null;
+  // D1: a empresa com nome é só do administrador. A leitura acontece só na aba Execução, e só para ele. Onda 19: os
+  // pagamentos um a um às empresas vêm junto, na mesma ida (oport_52; sem a tabela, `null` e a tela fica como era).
+  const [empresas, pagamentos] =
+    admin && aba === "execucao"
+      ? await Promise.all([lerEmpresasDaExecucao(i.nr_convenio, leitura.execucao.id), lerPagamentosDoConvenio(i.nr_convenio, leitura.execucao.id)])
+      : [null, null];
   return (
     <InstrumentoConteudo
       leitura={leitura}
@@ -110,6 +115,7 @@ export default async function InstrumentoPage({
       aba={aba}
       administrador={admin}
       empresas={empresas}
+      pagamentos={pagamentos}
     />
   );
 }

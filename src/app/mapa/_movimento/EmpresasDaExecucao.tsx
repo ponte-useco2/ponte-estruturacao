@@ -5,13 +5,17 @@
  * abre ali mesmo o detalhe dos pagamentos àquela empresa: o cartão cresce com animação de layout (`layout`) e o
  * detalhe entra e sai com `AnimatePresence`. Do detalhe, "Abrir o fornecedor" desce à página dele (camada 6).
  *
- * O painel guarda, por empresa e convênio, o total pago, o número de pagamentos, o primeiro e o último: é isso que o
- * detalhe mostra (não há a ordem bancária uma a uma). A faixa do tempo vai do primeiro ao último pagamento à empresa,
- * dentro da janela de pagamentos do convênio inteiro.
+ * O painel guarda, por empresa e convênio, o total pago, o número de pagamentos, o primeiro e o último. A faixa do
+ * tempo vai do primeiro ao último pagamento à empresa, dentro da janela de pagamentos do convênio inteiro.
+ *
+ * Onda 19 (28/10/2026; oport_52): com os pagamentos um a um, cada pagamento vira um ponto na faixa (os pontos caem em
+ * cascata) e o detalhe ganha a lista (data, valor e documento), com as `PAGAMENTOS_VISIVEIS` primeiras à mostra e as
+ * demais atrás de "Mostrar todos". Sem as linhas (antes da oport_52 ou com a lista incompleta), fica como era.
  */
 import { AnimatePresence, m } from "framer-motion";
 import { useState } from "react";
 import { MOLA, atrasoDaCascata } from "@/lib/oportunidades/molas";
+import { PAGAMENTOS_VISIVEIS } from "@/lib/oportunidades/pagamentos-empresa";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { Movimento } from "./Movimento";
 
@@ -29,6 +33,58 @@ export interface EmpresaVista {
   janela: [number, number] | null;
   contratado: string | null;
   nContratos: number;
+  /** Onda 19: os pagamentos um a um, já formatados; `null` sem as linhas no banco. */
+  pagamentos: {
+    completa: boolean;
+    linhas: { chave: string; data: string; valor: string; documento: string | null; posicao: number | null }[];
+  } | null;
+}
+
+/** O teto de pontos que entram em cascata: depois disso, aparecem juntos (801 pontos não esperam 36 s). */
+const PONTOS_EM_CASCATA = 40;
+
+function ListaDePagamentos({ pagamentos, nome }: { pagamentos: NonNullable<EmpresaVista["pagamentos"]>; nome: string }) {
+  const [todos, setTodos] = useState(false);
+  const total = pagamentos.linhas.length;
+  const vistos = todos ? pagamentos.linhas : pagamentos.linhas.slice(0, PAGAMENTOS_VISIVEIS);
+  return (
+    <div className={todos ? "mp-empresa-pagamentos mp-empresa-pagamentos-todos" : "mp-empresa-pagamentos"}>
+      <table className="mp-tabela-compacta">
+        <caption>
+          Os pagamentos a {nome}, um a um{total > PAGAMENTOS_VISIVEIS && !todos ? ` (os ${PAGAMENTOS_VISIVEIS} primeiros de ${total.toLocaleString("pt-BR")})` : ""}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Data</th>
+            <th scope="col" className="mp-num">
+              Valor
+            </th>
+            <th scope="col">Documento</th>
+          </tr>
+        </thead>
+        <tbody>
+          {vistos.map((p, k) => (
+            <m.tr
+              key={p.chave}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: Math.min(k, PAGAMENTOS_VISIVEIS) * 0.02 }}
+            >
+              <td className="pa-mono">{p.data}</td>
+              <td className="mp-num">{p.valor}</td>
+              <td>{p.documento ?? "—"}</td>
+            </m.tr>
+          ))}
+        </tbody>
+      </table>
+      {total > PAGAMENTOS_VISIVEIS && (
+        <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => setTodos(!todos)} aria-expanded={todos}>
+          {todos ? `Mostrar só os ${PAGAMENTOS_VISIVEIS} primeiros` : `Mostrar os ${total.toLocaleString("pt-BR")} pagamentos`}
+        </button>
+      )}
+      {!pagamentos.completa && <p className="pa-nota">A lista não fecha com a contagem do painel nesta atualização; a soma acima é a que vale.</p>}
+    </div>
+  );
 }
 
 export function EmpresasDaExecucao({ empresas }: { empresas: readonly EmpresaVista[] }) {
@@ -103,8 +159,21 @@ export function EmpresasDaExecucao({ empresas }: { empresas: readonly EmpresaVis
                           animate={{ scaleX: 1 }}
                           transition={{ ...MOLA.barra, delay: 0.1 }}
                         />
+                        {e.pagamentos?.linhas.map((p, k) =>
+                          p.posicao === null ? null : (
+                            <m.span
+                              key={p.chave}
+                              className="mp-empresa-ponto"
+                              style={{ left: `${p.posicao * 100}%` }}
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ ...MOLA.pin, delay: 0.25 + Math.min(k, PONTOS_EM_CASCATA) * 0.025 }}
+                            />
+                          ),
+                        )}
                       </div>
                     )}
+                    {e.pagamentos && e.pagamentos.linhas.length > 0 && <ListaDePagamentos pagamentos={e.pagamentos} nome={e.nome} />}
                     <p className="pa-nota">
                       <LinkMapa href={e.href}>Abrir o fornecedor</LinkMapa> · todos os convênios, contratos e sanções da empresa
                     </p>

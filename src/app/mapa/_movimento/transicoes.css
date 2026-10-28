@@ -77,6 +77,41 @@
   mix-blend-mode: normal;
 }
 
+/*
+ * O voltar e o avançar do navegador (onda 19, 28/10/2026; `VoltaDoNavegador.tsx`). A transição é aberta pelo próprio
+ * ouvinte, não pelo React, então o conteúdo ganha nome aqui, só durante esses dois tipos, e reusa as animações da
+ * descida: voltar de um nível para cima é subir; avançar para baixo é descer.
+ */
+:root:active-view-transition-type(mp-volta-subir) .mp-root main,
+:root:active-view-transition-type(mp-volta-descer) .mp-root main {
+  view-transition-name: mp-volta;
+}
+::view-transition-group(mp-volta) {
+  animation-duration: 0.42s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+::view-transition-image-pair(mp-volta) {
+  perspective: 1400px;
+  perspective-origin: 50% 0;
+}
+::view-transition-old(mp-volta),
+::view-transition-new(mp-volta) {
+  transform-origin: 50% 0;
+  mix-blend-mode: normal;
+}
+:root:active-view-transition-type(mp-volta-subir)::view-transition-old(mp-volta) {
+  animation: mp-sai-pela-frente 0.26s cubic-bezier(0.4, 0, 1, 1) both;
+}
+:root:active-view-transition-type(mp-volta-subir)::view-transition-new(mp-volta) {
+  animation: mp-volta-do-fundo 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+:root:active-view-transition-type(mp-volta-descer)::view-transition-old(mp-volta) {
+  animation: mp-afunda 0.26s cubic-bezier(0.4, 0, 1, 1) both;
+}
+:root:active-view-transition-type(mp-volta-descer)::view-transition-new(mp-volta) {
+  animation: mp-chega-da-frente 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+
 /* O esqueleto se apaga quando a página chega. */
 ::view-transition-old(.mp-esqueleto-sai) {
   animation: mp-apaga 0.15s ease-out both;
@@ -119,8 +154,17 @@
  * diz que a página mudou.
  */
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(mp-morfa) {
+  ::view-transition-group(mp-morfa),
+  ::view-transition-group(mp-volta) {
     animation-duration: 0s;
+  }
+  :root:active-view-transition-type(mp-volta-subir)::view-transition-old(mp-volta),
+  :root:active-view-transition-type(mp-volta-descer)::view-transition-old(mp-volta) {
+    animation: mp-apaga 0.12s linear both;
+  }
+  :root:active-view-transition-type(mp-volta-subir)::view-transition-new(mp-volta),
+  :root:active-view-transition-type(mp-volta-descer)::view-transition-new(mp-volta) {
+    animation: mp-apaga 0.12s linear reverse both;
   }
   ::view-transition-group(.mp-descer),
   ::view-transition-group(.mp-subir) {
