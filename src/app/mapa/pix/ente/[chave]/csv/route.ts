@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
+import { notasCsv } from "@/lib/oportunidades/csv";
+import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { paraCsv } from "@/lib/oportunidades/painel";
 import { catalogoDe, chaveEnteValida, colunasCsvEnte, podeVerPlanoPix } from "@/lib/oportunidades/pix-laudo";
 import { lerLaudoEntePix } from "@/lib/oportunidades/pix-laudo.server";
@@ -31,7 +33,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cha
   if (leitura.estado === "nao_encontrado") return naoEncontrado();
   if (leitura.estado !== "ok") return new Response("Indisponível", { status: 503, headers: CABECALHOS_PRIVADOS });
 
-  const csv = paraCsv(colunasCsvEnte(catalogoDe(leitura.planos)), leitura.planos);
+  const notas = notasCsv({
+    titulo: `Laudo do Pix (transferências especiais) do ente ${k.valor}, um plano por linha`,
+    fontes: [{ fonte: "API das transferências especiais do Transferegov", data: leitura.execucao.referencia }],
+    aviso: "Itens conferidos pelo roteiro da IN-TCU 93/2024, da LC 210/2024 e da PC MF/MGI 15/2025; \"não verificável\" não quer dizer \"atendido\". Ponto para olhar, não irregularidade.",
+    geradoEm: diaBrasilia(new Date().toISOString()),
+  });
+  const csv = paraCsv(colunasCsvEnte(catalogoDe(leitura.planos)), leitura.planos, notas);
   const nome = `laudo-pix-${k.valor}-${new Date().toISOString().slice(0, 10)}.csv`;
   return new Response(csv, {
     headers: { ...CABECALHOS_PRIVADOS, "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${nome}"` },

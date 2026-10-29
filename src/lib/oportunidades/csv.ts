@@ -50,3 +50,25 @@ export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[], notas: readonly
   const topo = notas.length > 0 ? [...notas.map((n) => celula(n)), ""] : [];
   return "﻿" + [...topo, cabecalho, ...corpo].join("\r\n") + "\r\n";
 }
+
+/** "AAAA-MM-DD…" vira "DD/MM/AAAA"; o resto volta como veio. */
+const dataCurta = (d: string): string => (/^\d{4}-\d{2}-\d{2}/.test(d) ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : d);
+
+/**
+ * As notas do topo de um CSV do Mapa (A5-15, 29/10/2026): o que é o arquivo, de onde vem cada dado e de quando, o aviso
+ * de leitura e o dia em que foi gerado. Fonte sem data diz "data não informada", nunca some.
+ */
+export function notasCsv(o: {
+  titulo: string;
+  fontes: readonly { fonte: string; data: string | null; nota?: string }[];
+  aviso?: string;
+  geradoEm: string;
+}): string[] {
+  const fontes = o.fontes.map((f) => `${f.fonte}: ${f.data ? `dado de ${dataCurta(f.data)}` : "data não informada"}.${f.nota ? ` ${f.nota}` : ""}`);
+  return [
+    `${o.titulo} — PONTE Estruturação de Projetos de Impacto.`,
+    ...fontes.map((f) => `Fonte: ${f}`),
+    ...(o.aviso ? [o.aviso] : []),
+    `Gerado em ${dataCurta(o.geradoEm)}.`,
+  ];
+}

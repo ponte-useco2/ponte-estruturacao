@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { notasCsv } from "@/lib/oportunidades/csv";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { COLUNAS_CSV_INSTRUMENTOS, cnpjDaUrl } from "@/lib/oportunidades/pagina-entidade";
 import { paraCsv } from "@/lib/oportunidades/painel";
@@ -28,7 +29,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cnpj
 
   const achados = req.nextUrl.searchParams.get("tipo") === "achados";
   const r = ehAdministrador(visitante.email) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
-  const csv = achados ? paraCsv(COLUNAS_CSV_ACHADOS, r.achados) : paraCsv(COLUNAS_CSV_INSTRUMENTOS, leitura.instrumentos);
+  const notas = notasCsv({
+    titulo: achados ? `Achados da entidade de CNPJ ${cnpj}` : `Instrumentos da entidade de CNPJ ${cnpj}`,
+    fontes: achados ? r.fontes : r.fontes.filter((f) => f.fonte.startsWith("SICONV")),
+    aviso: achados ? "Achado é ponto para olhar, não irregularidade; a falta de dado numa fonte é dita como falta, nunca como zero." : undefined,
+    geradoEm: hoje,
+  });
+  const csv = achados ? paraCsv(COLUNAS_CSV_ACHADOS, r.achados, notas) : paraCsv(COLUNAS_CSV_INSTRUMENTOS, leitura.instrumentos, notas);
   return new Response(csv, {
     headers: {
       ...CABECALHOS_PRIVADOS,

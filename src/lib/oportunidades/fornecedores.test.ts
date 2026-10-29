@@ -426,3 +426,24 @@ test("CSV (A5-15): as notas levam a fonte, as datas de corte e o aviso, e entram
   // sem notas, o arquivo de antes, byte a byte
   assert.equal(paraCsv([{ titulo: "CNPJ", valor: (l: { c: string }) => l.c }], [{ c: "x" }]), "﻿CNPJ\r\nx\r\n");
 });
+
+test("notasCsv (A5-15): título, cada fonte com a data ou 'data não informada', a nota da fonte, o aviso e o dia", async () => {
+  const { notasCsv } = await import("./csv.ts");
+  const n = notasCsv({
+    titulo: "Achados",
+    fontes: [
+      { fonte: "SICONV", data: "2026-10-27" },
+      { fonte: "Acesso Livre", data: null, nota: "Só nos convênios das coletas." },
+    ],
+    aviso: "Ponto para olhar.",
+    geradoEm: "2026-10-29",
+  });
+  assert.deepEqual(n, [
+    "Achados — PONTE Estruturação de Projetos de Impacto.",
+    "Fonte: SICONV: dado de 27/10/2026.",
+    "Fonte: Acesso Livre: data não informada. Só nos convênios das coletas.",
+    "Ponto para olhar.",
+    "Gerado em 29/10/2026.",
+  ]);
+  assert.equal(notasCsv({ titulo: "X", fontes: [], geradoEm: "2026-10-29" }).length, 2);
+});

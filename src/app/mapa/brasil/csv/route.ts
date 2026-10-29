@@ -1,3 +1,4 @@
+import { notasCsv } from "@/lib/oportunidades/csv";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { COLUNAS_CSV_UFS, anoDeReferencia, ufsLadoALado } from "@/lib/oportunidades/pagina-brasil";
 import { lerBrasil } from "@/lib/oportunidades/pagina-brasil.server";
@@ -17,7 +18,17 @@ export async function GET() {
   const hoje = diaBrasilia(new Date().toISOString());
   const ano = anoDeReferencia(leitura.execucao, hoje);
   const linhas = ufsLadoALado(leitura.territorio, leitura.desfechos ?? [], leitura.pix ?? [], leitura.janelas, ano);
-  return new Response(paraCsv(COLUNAS_CSV_UFS, linhas), {
+  const notas = notasCsv({
+    titulo: "As 27 UFs lado a lado, em ordem alfabética",
+    fontes: [
+      { fonte: "SICONV/Transferegov (arquivos abertos)", data: leitura.execucao.referencia },
+      { fonte: "API das transferências especiais e do fundo a fundo (Transferegov)", data: null },
+      { fonte: "Catálogo de janelas abertas da PONTE (radar)", data: null },
+    ],
+    aviso: `Ano de referência das colunas anuais: ${ano}. Comparação entre estados, não ranking.`,
+    geradoEm: hoje,
+  });
+  return new Response(paraCsv(COLUNAS_CSV_UFS, linhas, notas), {
     headers: { ...CABECALHOS_PRIVADOS, "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="ufs-brasil-${hoje}.csv"` },
   });
 }

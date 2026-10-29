@@ -1,3 +1,4 @@
+import { notasCsv } from "@/lib/oportunidades/csv";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { COLUNAS_CSV_MUNICIPIOS_UF, siglaDaUrl } from "@/lib/oportunidades/pagina-uf";
 import { lerUf } from "@/lib/oportunidades/pagina-uf.server";
@@ -21,11 +22,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ sigla: 
   const leitura = await lerUf(sigla, false);
   if (leitura.estado !== "ok" || !leitura.municipios) return new Response("Indisponível", { status: 503, headers: CABECALHOS_PRIVADOS });
   const linhas = [...leitura.municipios].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  return new Response(paraCsv(COLUNAS_CSV_MUNICIPIOS_UF, linhas), {
+  const hoje = diaBrasilia(new Date().toISOString());
+  const notas = notasCsv({
+    titulo: `Municípios da ${sigla}, em ordem alfabética`,
+    fontes: [{ fonte: "SICONV/Transferegov (arquivos abertos)", data: leitura.execucao.referencia }],
+    aviso: leitura.completa ? undefined : "Fora da Paraíba, a base guarda só os instrumentos vivos: municípios sem instrumento vivo não aparecem.",
+    geradoEm: hoje,
+  });
+  return new Response(paraCsv(COLUNAS_CSV_MUNICIPIOS_UF, linhas, notas), {
     headers: {
       ...CABECALHOS_PRIVADOS,
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="municipios-${sigla.toLowerCase()}-${diaBrasilia(new Date().toISOString())}.csv"`,
+      "Content-Disposition": `attachment; filename="municipios-${sigla.toLowerCase()}-${hoje}.csv"`,
     },
   });
 }

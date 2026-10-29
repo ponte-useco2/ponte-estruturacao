@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { notasCsv } from "@/lib/oportunidades/csv";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { paraCsv } from "@/lib/oportunidades/painel";
 import { PODE, ibgeDaUrl } from "@/lib/oportunidades/pagina-municipio";
@@ -28,7 +29,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ibg
   if (leitura.estado === "nao_encontrado") return naoEncontrado();
   if (leitura.estado !== "ok") return new Response("Indisponível", { status: 503, headers: CABECALHOS_PRIVADOS });
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
-  const csv = paraCsv(COLUNAS_CSV_ACHADOS, r.achados);
+  const notas = notasCsv({ titulo: `Achados do relatório do município (IBGE ${ibge})`, fontes: r.fontes, aviso: "Achado é ponto para olhar, não irregularidade; a falta de dado numa fonte é dita como falta, nunca como zero.", geradoEm: hoje });
+  const csv = paraCsv(COLUNAS_CSV_ACHADOS, r.achados, notas);
   return new Response(csv, {
     headers: {
       ...CABECALHOS_PRIVADOS,
