@@ -272,3 +272,14 @@ test("J4: os avisos da emenda municipal em palavras, com o valor exato (dinheiro
   assert.equal(f("fora_do_recorte", null, null).rotulo, "Saiu do painel da Prefeitura");
   assert.equal(fraseDoAviso({ tipo: "emenda_estadual", evento: "fora_do_recorte", antes: null, depois: null }).rotulo, "Saiu da rodada das emendas estaduais");
 });
+
+test("P3 da primeira infância (oport_53): parcela, primeiro pagamento e creche parada em palavras", () => {
+  const f = (evento: string, antes: string | null, depois: string | null) => fraseDoAviso({ tipo: "municipio", evento, antes, depois });
+  assert.equal(f("creche_liberado", "777544", "1277544").rotulo, "Creche recebeu parcela");
+  assert.match(f("creche_liberado", "777544", "1277544").detalhe, /liberados · total de/);
+  assert.equal(f("creche_liberado", "1000", "0").rotulo, "O liberado para creches mudou");
+  assert.deepEqual(f("creche_pagando", "0", "1"), { rotulo: "Primeiro pagamento numa obra de creche", detalhe: "termos de creche com pagamento: 0 → 1" });
+  assert.deepEqual(f("creche_pagando", "2", "1"), { rotulo: "Termos de creche com pagamento", detalhe: "2 → 1" });
+  assert.deepEqual(f("creche_parada_180", "0", "1"), { rotulo: "Creche completou 180 dias parada", detalhe: "dinheiro em conta e nenhum pagamento: 0 → 1 termos" });
+  assert.deepEqual(f("creche_parada_180", "1", "0"), { rotulo: "Creches paradas há mais de 180 dias", detalhe: "1 → 0" });
+});

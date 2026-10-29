@@ -157,6 +157,13 @@ export function consequenciaDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "ante
     case "instrumentos":
     case "propostas":
       return { nivel: "informativo", melhora: null };
+    // P3 da primeira infância (oport_53): parcela e primeiro pagamento são avanço; a creche que completa 180 dias parada
+    // é o ponto alto da fila do município (P2b, "pode virar cobrança").
+    case "creche_liberado":
+    case "creche_pagando":
+      return { nivel: "informativo", melhora: subiu };
+    case "creche_parada_180":
+      return subiu ? { nivel: "alto", melhora: false } : { nivel: "informativo", melhora: subiu === false ? true : null };
     case "fiscal_a":
     case "fiscal_b":
     case "fiscal_c": {
@@ -312,6 +319,16 @@ export function recomendacoesMunicipio(e: Record<string, unknown>, dadoDe: strin
       nivel: "moderado",
       acao: `Cumprir as exigências ${suspensiva === 1 ? "da cláusula suspensiva" : `das ${suspensiva} cláusulas suspensivas`} antes do prazo`,
       fato: `${plural(suspensiva, "convênio", "convênios")} ainda em cláusula suspensiva${em}.`,
+    });
+  }
+  // P3 da primeira infância (oport_53): o ponto alto da fila do município (P2b), com a mesma ação.
+  const creches = num(e.creche_parada_180) ?? 0;
+  if (creches > 0) {
+    r.push({
+      classe: "cobranca",
+      nivel: "alto",
+      acao: `Pagar a obra ${creches === 1 ? "da creche parada" : `das ${creches} creches paradas`} ou tratar com o concedente`,
+      fato: `${plural(creches, "termo de creche", "termos de creche")} com a parcela em conta e nenhum pagamento há mais de 180 dias desde a liberação${em}. Pode virar cobrança.`,
     });
   }
   const saldo = num(e.saldo_parado) ?? 0;

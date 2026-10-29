@@ -228,6 +228,13 @@ function AbaPrimeiraInfancia({ r, nivel, leitura }: { r: Relatorio; nivel: Nivel
       )}
       <CartoesPI t={resumoMunicipio(m)} datas={leitura.datas} estadual={false} />
       <DetalheMunicipioPI m={m} datas={leitura.datas} nivel={nivel} necessidade={necessidade} />
+      {/* P3 (oport_53, 29/10/2026): seguir o município também acompanha as creches dele. */}
+      {PODE.cadastro(nivel) && (
+        <p className="pa-nota">
+          Quem segue {r.nome} (a estrela no topo da página) recebe aviso, depois da atualização diária do painel, quando uma obra de creche do
+          município recebe parcela, faz o primeiro pagamento ou completa 180 dias com dinheiro em conta e nada pago.
+        </p>
+      )}
       <Mais>
         <LinkMapa href="/mapa/primeira-infancia" className="pa-btn pa-btn-pequeno">
           A primeira infância nos 223 municípios

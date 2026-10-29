@@ -380,6 +380,22 @@ export function fraseDoAviso(a: Pick<AvisoItem, "tipo" | "evento" | "antes" | "d
       return { rotulo: "Pix: planos em análise no órgão federal", detalhe: contagem(antes, depois) };
     case "pix_prazo_ente":
       return { rotulo: "Pix: prazo da etapa do município", detalhe: `${antes ? data(antes) : "sem prazo"} → ${depois ? data(depois) : "sem prazo"}` };
+    // P3 da primeira infância (oport_53, 29/10/2026): os termos de creche e educação infantil do município seguido.
+    case "creche_liberado": {
+      const de = numero(antes) ?? 0;
+      const para = numero(depois) ?? 0;
+      return para > de
+        ? { rotulo: "Creche recebeu parcela", detalhe: `${moedaCurta(para - de)} liberados · total de ${moedaCurta(de)} para ${moedaCurta(para)}` }
+        : { rotulo: "O liberado para creches mudou", detalhe: `${moedaCurta(de)} → ${moedaCurta(para)}` };
+    }
+    case "creche_pagando":
+      return (numero(depois) ?? 0) > (numero(antes) ?? 0)
+        ? { rotulo: "Primeiro pagamento numa obra de creche", detalhe: `termos de creche com pagamento: ${contagem(antes, depois)}` }
+        : { rotulo: "Termos de creche com pagamento", detalhe: contagem(antes, depois) };
+    case "creche_parada_180":
+      return (numero(depois) ?? 0) > (numero(antes) ?? 0)
+        ? { rotulo: "Creche completou 180 dias parada", detalhe: `dinheiro em conta e nenhum pagamento: ${contagem(antes, depois)} termos` }
+        : { rotulo: "Creches paradas há mais de 180 dias", detalhe: contagem(antes, depois) };
     case "epb_passo": {
       const de = PASSOS_EPB.indexOf(antes as PassoEpb);
       const para = PASSOS_EPB.indexOf(depois as PassoEpb);

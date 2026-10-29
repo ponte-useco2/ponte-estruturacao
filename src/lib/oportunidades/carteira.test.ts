@@ -238,3 +238,29 @@ test("J4 (oport_45): a emenda municipal na carteira — etapa, dinheiro e TCE-PB
   const comTce = montarCarteira({ seguidos: [{ tipo: "emenda_municipal", chave: "2026-0171", titulo: "Emenda 171/2026", estado: { ...estado, ejp_empenhos_tce: 1 }, referencia: null, criado_em: "2026-10-20T12:00:00Z" }], avisos: [] }, HOJE);
   assert.equal(comTce.porTipo.emenda_municipal[0].recomendacoes.length, 0);
 });
+
+test("P3 da primeira infância (oport_53): parcela e pagamento são avanço; creche parada é alta e vira recomendação", () => {
+  assert.deepEqual(c({ evento: "creche_liberado", antes: "0", depois: "500000" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(c({ evento: "creche_pagando", antes: "0", depois: "1" }), { nivel: "informativo", melhora: true });
+  assert.deepEqual(c({ evento: "creche_parada_180", antes: "0", depois: "1" }), { nivel: "alto", melhora: false });
+  assert.deepEqual(c({ evento: "creche_parada_180", antes: "2", depois: "1" }), { nivel: "informativo", melhora: true });
+  const r = recomendacoesMunicipio({ cauc: "", creche_parada_180: 2 }, "2026-10-27");
+  assert.equal(r[0].acao, "Pagar a obra das 2 creches paradas ou tratar com o concedente");
+  assert.match(r[0].fato, /2 termos de creche com a parcela em conta e nenhum pagamento há mais de 180 dias.*27\/10\/2026/);
+  assert.deepEqual(recomendacoesMunicipio({ cauc: "", creche_parada_180: 0, creche_liberado: 500000, creche_pagando: 1 }, null), []);
+});
+
+test("oport_53: o retrato do município ganha os campos de creche; os outros ramos e as permissões ficam como na oport_32", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const dir = path.resolve(import.meta.dirname, "..", "..", "..", "supabase", "migrations");
+  const nova = fs.readFileSync(path.join(dir, "oport_53_seguir_primeira_infancia.sql"), "utf-8");
+  const velha = fs.readFileSync(path.join(dir, "oport_32_osc.sql"), "utf-8");
+  for (const campo of ["creche_liberado", "creche_pagando", "creche_parada_180"]) assert.ok(nova.includes(`'${campo}'`), campo);
+  assert.match(nova, /\|\| coalesce\(px\.retrato, '\{\}'::jsonb\) \|\| cr\.retrato/);
+  // o ramo da entidade é o mesmo da oport_32
+  const entidade = (s: string) => s.slice(s.indexOf("-- Entidade (E2)"), s.indexOf("revoke execute on function public.oport_estado_painel"));
+  assert.equal(entidade(nova).replace(/\r/g, ""), entidade(velha).replace(/\r/g, ""));
+  assert.match(nova, /grant execute on function public\.oport_estado_painel\(text, text, bigint\) to service_role;/);
+  assert.equal(/to (anon|authenticated)\b/.test(nova), false);
+});
