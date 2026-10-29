@@ -348,7 +348,7 @@ test("laudo: impedimento vigente aplicado pela própria prefeitura contratante �
   assert.equal(r.length, 1);
   assert.equal(r[0].nivel, "alto");
   assert.equal(r[0].titulo, "ACM AUTO CENTER MAQUINAS LTDA: registro no CEIS que alcança o contratante deste convênio");
-  assert.match(r[0].fato, /no ente que os aplicou, que aqui é o do próprio contratante/);
+  assert.match(r[0].fato, /valem no ente que os aplicou, e aqui alcançam o contratante/);
   assert.match(r[0].fato, /um registro no CEIS vigente na consulta de 11\/10\/2026 \(CEIS: Impedimento/);
   // Pagamentos de 01/03/2020 a 01/06/2020, registro desde 01/04/2020, contrato de 01/02/2020.
   assert.match(r[0].fato, /Parte dos pagamentos deste convênio caiu dentro do período do registro/);
@@ -424,8 +424,9 @@ test("alcance no contratante (29/10/2026): tipo da sanção × ente que aplicou 
   assert.equal(alcanceNoContratante(imp("Governo do Estado da Paraíba", "ESTADUAL", "PB"), pb), "impede");
   assert.equal(alcanceNoContratante(imp("CAGEPA", "ESTADUAL", "PB", { tipo: "Suspensão" }), pb), "a_conferir");
   assert.equal(alcanceNoContratante(imp("Governo do Estado de Pernambuco", "ESTADUAL", "PE"), pb), "nao_alcanca");
-  // decisão judicial: a conferir (improbidade vale para o ente lesado, que o CEIS não diz)
-  assert.equal(alcanceNoContratante(imp("1º Grau - TRF5 / Seção Judiciária da Paraíba / Varas / Juizo", "FEDERAL", "PB"), cg), "a_conferir");
+  // proibição judicial de contratar (Lei 8.429): alcança todos, inclusive OSC (regra ratificada em 29/10/2026)
+  assert.equal(alcanceNoContratante(imp("1º Grau - TRF5 / Seção Judiciária da Paraíba / Varas / Juizo", "FEDERAL", "PB"), cg), "impede");
+  assert.equal(alcanceNoContratante(imp("Justiça Federal da Paraíba", "FEDERAL", "PB"), osc), "impede");
   // esfera não informada: a conferir na mesma UF
   assert.equal(alcanceNoContratante(imp("Órgão qualquer", null, "PB"), cg), "a_conferir");
   assert.equal(alcanceNoContratante(imp("Órgão qualquer", null, "SP"), cg), "nao_alcanca");

@@ -361,11 +361,10 @@ export interface Contratante {
 
 /**
  * Se a sanção alcança este contratante (29/10/2026):
- * - impede: inidoneidade e as sanções que param a empresa; ou impedimento e suspensão aplicados pelo próprio ente do
- *   contratante (a prefeitura do mesmo município, o estado da mesma UF);
- * - a_conferir: o dado não basta para dizer — decisão judicial de "proibição de contratar" (na improbidade vale para o
- *   ente lesado, Lei 8.429, art. 12, § 4º, que o CEIS não diz), suspensão de outro órgão do mesmo estado, esfera não
- *   informada na mesma UF;
+ * - impede: inidoneidade (Lei 14.133, art. 156, § 5º), as sanções que param a empresa e a proibição judicial de contratar
+ *   (Lei 8.429), que valem para todos; ou impedimento e suspensão aplicados pelo próprio ente do contratante (a prefeitura
+ *   do mesmo município, o estado da mesma UF). Regra ratificada pelo titular em 29/10/2026 (PUB-12 da cadeia quebrada);
+ * - a_conferir: o dado não basta para dizer — suspensão de outro órgão do mesmo estado, esfera não informada na mesma UF;
  * - nao_alcanca: impedimento ou suspensão de outro ente (outra prefeitura, outro estado, a União para um contrato
  *   municipal ou estadual), e o restrito para um contratante privado (OSC), que a Lei 14.133 não vincula;
  * - nao_impede: multa, perdimento, publicação extraordinária, proibição de receber incentivos.
@@ -393,7 +392,8 @@ export function alcanceNoContratante(
   const a = alcanceSancao(r);
   if (a === "amplo") return "impede";
   if (a === "sem_impedimento") return "nao_impede";
-  if (ORGAO_JUDICIAL.test(r.orgao ?? "")) return "a_conferir";
+  // Proibição judicial de contratar (improbidade, Lei 8.429, art. 12) alcança todos: regra ratificada pelo titular em 29/10/2026.
+  if (ORGAO_JUDICIAL.test(r.orgao ?? "")) return "impede";
   const esfera = (r.orgao_esfera ?? "").toUpperCase();
   const mesmaUf = !!r.orgao_uf && !!c.uf && r.orgao_uf.toUpperCase() === c.uf.toUpperCase();
   const suspensao = /suspens[aã]o/i.test(r.tipo ?? "");
@@ -452,15 +452,16 @@ const RISCO_ALCANCE: Record<AlcanceNoContratante, { nivel: Risco["nivel"]; titul
     nivel: "alto",
     titulo: "que alcança o contratante deste convênio",
     fecho:
-      "Inidoneidade vale em todo ente; impedimento e suspensão valem no ente que os aplicou, que aqui é o do próprio contratante. " +
+      "Inidoneidade e proibição judicial de contratar valem em todo ente; impedimento e suspensão valem no ente que os aplicou, " +
+      "e aqui alcançam o contratante. " +
       "Vale conferir antes de novas contratações, aditivos e ordens de serviço.",
   },
   a_conferir: {
     nivel: "moderado",
     titulo: "que pode alcançar o contratante: a conferir",
     fecho:
-      "O registro não diz se alcança este contratante (decisão judicial que vale para o ente lesado, ou outro órgão do mesmo " +
-      "estado). Vale ler a decisão antes de novas contratações e aditivos.",
+      "O registro não diz se alcança este contratante (suspensão de outro órgão do mesmo estado, ou esfera do órgão não " +
+      "informada). Vale ler a decisão antes de novas contratações e aditivos.",
   },
   nao_alcanca: {
     nivel: "informativo",
