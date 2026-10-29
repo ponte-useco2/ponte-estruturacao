@@ -168,6 +168,14 @@ const nextConfig: NextConfig = {
        */
       { source: "/plataforma/app/mapa-de-oportunidades", destination: "/mapa", permanent: true },
       { source: "/plataforma/app/mapa-de-oportunidades/:path*", destination: "/mapa", permanent: true },
+
+      /**
+       * Subvenção Econômica Regional da FINEP — rodada encerrada em 07/04/2026, 18h (A1-01 da investigação do portal,
+       * 29/10/2026). A página seguia no cabeçalho com o prazo vencido; o link saiu do cabeçalho e o endereço leva à
+       * consultoria FINEP. Temporário (307), e não 301: a página e o formulário ficam no código para uma rodada nova
+       * (trocar o prazo em `lib/oportunidades/finep-prazo.ts` e tirar esta linha), e o navegador não guarda o desvio.
+       */
+      { source: "/finep-subvencao", destination: "/consultoria-finep", permanent: false },
     ];
   },
 };

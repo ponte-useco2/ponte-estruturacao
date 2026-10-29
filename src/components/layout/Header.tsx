@@ -16,7 +16,6 @@ export function Header() {
                     <Link href="/#metodo" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Método</Link>
                     <div className="flex items-center gap-4 pl-4 border-l border-slate-200">
                         <Link href="/consultoria-finep" className="text-sm font-bold text-emerald-600 hover:text-emerald-800 transition-colors">FINEP</Link>
-                        <Link href="/finep-subvencao" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Subvenção</Link>
                         <Link href="/reurb" className="text-sm font-bold text-teal-600 hover:text-teal-800 transition-colors">REURB</Link>
                         <Link href="/trilha-do-estado" className="text-sm font-bold text-slate-900 hover:text-slate-600 transition-colors">Trilha do Estado</Link>
                         <Link href="/oportunidades" className="text-sm font-bold text-orange-700 hover:text-orange-900 transition-colors">Oportunidades</Link>
