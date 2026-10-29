@@ -292,3 +292,24 @@ export function criarCamadaCompartilhada<T>(o: {
     },
   };
 }
+
+/**
+ * A chave de uma chamada a função do banco guardada por execução (M-01 e A3-05 da investigação de 29/10/2026): a
+ * execução, a função e os argumentos com as chaves em ordem (a mesma chamada escrita em outra ordem cai na mesma
+ * chave). `undefined` some, como no JSON que vai ao PostgREST; `null` fica, porque ele também vai.
+ */
+export function chaveDaChamada(execucaoId: number, funcao: string, args: Record<string, unknown>): string {
+  const ordenado = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(ordenado);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(
+        Object.keys(v as Record<string, unknown>)
+          .sort()
+          .filter((k) => (v as Record<string, unknown>)[k] !== undefined)
+          .map((k) => [k, ordenado((v as Record<string, unknown>)[k])]),
+      );
+    }
+    return v;
+  };
+  return `${execucaoId}|${funcao}|${JSON.stringify(ordenado(args))}`;
+}

@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import { formatarData } from "@/lib/oportunidades/central";
+import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
 import {
   ROTULO_DESFECHO,
@@ -21,6 +23,7 @@ import {
   lerConveniosParaExportar,
   lerMudancasParaExportar,
   lerMunicipiosParaExportar,
+  LIMITE_EXPORTACAO,
   lerPropostasParaExportar,
   type ConvenioPainel,
   type MunicipioPainel,
@@ -154,7 +157,14 @@ function resposta<T>(leitura: LeituraExportacao<T>, colunas: ColunaCsv<T>[], nom
   }
   // O nome carrega a data do dado e avisa quando o teto cortou linhas.
   const arquivo = `${nome}-${leitura.execucao.referencia}${leitura.truncado ? "-parcial" : ""}.csv`;
-  return new Response(paraCsv(colunas, leitura.linhas), {
+  // A5-15 (29/10/2026): a fonte, a data do arquivo e o corte vão no próprio arquivo, que circula sem a página.
+  const notas = [
+    "Painel de execução dos convênios — PONTE Estruturação de Projetos de Impacto.",
+    `Fonte: SICONV/Transferegov (dados abertos), arquivo de ${formatarData(leitura.execucao.referencia)}.`,
+    ...(leitura.truncado ? [`Parcial: o arquivo para em ${LIMITE_EXPORTACAO.toLocaleString("pt-BR")} linhas; filtre o recorte para ter o resto.`] : []),
+    `Gerado em ${formatarData(diaBrasilia(new Date().toISOString()))}.`,
+  ];
+  return new Response(paraCsv(colunas, leitura.linhas, notas), {
     headers: {
       ...CABECALHOS_PRIVADOS,
       "Content-Type": "text/csv; charset=utf-8",

@@ -109,8 +109,8 @@ test("oport_51: só a chave de serviço executa as duas funções, e o deslocame
 
 test("a busca usa as funções v2 com o estado da tabela, e a página aplica o teto pelo administrador", () => {
   const leitura = fs.readFileSync(path.resolve(import.meta.dirname, "busca.server.ts"), "utf-8");
-  assert.match(leitura, /rpc\("painel_busca_instrumentos_v2", \{ \.\.\.comuns, \.\.\.parametrosDaTabela\("instrumentos", estado\)/);
-  assert.match(leitura, /rpc\("painel_busca_propostas_v2", \{ \.\.\.comuns, \.\.\.parametrosDaTabela\("propostas", estado\)/);
+  assert.match(leitura, /rpcDaBusca\(db, ex\.id, "painel_busca_instrumentos_v2", \{ \.\.\.comuns, \.\.\.parametrosDaTabela\("instrumentos", estado\)/);
+  assert.match(leitura, /rpcDaBusca\(db, ex\.id, "painel_busca_propostas_v2", \{ \.\.\.comuns, \.\.\.parametrosDaTabela\("propostas", estado\)/);
   const pagina = fs.readFileSync(path.resolve(import.meta.dirname, "..", "..", "app", "mapa", "busca", "page.tsx"), "utf-8");
   assert.match(pagina, /tetoDePaginas\(LIMITE_POR_PAGINA, ehAdministrador\(visitante\.email\), PAGINA_MAXIMA\)/);
   const tela = fs.readFileSync(path.resolve(import.meta.dirname, "..", "..", "app", "mapa", "busca", "BuscaConteudo.tsx"), "utf-8");

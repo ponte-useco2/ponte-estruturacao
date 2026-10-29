@@ -728,3 +728,19 @@ test("tamanho: um município grande (400 convênios, 300 propostas, 400 emendas)
     if (g.guardar) assert.ok(g.tamanho < LIMITE_ITEM / 4, `${g.tamanho} caracteres`);
   }
 });
+
+test("chaveDaChamada: a mesma chamada em outra ordem cai na mesma chave; undefined some, null fica", async () => {
+  const { chaveDaChamada } = await import("./cache-dados.ts");
+  const a = chaveDaChamada(71, "painel_resumo", { p_uf: "PB", p_orgao: null, p_ibge: undefined });
+  const b = chaveDaChamada(71, "painel_resumo", { p_orgao: null, p_uf: "PB" });
+  assert.equal(a, b);
+  assert.equal(a, '71|painel_resumo|{"p_orgao":null,"p_uf":"PB"}');
+  // a execução e a função separam as chaves; os termos ficam na ordem em que vieram (a ordem deles muda o resultado)
+  assert.notEqual(a, chaveDaChamada(72, "painel_resumo", { p_uf: "PB", p_orgao: null }));
+  assert.notEqual(a, chaveDaChamada(71, "painel_por_orgao", { p_uf: "PB", p_orgao: null }));
+  assert.notEqual(
+    chaveDaChamada(71, "busca", { p_termos: ["a", "b"] }),
+    chaveDaChamada(71, "busca", { p_termos: ["b", "a"] }),
+  );
+  assert.equal(chaveDaChamada(71, "busca", { x: { b: 1, a: 2 } }), '71|busca|{"x":{"a":2,"b":1}}');
+});

@@ -100,6 +100,27 @@ test("situação diferente da publicação anterior é situacao_mudou", () => {
   assert.equal(r.mudancas[0].depois, "EM ANÁLISE");
 });
 
+test("situação na outra ordem não é mudança (A5-04): 'A / B' → 'B / A'", () => {
+  const estado = base(publicacao("2026-09-01T12:00:00", [janela("A", { situacao: "CADASTRADO / DISPONIBILIZADO" })]));
+  const r = calcularDiff(estado, publicacao("2026-09-02T12:00:00", [janela("A", { situacao: "DISPONIBILIZADO / CADASTRADO" })]));
+  assert.deepEqual(tipos(r), []);
+  // nem com espaço sobrando, nem contra um estado gravado na ordem crua antes da correção
+  const cru = base(publicacao("2026-09-01T12:00:00", [janela("A")]));
+  const chave = Object.keys(cru.abertas)[0];
+  cru.abertas[chave] = { ...cru.abertas[chave], situacao: "DISPONIBILIZADO / CADASTRADO" };
+  const r2 = calcularDiff(cru, publicacao("2026-09-02T12:00:00", [janela("A", { situacao: "CADASTRADO /DISPONIBILIZADO " })]));
+  assert.deepEqual(tipos(r2), []);
+  // e a situação guardada para a próxima comparação já vai em ordem
+  assert.equal(r2.proximoEstado.abertas[chave].situacao, "CADASTRADO / DISPONIBILIZADO");
+});
+
+test("situação com uma parte nova continua sendo mudança", () => {
+  const estado = base(publicacao("2026-09-01T12:00:00", [janela("A", { situacao: "DISPONIBILIZADO" })]));
+  const r = calcularDiff(estado, publicacao("2026-09-02T12:00:00", [janela("A", { situacao: "DISPONIBILIZADO / CADASTRADO" })]));
+  assert.deepEqual(tipos(r), ["situacao_mudou"]);
+  assert.equal(r.mudancas[0].depois, "CADASTRADO / DISPONIBILIZADO");
+});
+
 test("reprocessar a mesma publicação não gera nada", () => {
   const p1 = publicacao("2026-09-02T12:00:00", [janela("A"), janela("B")]);
   const r1 = calcularDiff(base(publicacao("2026-09-01T12:00:00", [janela("A")])), p1);

@@ -21,8 +21,9 @@ const IDENTIFICADOR_SEGURO = /^\d[\d./-]*$/;
  * CSV para abrir no Excel em português: BOM UTF-8, separador ponto e vírgula, fim de
  * linha CRLF, número com vírgula decimal e data AAAA-MM-DD virando DD/MM/AAAA.
  * Comportamento conferido no Excel pt-BR em 18/09/2026, abrindo o arquivo como o duplo clique.
+ * `notas` (fonte, data de corte, aviso) vão antes do cabeçalho, uma por linha.
  */
-export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[]): string {
+export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[], notas: readonly string[] = []): string {
   const celula = (v: string | number | boolean | null | undefined, texto = false): string => {
     if (v === null || v === undefined) return "";
     if (texto && typeof v === "string" && IDENTIFICADOR_SEGURO.test(v)) return `"=""${v}"""`;
@@ -44,5 +45,8 @@ export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[]): string {
   };
   const cabecalho = colunas.map((c) => celula(c.titulo)).join(";");
   const corpo = linhas.map((l) => colunas.map((c) => celula(c.valor(l), c.texto)).join(";"));
-  return "﻿" + [cabecalho, ...corpo].join("\r\n") + "\r\n";
+  // A5-15 (29/10/2026): fonte, data de corte e aviso viajam com o arquivo, que circula sem a página. Uma nota por linha,
+  // na primeira coluna, e uma linha em branco antes do cabeçalho.
+  const topo = notas.length > 0 ? [...notas.map((n) => celula(n)), ""] : [];
+  return "﻿" + [...topo, cabecalho, ...corpo].join("\r\n") + "\r\n";
 }

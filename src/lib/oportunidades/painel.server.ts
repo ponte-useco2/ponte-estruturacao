@@ -7,6 +7,7 @@
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
+import { criarRpcGuardada } from "./rpc-guardada.server";
 import { diaBrasilia } from "./laudo";
 import { compararPor, lerPorChave, type CriterioOrdem, type ErroLeitura, type RespostaPagina } from "./paginacao";
 import { CAMPOS_MUDANCA, CAMPOS_MUNICIPIO, ORDEM_MUDANCAS, ORDEM_MUNICIPIOS, camposDoConvenio } from "./painel-tabelas";
@@ -342,6 +343,12 @@ export interface EstadosDasTabelas {
   vencidos?: EstadoTabela;
 }
 
+/**
+ * O resumo e a soma por órgão, guardados por execução (M-01, 29/10/2026): cada troca de visão refazia os dois, de 2,4 a
+ * 2,6 s de média e até o corte de 8 s. Uns 200 recortes (UF, órgão, filtros e visão) por instância.
+ */
+const rpcDoPainel = criarRpcGuardada("painel", 200);
+
 export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas = {}): Promise<LeituraPainel> {
   if (!authConfigurada()) return { estado: "nao_ativado" };
   const db = clienteServidor();
@@ -364,7 +371,7 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
     p_assinado_ate: datas.ate,
     p_movimento: p.movimento,
   });
-  const resumo = db.rpc("painel_resumo", { p_uf: p.uf, p_orgao: p.orgao, ...filtros });
+  const resumo = rpcDoPainel(db, execucao.id, "painel_resumo", { p_uf: p.uf, p_orgao: p.orgao, ...filtros });
   const recorte = p.uf ?? "BR";
 
   if (p.visao === "tempos" && p.ano !== null) {
@@ -590,7 +597,7 @@ export async function lerPainel(p: ParametrosPainel, estados: EstadosDasTabelas 
 
   const [r, o, c, v, m, a] = await Promise.all([
     resumo,
-    db.rpc("painel_por_orgao", { p_visao: p.visao, p_uf: p.uf, p_limite: LIMITE_ORGAOS, ...filtros }),
+    rpcDoPainel(db, execucao.id, "painel_por_orgao", { p_visao: p.visao, p_uf: p.uf, p_limite: LIMITE_ORGAOS, ...filtros }),
     lista,
     vencidos,
     p.uf && ehVisaoConvenio(p.visao)

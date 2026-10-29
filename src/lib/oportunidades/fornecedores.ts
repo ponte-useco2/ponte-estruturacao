@@ -832,3 +832,33 @@ export function valoresDaLinhaTce(l: LinhaTceFornecedor): Record<string, ValorCe
     situacao: l.situacao,
   };
 }
+
+// ================================================================ CSV (A5-15)
+
+/**
+ * A célula CEIS/CNEP do CSV (A5-15 da investigação do portal, 29/10/2026). Antes, "não consultado" e "sem registro"
+ * saíam os dois como célula vazia, e o arquivo, que circula sem a página, podia ser lido como "sem sanção".
+ */
+export function celulaSancaoCsv(s: SituacaoSancao, cadastros: string | null): string {
+  if (s === "vigente") return `vigente (${cadastros ?? "CEIS/CNEP"})`;
+  if (s === "encerrada") return "encerrado";
+  if (s === "sem_sancao") return "sem registro";
+  return "não consultado";
+}
+
+/** As linhas do topo do CSV de fornecedores: a fonte, a data de corte de cada base e o aviso de leitura. */
+export function notasCsvFornecedores(o: { referencia: string | null; ceisCnep: LeituraCeisCnep; geradoEm: string }): string[] {
+  const cgu =
+    o.ceisCnep.estado === "consultado"
+      ? `CEIS e CNEP (CGU, API do Portal da Transparência): consultados em ${formatarData(o.ceisCnep.referencia)}.`
+      : o.ceisCnep.estado === "falhou"
+        ? "CEIS e CNEP (CGU): a leitura falhou ao gerar este arquivo; a coluna diz \"não consultado\" em todas as linhas."
+        : "CEIS e CNEP (CGU): não consultados; a coluna diz \"não consultado\" em todas as linhas.";
+  return [
+    "Fornecedores (pessoa jurídica) dos convênios de proponente da Paraíba — PONTE Estruturação de Projetos de Impacto.",
+    `Fonte: SICONV/Transferegov (pagamentos e contratos), arquivo de ${o.referencia ? formatarData(o.referencia) : "data não informada"}; lista de inidôneos do TCU na mesma rodada.`,
+    cgu,
+    "\"Não consultado\" (CEIS/CNEP) e \"Não verificado\" (TCU) não querem dizer \"sem sanção\". Indicador para olhar, não irregularidade.",
+    `Gerado em ${formatarData(o.geradoEm)}.`,
+  ];
+}

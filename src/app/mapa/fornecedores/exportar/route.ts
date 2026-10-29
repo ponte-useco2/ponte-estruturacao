@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
-import { nomeFornecedor } from "@/lib/oportunidades/fornecedores";
+import { celulaSancaoCsv, nomeFornecedor, notasCsvFornecedores } from "@/lib/oportunidades/fornecedores";
+import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { TABELA_FORNECEDORES, colunasFornecedores, filtroDosParametros, valoresDoFornecedor } from "@/lib/oportunidades/fornecedores-tabela";
 import { lerPainelFornecedores, type LinhaPainel } from "@/lib/oportunidades/fornecedores.server";
 import { paraCsv, type ColunaCsv } from "@/lib/oportunidades/painel";
@@ -20,7 +21,7 @@ const COLUNAS: ColunaCsv<LinhaPainel>[] = [
   { titulo: "Empresa", valor: (l) => nomeFornecedor(l) },
   { titulo: "MEI", valor: (l) => l.mei },
   { titulo: "Lista do TCU", valor: (l) => valoresDoFornecedor(l).tcu },
-  { titulo: "CEIS/CNEP", valor: (l) => (l.ceisCnep === "vigente" ? `vigente (${l.cadastros ?? "CEIS/CNEP"})` : l.ceisCnep === "encerrada" ? "encerrado" : null) },
+  { titulo: "CEIS/CNEP", valor: (l) => celulaSancaoCsv(l.ceisCnep, l.cadastros) },
   { titulo: "Municípios na PB", valor: (l) => l.pb_municipios },
   { titulo: "Convênios na PB", valor: (l) => l.pb_convenios },
   { titulo: "Recebeu no recorte (R$)", valor: (l) => (l.noMunicipio ? l.noMunicipio.pago : l.pb_pago) },
@@ -55,7 +56,8 @@ export async function GET(req: NextRequest) {
   }
   const referencia = leitura.execucao.referencia ?? "";
   const onde = filtro.municipio ?? "pb";
-  return new Response(paraCsv(COLUNAS, linhas), {
+  const notas = notasCsvFornecedores({ referencia: leitura.execucao.referencia ?? null, ceisCnep: leitura.ceisCnep, geradoEm: diaBrasilia(new Date().toISOString()) });
+  return new Response(paraCsv(COLUNAS, linhas, notas), {
     headers: {
       ...CABECALHOS_PRIVADOS,
       "Content-Type": "text/csv; charset=utf-8",

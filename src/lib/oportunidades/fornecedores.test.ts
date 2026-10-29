@@ -401,3 +401,28 @@ test("alcance da sanção (09/10/2026): inidoneidade e todas as esferas valem em
   assert.match(r?.titulo ?? "", /registro no CEIS que impede contratar com qualquer ente/);
   assert.doesNotMatch(`${r?.titulo} ${r?.fato}`, PROIBIDAS);
 });
+
+test("CSV (A5-15): a célula CEIS/CNEP separa 'não consultado' de 'sem registro'", async () => {
+  const { celulaSancaoCsv } = await import("./fornecedores.ts");
+  assert.equal(celulaSancaoCsv("nao_consultado", null), "não consultado");
+  assert.equal(celulaSancaoCsv("sem_sancao", null), "sem registro");
+  assert.equal(celulaSancaoCsv("vigente", "CEIS"), "vigente (CEIS)");
+  assert.equal(celulaSancaoCsv("vigente", null), "vigente (CEIS/CNEP)");
+  assert.equal(celulaSancaoCsv("encerrada", null), "encerrado");
+});
+
+test("CSV (A5-15): as notas levam a fonte, as datas de corte e o aviso, e entram antes do cabeçalho", async () => {
+  const { notasCsvFornecedores } = await import("./fornecedores.ts");
+  const { paraCsv } = await import("./csv.ts");
+  const n = notasCsvFornecedores({ referencia: "2026-10-27", ceisCnep: { estado: "consultado", referencia: "2026-10-26" }, geradoEm: "2026-10-29" });
+  assert.match(n[1], /SICONV\/Transferegov.*27\/10\/2026/);
+  assert.match(n[2], /consultados em 26\/10\/2026/);
+  assert.match(n[3], /não querem dizer "sem sanção"/);
+  assert.match(n[4], /29\/10\/2026/);
+  assert.match(notasCsvFornecedores({ referencia: null, ceisCnep: { estado: "falhou" }, geradoEm: "2026-10-29" })[2], /falhou/);
+  assert.match(notasCsvFornecedores({ referencia: null, ceisCnep: { estado: "nao_consultado" }, geradoEm: "2026-10-29" })[2], /não consultados/);
+  const csv = paraCsv([{ titulo: "CNPJ", valor: (l: { c: string }) => l.c }], [{ c: "x" }], ["Fonte: a; b", "Aviso"]);
+  assert.equal(csv, '﻿"Fonte: a; b"\r\nAviso\r\n\r\nCNPJ\r\nx\r\n');
+  // sem notas, o arquivo de antes, byte a byte
+  assert.equal(paraCsv([{ titulo: "CNPJ", valor: (l: { c: string }) => l.c }], [{ c: "x" }]), "﻿CNPJ\r\nx\r\n");
+});

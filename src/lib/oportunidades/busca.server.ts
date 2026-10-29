@@ -47,6 +47,7 @@ import { VALIDADE_DADOS_MS } from "./cache-dados";
 import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { ehEsquemaAusente } from "./esquema";
 import { criarMemoria } from "./memoria";
+import { criarRpcGuardada } from "./rpc-guardada.server";
 import { nomeOsc, type FonteOsc } from "./osc";
 import { buscarOsc, lerCadastroOsc, type OscBusca } from "./osc.server";
 import { todas } from "./padroes.server";
@@ -146,6 +147,12 @@ const comoCandidatos = (lista: OpcaoMunicipioBusca[]): MunicipioNome[] =>
   lista.flatMap((m) => (m.municipio ? [{ ibge: m.cod_ibge, nome: m.municipio }] : []));
 
 /**
+ * As listas de convênios e de propostas, guardadas por execução (A3-05, 29/10/2026): "saude" levou 10 s com o disco
+ * frio, e voltar à mesma página (ou à aba) refazia a busca inteira. A chave leva os termos, os filtros, a ordem e a página.
+ */
+const rpcDaBusca = criarRpcGuardada("busca", 300);
+
+/**
  * F3.5b (28/10/2026): `estado` é o filtro e a ordem da tabela da aba (o do endereço). Convênios e propostas vão às
  * funções v2 (oport_51) com ele; as organizações, ao cadastro pelo tradutor. Sem estado, a lista de antes.
  */
@@ -209,8 +216,8 @@ export async function lerBusca(p: ParametrosBusca, estado: EstadoTabela = ESTADO
   };
   const [lista, municipios, deFora] = await Promise.all([
     p.aba === "instrumentos"
-      ? db.rpc("painel_busca_instrumentos_v2", { ...comuns, ...parametrosDaTabela("instrumentos", estado), p_situacoes: situacoesDoGrupo(p.grupo) })
-      : db.rpc("painel_busca_propostas_v2", { ...comuns, ...parametrosDaTabela("propostas", estado), p_desfechos: desfechosDoGrupo(p.grupo) }),
+      ? rpcDaBusca(db, ex.id, "painel_busca_instrumentos_v2", { ...comuns, ...parametrosDaTabela("instrumentos", estado), p_situacoes: situacoesDoGrupo(p.grupo) })
+      : rpcDaBusca(db, ex.id, "painel_busca_propostas_v2", { ...comuns, ...parametrosDaTabela("propostas", estado), p_desfechos: desfechosDoGrupo(p.grupo) }),
     p.uf ? db.rpc("painel_municipios", { p_uf: p.uf }) : Promise.resolve({ data: [], error: null }),
     fora,
   ]);
@@ -384,13 +391,13 @@ export async function lerBuscaUnificada(p: ParametrosBusca, entrada: Entrada, di
     }),
     convenios: sozinho("convênios", async () => {
       // v2 (oport_51) sem filtro de coluna: a mesma lista, com a linha sem `nr_proposta` fora do topo (na v1 ela subia).
-      const r = await db.rpc("painel_busca_instrumentos_v2", { ...rpcComuns, p_situacoes: null });
+      const r = await rpcDaBusca(db, ex.id, "painel_busca_instrumentos_v2", { ...rpcComuns, p_situacoes: null });
       if (r.error) throw new Error(r.error.message);
       const linhas = (r.data ?? []) as InstrumentoBusca[];
       return { estado: "ok", itens: linhas, total: Number(linhas[0]?.total ?? 0) };
     }),
     propostas: sozinho("propostas", async () => {
-      const r = await db.rpc("painel_busca_propostas_v2", { ...rpcComuns, p_desfechos: null });
+      const r = await rpcDaBusca(db, ex.id, "painel_busca_propostas_v2", { ...rpcComuns, p_desfechos: null });
       if (r.error) throw new Error(r.error.message);
       const linhas = (r.data ?? []) as PropostaBusca[];
       return { estado: "ok", itens: linhas, total: Number(linhas[0]?.total ?? 0) };

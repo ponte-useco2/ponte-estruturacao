@@ -107,6 +107,16 @@ export function chaveJanela(o: Pick<Oportunidade, "canal" | "natureza" | "codigo
   return `${o.canal}|${o.natureza}|${[...o.codigos].sort().join(",")}`;
 }
 
+/**
+ * A situação como conjunto (A5-04 da investigação do portal, 29/10/2026). O radar junta as situações dos códigos de
+ * uma janela com `string_agg(DISTINCT ...)` sem ordem, e "CADASTRADO / DISPONIBILIZADO" voltava às vezes como
+ * "DISPONIBILIZADO / CADASTRADO": o texto mudava sem a situação mudar, e cada troca virava `situacao_mudou` para todo
+ * mundo. Partes sem espaço sobrando, sem repetição e em ordem alfabética.
+ */
+export function situacaoNormalizada(s: string | null | undefined): string {
+  return [...new Set((s ?? "").split("/").map((x) => x.trim()).filter(Boolean))].sort().join(" / ");
+}
+
 function abertasDe(payload: Pick<Payload, "gerado_em" | "oportunidades">): Record<string, JanelaMemoria> {
   const abertas: Record<string, JanelaMemoria> = {};
   for (const o of payload.oportunidades) {
@@ -122,7 +132,7 @@ function abertasDe(payload: Pick<Payload, "gerado_em" | "oportunidades">): Recor
       orgao: o.orgao,
       fecha: o.fecha,
       dias_restantes: o.dias_restantes,
-      situacao: o.situacao ?? "",
+      situacao: situacaoNormalizada(o.situacao),
       temas: o.temas ?? [],
       natureza: o.natureza,
       canal: o.canal,
@@ -240,8 +250,9 @@ export function calcularDiff(
       }
     }
 
-    if (antes.situacao !== j.situacao) {
-      mudancas.push({ ...base, tipo: "situacao_mudou", antes: antes.situacao, depois: j.situacao });
+    // O estado gravado antes da correção ainda tem a ordem crua: normaliza também o de antes.
+    if (situacaoNormalizada(antes.situacao) !== j.situacao) {
+      mudancas.push({ ...base, tipo: "situacao_mudou", antes: situacaoNormalizada(antes.situacao), depois: j.situacao });
     }
   }
 
