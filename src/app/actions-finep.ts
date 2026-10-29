@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
 import { consumir, origemDoPedido } from "@/lib/freio";
+import { finepSubvencaoAberta } from "@/lib/oportunidades/finep-prazo";
 
 /**
  * Destinatário fixo, resolvido no servidor. Nunca vem do formulário.
@@ -34,6 +35,10 @@ const ADMIN_EMAIL = process.env.EMAIL_USER || "diretoria.ponte.projetos@gmail.co
  */
 
 export async function submitFinepForm(formData: FormData) {
+  // A1-01 (29/10/2026): a página esconde o formulário depois do prazo; isto recusa o envio que chegar mesmo assim.
+  if (!finepSubvencaoAberta()) {
+    return { success: false, error: "O prazo desta rodada da FINEP terminou em 07/04/2026, às 18h. O formulário não recebe mais envios." };
+  }
   try {
     // Freio: entrada pública que grava no banco e dispara e-mail pela cota
     // compartilhada de 500/dia do Gmail.
