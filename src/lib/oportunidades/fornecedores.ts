@@ -330,12 +330,12 @@ export function descreverSancao(r: RegistroSancao): string {
 }
 
 /**
- * O alcance de uma sanção para o contrato de um convênio, que é assinado por outro ente (decisão do titular de
- * 09/10/2026, depois da 1ª rodada: dos 164 fornecedores com registro vigente, só 31 tinham sanção de alcance amplo).
- * - amplo: declaração de inidoneidade (Lei 14.133, art. 156, § 5º: todos os entes), abrangência "todas as esferas", e
- *   as sanções judiciais que param a própria empresa (Lei 12.846, art. 19: suspensão das atividades, dissolução);
- * - restrito: impedimento e suspensão, que valem no órgão ou no ente que os aplicou (Lei 14.133, art. 156, § 4º; Lei
- *   8.666, art. 87, III): a conferir se alcançam o contratante; CEIS de tipo não reconhecido também fica aqui;
+ * O alcance de uma sanção, só pelo tipo (decisão do titular de 09/10/2026; revista em 29/10/2026 com o achado da sessão do
+ * Diário Oficial: a abrangência que o CEIS registra não basta).
+ * - amplo: declaração de inidoneidade (Lei 14.133, art. 156, § 5º; Lei 8.666, art. 87, IV: todos os entes) e as sanções
+ *   judiciais que param a própria empresa (Lei 12.846, art. 19: suspensão das atividades, dissolução);
+ * - restrito: impedimento e suspensão, que valem no ente ou no órgão que os aplicou (Lei 14.133, art. 156, § 4º; Lei
+ *   8.666, art. 87, III), mesmo quando o CEIS lança "todas as esferas"; CEIS de tipo não reconhecido também fica aqui;
  * - sem impedimento: as outras sanções do CNEP (multa, publicação extraordinária, perdimento de bens, proibição de
  *   receber incentivos), que não proíbem contratar.
  */
@@ -345,32 +345,131 @@ const PARA_A_EMPRESA = /dissolu[cç][aã]o compuls[oó]ria|suspens[aã]o\/interd
 
 export function alcanceSancao(r: Pick<RegistroSancao, "cadastro" | "tipo" | "abrangencia">): AlcanceSancao {
   const tipo = r.tipo ?? "";
-  if (/inidoneidade/i.test(tipo) || /^\s*todas as esferas/i.test(r.abrangencia ?? "") || PARA_A_EMPRESA.test(tipo)) return "amplo";
+  if (/inidoneidade/i.test(tipo) || PARA_A_EMPRESA.test(tipo)) return "amplo";
+  if (/incentivos|multa|publica[cç][aã]o extraordin|perdimento/i.test(tipo)) return "sem_impedimento";
   if (/impedimento|proibi[cç][aã]o de contratar|suspens[aã]o/i.test(tipo) || r.cadastro === "CEIS") return "restrito";
   return "sem_impedimento";
 }
 
-const ORDEM_ALCANCE: Record<AlcanceSancao, number> = { amplo: 0, restrito: 1, sem_impedimento: 2 };
-
-/** O alcance mais largo entre os registros dados (o que manda no nível do risco). */
-export function alcanceMaior(rs: Pick<RegistroSancao, "cadastro" | "tipo" | "abrangencia">[]): AlcanceSancao {
-  return rs.map(alcanceSancao).sort((x, y) => ORDEM_ALCANCE[x] - ORDEM_ALCANCE[y])[0] ?? "sem_impedimento";
+/** Quem contratou com o fornecedor: o convenente do convênio (prefeitura e fundos, estado, OSC…). */
+export interface Contratante {
+  /** `tipo_agente` do painel: municipio, estado, osc, consorcio… */
+  tipo: string | null;
+  municipio: string | null;
+  uf: string | null;
 }
 
-const RISCO_ALCANCE: Record<AlcanceSancao, { nivel: Risco["nivel"]; titulo: string; fecho: string }> = {
-  amplo: {
+/**
+ * Se a sanção alcança este contratante (29/10/2026):
+ * - impede: inidoneidade e as sanções que param a empresa; ou impedimento e suspensão aplicados pelo próprio ente do
+ *   contratante (a prefeitura do mesmo município, o estado da mesma UF);
+ * - a_conferir: o dado não basta para dizer — decisão judicial de "proibição de contratar" (na improbidade vale para o
+ *   ente lesado, Lei 8.429, art. 12, § 4º, que o CEIS não diz), suspensão de outro órgão do mesmo estado, esfera não
+ *   informada na mesma UF;
+ * - nao_alcanca: impedimento ou suspensão de outro ente (outra prefeitura, outro estado, a União para um contrato
+ *   municipal ou estadual), e o restrito para um contratante privado (OSC), que a Lei 14.133 não vincula;
+ * - nao_impede: multa, perdimento, publicação extraordinária, proibição de receber incentivos.
+ */
+export type AlcanceNoContratante = "impede" | "a_conferir" | "nao_alcanca" | "nao_impede";
+
+const ORGAO_JUDICIAL = /justi[cç]a|tribunal de justi|varas?|ju[ií]zo|trf\d?|se[cç][aã]o judici[aá]ria|tj[a-z]{2}/i;
+
+const normalizar = (t: string) =>
+  t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** "Prefeitura Municipal de Mãe d'Água (PB)" é de Mãe d'Água, e não de Areia quando o órgão é de Areia de Baraúnas. */
+export function orgaoDoMunicipio(orgao: string | null, municipio: string | null): boolean {
+  if (!orgao || !municipio) return false;
+  const o = ` ${normalizar(orgao)} `;
+  const m = normalizar(municipio);
+  if (!m) return false;
+  return new RegExp(` (de|do|da|dos|das) ${m.replace(/ /g, " ")}(?! (de|do|da|dos|das) )( |$)`).test(o);
+}
+
+export function alcanceNoContratante(
+  r: Pick<RegistroSancao, "cadastro" | "tipo" | "abrangencia" | "orgao" | "orgao_uf" | "orgao_esfera">,
+  c: Contratante,
+): AlcanceNoContratante {
+  const a = alcanceSancao(r);
+  if (a === "amplo") return "impede";
+  if (a === "sem_impedimento") return "nao_impede";
+  if (ORGAO_JUDICIAL.test(r.orgao ?? "")) return "a_conferir";
+  const esfera = (r.orgao_esfera ?? "").toUpperCase();
+  const mesmaUf = !!r.orgao_uf && !!c.uf && r.orgao_uf.toUpperCase() === c.uf.toUpperCase();
+  const suspensao = /suspens[aã]o/i.test(r.tipo ?? "");
+  if (c.tipo === "municipio") {
+    // Sem a UF de um dos lados, vale o nome do município no órgão (o laudo sempre tem a UF do convênio).
+    const ufCompativel = mesmaUf || !r.orgao_uf || !c.uf;
+    if (esfera === "MUNICIPAL") return ufCompativel && orgaoDoMunicipio(r.orgao, c.municipio) ? "impede" : "nao_alcanca";
+    if (esfera === "") return mesmaUf ? "a_conferir" : "nao_alcanca";
+    return "nao_alcanca";
+  }
+  if (c.tipo === "estado") {
+    if (esfera === "ESTADUAL") return !mesmaUf ? "nao_alcanca" : suspensao ? "a_conferir" : "impede";
+    if (esfera === "") return mesmaUf ? "a_conferir" : "nao_alcanca";
+    return "nao_alcanca";
+  }
+  // OSC, consórcio, empresa: impedimento e suspensão da Lei 14.133 vinculam a administração, não o convenente privado.
+  if (c.tipo === "consorcio_publico") return mesmaUf && esfera !== "FEDERAL" ? "a_conferir" : "nao_alcanca";
+  return "nao_alcanca";
+}
+
+/** Rótulo curto do alcance na lista, no dossiê e no CSV (29/10/2026). */
+export const ROTULO_ALCANCE: Record<AlcanceNoContratante, string> = {
+  impede: "alcança quem a contratou",
+  a_conferir: "alcance a conferir",
+  nao_alcanca: "de outro ente, não alcança quem a contratou",
+  nao_impede: "não proíbe contratar",
+};
+
+/** O nível da marca na tela: alto só quando alcança; a conferir é moderado; o resto é informação. */
+export const NIVEL_ALCANCE: Record<AlcanceNoContratante, "alto" | "moderado" | "informativo"> = {
+  impede: "alto",
+  a_conferir: "moderado",
+  nao_alcanca: "informativo",
+  nao_impede: "informativo",
+};
+
+const ORDEM_NO_CONTRATANTE: Record<AlcanceNoContratante, number> = { impede: 0, a_conferir: 1, nao_alcanca: 2, nao_impede: 3 };
+
+/** O mais grave entre os registros e os contratantes dados (sem registro: null). */
+export function alcanceMaisGrave(
+  rs: Pick<RegistroSancao, "cadastro" | "tipo" | "abrangencia" | "orgao" | "orgao_uf" | "orgao_esfera">[],
+  cs: Contratante[],
+): AlcanceNoContratante | null {
+  let melhor: AlcanceNoContratante | null = null;
+  for (const r of rs) {
+    for (const c of cs.length ? cs : [{ tipo: null, municipio: null, uf: null }]) {
+      const x = alcanceNoContratante(r, c);
+      if (melhor === null || ORDEM_NO_CONTRATANTE[x] < ORDEM_NO_CONTRATANTE[melhor]) melhor = x;
+    }
+  }
+  return melhor;
+}
+
+const RISCO_ALCANCE: Record<AlcanceNoContratante, { nivel: Risco["nivel"]; titulo: string; fecho: string }> = {
+  impede: {
     nivel: "alto",
-    titulo: "que impede contratar com qualquer ente",
-    fecho: "Vale conferir antes de novas contratações, aditivos e ordens de serviço.",
-  },
-  restrito: {
-    nivel: "moderado",
-    titulo: "restrito ao órgão ou à esfera que o aplicou",
+    titulo: "que alcança o contratante deste convênio",
     fecho:
-      "Impedimento e suspensão valem no órgão ou no ente que os aplicou (Lei 14.133, art. 156, § 4º): a conferir se alcançam o " +
-      "contratante deste convênio antes de novas contratações e aditivos.",
+      "Inidoneidade vale em todo ente; impedimento e suspensão valem no ente que os aplicou, que aqui é o do próprio contratante. " +
+      "Vale conferir antes de novas contratações, aditivos e ordens de serviço.",
   },
-  sem_impedimento: {
+  a_conferir: {
+    nivel: "moderado",
+    titulo: "que pode alcançar o contratante: a conferir",
+    fecho:
+      "O registro não diz se alcança este contratante (decisão judicial que vale para o ente lesado, ou outro órgão do mesmo " +
+      "estado). Vale ler a decisão antes de novas contratações e aditivos.",
+  },
+  nao_alcanca: {
+    nivel: "informativo",
+    titulo: "de outro ente, que não alcança este contratante",
+    fecho:
+      "Impedimento e suspensão valem só no ente ou no órgão que os aplicou (Lei 14.133, art. 156, § 4º); quem contratou aqui é " +
+      "outro ente. Fica como informação.",
+  },
+  nao_impede: {
     nivel: "informativo",
     titulo: "que não proíbe contratar",
     fecho: "São sanções da Lei Anticorrupção (Lei 12.846/2013) que não proíbem contratar com a administração; ficam como informação.",
@@ -457,6 +556,7 @@ export interface SecaoFornecedores {
 type InstrumentoFornecedor = ColunasFornecedorInstrumento & {
   tipo_agente?: string | null;
   municipio?: string | null;
+  uf?: string | null;
   nr_convenio?: string;
 };
 
@@ -525,8 +625,8 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
     };
     riscos.push({ nivel: NIVEL_MOMENTO[l.momento], ...texto[l.momento] });
   }
-  // D1: registro vigente no CEIS ou no CNEP na data da consulta. O nível segue o alcance da sanção (`alcanceSancao`,
-  // 09/10/2026): alto só quando ela impede contratar com qualquer ente; o inidôneo do TCU, acima, segue com o nível do
+  // D1: registro vigente no CEIS ou no CNEP na data da consulta. O nível segue o alcance da sanção neste contratante
+  // (`alcanceNoContratante`, 29/10/2026): alto só quando ela impede este convenente de contratar com a empresa; o inidôneo do TCU, acima, segue com o nível do
   // momento da sanção. O texto diz o fato e onde o convênio cai no período, sem julgar.
   const ceisCnep = leituraCeisCnep(e.sancoes);
   for (const l of linhas) {
@@ -541,7 +641,7 @@ export function lerSecaoFornecedores(e: EntradaFornecedores, i: InstrumentoForne
       ? momentoDaSancao({ inidoneo_tcu: true, tcu_inicio: p.inicio, tcu_data_final: p.fim }, { primeiro: l.primeiro, ultimo: l.ultimo }, contratos)
       : null;
     const um = vigentes.length === 1;
-    const alcance = RISCO_ALCANCE[alcanceMaior(vigentes)];
+    const alcance = RISCO_ALCANCE[alcanceMaisGrave(vigentes, [{ tipo: i.tipo_agente ?? null, municipio: i.municipio ?? null, uf: i.uf ?? null }]) ?? "nao_impede"];
     riscos.push({
       nivel: alcance.nivel,
       titulo: `${l.nome}: registro no ${cad} ${alcance.titulo}`,
@@ -839,8 +939,8 @@ export function valoresDaLinhaTce(l: LinhaTceFornecedor): Record<string, ValorCe
  * A célula CEIS/CNEP do CSV (A5-15 da investigação do portal, 29/10/2026). Antes, "não consultado" e "sem registro"
  * saíam os dois como célula vazia, e o arquivo, que circula sem a página, podia ser lido como "sem sanção".
  */
-export function celulaSancaoCsv(s: SituacaoSancao, cadastros: string | null): string {
-  if (s === "vigente") return `vigente (${cadastros ?? "CEIS/CNEP"})`;
+export function celulaSancaoCsv(s: SituacaoSancao, cadastros: string | null, alcance: AlcanceNoContratante | null = null): string {
+  if (s === "vigente") return `vigente (${cadastros ?? "CEIS/CNEP"})${alcance ? `, ${ROTULO_ALCANCE[alcance]}` : ""}`;
   if (s === "encerrada") return "encerrado";
   if (s === "sem_sancao") return "sem registro";
   return "não consultado";

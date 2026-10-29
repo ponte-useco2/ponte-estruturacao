@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import {
   cadastrosDe,
   cnpjValido,
-  alcanceMaior,
+  alcanceMaisGrave,
+  alcanceNoContratante,
+  orgaoDoMunicipio,
   alcanceSancao,
   descreverSancao,
   leituraCeisCnep,
@@ -336,16 +338,17 @@ test("laudo sem execução de CEIS/CNEP: a seção diz que não consultou e não
   assert.deepEqual(lerSecaoFornecedores(entrada({ sancoes: null }), PREFEITURA).ceisCnep, { estado: "falhou" });
 });
 
-test("laudo: impedimento vigente no CEIS, restrito ao órgão, é moderado, com o período confrontado com o convênio", () => {
-  const s = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { dt_inicio: "2020-04-01" })]) }), PREFEITURA);
+test("laudo: impedimento vigente aplicado pela própria prefeitura contratante é alto, com o período confrontado com o convênio", () => {
+  const daPropria = { orgao: "Prefeitura Municipal de Campina Grande (PB)" };
+  const s = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { ...daPropria, dt_inicio: "2020-04-01" })]) }), PREFEITURA);
   const acm = s.linhas.find((l) => l.cnpj === ACM);
   assert.equal(acm?.ceisCnep, "vigente");
   assert.equal(s.linhas.find((l) => l.cnpj === MEI)?.ceisCnep, "sem_sancao");
   const r = s.riscos.filter((x) => /CEIS/.test(x.titulo));
   assert.equal(r.length, 1);
-  assert.equal(r[0].nivel, "moderado");
-  assert.equal(r[0].titulo, "ACM AUTO CENTER MAQUINAS LTDA: registro no CEIS restrito ao órgão ou à esfera que o aplicou");
-  assert.match(r[0].fato, /Lei 14\.133, art\. 156, § 4º/);
+  assert.equal(r[0].nivel, "alto");
+  assert.equal(r[0].titulo, "ACM AUTO CENTER MAQUINAS LTDA: registro no CEIS que alcança o contratante deste convênio");
+  assert.match(r[0].fato, /no ente que os aplicou, que aqui é o do próprio contratante/);
   assert.match(r[0].fato, /um registro no CEIS vigente na consulta de 11\/10\/2026 \(CEIS: Impedimento/);
   // Pagamentos de 01/03/2020 a 01/06/2020, registro desde 01/04/2020, contrato de 01/02/2020.
   assert.match(r[0].fato, /Parte dos pagamentos deste convênio caiu dentro do período do registro/);
@@ -353,8 +356,14 @@ test("laudo: impedimento vigente no CEIS, restrito ao órgão, é moderado, com 
   assert.deepEqual(s.ceisCnep, { estado: "consultado", referencia: "2026-10-11" });
 
   // Registro que começou depois de tudo deste convênio.
-  const depois = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM)]) }), PREFEITURA);
+  const depois = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, daPropria)]) }), PREFEITURA);
   assert.match(depois.riscos.find((x) => /CEIS/.test(x.titulo))?.fato ?? "", /anteriores ao início do registro/);
+
+  // O mesmo impedimento, aplicado por outra prefeitura (Patos), não alcança Campina Grande: informação, com a lei.
+  const outra = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM)]) }), PREFEITURA).riscos.find((x) => /CEIS/.test(x.titulo));
+  assert.equal(outra?.nivel, "informativo");
+  assert.match(outra?.titulo ?? "", /de outro ente, que não alcança este contratante/);
+  assert.match(outra?.fato ?? "", /Lei 14\.133, art\. 156, § 4º/);
 });
 
 test("laudo: registro encerrado não vira risco; multa no CNEP é informação", () => {
@@ -377,29 +386,66 @@ test("laudo: inidôneo do TCU segue com o nível dele, e o mesmo registro no CEI
   // Um registro de outro órgão entra à parte; impedimento restrito ao órgão é moderado.
   const outro = lerSecaoFornecedores(entrada({ sancoes: consultadas([doTcu, sancao(LIVRAMENTO)]) }), PREFEITURA);
   const r = outro.riscos.filter((x) => x.titulo.startsWith("LIVRAMENTO"));
-  assert.deepEqual(r.map((x) => x.nivel), ["alto", "moderado"]);
-  assert.match(r[1].titulo, /registro no CEIS restrito/);
+  assert.deepEqual(r.map((x) => x.nivel), ["alto", "informativo"]);
+  assert.match(r[1].titulo, /registro no CEIS de outro ente/);
   assert.doesNotMatch(r[1].fato, /Tribunal de Contas/);
 });
 
-test("alcance da sanção (09/10/2026): inidoneidade e todas as esferas valem em todo ente; impedimento é restrito; multa do CNEP não proíbe", () => {
+test("alcance da sanção pelo tipo (29/10/2026): a abrangência do CEIS não promove impedimento a amplo", () => {
   assert.equal(alcanceSancao(sancao(ACM, { tipo: "Declaração de Inidoneidade com prazo determinado" })), "amplo");
-  assert.equal(alcanceSancao(sancao(ACM, { tipo: "Suspensão", abrangencia: "Todas as Esferas em todos os Poderes" })), "amplo");
+  // O impedimento da UFAL lançado como "Todas as Esferas" continua valendo só no ente que o aplicou (art. 156, § 4º).
+  assert.equal(alcanceSancao(sancao(ACM, { tipo: "Suspensão", abrangencia: "Todas as Esferas em todos os Poderes" })), "restrito");
+  assert.equal(alcanceSancao(sancao(ACM, { abrangencia: "Todas as Esferas em todos os Poderes" })), "restrito");
   assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Dissolução compulsória da PJ" })), "amplo");
   assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Suspensão/Interdição das atividades com prazo determinado" })), "amplo");
   assert.equal(alcanceSancao(sancao(ACM, { tipo: "Suspensão", abrangencia: "No órgão sancionador" })), "restrito");
-  assert.equal(alcanceSancao(sancao(ACM, { tipo: "Impedimento/proibição de contratar com prazo determinado", abrangencia: "Em todos os Poderes da Esfera do órgão sancionador" })), "restrito");
-  assert.equal(alcanceSancao(sancao(ACM, { tipo: null })), "restrito", "CEIS de tipo desconhecido fica a conferir, nunca abaixo");
+  assert.equal(alcanceSancao(sancao(ACM, { tipo: null })), "restrito", "CEIS de tipo desconhecido fica restrito, nunca abaixo");
   assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Multa" })), "sem_impedimento");
   assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Publicação extraordinária da decisão condenatória" })), "sem_impedimento");
-  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Proibição de receber incentivos, subsídios, subvenções, doações ou empréstimos" })), "sem_impedimento");
-  assert.equal(alcanceMaior([sancao(ACM, { cadastro: "CNEP", tipo: "Multa" }), sancao(ACM, { tipo: "Declaração de Inidoneidade sem prazo determinado" })]), "amplo");
-  // No laudo, a inidoneidade vigente é alto, com o texto neutro.
-  const s = lerSecaoFornecedores(entrada({ sancoes: consultadas([sancao(ACM, { tipo: "Declaração de Inidoneidade com prazo determinado", orgao: "Controladoria-Geral da União" })]) }), PREFEITURA);
-  const r = s.riscos.find((x) => /CEIS/.test(x.titulo));
-  assert.equal(r?.nivel, "alto");
-  assert.match(r?.titulo ?? "", /registro no CEIS que impede contratar com qualquer ente/);
-  assert.doesNotMatch(`${r?.titulo} ${r?.fato}`, PROIBIDAS);
+  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CNEP", tipo: "Proibição de receber incentivos, subsídios, subvenções, doações ou empréstimos", abrangencia: "Todas as Esferas em todos os Poderes" })), "sem_impedimento");
+  assert.equal(alcanceSancao(sancao(ACM, { cadastro: "CEIS", tipo: "Perdimento de bens" })), "sem_impedimento");
+});
+
+test("alcance no contratante (29/10/2026): tipo da sanção × ente que aplicou × ente que contratou", () => {
+  const cg = { tipo: "municipio", municipio: "CAMPINA GRANDE", uf: "PB" };
+  const pb = { tipo: "estado", municipio: null, uf: "PB" };
+  const osc = { tipo: "osc", municipio: "JOAO PESSOA", uf: "PB" };
+  const imp = (orgao: string, esfera: string | null, uf: string | null, extra: Partial<RegistroSancao> = {}) =>
+    sancao(ACM, { orgao, orgao_esfera: esfera, orgao_uf: uf, ...extra });
+  // inidoneidade: todo ente, inclusive OSC
+  assert.equal(alcanceNoContratante(imp("Governo do Estado da Bahia (BA)", "ESTADUAL", "BA", { tipo: "Declaração de Inidoneidade com prazo determinado" }), osc), "impede");
+  // impedimento da própria prefeitura: impede; de outra prefeitura (inclusive da PB): não alcança
+  assert.equal(alcanceNoContratante(imp("Prefeitura Municipal de Campina Grande (PB)", "MUNICIPAL", "PB"), cg), "impede");
+  assert.equal(alcanceNoContratante(imp("Prefeitura Municipal de Mãe d'Água (PB)", "MUNICIPAL", "PB"), cg), "nao_alcanca");
+  assert.equal(alcanceNoContratante(imp("Prefeitura Municipal de Mãe d'Água (PB)", "MUNICIPAL", "PB"), pb), "nao_alcanca");
+  // impedimento federal ("todas as esferas" no CEIS) não alcança contrato municipal nem estadual
+  assert.equal(alcanceNoContratante(imp("UNIVERSIDADE FEDERAL DE ALAGOAS", "FEDERAL", "AL", { abrangencia: "Todas as Esferas em todos os Poderes" }), cg), "nao_alcanca");
+  // estado: impedimento do próprio estado impede; suspensão de outro órgão do mesmo estado fica a conferir; outro estado não alcança
+  assert.equal(alcanceNoContratante(imp("Governo do Estado da Paraíba", "ESTADUAL", "PB"), pb), "impede");
+  assert.equal(alcanceNoContratante(imp("CAGEPA", "ESTADUAL", "PB", { tipo: "Suspensão" }), pb), "a_conferir");
+  assert.equal(alcanceNoContratante(imp("Governo do Estado de Pernambuco", "ESTADUAL", "PE"), pb), "nao_alcanca");
+  // decisão judicial: a conferir (improbidade vale para o ente lesado, que o CEIS não diz)
+  assert.equal(alcanceNoContratante(imp("1º Grau - TRF5 / Seção Judiciária da Paraíba / Varas / Juizo", "FEDERAL", "PB"), cg), "a_conferir");
+  // esfera não informada: a conferir na mesma UF
+  assert.equal(alcanceNoContratante(imp("Órgão qualquer", null, "PB"), cg), "a_conferir");
+  assert.equal(alcanceNoContratante(imp("Órgão qualquer", null, "SP"), cg), "nao_alcanca");
+  // restrito não vincula convenente privado; CNEP de multa não impede ninguém
+  assert.equal(alcanceNoContratante(imp("Prefeitura Municipal de João Pessoa (PB)", "MUNICIPAL", "PB"), osc), "nao_alcanca");
+  assert.equal(alcanceNoContratante(imp("Controladoria-Geral da União", "FEDERAL", "DF", { cadastro: "CNEP", tipo: "Multa" }), cg), "nao_impede");
+  // o mais grave entre registros e contratantes
+  assert.equal(alcanceMaisGrave([imp("Prefeitura Municipal de Patos", "MUNICIPAL", "PB"), imp("Prefeitura Municipal de Campina Grande", "MUNICIPAL", "PB")], [cg]), "impede");
+  assert.equal(alcanceMaisGrave([imp("Prefeitura Municipal de Patos", "MUNICIPAL", "PB")], [cg, { tipo: "municipio", municipio: "Patos", uf: "PB" }]), "impede");
+  assert.equal(alcanceMaisGrave([], [cg]), null);
+});
+
+test("orgaoDoMunicipio: nome inteiro, sem acento, e Areia não é Areia de Baraúnas", () => {
+  assert.equal(orgaoDoMunicipio("Prefeitura Municipal de Mãe d'Água (PB)", "MAE D'AGUA"), true);
+  assert.equal(orgaoDoMunicipio("Prefeitura Municipal de João Pessoa (PB)", "João Pessoa"), true);
+  assert.equal(orgaoDoMunicipio("Prefeitura Municipal de Areia de Baraúnas", "Areia"), false);
+  assert.equal(orgaoDoMunicipio("Prefeitura Municipal de Areia de Baraúnas", "Areia de Baraúnas"), true);
+  assert.equal(orgaoDoMunicipio("Fundo Municipal de Saúde de Patos", "Patos"), true);
+  assert.equal(orgaoDoMunicipio("Prefeitura Municipal de Santa Rita", "Rita"), false);
+  assert.equal(orgaoDoMunicipio(null, "Patos"), false);
 });
 
 test("CSV (A5-15): a célula CEIS/CNEP separa 'não consultado' de 'sem registro'", async () => {

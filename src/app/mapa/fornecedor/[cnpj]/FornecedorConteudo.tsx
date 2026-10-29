@@ -37,6 +37,10 @@ import {
   type EntradaSancoes,
   type FornecedorConvenio,
   type LinhaTceFornecedor,
+  NIVEL_ALCANCE,
+  ROTULO_ALCANCE,
+  alcanceMaisGrave,
+  type Contratante,
 } from "@/lib/oportunidades/fornecedores";
 import type { LeituraDossieFornecedor } from "@/lib/oportunidades/fornecedores.server";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
@@ -130,7 +134,11 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
         </section>
       )}
 
-      <SancoesCgu cnpj={f.cnpj} sancoes={leitura.sancoes} />
+      <SancoesCgu
+        cnpj={f.cnpj}
+        sancoes={leitura.sancoes}
+        contratantes={convenios.map((c) => ({ tipo: c.tipo_agente, municipio: c.municipio, uf: "PB" }))}
+      />
 
       <div className="pa-grade pa-grade-4 mp-painel-cartoes">
         <article className="pa-cartao">
@@ -365,7 +373,7 @@ export function FornecedorConteudo({ leitura, tce = null }: { leitura: LeituraOk
  * CEIS e CNEP da CGU (D1, 08/10/2026): cada registro com o tipo, o órgão que aplicou, o período e a publicação. Sem
  * rodada, "CEIS/CNEP não consultados"; fora da cobertura da rodada, "não consultado" — nunca "sem sanção".
  */
-function SancoesCgu({ cnpj, sancoes }: { cnpj: string; sancoes: EntradaSancoes | null | undefined }) {
+function SancoesCgu({ cnpj, sancoes, contratantes }: { cnpj: string; sancoes: EntradaSancoes | null | undefined; contratantes: Contratante[] }) {
   const leitura = leituraCeisCnep(sancoes);
   const situacao = situacaoSancao(cnpj, sancoes);
   const registros = sancoes ? sancoes.registros.filter((r) => r.cnpj === cnpj) : [];
@@ -379,7 +387,7 @@ function SancoesCgu({ cnpj, sancoes }: { cnpj: string; sancoes: EntradaSancoes |
     const vig = registros.filter((r) => r.vigente).length;
     frase =
       vig > 0
-        ? `${n(vig)} ${vig === 1 ? "registro vigente" : "registros vigentes"} na consulta de ${quando}${registros.length > vig ? `, e ${n(registros.length - vig)} encerrado${registros.length - vig === 1 ? "" : "s"}` : ""}. O alcance depende do tipo de sanção e do órgão que a aplicou.`
+        ? `${n(vig)} ${vig === 1 ? "registro vigente" : "registros vigentes"} na consulta de ${quando}${registros.length > vig ? `, e ${n(registros.length - vig)} encerrado${registros.length - vig === 1 ? "" : "s"}` : ""}. O alcance depende do tipo de sanção e do órgão que a aplicou: cada registro diz se alcança algum dos convenentes que contrataram a empresa na PB.`
         : `Só registro encerrado na consulta de ${quando}: nenhum vigente nessa data.`;
   }
   return (
@@ -390,10 +398,14 @@ function SancoesCgu({ cnpj, sancoes }: { cnpj: string; sancoes: EntradaSancoes |
       <p className={registros.length > 0 ? "pa-sub" : "pa-cartao pa-cartao-plano"}>{frase}</p>
       {registros.length > 0 && (
         <ul className="mp-laudo-lista">
-          {registros.map((r, k) => (
-            <li key={`${r.cadastro}-${r.cnpj_sancionado}-${r.dt_inicio ?? ""}-${k}`} className={`pa-cartao mp-laudo-risco mp-laudo-${r.vigente ? "alto" : "informativo"}`}>
+          {registros.map((r, k) => {
+            // 29/10/2026: o nível segue o alcance sobre os convenentes que contrataram a empresa, e não só o "vigente".
+            const alcance = r.vigente ? alcanceMaisGrave([r], contratantes) : null;
+            const nivel = alcance ? NIVEL_ALCANCE[alcance] : "informativo";
+            return (
+            <li key={`${r.cadastro}-${r.cnpj_sancionado}-${r.dt_inicio ?? ""}-${k}`} className={`pa-cartao mp-laudo-risco mp-laudo-${nivel}`}>
               <p>
-                <span className={`pa-tag mp-laudo-nivel mp-laudo-${r.vigente ? "alto" : "informativo"}`}>{r.vigente ? "vigente" : "encerrado"}</span>{" "}
+                <span className={`pa-tag mp-laudo-nivel mp-laudo-${nivel}`}>{r.vigente ? `vigente${alcance ? `: ${ROTULO_ALCANCE[alcance]}` : ""}` : "encerrado"}</span>{" "}
                 <strong>{descreverSancao(r)}</strong>
               </p>
               {(r.orgao_esfera || r.abrangencia || r.valor_multa) && (
@@ -423,7 +435,8 @@ function SancoesCgu({ cnpj, sancoes }: { cnpj: string; sancoes: EntradaSancoes |
                 </p>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>

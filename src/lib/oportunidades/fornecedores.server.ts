@@ -33,6 +33,8 @@ import {
   type LeituraCeisCnep,
   type RegistroSancao,
   type SituacaoSancao,
+  alcanceMaisGrave,
+  type AlcanceNoContratante,
 } from "./fornecedores";
 import { CAMPOS_FORNECEDOR, ordemDoFormulario } from "./fornecedores-tabela";
 import { todas } from "./padroes.server";
@@ -143,18 +145,47 @@ export async function lerSancoes(db: Banco, cnpjs: string[], onde: string): Prom
   return sancoesDe(db, ex, cnpjs, onde);
 }
 
-/** Para a lista: a rodada e os CNPJs com registro vigente nela (a contagem e o filtro "só com registro"). */
+/**
+ * Para a lista: a rodada, o alcance dos registros vigentes de cada empresa sobre quem a contratou (29/10/2026) e as
+ * empresas impedidas. `vigentes` (a contagem e o filtro "sancionadas") são só as que têm registro que alcança ao menos
+ * um dos convenentes que a contrataram (`alcanceNoContratante`): impedimento de outra prefeitura ou multa do CNEP não
+ * entram. Poucas centenas de registros e de pares empresa × convênio.
+ */
 async function vigentesDoPainel(
   db: Banco,
+  execucaoPainel: number,
   onde: string,
-): Promise<{ ex: ExecucaoSancao; vigentes: Set<string> } | null | undefined> {
+): Promise<{ ex: ExecucaoSancao; vigentes: Set<string>; alcances: Map<string, AlcanceNoContratante> } | null | undefined> {
   const ex = await execucaoSancao(db, onde);
   if (!ex) return ex;
-  const v = await todas<{ cnpj: string }>(`${onde} (CEIS/CNEP vigentes)`, (a, b) =>
-    db.from("sancao_registro").select("cnpj").eq("execucao_id", ex.id).eq("vigente", true).order("cnpj").range(a, b),
+  const v = await todas<Pick<RegistroSancao, "cnpj" | "cadastro" | "tipo" | "abrangencia" | "orgao" | "orgao_uf" | "orgao_esfera">>(
+    `${onde} (CEIS/CNEP vigentes)`,
+    (a, b) =>
+      db
+        .from("sancao_registro")
+        .select("cnpj,cadastro,tipo,abrangencia,orgao,orgao_uf,orgao_esfera")
+        .eq("execucao_id", ex.id)
+        .eq("vigente", true)
+        .order("cnpj")
+        .order("id_portal")
+        .range(a, b),
   );
   if (ehFalha(v)) return null;
-  return { ex, vigentes: new Set(v.map((x) => x.cnpj)) };
+  const cnpjs = [...new Set(v.map((x) => x.cnpj))].sort();
+  const conv = await porCnpjs<{ cnpj: string; tipo_agente: string | null; municipio: string | null }>(
+    `${onde} (convenentes das empresas com registro)`,
+    cnpjs,
+    (lote) => db.from("painel_fornecedor_convenio").select("cnpj,tipo_agente,municipio").eq("execucao_id", execucaoPainel).in("cnpj", lote),
+  );
+  if (ehFalha(conv)) return null;
+  const alcances = new Map<string, AlcanceNoContratante>();
+  for (const cnpj of cnpjs) {
+    // Os convênios do painel são todos de proponente da PB.
+    const contratantes = conv.filter((c) => c.cnpj === cnpj).map((c) => ({ tipo: c.tipo_agente, municipio: c.municipio, uf: "PB" }));
+    const a = alcanceMaisGrave(v.filter((r) => r.cnpj === cnpj), contratantes);
+    if (a) alcances.set(cnpj, a);
+  }
+  return { ex, vigentes: new Set([...alcances].filter(([, a]) => a === "impede").map(([c]) => c)), alcances };
 }
 
 // ================================================================ seção do laudo
@@ -289,7 +320,13 @@ type NoMunicipio = { pago: number; convenios: number } | null;
  * Uma empresa da lista; com filtro de município, o que ela recebeu nos convênios de lá. `ceisCnep` e `cadastros`
  * (D1): a situação na última consulta e, quando há registro vigente, em que cadastro.
  */
-export type LinhaPainel = Fornecedor & { noMunicipio: NoMunicipio; ceisCnep: SituacaoSancao; cadastros: string | null };
+export type LinhaPainel = Fornecedor & {
+  noMunicipio: NoMunicipio;
+  ceisCnep: SituacaoSancao;
+  cadastros: string | null;
+  /** Com registro vigente: se ele alcança quem contratou a empresa (29/10/2026). */
+  alcance: AlcanceNoContratante | null;
+};
 
 export type LeituraPainelFornecedores =
   | Falha
@@ -332,7 +369,7 @@ export async function lerPainelFornecedores(
     contar((q) => q.eq("mei", true)),
     contar((q) => q.is("inidoneo_tcu", null)),
     // D1: a falha do CEIS/CNEP não derruba a lista; a página diz que não leu.
-    vigentesDoPainel(db, "lerPainelFornecedores"),
+    vigentesDoPainel(db, id, "lerPainelFornecedores"),
   ]);
   const erro = municipios.error ?? nTotal.error ?? nInidoneos.error ?? nMei.error ?? nSemTcu.error;
   if (erro) return falha("lerPainelFornecedores (totais)", erro);
@@ -354,7 +391,7 @@ export async function lerPainelFornecedores(
     if (s === null) ceisCnep = { estado: "falhou" };
     return fs.map((f) => {
       const vig = s ? s.registros.filter((r) => r.cnpj === f.cnpj && r.vigente) : [];
-      return { ...f, ceisCnep: situacaoSancao(f.cnpj, s), cadastros: vig.length > 0 ? cadastrosDe(vig) : null };
+      return { ...f, ceisCnep: situacaoSancao(f.cnpj, s), cadastros: vig.length > 0 ? cadastrosDe(vig) : null, alcance: cgu?.alcances.get(f.cnpj) ?? null };
     });
   };
 

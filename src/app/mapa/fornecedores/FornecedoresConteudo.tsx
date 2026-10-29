@@ -24,6 +24,8 @@ import {
   type ConcentracaoMunicipio,
   type FaixaConcentracao,
   type LeituraCeisCnep,
+  NIVEL_ALCANCE,
+  ROTULO_ALCANCE,
 } from "@/lib/oportunidades/fornecedores";
 import type { FiltroFornecedores, LeituraPainelFornecedores } from "@/lib/oportunidades/fornecedores.server";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -41,7 +43,7 @@ import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 
 type LeituraOk = Extract<LeituraPainelFornecedores, { estado: "ok" }>;
 
-const ROTULO_MARCA = { inidoneos: "só inidôneas (TCU)", mei: "só MEI", sancionadas: "só com registro vigente no CEIS/CNEP" } as const;
+const ROTULO_MARCA = { inidoneos: "só inidôneas (TCU)", mei: "só MEI", sancionadas: "só com registro no CEIS/CNEP que alcança quem as contratou" } as const;
 
 const AVISO =
   "Uso interno da PONTE. Nomes de empresas como registrados nos pagamentos e contratos do SICONV, inclusive de MEI e empresário individual " +
@@ -137,7 +139,7 @@ export function FornecedoresConteudo({ leitura, filtro, estado = ESTADO_VAZIO }:
             <select id="forn-marca" name="marca" defaultValue={filtro.marca ?? ""} className="pa-select">
               <option value="">Todas</option>
               <option value="inidoneos">Inidôneas (TCU)</option>
-              <option value="sancionadas">Com registro no CEIS/CNEP</option>
+              <option value="sancionadas">Com sanção que alcança o contratante</option>
               <option value="mei">MEI</option>
             </select>
           </Campo>
@@ -262,7 +264,11 @@ function NotaCeisCnep({ leitura, sancionadas, filtro }: { leitura: LeituraCeisCn
   return (
     <p className="pa-nota">
       CEIS e CNEP (CGU), consulta de {formatarData(leitura.referencia)}:{" "}
-      {sancionadas === 0 ? "nenhuma empresa com registro vigente." : `${n(sancionadas)} ${sancionadas === 1 ? "empresa" : "empresas"} com registro vigente.`}
+      {sancionadas === 0
+        ? "nenhuma empresa com registro vigente que alcance quem a contratou."
+        : `${n(sancionadas)} ${sancionadas === 1 ? "empresa" : "empresas"} com registro vigente que alcança quem a contratou.`}{" "}
+      Impedimento e suspensão valem só no ente que os aplicou, e multa do CNEP não proíbe contratar: esses registros aparecem
+      na linha da empresa, como informação.
       {sancionadas > 0 && filtro.marca !== "sancionadas" && (
         <>
           {" "}
@@ -324,7 +330,12 @@ function TabelaEmpresas({
             {l.mei ? " · MEI" : ""}
           </span>
           {l.inidoneo_tcu && <span className="pa-tag mp-laudo-nivel mp-laudo-critico">inidôneo (TCU)</span>}
-          {l.ceisCnep === "vigente" && <span className="pa-tag mp-laudo-nivel mp-laudo-alto">registro vigente no {l.cadastros ?? "CEIS/CNEP"}</span>}
+          {l.ceisCnep === "vigente" && (
+            <span className={`pa-tag mp-laudo-nivel mp-laudo-${l.alcance ? NIVEL_ALCANCE[l.alcance] : "moderado"}`}>
+              registro vigente no {l.cadastros ?? "CEIS/CNEP"}
+              {l.alcance ? `: ${ROTULO_ALCANCE[l.alcance]}` : ""}
+            </span>
+          )}
           {l.ceisCnep === "encerrada" && <span className="mp-tabela-secundario">registro encerrado no CEIS/CNEP</span>}
         </>
       ),
