@@ -1,0 +1,202 @@
+/* Sala do Pablo (30/10/2026): o desenho do protótipo da sessão de Grafos, com os tokens --pa-* do site no claro. O portal
+   não tem modo escuro; a sala tem (critério 13 do aceite), definido só aqui dentro, nos mesmos nomes locais. */
+
+.spb-root {
+  --spb-bg: var(--pa-bg);
+  --spb-surface: var(--pa-surface);
+  --spb-text: var(--pa-text);
+  --spb-muted: var(--pa-muted);
+  --spb-border: var(--pa-border);
+  --spb-brand: var(--pa-brand);
+  --spb-brand-soft: var(--pa-brand-soft);
+  --spb-on-brand: var(--pa-surface);
+  --spb-accent: var(--pa-environmental);
+  --spb-warn: var(--pa-economic);
+  --spb-warn-soft: #f4e9d8;
+  --spb-danger: var(--pa-danger);
+  --spb-danger-soft: #f3e2df;
+  --spb-ok: var(--pa-environmental);
+  --spb-ok-soft: #dcebe3;
+  --spb-info: var(--pa-social);
+  --spb-info-soft: #ebe5f3;
+  --spb-overlay: rgba(10, 20, 18, 0.45);
+  background: var(--spb-bg);
+  color: var(--spb-text);
+  max-width: var(--pa-max);
+  margin: 0 auto;
+  padding: 1.25rem max(16px, env(safe-area-inset-left, 0px)) 4rem max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 1.5rem;
+  font-size: 15px;
+  line-height: 1.55;
+}
+@media (prefers-color-scheme: dark) {
+  .spb-root {
+    --spb-bg: var(--pa-dark);
+    --spb-surface: var(--pa-dark-surface);
+    --spb-text: #e3ece8;
+    --spb-muted: #9fb1ab;
+    --spb-border: #25403a;
+    --spb-brand: #0d2620;
+    --spb-brand-soft: #1c3832;
+    --spb-on-brand: #e3ece8;
+    --spb-accent: #6fbf9c;
+    --spb-warn: #e2b26b;
+    --spb-warn-soft: #3a2d18;
+    --spb-danger: #e39a8f;
+    --spb-danger-soft: #3b2220;
+    --spb-ok: #6fbf9c;
+    --spb-ok-soft: #173a2f;
+    --spb-info: #b9a4e0;
+    --spb-info-soft: #2a2340;
+    --spb-overlay: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+  /* A moldura comum das salas (cabeçalho e rodapé do layout) acompanha, só nesta sala. */
+  .pa-root:has(.spb-root) { background: var(--pa-dark); }
+  .pa-root:has(.spb-root) :is(.pa-top, .mp-rodape) { background: var(--pa-dark-surface); color: #e3ece8; border-color: #25403a; }
+  .pa-root:has(.spb-root) :is(.pa-marca-nome, .pa-marca-nome strong, .mp-rodape p) { color: #e3ece8; }
+}
+
+.spb-root h1, .spb-root h2, .spb-root h3 { font-family: var(--pa-display); text-wrap: balance; margin: 0; color: var(--spb-text); }
+.spb-root h1 { font-size: 1.65rem; line-height: 1.2; }
+.spb-root h2 { font-size: 1.12rem; line-height: 1.3; }
+.spb-root h3 { font-size: 0.97rem; line-height: 1.35; }
+.spb-root a { color: var(--spb-accent); }
+.spb-root ul, .spb-root ol { margin: 0; padding-left: 1.2rem; }
+
+.spb-barra {
+  background: var(--spb-brand);
+  color: var(--spb-on-brand);
+  border-radius: var(--pa-r-lg);
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+.spb-marca { font: 700 0.95rem/1 var(--pa-display); letter-spacing: 0.04em; }
+.spb-marca small { display: block; font: 500 0.78rem/1.4 var(--pa-font); opacity: 0.8; margin-top: 0.3rem; letter-spacing: 0; }
+.spb-abas { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-left: auto; }
+.spb-abas a { color: var(--spb-on-brand); text-decoration: none; padding: 0.45rem 0.75rem; border-radius: 999px; font: 600 0.85rem/1 var(--pa-font); opacity: 0.82; }
+.spb-abas a[aria-current] { background: color-mix(in srgb, var(--spb-on-brand) 16%, transparent); opacity: 1; }
+
+.spb-root :is(a, button, select, input, textarea):focus-visible { outline: 2px solid var(--spb-accent); outline-offset: 2px; }
+
+.spb-eyebrow { font: 600 0.72rem/1 var(--pa-font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--spb-muted); margin: 0 0 0.4rem; }
+.spb-lead { color: var(--spb-muted); max-width: 68ch; margin: 0.4rem 0 0; }
+.spb-bloco { display: grid; gap: 0.75rem; margin-top: 1.75rem; }
+.spb-espaco { margin-top: 1.1rem; }
+.spb-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.spb-lista { display: grid; gap: 0.5rem; }
+.spb-item, .spb-obj {
+  background: var(--spb-surface);
+  border: 1px solid var(--spb-border);
+  border-radius: var(--pa-r);
+  padding: 0.75rem 0.9rem;
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.spb-obj { padding: 0.9rem 1rem; gap: 0.5rem; }
+.spb-item-topo, .spb-obj-cab { display: flex; gap: 0.5rem; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.spb-item-titulo { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.spb-obj-nome { display: flex; gap: 0.75rem; align-items: flex-start; min-width: 0; }
+.spb-obj-nome > div { min-width: 0; }
+.spb-obj h2 a { color: inherit; text-decoration: none; }
+.spb-obj h2 a:hover { text-decoration: underline; }
+.spb-obj-id { font: 600 0.75rem/1 var(--pa-mono); color: var(--spb-muted); }
+.spb-ordem { font: 700 1.4rem/1 var(--pa-display); color: var(--spb-accent); font-variant-numeric: tabular-nums; min-width: 1.75rem; }
+.spb-meta { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; color: var(--spb-muted); font-size: 0.82rem; overflow-wrap: anywhere; }
+.spb-meta b { color: var(--spb-text); font-weight: 600; }
+.spb-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font: 600 0.72rem/1.3 var(--pa-font);
+  white-space: nowrap;
+  background: var(--spb-brand-soft);
+  color: var(--spb-text);
+}
+.spb-pill.spb-recebida { background: var(--spb-info-soft); color: var(--spb-info); }
+.spb-pill.spb-combinada, .spb-pill.spb-andamento { background: var(--spb-brand-soft); color: var(--spb-accent); }
+.spb-pill.spb-validacao { background: var(--spb-warn-soft); color: var(--spb-warn); }
+.spb-pill.spb-concluida { background: var(--spb-ok-soft); color: var(--spb-ok); }
+.spb-pill.spb-cancelada { background: var(--spb-danger-soft); color: var(--spb-danger); }
+.spb-pill.spb-fase { background: transparent; border: 1px solid var(--spb-border); color: var(--spb-muted); white-space: normal; }
+.spb-alerta { color: var(--spb-danger); font-weight: 600; }
+.spb-vazio { border: 1px dashed var(--spb-border); border-radius: var(--pa-r); padding: 0.9rem; color: var(--spb-muted); font-size: 0.9rem; }
+.spb-acoes { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+.spb-root button, .spb-porta .op-entrar-btn {
+  font: 600 0.82rem/1 var(--pa-font);
+  border-radius: 0.5rem;
+  border: 1px solid var(--spb-border, var(--pa-border));
+  background: var(--spb-surface, var(--pa-surface));
+  color: var(--spb-text, var(--pa-text));
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+}
+.spb-root button.spb-pri { background: var(--spb-brand); border-color: var(--spb-brand); color: var(--spb-on-brand); }
+.spb-root button.spb-leve { border-color: transparent; background: transparent; color: var(--spb-accent); padding: 0.4rem; }
+.spb-root button:disabled { opacity: 0.5; cursor: not-allowed; }
+.spb-grade3 { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18.75rem), 1fr)); margin-top: 1.5rem; }
+.spb-grade3 > section { display: grid; gap: 0.6rem; align-content: start; min-width: 0; }
+.spb-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.spb-root :is(select, input, textarea) {
+  font: 0.88rem/1.4 var(--pa-font);
+  color: var(--spb-text);
+  background: var(--spb-surface);
+  border: 1px solid var(--spb-border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  max-width: 100%;
+}
+.spb-root textarea { width: 100%; min-height: 4.75rem; resize: vertical; }
+.spb-campo { display: grid; gap: 0.25rem; font-size: 0.82rem; font-weight: 600; }
+.spb-campo input:not([type="checkbox"]) { width: 100%; }
+.spb-dica { font-weight: 400; color: var(--spb-muted); font-size: 0.82rem; }
+.spb-marcar { display: flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
+.spb-ficha-grade { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); margin-top: 1.4rem; }
+.spb-ficha-grade > section { display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
+.spb-papeis { display: grid; gap: 0.4rem; margin: 0; font-size: 0.88rem; }
+.spb-papeis > div { display: grid; grid-template-columns: minmax(7rem, max-content) 1fr; gap: 0.9rem; }
+.spb-papeis dt { color: var(--spb-muted); }
+.spb-papeis dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.spb-hist { font-size: 0.82rem; color: var(--spb-muted); display: grid; gap: 0.25rem; overflow-wrap: anywhere; }
+.spb-hist time { font-variant-numeric: tabular-nums; color: var(--spb-text); }
+.spb-sexta { background: var(--spb-brand-soft); border-radius: var(--pa-r); padding: 1rem; display: grid; gap: 0.6rem; }
+.spb-modal-fundo { position: fixed; inset: 0; background: var(--spb-overlay); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.spb-modal {
+  background: var(--spb-surface);
+  color: var(--spb-text);
+  border-radius: 0.75rem;
+  max-width: 35rem;
+  width: 100%;
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  padding: 1.1rem;
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--spb-border);
+}
+.spb-modal form { display: grid; gap: 0.75rem; }
+.spb-duas { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+.spb-erro { color: var(--spb-danger); font-size: 0.82rem; margin: 0; min-height: 0; }
+.spb-erro:empty { display: none; }
+.spb-aviso { background: var(--spb-warn-soft); color: var(--spb-text); border-radius: var(--pa-r); padding: 0.75rem 0.9rem; font-size: 0.9rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .spb-item, .spb-obj { transition: border-color 0.15s; }
+  .spb-item:hover, .spb-obj:hover { border-color: var(--spb-accent); }
+}
+
+.spb-melhoria { margin-top: 2.25rem; padding-top: 1.25rem; border-top: 1px dashed var(--spb-border); display: grid; gap: 0.75rem; }
+.spb-melhoria form { display: grid; gap: 0.5rem; max-width: 46rem; }
+.spb-melhoria .spb-dica:empty { display: none; }
+.spb-root details > summary { cursor: pointer; margin-top: 0.5rem; }
+.spb-root button.spb-item-titulo { text-align: left; padding: 0; font-weight: 600; font-size: inherit; }
+
+.spb-porta { max-width: 26rem; margin: 3rem auto; padding: 0 16px; display: grid; gap: 0.8rem; justify-items: start; }
+.spb-porta h1 { font-family: var(--pa-display); font-size: 1.5rem; margin: 0; }
+.spb-porta .op-entrar-btn { display: inline-flex; gap: 0.6rem; align-items: center; padding: 0.7rem 1rem; font-size: 0.9rem; }
+.spb-porta .op-entrar-erro { color: var(--pa-danger); font-size: 0.85rem; }

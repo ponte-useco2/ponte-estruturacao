@@ -79,5 +79,7 @@ export const config = {
     "/mapa/:path*",
     "/plataforma/app/:path*",
     "/oportunidades/:path*",
+    // Salas que gravam (a do Pablo, 30/10/2026): login por pessoa, a sessão precisa renovar aqui.
+    "/sala/:path*",
   ],
 };
