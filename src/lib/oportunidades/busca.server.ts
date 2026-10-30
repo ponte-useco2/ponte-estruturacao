@@ -43,6 +43,7 @@ import {
 } from "./busca-unificada";
 import { parametrosDaTabela } from "./busca-tabelas";
 import { ESTADO_VAZIO, type EstadoTabela } from "./tabela-filtro";
+import { COLUNAS_PLANO, type PlanoTrabalho } from "./plano-trabalho";
 import { VALIDADE_DADOS_MS } from "./cache-dados";
 import { camadaDoCacheDeDados } from "./cache-dados.server";
 import { ehEsquemaAusente } from "./esquema";
@@ -519,6 +520,8 @@ export type LeituraProposta =
       etapasBr: LinhaEtapa[];
       /** O convênio que a proposta virou, quando está na busca. */
       convenioNaBusca: boolean;
+      /** O plano de trabalho (oport_58); null quando não há ou a tabela ainda não existe. */
+      plano: PlanoTrabalho | null;
     };
 
 export async function lerProposta(id: string): Promise<LeituraProposta> {
@@ -543,15 +546,18 @@ export async function lerProposta(id: string): Promise<LeituraProposta> {
           .eq("chave", proposta.orgao_sup)
           .limit(50)
       : Promise.resolve({ data: [], error: null });
-  const [uf, br, conv] = await Promise.all([
+  const [uf, br, conv, plano] = await Promise.all([
     proposta.uf ? etapas(proposta.uf) : Promise.resolve({ data: [], error: null }),
     etapas("BR"),
     proposta.nr_convenio
       ? db.from("painel_instrumento").select("nr_convenio").eq("execucao_id", ex.id).eq("nr_convenio", proposta.nr_convenio).limit(1)
       : Promise.resolve({ data: [], error: null }),
+    db.from("painel_proposta_plano").select(COLUNAS_PLANO).eq("execucao_id", ex.id).eq("id_proposta", id).limit(1),
   ]);
   const erro = uf.error ?? br.error ?? conv.error;
   if (erro) return falhaDe("lerProposta (etapas)", erro);
+  // O plano é complemento: sem a oport_58 ou com erro, a página segue sem ele.
+  if (plano.error && !ehEsquemaAusente(plano.error.code)) console.error("lerProposta (plano):", plano.error.message);
   return {
     estado: "ok",
     execucao: ex,
@@ -559,6 +565,7 @@ export async function lerProposta(id: string): Promise<LeituraProposta> {
     etapasUf: (uf.data ?? []) as LinhaEtapa[],
     etapasBr: (br.data ?? []) as LinhaEtapa[],
     convenioNaBusca: (conv.data ?? []).length > 0,
+    plano: plano.error ? null : (((plano.data ?? []) as unknown as PlanoTrabalho[])[0] ?? null),
   };
 }
 

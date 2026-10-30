@@ -20,6 +20,7 @@ import { CopiarNumero } from "../../painel/CopiarNumero";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { Trilha } from "../../_componentes/Trilha";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
+import { PlanoTrabalhoSecao } from "./PlanoTrabalho";
 
 type LeituraOk = Extract<LeituraProposta, { estado: "ok" }>;
 
@@ -162,6 +163,8 @@ export function PropostaConteudo({ leitura, seguindo = null }: { leitura: Leitur
           </table>
         </TabelaRolagem>
       </section>
+
+      <PlanoTrabalhoSecao plano={leitura.plano} />
 
       {p.nr_convenio && (
         <p className="pa-nota">
