@@ -9,6 +9,7 @@ import { PODE, abaEscolhida, ibgeDaUrl, podeAbaMunicipio, urlMunicipio } from "@
 import { lerAssembleia, lerFederalPorAno, lerTceEstadoDoMunicipio } from "@/lib/oportunidades/emendas-pb.server";
 import { IBGE_JOAO_PESSOA } from "@/lib/oportunidades/emendas-jp";
 import { lerCamaraJp } from "@/lib/oportunidades/emendas-jp.server";
+import { lerDoeDoMunicipio } from "@/lib/oportunidades/doe-municipal.server";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -55,15 +56,17 @@ export default async function RelatorioMunicipioPage({ params }: { params: Promi
     );
   }
   // As emendas estaduais (E2, 16/10/2026): só o administrador lê; a rejeição inesperada vira "falha", numa linha.
-  const [seguidas, assembleia, tceEstado, federalPorAno, camaraJp] = await Promise.all([
+  const [seguidas, assembleia, tceEstado, federalPorAno, camaraJp, doe] = await Promise.all([
     lerSeguidas(),
     PODE.interno(nivel) ? lerAssembleia().catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
     PODE.interno(nivel) ? lerTceEstadoDoMunicipio(ibge).catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
     PODE.interno(nivel) ? lerFederalPorAno({ ibge }).catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
     // J2 das emendas de João Pessoa (16/10/2026): a Câmara Municipal, só no relatório de João Pessoa.
     PODE.interno(nivel) && ibge === IBGE_JOAO_PESSOA ? lerCamaraJp().catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
+    // O Diário Oficial do Estado e a Transparência PB (oport_61, 30/10/2026): só o administrador.
+    PODE.interno(nivel) ? lerDoeDoMunicipio(ibge).catch(() => ({ estado: "falha" as const })) : Promise.resolve(undefined),
   ]);
   after(() => registrarUso(visitante, "mapa_relatorio_municipio", { ibge, nivel }));
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
-  return <RelatorioConteudo r={r} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} assembleia={assembleia} tceEstado={tceEstado} federalPorAno={federalPorAno} camaraJp={camaraJp} />;
+  return <RelatorioConteudo r={r} nivel={nivel} seguindo={seguidas?.has(chaveSeguida("municipio", ibge)) ?? false} assembleia={assembleia} tceEstado={tceEstado} federalPorAno={federalPorAno} camaraJp={camaraJp} doe={doe} />;
 }

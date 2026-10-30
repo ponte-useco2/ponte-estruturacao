@@ -28,6 +28,8 @@ import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
 import { EmendasEstaduaisDoMunicipio } from "../../../parlamentares/assembleia/EmendasEstaduais";
 import { EmendasDaCamaraNoMunicipio } from "../../../parlamentares/camara-jp/EmendasDaCamaraJp";
+import type { LeituraDoeMunicipio } from "@/lib/oportunidades/doe-municipal";
+import { DiarioEstadoDoMunicipio } from "./DiarioEstado";
 import { municipalDaLeitura, type LeituraCamaraJp } from "@/lib/oportunidades/emendas-jp";
 import type { ImpedidosDoAno } from "@/lib/oportunidades/pix-laudo";
 import { moedaCurta } from "@/lib/oportunidades/radar";
@@ -926,6 +928,7 @@ export function RelatorioConteudo({
   tceEstado,
   federalPorAno,
   camaraJp,
+  doe,
 }: {
   r: Relatorio;
   seguindo?: boolean;
@@ -938,6 +941,8 @@ export function RelatorioConteudo({
   federalPorAno?: LeituraFederalPorAno;
   /** As emendas da Câmara de João Pessoa (J2): só no relatório de João Pessoa e só para o administrador. */
   camaraJp?: LeituraCamaraJp;
+  /** O Diário Oficial do Estado e a Transparência PB (oport_61): só para o administrador. */
+  doe?: LeituraDoeMunicipio;
 }) {
   const ind = r.indicadores;
   const destino = destinoConvenio(nivel);
@@ -1012,6 +1017,7 @@ export function RelatorioConteudo({
         />
       )}
       {PODE.interno(nivel) && camaraJp !== undefined && <EmendasDaCamaraNoMunicipio leitura={camaraJp} />}
+      {PODE.interno(nivel) && doe !== undefined && <DiarioEstadoDoMunicipio leitura={doe} ibge={r.ibge} municipio={r.nome} />}
       <BlocoPix r={r} destino={destino} />
       <BlocoTcePb r={r} />
       <BlocoFornecedores r={r} destino={destino} />
