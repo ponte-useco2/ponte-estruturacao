@@ -85,3 +85,41 @@ test("semReferenciaInterna tira o código do plano do texto do pacote", () => {
   assert.equal(semReferenciaInterna("ato contratual do próprio órgão, de 3 anos antes do 1º empenho ao último (PUB-04b: 20/20)"), "ato contratual do próprio órgão, de 3 anos antes do 1º empenho ao último");
   assert.equal(semReferenciaInterna(null), "");
 });
+
+test("descida (30/10/2026): rótulo sem nome de órgão, endereços de cada nível e origem dos dados", async () => {
+  const m = await import("./cadeia-quebrada.ts");
+  assert.equal(m.rotuloSituacao("CNPJ nos chamamentos da CEHAP (site, fora do Diário)"), "CNPJ em chamamento publicado só no site do órgão (fora do Diário)");
+  assert.equal(m.rotuloSituacao("nada no Diário: ponto para olhar"), "nada no Diário: ponto para olhar");
+  assert.equal(m.rotuloSituacao("CNPJ em ato contratual do Diário"), "CNPJ em ato contratual do Diário (qualquer órgão; precisão não medida)");
+  assert.equal(m.urlSituacao("notas", "nada no Diário: ponto para olhar"), "/mapa/cadeia-quebrada/notas?s=nada+no+Di%C3%A1rio%3A+ponto+para+olhar");
+  assert.match(m.urlSituacao("notas", "x", "UEPB"), /\?s=x&o=UEPB$/);
+  assert.equal(m.urlCnpjCadeia("12721072000107"), "/mapa/cadeia-quebrada/cnpj/12721072000107");
+  assert.equal(m.cnpjDaUrl("12.721.072/0001-07"), "12721072000107");
+  assert.equal(m.cnpjDaUrl("123"), null);
+  assert.equal(m.cnpjLegivelCq("12721072000107"), "12.721.072/0001-07");
+  assert.equal(m.blocoDaUrl("notas"), "notas");
+  assert.equal(m.blocoDaUrl("outro"), null);
+  assert.equal(m.situacaoDosCasos("sancoes", "alcança"), "sanção alcança");
+  assert.equal(m.situacaoDosCasos("notas", "x"), "x");
+  assert.match(m.urlDaLei("Lei 14.133/2021, art. 156, §4º") ?? "", /planalto\.gov\.br.*l14133/);
+  assert.match(m.urlDaLei("Lei 8.429/1992, art. 12") ?? "", /l8429/);
+  assert.equal(m.urlDaLei("ato de rompimento"), null);
+  assert.ok(m.origensDoCnpj("12721072000107").every((o) => o.url.startsWith("https://")));
+  assert.ok(Object.values(m.FONTES_CQ).every((f) => f.url.startsWith("https://")));
+});
+
+test("casosPorOrgao soma por órgão e ordena pelo valor; motivosDaClasse segue a regra da geração", async () => {
+  const m = await import("./cadeia-quebrada.ts");
+  const caso = (orgao: string | null, pago: number) => ({ ordem: 1, teste: "notas_empenho", situacao: "s", cnpj: "1".repeat(14), orgao, pago, notas: 1, anos: [], link_diario: null, tipo_ato: null, data_ato: null, motivo: null, sancao: null });
+  assert.deepEqual(m.casosPorOrgao([caso("UEPB", 10), caso("CEHAP", 50), caso("UEPB", 45), caso(null, 1)]), [
+    { chave: "UEPB", pares: 2, pago: 55 },
+    { chave: "CEHAP", pares: 1, pago: 50 },
+    { chave: "órgão não informado", pares: 1, pago: 1 },
+  ]);
+  const motivos = [
+    l("sancoes_motivo", 1, "declaração de inidoneidade vale para todos os entes", 1, null),
+    l("sancoes_motivo", 2, "impedimento/suspensão federal só vale na União", 54, null),
+  ];
+  assert.deepEqual(m.motivosDaClasse(ex(), motivos, "não alcança"), [{ chave: "impedimento/suspensão federal só vale na União", pares: 54, pago: null }]);
+  assert.deepEqual(m.motivosDaClasse(ex(), motivos, "alcança").map((x) => x.pares), [1]);
+});
