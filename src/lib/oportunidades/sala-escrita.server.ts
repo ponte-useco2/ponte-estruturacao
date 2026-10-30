@@ -29,10 +29,18 @@ export async function lerSalaQueGrava(sala: string): Promise<LeituraSala> {
   } = await db.auth.getUser();
   if (!user) return { logado: false, membro: null, dados: null, falha: false };
 
-  const membros = await db.from("sala_membro").select("user_id,papel,nome").eq("sala", sala);
+  const lerMembros = () => db.from("sala_membro").select("user_id,papel,nome").eq("sala", sala);
+  let membros = await lerMembros();
   if (membros.error) {
     console.error("sala: leitura dos membros", membros.error.code, membros.error.message);
     return { logado: true, membro: null, dados: null, falha: true };
+  }
+  if (!(membros.data ?? []).some((m) => m.user_id === user.id)) {
+    // Convite (oport_60): a conta do Google com o e-mail convidado vira membro no primeiro login. O banco lê o e-mail da
+    // própria conta; daqui não vai nada além do nome da sala.
+    const convite = await db.rpc("sala_aceitar_convite", { p_sala: sala });
+    if (convite.error) console.error("sala: convite", convite.error.code, convite.error.message);
+    else if (convite.data === true) membros = await lerMembros();
   }
   const lista = (membros.data ?? []) as Membro[];
   const membro = lista.find((m) => m.user_id === user.id) ?? null;
