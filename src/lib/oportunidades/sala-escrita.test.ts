@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   autorDe,
   botoesDoEstado,
+  diasAte,
   hojeBrasilia,
   linkValido,
+  prazoExterno,
   mensagemDoErro,
   nomeSeguro,
   problemaNoArquivo,
@@ -104,6 +106,16 @@ test("filtro de texto: os 10 casos do adendo (5 recusas, 5 legítimos)", () => {
   const r = (t: string) => problemaNoTexto(t, "o texto", 2000);
   for (const t of ["CPF 123.456.789-09", "fone (83) 98888-7777", "a@b.com.br", "R$ 1.200,00", "12345678909"]) assert.notEqual(r(t), null, t);
   for (const t of ["Termo de Outorga 2686/2025", "Edital FAPESQ/FINEP 58/2024", "CNPJ 47.235.479/0001-09", "Ofício 123/2026-GAB", "prazo 31/10/2026"]) assert.equal(r(t), null, t);
+});
+
+test("prazo externo: data, alerta a até 30 dias, passou; sem data, nada", () => {
+  assert.deepEqual(prazoExterno("2026-11-30", "2026-10-30"), { texto: "Prazo externo: 30/11/2026", alerta: false });
+  assert.deepEqual(prazoExterno("2026-11-30", "2026-10-31"), { texto: "Prazo externo: 30/11/2026 (faltam 30 dias)", alerta: true });
+  assert.deepEqual(prazoExterno("2026-11-30", "2026-11-29"), { texto: "Prazo externo: 30/11/2026 (falta 1 dia)", alerta: true });
+  assert.deepEqual(prazoExterno("2026-11-30", "2026-11-30"), { texto: "Prazo externo: 30/11/2026 (é hoje)", alerta: true });
+  assert.deepEqual(prazoExterno("2026-11-30", "2026-12-01"), { texto: "Prazo externo: 30/11/2026 (passou)", alerta: true });
+  assert.equal(prazoExterno(undefined, "2026-10-30"), null);
+  assert.equal(diasAte("2026-11-30", "2026-10-30"), 31);
 });
 
 test("autor: rótulo da carga, nome do membro, você", () => {

@@ -124,6 +124,7 @@
 .spb-pill.spb-validacao { background: var(--spb-warn-soft); color: var(--spb-warn); }
 .spb-pill.spb-concluida { background: var(--spb-ok-soft); color: var(--spb-ok); }
 .spb-pill.spb-cancelada { background: var(--spb-danger-soft); color: var(--spb-danger); }
+.spb-pill.spb-prazo-perto { background: var(--spb-warn-soft); color: var(--spb-warn); white-space: normal; }
 .spb-pill.spb-fase { background: transparent; border: 1px solid var(--spb-border); color: var(--spb-muted); white-space: normal; }
 .spb-alerta { color: var(--spb-danger); font-weight: 600; }
 .spb-vazio { border: 1px dashed var(--spb-border); border-radius: var(--pa-r); padding: 0.9rem; color: var(--spb-muted); font-size: 0.9rem; }

@@ -15,6 +15,7 @@ import {
   MELHORIA_ESTADOS,
   TIPOS_ARQUIVO,
   linkValido,
+  prazoExterno,
   problemaNoArquivo,
   tamanhoBR,
   DECISORES,
@@ -1311,6 +1312,12 @@ export function SalaPablo({ dados, eu, hoje, arquivos }: { dados: DadosSala; eu:
     );
   }
 
+  // Prazo do órgão: alerta a até 30 dias, nunca como atraso de demanda.
+  function seloPrazo(o: Objeto) {
+    const p = prazoExterno(o.prazo_externo, hoje);
+    return p ? <span className={`spb-pill ${p.alerta ? "spb-prazo-perto" : "spb-fase"}`}>{p.texto}</span> : null;
+  }
+
   function proximaAcao(o: Objeto): Demanda | null {
     return demandas.filter((d) => d.objeto === o.id && ABERTOS.includes(d.estado)).sort(ordemDemanda)[0] ?? null;
   }
@@ -1363,6 +1370,7 @@ export function SalaPablo({ dados, eu, hoje, arquivos }: { dados: DadosSala; eu:
                     </div>
                     <div className="spb-acoes">
                       <span className="spb-pill spb-fase">{o.fase || "a confirmar"}</span>
+                      {seloPrazo(o)}
                       <button type="button" className="spb-leve" aria-label={`Subir ${o.nome}`} onClick={() => moverObjeto(o, -1)}>
                         ↑
                       </button>
@@ -1445,6 +1453,7 @@ export function SalaPablo({ dados, eu, hoje, arquivos }: { dados: DadosSala; eu:
           <h1>{o.nome}</h1>
           <div className="spb-acoes">
             <span className="spb-pill spb-fase">{o.fase || "a confirmar"}</span>
+            {seloPrazo(o)}
             <button type="button" onClick={() => editarObjeto(o)}>
               Atualizar situação
             </button>

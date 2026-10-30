@@ -84,6 +84,25 @@ export interface Objeto {
   relacoes?: string[];
   fonte?: string;
   confirmado_em?: string;
+  /** Prazo do órgão ("AAAA-MM-DD"), vindo da base. Não é data combinada: não muda demanda nem entra na regra da D-12. */
+  prazo_externo?: string;
+}
+
+/** Dias de hoje até o prazo externo (negativo se passou); null sem data válida. Datas de Brasília, sem hora. */
+export function diasAte(data: string | null | undefined, hoje: string): number | null {
+  if (!data || !/^\d{4}-\d{2}-\d{2}/.test(data)) return null;
+  return Math.round((Date.parse(`${data.slice(0, 10)}T12:00:00Z`) - Date.parse(`${hoje}T12:00:00Z`)) / 86400000);
+}
+
+/** O texto do prazo externo: a data e, a até 30 dias, "faltam N dias" (alerta); depois do prazo, "passou". */
+export function prazoExterno(data: string | null | undefined, hoje: string): { texto: string; alerta: boolean } | null {
+  const n = diasAte(data, hoje);
+  if (n === null) return null;
+  const base = `Prazo externo: ${dataBR(data)}`;
+  if (n < 0) return { texto: `${base} (passou)`, alerta: true };
+  if (n === 0) return { texto: `${base} (é hoje)`, alerta: true };
+  if (n <= 30) return { texto: `${base} (falta${n === 1 ? "" : "m"} ${n} dia${n === 1 ? "" : "s"})`, alerta: true };
+  return { texto: base, alerta: false };
 }
 
 export interface Decisao {
