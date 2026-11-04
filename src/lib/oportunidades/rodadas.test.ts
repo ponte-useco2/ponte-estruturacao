@@ -144,12 +144,13 @@ test("onda 9, C: os workflows do disparo da Vercel são diários", () => {
   assert.equal(cronDoWorkflow("nao-existe.yml"), null);
 });
 
-test("onda 9, C: os 19 jobs, com as 17 tabelas (12 conferidas no banco em 09/10/2026; a emd_execucao na onda 14; a epb_execucao no E1; a ejp_execucao no J1; a fnas_execucao na primeira infância; a obr_execucao na P0.4)", () => {
+test("onda 9, C: os 20 jobs, com as 18 tabelas (12 conferidas no banco em 09/10/2026; a emd_execucao na onda 14; a epb_execucao no E1; a ejp_execucao no J1; a fnas_execucao na primeira infância; a obr_execucao na P0.4; a ret_execucao no R1 da Antonieta)", () => {
   // Onda 14, integração (12/10/2026): as emendas parlamentares, a 15ª linha e a 13ª tabela. E1 das emendas estaduais
   // (16/10/2026): a 16ª linha e a 14ª tabela, da oport_41. J1 das emendas de João Pessoa (16/10/2026): a 17ª linha e a
   // 15ª tabela, da oport_44. FNAS (primeira infância, 22/10/2026): a 18ª linha e a 16ª tabela, da oport_47. Obras de
-  // creche (P0.4, 27/10/2026): a 19ª linha e a 17ª tabela, da oport_49.
-  assert.equal(JOBS_RODADAS.length, 19);
+  // creche (P0.4, 27/10/2026): a 19ª linha e a 17ª tabela, da oport_49. Obras do Pacto de Retomada (R1, 04/11/2026): a
+  // 20ª linha e a 18ª tabela, da oport_63.
+  assert.equal(JOBS_RODADAS.length, 20);
   assert.equal(new Set(JOBS_RODADAS.map((j) => j.id)).size, JOBS_RODADAS.length, "ids únicos");
   assert.deepEqual([...new Set(JOBS_RODADAS.map((j) => j.tabela))].sort(), [
     "al_execucao",
@@ -166,6 +167,7 @@ test("onda 9, C: os 19 jobs, com as 17 tabelas (12 conferidas no banco em 09/10/
     "pix_execucao",
     "pixc_execucao",
     "radar_execucao",
+    "ret_execucao",
     "sancao_execucao",
     "tce_execucao",
     "tcu_execucao",
@@ -527,6 +529,8 @@ test("onda 11, B: cada job diz onde grava a data do dado, ou que não grava", ()
     fnas: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
     // P0.4 (27/10/2026): a API do Obrasgov não informa a data do dado; vale o instante da leitura.
     obr: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
+    // R1 da Antonieta (04/11/2026): a API do FNDE não informa a data do dado; vale o instante da leitura.
+    ret: `coluna:dias:${DEFASAGEM_CONSULTA_DIAS}`,
     // Onda 12, C (12/10/2026): o Caged, de `contagens.periodo_por_fonte`. Até aqui, null.
     mun: `contagens:meses:${DEFASAGEM_CAGED_MESES}`,
     osc: `contagens:meses:${DEFASAGEM_OSC_MESES}`,
@@ -540,9 +544,9 @@ test("onda 11, B: cada job diz onde grava a data do dado, ou que não grava", ()
     if (j.dado) assert.equal(j.dado.limite === null, j.cadencia === "assistida", `${j.id}: limite só onde há cadência`);
     if (j.dado) assert.ok(j.dado.onde && j.dado.rotulo, `${j.id}: onde e rótulo por extenso`);
   }
-  // As 14 linhas da coluna fazem as 14 consultas a mais de `rodadas.server.ts` (38 + 14 = 52; até o FNAS, 36 + 13 e 34 + 12 antes dele; até o
+  // As 15 linhas da coluna fazem as 15 consultas a mais de `rodadas.server.ts` (40 + 15 = 55; até as obras de creche, 38 + 14; até o FNAS, 36 + 13 e 34 + 12 antes dele; até o
   // J1 das emendas de João Pessoa, 32 + 11; até o E1 das emendas estaduais, 30 + 10; até a onda 14, 28 + 9).
-  assert.equal(JOBS_RODADAS.filter((j) => j.dado?.origem === "coluna").length, 14);
+  assert.equal(JOBS_RODADAS.filter((j) => j.dado?.origem === "coluna").length, 15);
 });
 
 test("onda 11, B: as defasagens esperadas, com o porquê nas constantes", () => {
@@ -741,6 +745,7 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     ejp: EMD_SEM_EXECUCAO,
     fnas: EMD_SEM_EXECUCAO,
     obr: EMD_SEM_EXECUCAO,
+    ret: EMD_SEM_EXECUCAO,
     mun: ok(execucao(5, "2026-10-09T18:25:14.450873+00:00", "2026-10-09T18:25:22.305704+00:00", { linhas_por_fonte: { ibge: 2453, mapbiomas: 892 }, avisos: {} })),
     osc: ok(
       execucao(1, "2026-10-08T12:44:57.557481+00:00", "2026-10-08T12:45:17.547464+00:00", { ativas: 10381, malformadas_pb: 0, cebas_ok: true, descartadas: {}, versao_fonte: "20260806" }),
@@ -774,6 +779,7 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     ejp: "atrasada · sem_execucao — —",
     fnas: "atrasada · sem_execucao — —",
     obr: "atrasada · sem_execucao — —",
+    ret: "atrasada · sem_execucao — —",
     // A execução 5 é de antes do `periodo_por_fonte` (onda 12, C): continua como era. Conferido de novo em 12/10/2026,
     // ainda a última concluída.
     mun: "em_dia · nao_grava — —",
@@ -785,7 +791,7 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     "exigencia:suspensiva": "em_dia · sem_prazo 2026-09-16 5",
     "exigencia:assinatura": "em_dia · sem_prazo 2026-09-28 0",
   });
-  assert.deepEqual(contarEstados(linhas), { em_dia: 13, atrasada: 5, dado_velho: 1, com_aviso: 0, nao_lido: 0 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 13, atrasada: 6, dado_velho: 1, com_aviso: 0, nao_lido: 0 });
   assert.equal(textoFrescor(linhas.find((l) => l.job.id === "osc")?.dado ?? linhas[0].dado), "arquivo do Ipea de 06/08/2026, 2 meses antes da rodada (esperado: até 2 meses)");
   const emd = linhas.find((l) => l.job.id === "emd");
   assert.deepEqual([emd?.concluidaEm, emd?.idadeH, emd?.linhas, emd?.falhas, emd?.avisos], [null, null, null, null, []]);
@@ -1379,10 +1385,10 @@ test("onda 14, integração: a tabela que não existe (42P01, PGRST205) é 'não
   assert.deepEqual(leituraDasConsultas({ data: null, error: null }, { data: null, error: null }), { estado: "ok", ultima: null, abertas: [], dadoAte: undefined });
 });
 
-test("onda 14, integração: sem a emd_execucao, só a linha das emendas fica 'não lido', e a tela segue com as outras 18", () => {
+test("onda 14, integração: sem a emd_execucao, só a linha das emendas fica 'não lido', e a tela segue com as outras 19", () => {
   const ausente = leituraDasConsultas(semTabela("PGRST205"), semTabela("PGRST205"), { estado: "falha" });
   const linhas = JOBS_RODADAS.map((j) => avaliarRodada(j, j.id === "emd" ? ausente : ok(concluida(1)), AGORA));
-  assert.deepEqual(contarEstados(linhas), { em_dia: 18, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 1 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 19, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 1 });
   const emd = linhas.find((l) => l.job.id === "emd");
   assert.deepEqual([emd?.estado, emd?.motivoNaoLido, emd?.dado.situacao, emd?.linhas, emd?.avisos], ["nao_lido", "ausente", "sem_execucao", null, []]);
 });

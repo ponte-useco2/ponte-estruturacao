@@ -205,6 +205,12 @@ export const FOLGA_FNAS_H = ATRASO_GITHUB_H + 24 + 1;
 export const FOLGA_OBRAS_H = ATRASO_GITHUB_H + 24 + 1;
 
 /**
+ * A folga das obras do Pacto de Retomada (R1, 04/11/2026): o `retomada-fnde.yml` roda TODO DOMINGO no runner da máquina
+ * do titular, e leva ~95 min em 3 h de tempo-limite. A conta é a das obras de creche, mais esse tempo-limite.
+ */
+export const FOLGA_RETOMADA_H = ATRASO_GITHUB_H + 24 + 3 + 1;
+
+/**
  * A folga do radar (com o Pix em curso, o painel e o TCE-PB) desde 27/10/2026, no runner da máquina do titular: o
  * painel leva ~57 min lá (no GitHub, ~11), e o `radar-propostas.yml` passou a ter 3 h de tempo-limite. A conta é a da
  * `FOLGA_EMENDAS_H` (atraso do GitHub, tempo-limite e margem), mais 1 h pela distância entre o disparo da Vercel e o
@@ -911,6 +917,27 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     avisos: (c) =>
       seMaior(numero(objeto(c, "obr_ibge_origem"), "nao_identificado"), (x) =>
         `${plural(x, "obra sem município identificado", "obras sem município identificado")} na fonte`),
+  },
+  {
+    // Obras da educação no Pacto de Retomada (FNDE, R1, 04/11/2026): as ~3.900 fichas do Brasil, lidas do runner da máquina
+    // do titular, todo domingo.
+    id: "ret",
+    nome: "Obras do Pacto de Retomada (FNDE)",
+    tabela: "ret_execucao",
+    recorte: null,
+    cadencia: "semanal",
+    workflow: "retomada-fnde.yml",
+    cron: "30 3 * * 0",
+    folgaH: FOLGA_RETOMADA_H,
+    // A API não informa a data do dado; vale o instante da leitura.
+    dado: dadoDaConsulta("leitura da API do FNDE"),
+    linhas: (c) => numero(c, "ret_obras"),
+    rotuloLinhas: "obras",
+    // Falha de ficha até 1% publica e fica nas contagens; acima disso, a rodada não publica.
+    falhas: semFalhas,
+    avisos: (c) =>
+      seMaior(numero(c, "ret_fichas_com_falha"), (x) =>
+        `${plural(x, "ficha não lida", "fichas não lidas")} no FNDE: ${x === 1 ? "essa obra saiu" : "essas obras saíram"} do retrato da semana`),
   },
   {
     id: "mun",
