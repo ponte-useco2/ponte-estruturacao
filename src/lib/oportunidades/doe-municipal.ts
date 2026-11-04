@@ -74,6 +74,34 @@ export interface ConvenioTpb {
   link: string | null;
 }
 
+export interface DadoPorFonte {
+  diario_oficial: string;
+  notas_empenho_baixadas_em: string;
+  convenios_baixados_em: string;
+}
+
+/** "2026-10-29T21:04:54" vira "29/10/2026": a data como a fonte escreve, sem conversão de fuso que mudaria o dia. */
+function diaDaFonte(valor: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor ?? "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "—";
+}
+
+/**
+ * De quando é cada parte da seção. O Diário e a Transparência PB têm datas diferentes: dizer uma só faria as despesas e os
+ * convênios parecerem mais novos do que são. Pacote anterior, sem as datas por fonte: a data única, como ele sabe dizer.
+ */
+export function notaDasFontes(dadoAte: string | null, fontes: DadoPorFonte | null): string {
+  const classificacao = 'Classificação automática dos atos: "a conferir" onde a amostra não confirmou a classe e em todo ato lido por OCR.';
+  if (!fontes) {
+    return `Atos publicados no Diário Oficial do Estado e despesas e convênios do Governo do Estado (API dados.pb.gov.br), lidos até ${diaDaFonte(dadoAte)}. ${classificacao}`;
+  }
+  return (
+    `Atos publicados no Diário Oficial do Estado lidos até ${diaDaFonte(fontes.diario_oficial)}. ` +
+    `Despesas do Governo do Estado (notas de empenho) baixadas em ${diaDaFonte(fontes.notas_empenho_baixadas_em)} e ` +
+    `convênios baixados em ${diaDaFonte(fontes.convenios_baixados_em)} (API dados.pb.gov.br). ${classificacao}`
+  );
+}
+
 export type LeituraDoeMunicipio =
   | { estado: "sem_dado" }
   | { estado: "fora_do_escopo"; dadoAte: string | null }
@@ -81,6 +109,8 @@ export type LeituraDoeMunicipio =
   | {
       estado: "ok";
       dadoAte: string | null;
+      /** A data de cada fonte, das contagens da execução. Pacote anterior a 04/11/2026: null. */
+      dadoPorFonte: DadoPorFonte | null;
       meses: MesDoe[];
       atos: AtoDoe[];
       repasses: RepasseTpb[];

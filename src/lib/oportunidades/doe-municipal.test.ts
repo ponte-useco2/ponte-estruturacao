@@ -5,6 +5,7 @@ import {
   atosPorClasse,
   avisoDespesaLocal,
   despesaLocalPorAno,
+  notaDasFontes,
   repassesPorAno,
   separarConvenios,
   totalConcedente,
@@ -13,6 +14,22 @@ import {
   type MesDoe,
   type RepasseTpb,
 } from "./doe-municipal.ts";
+
+test("cada fonte diz a sua data: as despesas e os convênios não vão até o dia do Diário", () => {
+  const nota = notaDasFontes("2026-11-04T00:00:00+00:00", {
+    diario_oficial: "2026-11-04",
+    notas_empenho_baixadas_em: "2026-10-29T21:04:54",
+    convenios_baixados_em: "2026-10-30T10:30:48",
+  });
+  assert.match(nota, /Diário Oficial do Estado lidos até 04\/11\/2026/);
+  assert.match(nota, /baixadas em 29\/10\/2026 e convênios baixados em 30\/10\/2026/);
+  assert.match(nota, /a conferir/);
+});
+
+test("pacote sem as datas por fonte: a data única, sem o fuso mudar o dia", () => {
+  assert.match(notaDasFontes("2026-10-29T00:00:00+00:00", null), /lidos até 29\/10\/2026\./);
+  assert.match(notaDasFontes(null, null), /lidos até —\./);
+});
 
 const mes = (m: string, classe: string, n: number): MesDoe => ({ mes: m, esfera: "municipal", classe, subclasse: "", n_atos: n, valor_max_soma: null, confianca_classe: "alta" });
 

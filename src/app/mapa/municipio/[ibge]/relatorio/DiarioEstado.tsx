@@ -14,6 +14,7 @@ import {
   avisoDespesaLocal,
   despesaLocalPorAno,
   IBGE_CAPITAL,
+  notaDasFontes,
   repassesPorAno,
   separarConvenios,
   totalConcedente,
@@ -21,7 +22,6 @@ import {
   type ConvenioTpb,
   type LeituraDoeMunicipio,
 } from "@/lib/oportunidades/doe-municipal";
-import { dataBrasilia } from "@/lib/oportunidades/datas";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 import type { ReactNode } from "react";
@@ -115,7 +115,7 @@ export function DiarioEstadoDoMunicipio({ leitura, ibge, municipio }: { leitura:
     <Secao
       id="rel-doe"
       titulo={titulo}
-      nota={`Atos publicados no Diário Oficial do Estado e despesas e convênios do Governo do Estado (API dados.pb.gov.br), lidos até ${leitura.dadoAte ? dataBrasilia(leitura.dadoAte) : "—"}. Classificação automática dos atos: "a conferir" onde a amostra não confirmou a classe e em todo ato lido por OCR.`}
+      nota={notaDasFontes(leitura.dadoAte, leitura.dadoPorFonte)}
     >
       <div className="mp-rel-sub">
         <h3 id="rel-doe-atos" className="mp-rel-h3">

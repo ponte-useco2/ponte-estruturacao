@@ -7,7 +7,7 @@
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import { criarMemoria } from "./memoria";
-import { ATOS_NA_LISTA, type AtoDoe, type ConvenioTpb, type DespesaLocalTpb, type LeituraDoeMunicipio, type MesDoe, type RepasseTpb } from "./doe-municipal";
+import { ATOS_NA_LISTA, type AtoDoe, type ConvenioTpb, type DadoPorFonte, type DespesaLocalTpb, type LeituraDoeMunicipio, type MesDoe, type RepasseTpb } from "./doe-municipal";
 
 const memoria = criarMemoria<LeituraDoeMunicipio>({ validadeMs: 10 * 60 * 1000, maximo: 50, guardar: (l) => l.estado === "ok" || l.estado === "fora_do_escopo" });
 const LIMITE = 5000;
@@ -31,7 +31,9 @@ const num = (x: unknown) => (x === null || x === undefined ? null : Number(x));
 async function lerDoBanco(ibge: string): Promise<LeituraDoeMunicipio> {
   if (!authConfigurada()) return { estado: "sem_dado" };
   const db = clienteServidor();
-  const ex = (await db.rpc("doe_ultima_execucao").select("id,dado_ate,escopo").limit(1)) as Resposta<{ id: number; dado_ate: string | null; escopo: string[] | null }[]>;
+  const ex = (await db.rpc("doe_ultima_execucao").select("id,dado_ate,escopo,contagens").limit(1)) as Resposta<
+    { id: number; dado_ate: string | null; escopo: string[] | null; contagens: { dado_por_fonte?: DadoPorFonte } | null }[]
+  >;
   const f0 = falhou("execução", ex);
   if (f0) return f0;
   const e = (ex.data ?? [])[0];
@@ -69,7 +71,8 @@ async function lerDoBanco(ibge: string): Promise<LeituraDoeMunicipio> {
   return {
     estado: "ok",
     dadoAte: e.dado_ate,
-    meses: (meses.data ?? []).map((m) => ({ ...m, n_atos: Number(m.n_atos) || 0, valor_max_soma: num(m.valor_max_soma) }) as MesDoe),
+    dadoPorFonte: e.contagens?.dado_por_fonte ?? null,
+    meses:(meses.data ?? []).map((m) => ({ ...m, n_atos: Number(m.n_atos) || 0, valor_max_soma: num(m.valor_max_soma) }) as MesDoe),
     atos: (atos.data ?? []).map((a) => ({ ...a, valor_max: num(a.valor_max), cnpjs: (a.cnpjs as string[] | null) ?? [] }) as AtoDoe),
     repasses: (repasses.data ?? []).map((r) => ({ ...r, pago: num(r.pago), empenhado: num(r.empenhado) }) as RepasseTpb),
     despesaLocal: (locais.data ?? []).map((r) => ({ ...r, pago: num(r.pago), empenhado: num(r.empenhado) }) as DespesaLocalTpb),
