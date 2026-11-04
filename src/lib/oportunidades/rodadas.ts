@@ -210,6 +210,9 @@ export const FOLGA_OBRAS_H = ATRASO_GITHUB_H + 24 + 1;
  */
 export const FOLGA_RETOMADA_H = ATRASO_GITHUB_H + 24 + 3 + 1;
 
+/** A folga da rede de atores (N1, 04/11/2026): toda segunda no runner da máquina do titular; a conta é a das obras de creche. */
+export const FOLGA_REDE_H = ATRASO_GITHUB_H + 24 + 1;
+
 /**
  * A folga do radar (com o Pix em curso, o painel e o TCE-PB) desde 27/10/2026, no runner da máquina do titular: o
  * painel leva ~57 min lá (no GitHub, ~11), e o `radar-propostas.yml` passou a ter 3 h de tempo-limite. A conta é a da
@@ -938,6 +941,27 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
     avisos: (c) =>
       seMaior(numero(c, "ret_fichas_com_falha"), (x) =>
         `${plural(x, "ficha não lida", "fichas não lidas")} no FNDE: ${x === 1 ? "essa obra saiu" : "essas obras saíram"} do retrato da semana`),
+  },
+  {
+    // Rede de atores de inovação da PB (N1, 04/11/2026): os TED da API aberta e os convênios e emendas do painel, para a lista
+    // curada, lidos do runner da máquina do titular, toda segunda.
+    id: "rede",
+    nome: "Rede de atores de inovação",
+    tabela: "rede_execucao",
+    recorte: null,
+    cadencia: "semanal",
+    workflow: "rede-atores.yml",
+    cron: "0 5 * * 1",
+    folgaH: FOLGA_REDE_H,
+    // A API informa a data dela, guardada nas contagens; aqui vale o instante da leitura, como nas outras consultas.
+    dado: dadoDaConsulta("leitura da API de TED"),
+    linhas: (c) => numero(c, "rede_arestas"),
+    rotuloLinhas: "ligações",
+    // A rodada com falha não publica: sem falha parcial.
+    falhas: semFalhas,
+    avisos: (c) =>
+      seMaior(numero(c, "rede_atores_a_revisar"), (x) =>
+        `${plural(x, "ator a revisar", "atores a revisar")} na lista curada`),
   },
   {
     id: "mun",

@@ -25,7 +25,7 @@
  * emendas (onda 14, integração, 12/10/2026): 15 linhas, 40 consultas e 8 chamadas. Com as emendas estaduais (E1,
  * 16/10/2026): 16 linhas, 43 consultas e 9 chamadas. Com as de João Pessoa (J1, 16/10/2026): 17 linhas, 46 consultas
  * e 10 chamadas. Com o FNAS (primeira infância, 22/10/2026): 18 linhas, 49 consultas e 11 chamadas. Com as obras de
- * creche (P0.4, 27/10/2026): 19 linhas, 52 consultas e 12 chamadas. Com o Pacto de Retomada (R1, 04/11/2026): 20 linhas, 55 consultas e 13 chamadas.
+ * creche (P0.4, 27/10/2026): 19 linhas, 52 consultas e 12 chamadas. Com o Pacto de Retomada (R1, 04/11/2026): 20 linhas, 55 consultas e 13 chamadas. Com a rede de atores (N1, 04/11/2026): 21 linhas, 58 consultas e 14 chamadas.
  */
 import { authConfigurada, clienteServidor } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
