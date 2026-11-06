@@ -22,7 +22,8 @@ import { EXPLICA_CLASSE, ROTULO_CLASSE, ROTULO_QUEM } from "@/lib/oportunidades/
 import { citacoesDosBlocos, rotuloRegic, type BlocoIndicadores, type IndicadorLido, type LeituraIndicadores } from "@/lib/oportunidades/indicadores-municipio";
 import { ROTULO_DECISAO, urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import type { SlugTermo } from "@/lib/oportunidades/glossario";
-import { PODE, destinoConvenio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, destinoConvenio, urlMunicipio, type NivelAcesso } from "@/lib/oportunidades/pagina-municipio";
+import { COLUNAS_RETOMADA, ORDEM_RETOMADA, TABELA_RETOMADA, valoresDaObraRetomada } from "@/lib/oportunidades/retomada";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
 import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
 import type { LeituraFederalPorAno } from "@/lib/oportunidades/lado-a-lado";
@@ -698,6 +699,68 @@ export function BlocoControle({ r, destino }: { r: Relatorio; destino: Destino }
   );
 }
 
+/**
+ * As obras da educação no Pacto de Retomada (R2, 05/11/2026): a lista, o dinheiro e os pontos para olhar. Cadastrado e
+ * acima (a fonte está fora da lista branca do público). O saldo soma uma vez por processo; a empresa não aparece.
+ */
+export function BlocoRetomada({ r, destino }: { r: Relatorio; destino: Destino }) {
+  const s = r.retomada;
+  if (!s) return null;
+  const achados = dimensao(r, "obras");
+  const quem = r.escopo === "entidade" ? "deste CNPJ" : "do município";
+  return (
+    <Secao
+      id="rel-retomada"
+      titulo="Obras da educação no Pacto de Retomada (FNDE)"
+      nota={`Plataforma Antonieta de Barros do FNDE, rodada de ${data(s.referencia)}. Escolas, creches e quadras ${quem} no Pacto Nacional pela Retomada de Obras (Lei 14.719/2023).`}
+    >
+      {s.obras.length ? (
+        <>
+          <p>
+            {n(s.obras.length)} {s.obras.length === 1 ? "obra" : "obras"}: {s.porSituacao.map((x) => `${x.situacao.toLowerCase()} ${n(x.obras)}`).join(" · ")}.
+            {s.pactuado !== null ? ` Pactuado ${moedaCurta(s.pactuado)}` : ""}
+            {s.repassado !== null ? `, repassado ${moedaCurta(s.repassado)}.` : s.pactuado !== null ? "." : ""}{" "}
+            {s.processos.length
+              ? `Saldo em conta: ${moedaCurta(s.saldo)} em ${n(s.processos.length)} ${s.processos.length === 1 ? "processo" : "processos"}, pelo último extrato de cada um (o saldo é do processo e soma uma vez, mesmo com várias obras).`
+              : "Nenhum processo com saldo em conta acima de R$ 1.000."}
+            {s.desvinculadas ? ` ${n(s.desvinculadas)} ${s.desvinculadas === 1 ? "obra saiu do pacto e segue" : "obras saíram do pacto e seguem"} na lista.` : ""}
+          </p>
+          <TabelaFiltravel
+            id={TABELA_RETOMADA}
+            rotulo="Obras do Pacto de Retomada"
+            colunas={COLUNAS_RETOMADA}
+            linhas={s.obras.map(
+              (o): LinhaTabela => ({
+                chave: String(o.obrid),
+                valores: valoresDaObraRetomada(o),
+                celulas: {
+                  executado: o.pct_executado !== null ? `${o.pct_executado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "—",
+                  pactuado: o.valor_pactuado !== null ? moedaCurta(o.valor_pactuado) : "—",
+                  repassado: o.valor_repassado !== null ? moedaCurta(o.valor_repassado) : "—",
+                  vigencia: data(o.termo_vigencia),
+                  vistoria: o.dt_vistoria ? data(o.dt_vistoria) : "não registrada",
+                },
+              }),
+            )}
+            ordemPadrao={ORDEM_RETOMADA}
+            csv={{ nome: `pacto-retomada-${trechoDoArquivo(r.nome)}` }}
+            empilhar
+          />
+        </>
+      ) : (
+        <p>Nenhuma obra {quem} no pacto nesta rodada.</p>
+      )}
+      <ListaAchados achados={achados} destino={destino} />
+      {r.escopo !== "entidade" && (
+        <p className="pa-nota">
+          As obras de creche no Obrasgov estão na aba <LinkMapa href={urlMunicipio(r.ibge, "primeira-infancia")}>Primeira infância</LinkMapa>. As duas fontes ficam
+          lado a lado e não se somam: não há chave comum obra a obra.
+        </p>
+      )}
+    </Secao>
+  );
+}
+
 export function BlocoPropostas({ r, destino }: { r: Relatorio; destino: Destino }) {
   const p = r.propostas;
   if (!p) return null;
@@ -1004,6 +1067,7 @@ export function RelatorioConteudo({
       <BlocoFiscal r={r} destino={destino} />
       <BlocoConvenios r={r} destino={destino} nivel={nivel} />
       <BlocoControle r={r} destino={destino} />
+      <BlocoRetomada r={r} destino={destino} />
       <BlocoPropostas r={r} destino={destino} />
       <BlocoEmendas r={r} nivel={nivel} />
       {PODE.interno(nivel) && assembleia !== undefined && (

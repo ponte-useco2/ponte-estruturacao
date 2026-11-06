@@ -188,13 +188,27 @@ const entradaCompleta = (): EntradaRelatorio => ({
     inidoneos: [],
   },
   janelas: { elegiveis: 3, urgentes: [] },
+  // R2 (05/11/2026): uma obra cancelada com saldo recente no processo, que vira ponto alto de "obras".
+  retomada: {
+    referencia: "2026-09-30",
+    obras: [
+      {
+        obrid: 1, ibge: "2510808", municipio: "Patos", nome: "Quadra coberta", ente_cnpj: "09084815000170", ente_nome: "PREFEITURA",
+        situacao_obra: "Obra Cancelada", situacao_cadastro: "Obra Cancelada", situacao_pedido: "Deferido", situacao_repactuacao: "Obra aprovada",
+        vez_util: null, dt_ultimo_passo: "2025-01-01", n_diligencias: 0, termo: "T1", termo_vigencia: "2027-01-01", termo_situacao: "Vigente",
+        tipo_projeto: "Quadra", valor_pactuado: 1_000_000, valor_repassado: 400_000, dt_ultimo_repasse: "2024-01-01", saldo_processo: 90_000,
+        saldo_data: "2026-09-25", saldo_banco: "Banco do Brasil", processo: "P1", processo_cnpj: "09084815000170", pct_executado: 10,
+        dt_vistoria: "2026-01-01", dt_os: null, dt_inicio_execucao: null,
+      },
+    ],
+  },
   faltas: [],
 });
 
 /** Os campos do `Relatorio` em 09/10/2026. Campo novo faz este teste falhar: decida se o público o vê (`relatorioDoPublico`). */
 const CAMPOS_DO_RELATORIO = [
   "achados", "cartoes", "controle", "convenios", "destaques", "emDia", "emendas", "escopo", "faltas", "fiscal", "fontes", "fornecedores", "hoje",
-  "ibge", "indicadores", "janelas", "nome", "passos", "pix", "propostas", "tcePb", "versao",
+  "ibge", "indicadores", "janelas", "nome", "passos", "pix", "propostas", "retomada", "tcePb", "versao",
 ];
 
 test("C4a: o recorte do público tira do dado o fiscal, o controle, o TCE-PB, os fornecedores, o Pix e a análise (B2 e B3 da R3)", () => {
@@ -202,8 +216,8 @@ test("C4a: o recorte do público tira do dado o fiscal, o controle, o TCE-PB, os
   // a entrada tem mesmo o que o público não pode ver (senão o teste não prova nada)
   const rotulos = inteiro.cartoes.map((c) => c.rotulo);
   for (const r of ["Pessoal / RCL ajustada", "CAUC", "Tomadas de contas especiais (TCU)", "Convênios em execução"]) assert.ok(rotulos.includes(r), r);
-  for (const d of ["fiscal", "controle", "pix", "fornecedores", "convenios"]) assert.ok(inteiro.achados.some((a) => a.dimensao === d), `achado de ${d}`);
-  assert.ok(inteiro.fiscal && inteiro.controle && inteiro.pix && inteiro.fornecedores);
+  for (const d of ["fiscal", "controle", "pix", "fornecedores", "convenios", "obras"]) assert.ok(inteiro.achados.some((a) => a.dimensao === d), `achado de ${d}`);
+  assert.ok(inteiro.fiscal && inteiro.controle && inteiro.pix && inteiro.fornecedores && inteiro.retomada?.obras.length);
   assert.ok(inteiro.convenios && inteiro.convenios.liminar.length + inteiro.convenios.contasAtrasadas.length + inteiro.convenios.contasNegativas.length > 0);
 
   const p = relatorioDoPublico(inteiro);
@@ -216,6 +230,7 @@ test("C4a: o recorte do público tira do dado o fiscal, o controle, o TCE-PB, os
   assert.equal(p.pix, null);
   assert.equal(p.tcePb, null);
   assert.equal(p.fornecedores, null);
+  assert.equal(p.retomada, null, "o Pacto de Retomada é do cadastro em diante");
   assert.deepEqual(p.passos, []);
   // dos convênios fica a situação (a tabela por grupo e os em execução); sai a análise
   assert.deepEqual(p.convenios?.porGrupo, inteiro.convenios?.porGrupo);

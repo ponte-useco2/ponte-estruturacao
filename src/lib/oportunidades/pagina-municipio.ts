@@ -227,6 +227,8 @@ export function relatorioDoPublico(r: Relatorio): Relatorio {
     pix: null,
     tcePb: null,
     fornecedores: null,
+    // O Pacto de Retomada (R2, 05/11/2026) é do cadastro em diante (decisão do titular de 01/11/2026).
+    retomada: null,
     convenios: r.convenios && {
       ...r.convenios,
       vigenciaVencida: [],

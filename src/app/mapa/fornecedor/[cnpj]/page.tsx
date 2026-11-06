@@ -6,6 +6,7 @@ import { lerTceDoFornecedor } from "@/lib/oportunidades/tce.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../busca/BuscaConteudo";
 import { FornecedorConteudo } from "./FornecedorConteudo";
+import { RetomadaDoFornecedor } from "./RetomadaDoFornecedor";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 
 export const metadata: Metadata = {
@@ -39,6 +40,7 @@ export default async function FornecedorPage({ params }: { params: Promise<{ cnp
           <p className="pa-nota">
             <LinkMapa href={`/mapa/fornecedores?q=${encodeURIComponent(cnpj)}`}>Procurar este CNPJ na lista de fornecedores</LinkMapa>
           </p>
+          <RetomadaDoFornecedor cnpj={cnpj} />
         </div>
       </div>
     );
@@ -54,5 +56,12 @@ export default async function FornecedorPage({ params }: { params: Promise<{ cnp
       />
     );
   }
-  return <FornecedorConteudo leitura={leitura} tce={tce} />;
+  return (
+    <>
+      <FornecedorConteudo leitura={leitura} tce={tce} />
+      <div className="pa-pagina">
+        <RetomadaDoFornecedor cnpj={cnpj} />
+      </div>
+    </>
+  );
 }

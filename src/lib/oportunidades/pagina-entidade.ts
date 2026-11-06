@@ -451,6 +451,8 @@ export function fontesDaEntidade(
     if (f.fonte.startsWith("Indicadores do município")) return false;
     if (f.fonte.startsWith("Painel fiscal")) return ehMunicipal(o.especie);
     if (f.fonte.startsWith("TCE-PB")) return o.especie === "prefeitura";
+    // O Pacto de Retomada (R2) é do ente municipal que assinou o termo com o FNDE.
+    if (f.fonte.startsWith("Plataforma Antonieta")) return ehMunicipal(o.especie);
     return true;
   };
   return [

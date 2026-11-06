@@ -74,6 +74,7 @@ import { Trilha } from "../../_componentes/Trilha";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
   BlocoControle,
+  BlocoRetomada,
   BlocoConvenios,
   BlocoEmendas,
   BlocoFila,
@@ -668,7 +669,12 @@ export function EntidadeConteudo({
         </>
       )}
 
-      {aba === "controle" && <BlocoControle r={r} destino={destino} />}
+      {aba === "controle" && (
+        <>
+          <BlocoControle r={r} destino={destino} />
+          <BlocoRetomada r={r} destino={destino} />
+        </>
+      )}
 
       {/*
         C1c (08/10/2026; B11, 9.5): a aba fica curta, como a do município. Antes ela repetia a página inteira dentro da

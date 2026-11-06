@@ -86,6 +86,7 @@ import { Trilha } from "../../_componentes/Trilha";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { Secao } from "../../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { LinkMapa } from "../../_componentes/LinkMapa";
+import { RetomadaDoTerritorio } from "../../_componentes/RetomadaDoTerritorio";
 import { TabelaRolagem } from "../../_componentes/TabelaRolagem";
 
 const n = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("pt-BR"));
@@ -772,6 +773,7 @@ export function Dinheiro({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso }) {
           </TabelaRolagem>
         </Secao>
       )}
+      {nivel >= 1 && <RetomadaDoTerritorio uf={l.sigla} />}
     </>
   );
 }

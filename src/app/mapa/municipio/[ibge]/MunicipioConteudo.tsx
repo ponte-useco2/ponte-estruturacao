@@ -48,6 +48,7 @@ import { QuemRecebe } from "./QuemRecebe";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import {
   BlocoControle,
+  BlocoRetomada,
   BlocoConvenios,
   BlocoEmendas,
   BlocoFila,
@@ -374,6 +375,7 @@ export function MunicipioConteudo({
       {aba === "controle" && (
         <>
           <BlocoControle r={r} destino={destino} />
+          <BlocoRetomada r={r} destino={destino} />
           <BlocoTramita />
           {PODE.interno(nivel) && (
             <Mais>

@@ -73,6 +73,7 @@ import { MUNICIPIOS_PB } from "./municipios-pb";
 import { todas } from "./padroes.server";
 import type { PlanoFundo } from "./pix";
 import type { PlanoCicloPix } from "./pix-ciclo";
+import { COLUNAS_OBRA_RETOMADA, type ObraRetomada } from "./retomada";
 import { lerLaudoEntePix } from "./pix-laudo.server";
 import {
   COLUNAS_INSTRUMENTO,
@@ -185,6 +186,29 @@ async function lerFundo(db: Banco, chave: Chave, faltas: string[]): Promise<Plan
   return paginas<PlanoFundo>(faltas, nome, (a, b) =>
     db.from("pix_fundo_plano").select("*").eq("execucao_id", ex.id).eq(chave.campo, chave.valor).order("id_plano_acao").range(a, b),
   );
+}
+
+/**
+ * As obras do Pacto de Retomada (oport_63, R2 de 05/11/2026): as do município (esfera municipal, pelo IBGE) ou as do
+ * CNPJ do ente. Sem a migração ou sem rodada, null sem falta. A empresa contratada não vem (só o administrador a vê, no
+ * dossiê do fornecedor).
+ */
+async function lerRetomada(db: Banco, chave: { ibge: string } | { cnpj: string }, faltas: string[]): Promise<EntradaRelatorio["retomada"]> {
+  const nome = "Pacto de Retomada";
+  const ex = await execucao(db, "ret_ultima_execucao", faltas, nome);
+  if (!ex) return null;
+  const obras = await paginas<ObraRetomada>(faltas, nome, (a, b) => {
+    const q = db.from("ret_obra").select(COLUNAS_OBRA_RETOMADA).eq("execucao_id", ex.id);
+    return ("ibge" in chave ? q.eq("ibge", chave.ibge).eq("esfera", "Municipal") : q.eq("ente_cnpj", chave.cnpj)).order("obrid").range(a, b);
+  });
+  if (!obras) return null;
+  return { obras: obras.map(numerosDaObra), referencia: (ex.dado_ate ?? ex.referencia ?? null)?.slice(0, 10) ?? null };
+}
+
+/** O PostgREST devolve `numeric` como texto: os valores voltam a número, e o nulo fica nulo. */
+function numerosDaObra(o: ObraRetomada): ObraRetomada {
+  const n = (x: unknown) => (x === null || x === undefined || x === "" ? null : Number(x));
+  return { ...o, valor_pactuado: n(o.valor_pactuado), valor_repassado: n(o.valor_repassado), saldo_processo: n(o.saldo_processo), pct_executado: n(o.pct_executado), n_diligencias: Number(o.n_diligencias) || 0 };
 }
 
 /** Camada 2: a última execução do job `municipios/`. Sem a `oport_27` ou sem execução, null sem falta. */
@@ -314,7 +338,7 @@ async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRela
   const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
-  const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo, indicadores, pixCiclo] = await Promise.all([
+  const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo, indicadores, pixCiclo, retomada] = await Promise.all([
     le("fiscal") ? lerFiscalMunicipio(ibge) : NADA,
     le("convenios")
       ? paginas<InstrumentoRelatorio & { municipio: string | null }>(faltas, "convênios", (a, b) =>
@@ -334,6 +358,7 @@ async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRela
     le("fundo") ? lerFundo(db, { campo: "cod_ibge", valor: ibge }, faltas) : NADA,
     le("indicadores") ? lerIndicadores(db, ibge, faltas) : NADA,
     le("pix_ciclo") ? lerCiclo(db, { campo: "cod_ibge", valor: ibge }, faltas) : NADA,
+    le("retomada") ? lerRetomada(db, { ibge }, faltas) : NADA,
   ]);
 
   // O nome com acento vem do fiscal. A leitura pública não lê o fiscal: vai à lista fixa dos 223, que dá o mesmo nome.
@@ -382,6 +407,7 @@ async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRela
     fornecedores: fornecedores?.estado === "ok" ? { concentracao: fornecedores.concentracao, inidoneos: fornecedores.inidoneos } : null,
     janelas,
     indicadores,
+    retomada,
     faltas,
   };
   // Com todas as fontes, `entradaDasFontes` devolve a entrada como está; com as do público, zera o que não foi lido.
@@ -563,7 +589,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
   const prefeitura = ent.especie === "prefeitura" && !!ibge;
   const numeros = (instrumentos ?? []).map((i) => i.nr_convenio);
 
-  const [fiscal, tcu, pix, tce, fundo, pixCiclo, emendas, contasObras, fornecedores] = await Promise.all([
+  const [fiscal, tcu, pix, tce, fundo, pixCiclo, emendas, contasObras, fornecedores, retomada] = await Promise.all([
     municipal && le("fiscal") ? lerFiscalMunicipio(ibge as string) : NADA,
     numeros.length && le("tcu") ? lerTcu(db, { numeros }, faltas) : NADA,
     le("pix") ? lerLaudoEntePix({ tipo: "cnpj", valor: cnpj }) : NADA,
@@ -579,6 +605,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
         : Promise.resolve([] as EmendaRelatorio[]),
     numeros.length && le("contas_obras") ? lerContasObrasDosConvenios(db, numeros, faltas) : Promise.resolve(undefined),
     le("fornecedores") ? lerInidoneosDosConvenios(db, ex.id, numeros, faltas) : NADA,
+    le("retomada") ? lerRetomada(db, { cnpj }, faltas) : NADA,
   ]);
 
   if (fiscal && fiscal.estado !== "ok" && fiscal.estado !== "nao_encontrado") faltas.push("painel fiscal");
@@ -605,6 +632,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
     fornecedores,
     janelas: null,
     indicadores: null,
+    retomada,
     escopo: "entidade",
     areaExcetuada: areaExcetuadaDe(ent.nome, ent.especie),
     faltas,

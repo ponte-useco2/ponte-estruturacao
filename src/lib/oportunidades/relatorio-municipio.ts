@@ -43,6 +43,7 @@ import { marcasPix, resumirConciliacao, type TceFederalMunicipio, type TcePixMun
 import { riscoTceTcu, type ConsultaTcu, type TceTcu } from "./tce-tcu.ts";
 import { tituloOrgao } from "./padroes.ts";
 import { DIAS_PARADO_LONGO, ehCreche } from "./primeira-infancia.ts";
+import { pontosRetomada, secaoRetomada, VERSAO_REGRAS_RETOMADA, type ObraRetomada, type SecaoRetomada } from "./retomada.ts";
 import type { ColunaTabela, Ordem, ValorCelula } from "./tabela-filtro.ts";
 
 export const VERSAO_RELATORIO = "2026-10-01.2";
@@ -154,6 +155,8 @@ export interface EntradaRelatorio {
   janelas: { elegiveis: number; urgentes: JanelaRelatorio[] } | null;
   /** Camada 2: a última execução do job `municipios/`; null sem a migração ou sem execução. */
   indicadores?: EntradaIndicadores | null;
+  /** Obras do Pacto de Retomada (oport_63, R2 de 05/11/2026): as do município ou do CNPJ; null sem leitura. */
+  retomada?: { obras: ObraRetomada[]; referencia: string | null } | null;
   /** O relatório de um município (prefeitura e fundos) ou de uma entidade, um CNPJ só (página da entidade, E1). */
   escopo?: "municipio" | "entidade";
   /**
@@ -166,12 +169,13 @@ export interface EntradaRelatorio {
 
 // ================================================================ saída
 
-export type Dimensao = "fiscal" | "convenios" | "controle" | "propostas" | "pix" | "tce_pb" | "fornecedores" | "social" | "economia" | "territorio" | "governanca";
+export type Dimensao = "fiscal" | "convenios" | "controle" | "obras" | "propostas" | "pix" | "tce_pb" | "fornecedores" | "social" | "economia" | "territorio" | "governanca";
 
 export const ROTULO_DIMENSAO: Record<Dimensao, string> = {
   fiscal: "Capacidade fiscal",
   convenios: "Convênios",
   controle: "Controle e prestação de contas",
+  obras: "Obras da educação (Pacto de Retomada)",
   propostas: "Propostas",
   pix: "Pix e fundo a fundo",
   tce_pb: "TCE-PB",
@@ -268,6 +272,8 @@ export interface Relatorio {
   janelas: EntradaRelatorio["janelas"];
   /** Camada 2: o município, social, economia, território e governança. */
   indicadores: LeituraIndicadores | null;
+  /** As obras do Pacto de Retomada (R2); ausente no relatório montado antes de 05/11/2026. */
+  retomada?: SecaoRetomada | null;
   fontes: { fonte: string; data: string | null; nota: string }[];
   faltas: string[];
 }
@@ -1249,6 +1255,11 @@ function achadosIndicadores(l: LeituraIndicadores): Achado[] {
 // ================================================================ montagem
 
 /** Os quatro números do topo, como no relatório de Patos. */
+/** Os pontos do Pacto de Retomada (`retomada.ts`) como achados da dimensão "obras". */
+function achadosRetomada(s: SecaoRetomada, hoje: string): Achado[] {
+  return pontosRetomada(s, hoje).map((p) => ({ ...p, dimensao: "obras" as const }));
+}
+
 function cartoes(r: Pick<Relatorio, "fiscal" | "convenios" | "controle">, e: EntradaRelatorio): Cartao[] {
   const c: Cartao[] = [];
   const f = r.fiscal;
@@ -1353,6 +1364,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     : null;
   const comTce = new Set((controle?.tces ?? []).map((t) => t.nr_convenio));
   const indicadores = e.indicadores ? lerIndicadores(e.indicadores) : null;
+  const retomada = e.retomada ? secaoRetomada(e.retomada.obras, e.retomada.referencia, hoje) : null;
 
   const achados = [
     ...(fiscal ? achadosFiscais(fiscal) : []),
@@ -1362,6 +1374,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     ...(pix ? achadosPix(pix) : []),
     ...(fornecedores ? achadosFornecedores(fornecedores) : []),
     ...(indicadores ? achadosIndicadores(indicadores) : []),
+    ...(retomada ? achadosRetomada(retomada, hoje) : []),
   ]
     .map((a) => (e.escopo === "entidade" ? paraEntidade(a, e.areaExcetuada ?? null) : a))
     .sort(ordenar);
@@ -1403,6 +1416,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     fornecedores,
     janelas: e.janelas,
     indicadores,
+    retomada,
     fontes: [
       { fonte: "Painel fiscal (Siconfi, CAUC, SIOPE, SIOPS, SADIPEM)", data: e.fiscal?.referencia ?? null, nota: "RGF do Executivo; série desde 2021 na evidência da despesa com pessoal." },
       { fonte: "SICONV / Transferegov (arquivos abertos)", data: e.referenciaPainel, nota: "Convênios, propostas, emendas e os pontos da Portaria Conjunta 33/2023." },
@@ -1410,6 +1424,11 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
       { fonte: "Acesso Livre do Transferegov", data: null, nota: "Prestação de contas e obras, só nos convênios das coletas." },
       { fonte: "API das transferências especiais e do fundo a fundo", data: null, nota: "Laudo do Pix pelo roteiro da IN-TCU 93/2024." },
       { fonte: "TCE-PB (despesas abertas)", data: null, nota: "Pix na despesa do município e conciliação com o SICONV." },
+      {
+        fonte: "Plataforma Antonieta de Barros (FNDE)",
+        data: e.retomada?.referencia ?? null,
+        nota: `Obras da educação no Pacto Nacional pela Retomada de Obras (Lei 14.719/2023). O saldo em conta é do processo e soma uma vez por processo. Regras ${VERSAO_REGRAS_RETOMADA}.`,
+      },
       {
         // Onda 9, D (09/10/2026): o MapBiomas (cobertura da terra, onda 8) faltava na lista; a citação dele fecha a tabela do Território.
         fonte: "Indicadores do município (IBGE, Ministério da Saúde, INEP, MDS, MJSP, MTE, Ministério das Cidades, MIDR, ANA, Anatel, Senatran, Atricon, TCE-PB e MapBiomas)",
@@ -1527,7 +1546,8 @@ export type FonteRelatorio =
   | "pix_ciclo"
   | "fundo"
   | "tce_pb"
-  | "fornecedores";
+  | "fornecedores"
+  | "retomada";
 
 export const FONTES_RELATORIO: readonly FonteRelatorio[] = [
   "convenios",
@@ -1543,6 +1563,7 @@ export const FONTES_RELATORIO: readonly FonteRelatorio[] = [
   "fundo",
   "tce_pb",
   "fornecedores",
+  "retomada",
 ];
 
 /**
@@ -1584,6 +1605,7 @@ const FONTE_DO_CAMPO: Record<Exclude<keyof EntradaRelatorio, CampoFixo>, FonteRe
   fornecedores: "fornecedores",
   janelas: "janelas",
   indicadores: "indicadores",
+  retomada: "retomada",
 };
 
 /** O nome que cada fonte põe em `faltas` quando a leitura cai (os do servidor e os de `contas-obras.server.ts`). */
@@ -1601,6 +1623,7 @@ export const FALTAS_DA_FONTE: Record<FonteRelatorio, readonly string[]> = {
   fundo: ["fundo a fundo"],
   tce_pb: ["TCE-PB"],
   fornecedores: ["fornecedores"],
+  retomada: ["Pacto de Retomada"],
 };
 
 /**
