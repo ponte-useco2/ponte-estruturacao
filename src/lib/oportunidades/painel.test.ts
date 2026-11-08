@@ -110,6 +110,8 @@ test("mudanças: a frase de cada tipo", () => {
   assert.equal(d("proposta_enviada", null, "aberta_concedente"), "Em análise no concedente");
   assert.equal(d("primeiro_desembolso", null, null), "");
   assert.equal(d("convenio_novo", null, "Em execução"), "Em execução");
+  // 08/11/2026: a nota da reclassificação vem inteira do job, no `depois`.
+  assert.equal(d("regra_reclassificada", "Em execução", "regra de 08/11/2026: nada mudou no convênio"), "regra de 08/11/2026: nada mudou no convênio");
 });
 
 test("movimentação: só nas visões de convênio, valor fora da lista cai fora, e segue na URL", () => {

@@ -384,8 +384,22 @@ test("execução: sem movimento há mais de um ano e dinheiro na frente da obra"
   const parado = d.riscos.find((r) => r.titulo === "Sem movimento financeiro há mais de um ano");
   assert.ok(parado);
   assert.match(parado.fato, /15\/01\/2025, há 621 dias\. Há R\$ 120 mil em conta\./);
-  assert.ok(d.riscos.some((r) => r.titulo === "Dinheiro na frente da obra"));
+  const frente = d.riscos.find((r) => r.titulo === "Desembolso elevado com baixo avanço físico registrado");
+  assert.ok(frente);
+  assert.match(frente.fato, /primeiro desembolso foi em 01\/03\/2023.*registro físico pode estar defasado/);
   assert.match(d.frase, /90% do repasse desembolsado; último pagamento em 15\/01\/2025/);
+});
+
+test("execução: o físico × financeiro só vale com o primeiro desembolso há 180 dias ou mais (08/11/2026)", () => {
+  // HOJE é 2026-09-28: 180 dias antes é 2026-04-01 (marca); 179 dias antes, 2026-04-02 (não marca).
+  const caso = (primeiro: string) =>
+    lerDiagnostico(
+      { ...entrada962210(), instrumento: base({ vl_repasse: 1_000_000, vl_desembolsado: 1_000_000, pct_fisico: 0, dt_primeiro_desembolso: primeiro, dt_ultimo_desembolso: primeiro }), etapas: [], pares: [], carteira: [] },
+      HOJE,
+    ).riscos.some((r) => r.titulo === "Desembolso elevado com baixo avanço físico registrado");
+  assert.equal(caso("2026-04-01"), true, "180 dias: marca");
+  assert.equal(caso("2026-04-02"), false, "179 dias: não marca");
+  assert.equal(caso("2026-09-26"), false, "o 943823: 100% desembolsado anteontem e físico zero não é 'obra que não andou'");
 });
 
 test("contas: prazo vencido, vez do proponente, e município bloqueado no painel fiscal", () => {

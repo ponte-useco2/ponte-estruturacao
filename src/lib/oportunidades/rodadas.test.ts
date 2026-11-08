@@ -230,7 +230,7 @@ test("onda 9, C: a agendada que nunca concluiu está atrasada; a assistida, com 
 
 test("onda 9, C: a coleta assistida nunca fica atrasada, por velha que seja", () => {
   const velha = avaliarRodada(job("exigencia:suspensiva"), ok(concluida(18 * 24, { instrumentos: 288, instrumentos_com_erro: 0, recusados: 0 })), AGORA);
-  assert.equal(velha.estado, "em_dia");
+  assert.equal(velha.estado, "assistida");  // 08/11/2026: nem "em dia" nem atrasada
   assert.equal(velha.prazoH, null);
   assert.equal(velha.linhas, 288);
   assert.equal(velha.falhas, 0);
@@ -254,7 +254,7 @@ test("onda 9, C: o erro mais novo que a última concluída é aviso; o anterior 
   const obras = job("al:obras");
   // 02/10/2026: erro às 03h06, concluída às 03h10 (o caso real do Acesso Livre de obras).
   const historia = avaliarRodada(obras, ok(concluida(10), [aberta("erro", 11)]), AGORA);
-  assert.equal(historia.estado, "em_dia");
+  assert.equal(historia.estado, "assistida");
   assert.deepEqual(historia.avisos, []);
   const novo = avaliarRodada(job("painel"), ok(concluida(10), [aberta("erro", 2), aberta("erro", 3)]), AGORA);
   assert.equal(novo.estado, "com_aviso");
@@ -282,13 +282,15 @@ test("onda 9, C: a leitura que falhou diz 'não lido', e as outras seguem", () =
   assert.equal(r.concluidaEm, null);
   const linhas = [r, avaliarRodada(job("radar"), ok(concluida(1)), AGORA), avaliarRodada(job("tcu"), ok(null), AGORA)];
   // O "dado velho" entrou na contagem em 10/10/2026 (onda 11, B).
-  assert.deepEqual(contarEstados(linhas), { em_dia: 1, atrasada: 1, dado_velho: 0, com_aviso: 0, nao_lido: 1 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 1, atrasada: 1, dado_velho: 0, com_aviso: 0, nao_lido: 1, assistida: 0 });
 });
 
 test("onda 9, C: estado com palavra e marca, não só cor", () => {
-  assert.deepEqual(ROTULO_ESTADO, { em_dia: "em dia", atrasada: "atrasada", dado_velho: "dado velho", com_aviso: "com aviso", nao_lido: "não lido" });
-  assert.equal(new Set(Object.values(MARCA_ESTADO)).size, 5, "uma marca diferente para cada estado");
-  assert.equal(new Set(Object.values(TOM_ESTADO)).size, 5, "e um tom diferente");
+  assert.deepEqual(ROTULO_ESTADO, { em_dia: "em dia", atrasada: "atrasada", dado_velho: "dado velho", com_aviso: "com aviso", nao_lido: "não lido", assistida: "coleta assistida" });
+  assert.equal(new Set(Object.values(MARCA_ESTADO)).size, 6, "uma marca diferente para cada estado");
+  // A coleta assistida divide o neutro com o "não lido" (08/11/2026): nenhum dos dois é verde nem pede ação.
+  assert.equal(new Set(Object.values(TOM_ESTADO)).size, 5, "um tom por estado, menos o neutro dividido");
+  assert.equal(TOM_ESTADO.assistida, "neutro");
 });
 
 // ================================================================ as contagens de cada job (formatos reais de 09/10/2026)
@@ -791,12 +793,13 @@ test("onda 11, B: o estado de hoje, com as 14 últimas concluídas lidas pelo MC
     // O arquivo de agosto (versão 20260806) lido em outubro: o de setembro não tinha saído em 07/10/2026. Com a
     // defasagem de 2 meses (integração da onda 11), é o Ipea atrasado, e não dado velho.
     osc: "em_dia · no_prazo 2026-08-06 2",
-    "al:prestacao": "em_dia · sem_prazo 2026-10-01 0",
-    "al:obras": "em_dia · sem_prazo 2026-10-01 1",
-    "exigencia:suspensiva": "em_dia · sem_prazo 2026-09-16 5",
-    "exigencia:assinatura": "em_dia · sem_prazo 2026-09-28 0",
+    // 08/11/2026: a coleta assistida tem estado próprio, com a idade da carga, no lugar do "em dia".
+    "al:prestacao": "assistida · sem_prazo 2026-10-01 0",
+    "al:obras": "assistida · sem_prazo 2026-10-01 1",
+    "exigencia:suspensiva": "assistida · sem_prazo 2026-09-16 5",
+    "exigencia:assinatura": "assistida · sem_prazo 2026-09-28 0",
   });
-  assert.deepEqual(contarEstados(linhas), { em_dia: 13, atrasada: 7, dado_velho: 1, com_aviso: 0, nao_lido: 0 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 9, atrasada: 7, dado_velho: 1, com_aviso: 0, nao_lido: 0, assistida: 4 });
   assert.equal(textoFrescor(linhas.find((l) => l.job.id === "osc")?.dado ?? linhas[0].dado), "arquivo do Ipea de 06/08/2026, 2 meses antes da rodada (esperado: até 2 meses)");
   const emd = linhas.find((l) => l.job.id === "emd");
   assert.deepEqual([emd?.concluidaEm, emd?.idadeH, emd?.linhas, emd?.falhas, emd?.avisos], [null, null, null, null, []]);
@@ -849,7 +852,7 @@ test("onda 11, B: atrasada vence o dado velho; o dado velho vence o aviso, e os 
   assert.equal(comFalha.estado, "dado_velho");
   assert.deepEqual(comFalha.avisos, ["fonte com erro: siconfi_rreo1"]);
   assert.equal(comFalha.falhas, 1);
-  assert.deepEqual(ESTADOS, ["atrasada", "dado_velho", "com_aviso", "nao_lido", "em_dia"]);
+  assert.deepEqual(ESTADOS, ["atrasada", "dado_velho", "com_aviso", "nao_lido", "assistida", "em_dia"]);
 });
 
 test("onda 11, B: o arquivo do Transferegov — D-2 na segunda ainda no esperado, D-3 é dado velho", () => {
@@ -896,7 +899,7 @@ test("onda 11, B: TCE-PB, consultas ao vivo, Pix, ciclo e OSC", () => {
 test("onda 11, B: as coletas assistidas mostram a data, sem esperado, e nunca ficam com dado velho", () => {
   const fim = "2026-09-21T04:07:07Z";
   const r = avaliarRodada(job("exigencia:suspensiva"), comDadoAte(execucao(2, fim, fim, { instrumentos: 288 }), "2026-08-01T12:00:00+00:00"), depoisDe(fim, 1));
-  assert.deepEqual([r.estado, r.dado.situacao, r.dado.defasagem], ["em_dia", "sem_prazo", 51]);
+  assert.deepEqual([r.estado, r.dado.situacao, r.dado.defasagem], ["assistida", "sem_prazo", 51]);
   assert.equal(textoEsperado(r.dado.regra), "");
   assert.equal(textoFrescor(r.dado), "evento mais novo do retrato de 01/08/2026, 51 dias antes da rodada");
 });
@@ -1393,7 +1396,7 @@ test("onda 14, integração: a tabela que não existe (42P01, PGRST205) é 'não
 test("onda 14, integração: sem a emd_execucao, só a linha das emendas fica 'não lido', e a tela segue com as outras 20", () => {
   const ausente = leituraDasConsultas(semTabela("PGRST205"), semTabela("PGRST205"), { estado: "falha" });
   const linhas = JOBS_RODADAS.map((j) => avaliarRodada(j, j.id === "emd" ? ausente : ok(concluida(1)), AGORA));
-  assert.deepEqual(contarEstados(linhas), { em_dia: 20, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 1 });
+  assert.deepEqual(contarEstados(linhas), { em_dia: 16, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 1, assistida: 4 });
   const emd = linhas.find((l) => l.job.id === "emd");
   assert.deepEqual([emd?.estado, emd?.motivoNaoLido, emd?.dado.situacao, emd?.linhas, emd?.avisos], ["nao_lido", "ausente", "sem_execucao", null, []]);
 });

@@ -73,8 +73,12 @@ export const VISOES: DefinicaoVisao[] = [
   {
     id: "fisico",
     rotulo: "Físico × financeiro",
-    titulo: "O dinheiro saiu e a obra não andou",
-    pergunta: "Em execução, com 80% ou mais do repasse desembolsado e menos de 30% de execução física aferida.",
+    // 08/11/2026 (avaliação externa): rótulo factual. O dado não demonstra que a obra não andou: o físico pode
+    // estar defasado no registro, e o piso de 180 dias desde o primeiro desembolso evita marcar o dinheiro que acabou de sair.
+    titulo: "Desembolso elevado com baixo avanço físico registrado",
+    pergunta:
+      "Em execução, com 80% ou mais do repasse desembolsado, menos de 30% de execução física registrada e o primeiro desembolso há 180 dias ou mais. " +
+      "Sinal para conferência: o registro físico pode estar defasado, e o primeiro desembolso pode ter sido uma parcela pequena.",
   },
   {
     id: "municipios",
@@ -200,13 +204,15 @@ export const TIPOS_MUDANCA: DefinicaoMudanca[] = [
   { tipo: "contas_rejeitadas", rotulo: "Contas rejeitadas ou inadimplência", grupo: "alerta", alvo: "convenio" },
   { tipo: "tce_instaurada", rotulo: "Tomada de contas especial instaurada", grupo: "alerta", alvo: "convenio" },
   { tipo: "saldo_parado", rotulo: "Saldo completou 1 ano parado", grupo: "alerta", alvo: "convenio" },
-  { tipo: "financeiro_sem_fisico", rotulo: "Dinheiro saiu e a obra não andou", grupo: "alerta", alvo: "convenio" },
+  { tipo: "financeiro_sem_fisico", rotulo: "Desembolso elevado com baixo avanço físico registrado", grupo: "alerta", alvo: "convenio" },
   { tipo: "proposta_negada", rotulo: "Proposta reprovada, com impedimento ou eliminada", grupo: "alerta", alvo: "proposta" },
   { tipo: "proposta_complementacao", rotulo: "Proposta voltou para complementação", grupo: "alerta", alvo: "proposta" },
   { tipo: "proposta_enviada", rotulo: "Proposta enviada", grupo: "registro", alvo: "proposta" },
   { tipo: "convenio_novo", rotulo: "Convênio entrou no painel", grupo: "registro", alvo: "convenio" },
   { tipo: "convenio_encerrado", rotulo: "Convênio anulado, rescindido ou cancelado", grupo: "registro", alvo: "convenio" },
   { tipo: "saiu_acompanhamento", rotulo: "Saiu do acompanhamento", grupo: "registro", alvo: "convenio" },
+  // 08/11/2026: o convênio saiu de uma visão porque a regra mudou, não porque algo aconteceu com ele. Registro, nunca avanço.
+  { tipo: "regra_reclassificada", rotulo: "Saiu da visão por mudança de regra", grupo: "registro", alvo: "convenio" },
 ];
 
 export const ROTULO_GRUPO_MUDANCA: Record<GrupoMudanca, string> = {
@@ -295,6 +301,7 @@ export function descreverMudanca(m: Pick<MudancaPainel, "tipo" | "antes" | "depo
     case "saiu_acompanhamento":
       return m.antes || m.depois ? `${m.antes ?? "—"} → ${m.depois ?? "fora do arquivo"}` : "";
     case "convenio_novo":
+    case "regra_reclassificada":
       return m.depois ?? "";
     case "proposta_enviada":
       return desfecho(m.depois);
@@ -821,7 +828,7 @@ export const ROTULO_SINAL_CURTO: Record<Sinal, string> = {
 export const DESCRICAO_SINAL: Record<Sinal, string> = {
   saldo: "R$ 100 mil ou mais sem saída há mais de um ano",
   suspensiva: "prazo vencido ou vencendo em até 90 dias",
-  contas_atrasadas: "prazo das contas vencido, ou contas em complementação",
+  contas_atrasadas: "prazo das contas vencido, inclusive o prazo dado para a complementação",
   contas_negativas: "prestação de contas rejeitada, inadimplência ou tomada de contas especial",
   sem_desembolso: "assinado há mais de um ano, sem suspensiva e sem nenhum desembolso",
 };

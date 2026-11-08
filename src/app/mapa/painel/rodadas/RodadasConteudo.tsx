@@ -65,6 +65,7 @@ const NOTA_ESTADO: Record<EstadoRodada, string> = {
   dado_velho: "no prazo, mas com o dado mais velho que o esperado",
   com_aviso: "no prazo, mas pararam, falharam ou deixaram parte para depois",
   nao_lido: "a tabela não existe no banco ou não respondeu",
+  assistida: "coletas no navegador, sem agendamento: a idade da carga está na linha",
   em_dia: "no prazo e sem aviso",
 };
 
@@ -97,7 +98,7 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
         </p>
       </div>
 
-      {/* Cinco estados (onda 11, B): três por linha, os que pedem ação na primeira. */}
+      {/* Seis estados (onda 11, B; a coleta assistida em 08/11/2026): três por linha, os que pedem ação na primeira. */}
       <div className="pa-grade pa-grade-3 mp-painel-cartoes">
         {ESTADOS.map((e) => (
           <article key={e} className="pa-cartao">
@@ -182,20 +183,27 @@ export function RodadasConteudo({ painel }: { painel: PainelRodadas }) {
           atrasado entra no bloco do topo, que pede atenção.
         </p>
         <p className="pa-nota">
-          As coletas do Acesso Livre (prestação de contas, obras e exigências) são assistidas, conduzidas no navegador: não têm agendamento e
-          não ficam atrasadas. A idade delas está na coluna da última concluída.
+          <strong>Coleta assistida</strong>: as coletas do Acesso Livre (prestação de contas, obras e exigências) são conduzidas no navegador,
+          sem agendamento. Não ficam atrasadas, mas também não são &quot;em dia&quot;: não há cadência para medir, e uma carga de 48 dias não é dado
+          de hoje. O estado traz a idade da carga, para quem decide saber de quando é o retrato. Tentativa com erro, carga parada ou nenhuma
+          coleta concluída continuam &quot;com aviso&quot;.
         </p>
       </section>
     </div>
   );
 }
 
-function SeloEstado({ estado }: { estado: EstadoRodada }) {
+/** A coleta assistida (08/11/2026) leva a idade da carga ao lado do selo: é o que ela tem no lugar do "em dia". */
+function SeloEstado({ l }: { l: LinhaRodada }) {
+  const { estado } = l;
   return (
-    <Tag tom={TOM_ESTADO[estado]}>
-      <span aria-hidden="true">{MARCA_ESTADO[estado]} </span>
-      {ROTULO_ESTADO[estado]}
-    </Tag>
+    <>
+      <Tag tom={TOM_ESTADO[estado]}>
+        <span aria-hidden="true">{MARCA_ESTADO[estado]} </span>
+        {ROTULO_ESTADO[estado]}
+      </Tag>
+      {estado === "assistida" && l.idadeH !== null && <span className="mp-tabela-secundario">carga {haQuanto(l.idadeH)}</span>}
+    </>
   );
 }
 
@@ -299,7 +307,7 @@ function linhaJob(l: LinhaRodada): LinhaTabela {
           </span>
         </>
       ),
-      estado: <SeloEstado estado={l.estado} />,
+      estado: <SeloEstado l={l} />,
       concluida: <UltimaConcluida l={l} />,
       "dado-ate": <DadoAte l={l} />,
       cadencia: (

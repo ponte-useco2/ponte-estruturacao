@@ -111,8 +111,11 @@ export type RodadaNoResumo = Pick<LinhaRodada, "estado" | "concluidaEm" | "idade
 export type BlocoRodadas =
   /** A leitura não respondeu, ou nenhuma linha foi lida: o e-mail sai com uma nota curta no pé, no lugar do bloco. */
   | { tipo: "falhou" }
-  /** Nenhum job atrasado, com dado velho ou com aviso: uma linha só, no pé. `naoLidas`: os nomes das que não responderam. */
-  | { tipo: "em_dia"; total: number; naoLidas: string[] }
+  /**
+   * Nenhum job atrasado, com dado velho ou com aviso: uma linha só, no pé. `naoLidas`: os nomes das que não responderam.
+   * `assistidas` (08/11/2026): quantas são coletas no navegador, sem agendamento, que não são "em dia" nem "atrasadas".
+   */
+  | { tipo: "em_dia"; total: number; naoLidas: string[]; assistidas: number }
   /** Um ou mais jobs atrasados, com dado velho ou com aviso: o bloco vai no topo, um job por linha, os atrasados primeiro. */
   | { tipo: "com_problema"; total: number; problemas: RodadaNoResumo[]; naoLidas: string[] };
 
@@ -129,7 +132,7 @@ export function escolherRodadas(linhas: readonly RodadaNoResumo[] | null): Bloco
     .sort((a, b) => ESTADOS.indexOf(a.estado) - ESTADOS.indexOf(b.estado));
   return problemas.length
     ? { tipo: "com_problema", total: linhas.length, problemas, naoLidas }
-    : { tipo: "em_dia", total: linhas.length, naoLidas };
+    : { tipo: "em_dia", total: linhas.length, naoLidas, assistidas: linhas.filter((l) => l.estado === "assistida").length };
 }
 
 /** "última concluída em 07/10/2026 às 09:22, há 2 dias" (Brasília), ou "nenhuma execução concluída". */
@@ -169,12 +172,17 @@ export function fraseNaoLidas(nomes: readonly string[]): string {
   return nomes.length ? `${nomes.length === 1 ? "Não lida" : "Não lidas"} agora: ${nomes.join(", ")}.` : "";
 }
 
-/** A linha do pé: "As 15 rodadas em dia.", ou "13 de 15 rodadas em dia; 2 não lidas agora: …", ou a nota da falha. */
+/**
+ * A linha do pé: "As 15 rodadas em dia.", ou "13 de 15 rodadas em dia; 2 não lidas agora: …", ou a nota da falha. Com
+ * coletas assistidas (08/11/2026), o parêntese diz quantas são: elas não têm agendamento, e "em dia" não é delas.
+ */
 export function fraseRodadasNoPe(b: Exclude<BlocoRodadas, { tipo: "com_problema" }>): string {
   if (b.tipo === "falhou") return "A saúde das rodadas não pôde ser lida agora.";
   const k = b.naoLidas.length;
-  if (!k) return `As ${n(b.total)} rodadas em dia.`;
-  return `${n(b.total - k)} de ${n(b.total)} rodadas em dia; ${n(k)} não ${k === 1 ? "lida" : "lidas"} agora: ${b.naoLidas.join(", ")}.`;
+  const a = b.assistidas;
+  const assistidas = a ? ` (${a === 1 ? "1 delas é coleta assistida" : `${n(a)} delas são coletas assistidas`}, sem agendamento)` : "";
+  if (!k) return `As ${n(b.total)} rodadas em dia${assistidas}.`;
+  return `${n(b.total - k)} de ${n(b.total)} rodadas em dia${assistidas}; ${n(k)} não ${k === 1 ? "lida" : "lidas"} agora: ${b.naoLidas.join(", ")}.`;
 }
 
 const COR_ESTADO: Record<EstadoRodada, string> = {
@@ -183,6 +191,7 @@ const COR_ESTADO: Record<EstadoRodada, string> = {
   dado_velho: "#2d5580",
   com_aviso: "#b45309",
   nao_lido: "#475569",
+  assistida: "#475569",
   em_dia: "#047857",
 };
 

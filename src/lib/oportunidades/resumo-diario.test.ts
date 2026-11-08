@@ -173,10 +173,10 @@ test("rodadas: sem o campo, o e-mail é o de antes", () => {
 
 test("rodadas: as 21 em dia viram uma linha só, no pé, depois dos botões", () => {
   const bloco = escolherRodadas(rodadas());
-  assert.deepEqual(bloco, { tipo: "em_dia", total: 21, naoLidas: [] });
+  assert.deepEqual(bloco, { tipo: "em_dia", total: 21, naoLidas: [], assistidas: 4 });
   const r = montarResumoDiario({ ...BASE, rodadas: bloco });
-  assert.ok(r.texto.includes(`\n✓ As 21 rodadas em dia.\n  ${URL_RODADAS}\n\n—\n`), r.texto);
-  assert.match(r.html, /✓<\/span> As 21 rodadas em dia\. <a href="https:\/\/ponteprojetos\.com\.br\/mapa\/painel\/rodadas"[^>]*>Ver as rodadas<\/a>/);
+  assert.ok(r.texto.includes(`\n✓ As 21 rodadas em dia (4 delas são coletas assistidas, sem agendamento).\n  ${URL_RODADAS}\n\n—\n`), r.texto);
+  assert.match(r.html, /✓<\/span> As 21 rodadas em dia \(4 delas são coletas assistidas, sem agendamento\)\. <a href="https:\/\/ponteprojetos\.com\.br\/mapa\/painel\/rodadas"[^>]*>Ver as rodadas<\/a>/);
   const i = r.html.indexOf("As 21 rodadas em dia");
   assert.ok(i > r.html.indexOf("Abrir no painel (PB)") && i < r.html.indexOf("Resumo automático do Painel"));
   assert.equal(r.html.includes("atenção"), false);
@@ -275,11 +275,13 @@ test("rodadas: a leitura que falhou vira uma nota no pé, e o e-mail sai inteiro
 
 test("rodadas: linha não lida é nomeada, sem virar problema nem falha", () => {
   const so = escolherRodadas(rodadas({ "exigencia:assinatura": { estado: "nao_lido", motivo: "falha" } }));
-  assert.deepEqual(so, { tipo: "em_dia", total: 21, naoLidas: ["Exigências antes da assinatura"] });
-  assert.equal(so.tipo !== "com_problema" && fraseRodadasNoPe(so), "20 de 21 rodadas em dia; 1 não lida agora: Exigências antes da assinatura.");
+  assert.deepEqual(so, { tipo: "em_dia", total: 21, naoLidas: ["Exigências antes da assinatura"], assistidas: 3 });
+  if (so.tipo === "em_dia") {
+    assert.equal(fraseRodadasNoPe(so), "20 de 21 rodadas em dia (3 delas são coletas assistidas, sem agendamento); 1 não lida agora: Exigências antes da assinatura.");
+  }
   const r = montarResumoDiario({ ...BASE, rodadas: so });
   // Com linha não lida, a marca é "?", não "✓".
-  assert.ok(r.texto.includes("\n? 20 de 21 rodadas em dia; 1 não lida agora: Exigências antes da assinatura.\n"), r.texto);
+  assert.ok(r.texto.includes("\n? 20 de 21 rodadas em dia (3 delas são coletas assistidas, sem agendamento); 1 não lida agora: Exigências antes da assinatura.\n"), r.texto);
 
   const junto = escolherRodadas(
     rodadas({ tce: concluida(50), "al:obras": { estado: "nao_lido", motivo: "ausente" } }),
@@ -332,7 +334,7 @@ test("rodadas: os municípios só entram no e-mail com o Caged velho, e a linha 
     sinisa: periodo("2024"),
   };
   const mun = (caged: string) => concluida(15, { linhas_por_fonte: { ibge: 2453 }, avisos: {}, periodo_por_fonte: { ...real, caged: periodo(caged) } });
-  assert.deepEqual(escolherRodadas(rodadas({ mun: mun("2026-08") })), { tipo: "em_dia", total: 21, naoLidas: [] });
+  assert.deepEqual(escolherRodadas(rodadas({ mun: mun("2026-08") })), { tipo: "em_dia", total: 21, naoLidas: [], assistidas: 4 });
   // Três meses (o MTE atrasou a publicação): ainda calado.
   assert.equal(escolherRodadas(rodadas({ mun: mun("2026-07") })).tipo, "em_dia");
   // Quatro meses: o MTE parou, ou o job não lê o Caged novo há duas rodadas.
@@ -371,8 +373,8 @@ test(
 test("rodadas: o SIOPE incompleto põe o fiscal 'com aviso' no e-mail, como os outros avisos (onda 12, C)", () => {
   const fiscal = (extra: Record<string, unknown>) => concluida(2, { municipios: 223, fontes_com_erro: {}, ...extra });
   // Ausente ou 0: nada muda.
-  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({}) })), { tipo: "em_dia", total: 21, naoLidas: [] });
-  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 0 }) })), { tipo: "em_dia", total: 21, naoLidas: [] });
+  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({}) })), { tipo: "em_dia", total: 21, naoLidas: [], assistidas: 4 });
+  assert.deepEqual(escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 0 }) })), { tipo: "em_dia", total: 21, naoLidas: [], assistidas: 4 });
   // 37 (os da execução 30, A3 da revisão D): o fiscal entra no bloco, com a palavra do estado; o detalhe fica na tela.
   const bloco = escolherRodadas(rodadas({ fiscal: fiscal({ siope_incompletos: 37 }) }));
   assert.ok(bloco.tipo === "com_problema");
@@ -388,9 +390,9 @@ test("rodadas: o SIOPE incompleto põe o fiscal 'com aviso' no e-mail, como os o
 test("rodadas: as emendas antes da primeira rodada — sem a tabela, só o nome no pé; com a tabela vazia, atrasada no topo", () => {
   // Hoje (12/10/2026), sem a oport_39: a linha não é lida, e o e-mail só a cita pelo nome no pé, com a marca "?".
   const semTabela = escolherRodadas(rodadas({ emd: { estado: "nao_lido", motivo: "ausente" } }));
-  assert.deepEqual(semTabela, { tipo: "em_dia", total: 21, naoLidas: ["Emendas parlamentares"] });
+  assert.deepEqual(semTabela, { tipo: "em_dia", total: 21, naoLidas: ["Emendas parlamentares"], assistidas: 4 });
   const pe = montarResumoDiario({ ...BASE, rodadas: semTabela });
-  assert.ok(pe.texto.includes("\n? 20 de 21 rodadas em dia; 1 não lida agora: Emendas parlamentares.\n"), pe.texto);
+  assert.ok(pe.texto.includes("\n? 20 de 21 rodadas em dia (4 delas são coletas assistidas, sem agendamento); 1 não lida agora: Emendas parlamentares.\n"), pe.texto);
   assert.equal(pe.texto.includes("atenção"), false);
   // Com a oport_39 aplicada e nenhuma rodada concluída: a regra da tela (a agendada que nunca concluiu está atrasada)
   // põe as emendas no bloco do topo, o vermelho das atrasadas, todo dia até a primeira rodada concluir.
@@ -409,7 +411,7 @@ test("rodadas: as emendas antes da primeira rodada — sem a tabela, só o nome 
     abertas: [],
     dadoAte: { estado: "ok", id: 1, dadoAte: horasAntes(30) },
   };
-  assert.deepEqual(escolherRodadas(rodadas({ emd: primeira })), { tipo: "em_dia", total: 21, naoLidas: [] });
+  assert.deepEqual(escolherRodadas(rodadas({ emd: primeira })), { tipo: "em_dia", total: 21, naoLidas: [], assistidas: 4 });
 });
 
 test("rodadas: a linha de um job diz nome, estado, quando concluiu e há quanto tempo", () => {

@@ -422,6 +422,12 @@ export const ROTULO_TIPO_EMENDA: Record<string, string> = {
 export const DIAS_SEM_MOVIMENTO = 365;
 export const PCT_FINANCEIRO_ALTO = 0.8;
 export const PCT_FISICO_BAIXO = 0.3;
+/**
+ * O físico × financeiro só vale com o primeiro desembolso há tantos dias ou mais (08/11/2026, avaliação externa; a
+ * mesma constante do job, `painel_execucao/definicoes.py`). Antes disso, o dinheiro acabou de sair e não teve tempo de
+ * virar obra. É aproximação: o primeiro desembolso pode ter sido uma parcela pequena, e a liberação principal, recente.
+ */
+export const DIAS_FISICO_MINIMO = 180;
 /** Janelas abertas mostradas, no máximo. */
 export const MAXIMO_PORTAS = 5;
 
@@ -883,11 +889,14 @@ function lerRiscos(b: Base): Risco[] {
       });
     }
     const pct = b.dinheiro.pctDesembolsado;
-    if (pct !== null && pct >= PCT_FINANCEIRO_ALTO && i.pct_fisico !== null && i.pct_fisico < PCT_FISICO_BAIXO) {
+    const desdeDesembolso = diasEntre(i.dt_primeiro_desembolso, b.hoje);
+    if (pct !== null && pct >= PCT_FINANCEIRO_ALTO && i.pct_fisico !== null && i.pct_fisico < PCT_FISICO_BAIXO && desdeDesembolso >= DIAS_FISICO_MINIMO) {
       r.push({
         nivel: "moderado",
-        titulo: "Dinheiro na frente da obra",
-        fato: `${percentual(pct)} do repasse desembolsado e ${percentual(i.pct_fisico)} de execução física registrada no resumo físico-financeiro.`,
+        titulo: "Desembolso elevado com baixo avanço físico registrado",
+        fato:
+          `${percentual(pct)} do repasse desembolsado e ${percentual(i.pct_fisico)} de execução física registrada no resumo físico-financeiro; ` +
+          `o primeiro desembolso foi em ${data(i.dt_primeiro_desembolso)}, há ${dias(desdeDesembolso)}. Sinal para conferência: o registro físico pode estar defasado.`,
       });
     }
   }

@@ -1095,8 +1095,13 @@ export function prazoH(job: Pick<JobRodada, "cadencia" | "folgaH">): number | nu
 
 // ================================================================ o estado de cada linha
 
-/** "dado_velho" (10/10/2026, onda 11, B): a rodada está em dia, mas a data do dado passou da defasagem esperada. */
-export type EstadoRodada = "em_dia" | "atrasada" | "dado_velho" | "com_aviso" | "nao_lido";
+/**
+ * "dado_velho" (10/10/2026, onda 11, B): a rodada está em dia, mas a data do dado passou da defasagem esperada.
+ * "assistida" (08/11/2026, avaliação externa): a coleta conduzida no navegador, sem agendamento, não é "em dia" nem
+ * "atrasada", porque não há cadência para medir; o ✓ verde numa coleta de 48 dias dizia mais do que o dado sustenta. O
+ * estado só vale sem aviso: erro na tentativa mais nova, carga parada ou nenhuma coleta concluída continuam "com aviso".
+ */
+export type EstadoRodada = "em_dia" | "atrasada" | "dado_velho" | "com_aviso" | "nao_lido" | "assistida";
 
 export const ROTULO_ESTADO: Record<EstadoRodada, string> = {
   em_dia: "em dia",
@@ -1104,24 +1109,27 @@ export const ROTULO_ESTADO: Record<EstadoRodada, string> = {
   dado_velho: "dado velho",
   com_aviso: "com aviso",
   nao_lido: "não lido",
+  assistida: "coleta assistida",
 };
 
 /**
  * Marca de forma, além da cor: o estado não pode depender só de cor (WCAG 1.4.1), como em `fiscal.ts`. O "dado velho"
  * usa a marca e o tom do "Desatualizado" do fiscal (↻), o mesmo vocabulário para a mesma ideia.
  */
-export const MARCA_ESTADO: Record<EstadoRodada, string> = { em_dia: "✓", atrasada: "▲", dado_velho: "↻", com_aviso: "!", nao_lido: "?" };
+export const MARCA_ESTADO: Record<EstadoRodada, string> = { em_dia: "✓", atrasada: "▲", dado_velho: "↻", com_aviso: "!", nao_lido: "?", assistida: "◇" };
 
+/** A coleta assistida divide o tom neutro com o "não lido": nenhum dos dois é verde nem pede ação. */
 export const TOM_ESTADO: Record<EstadoRodada, "aderente" | "urgente" | "nova" | "proto" | "neutro"> = {
   em_dia: "aderente",
   atrasada: "urgente",
   dado_velho: "nova",
   com_aviso: "proto",
   nao_lido: "neutro",
+  assistida: "neutro",
 };
 
 /** A ordem dos cartões do topo: o que pede ação primeiro. */
-export const ESTADOS: readonly EstadoRodada[] = ["atrasada", "dado_velho", "com_aviso", "nao_lido", "em_dia"];
+export const ESTADOS: readonly EstadoRodada[] = ["atrasada", "dado_velho", "com_aviso", "nao_lido", "assistida", "em_dia"];
 
 /** A última execução concluída, só com as colunas que a tela usa. */
 export interface ExecucaoConcluida {
@@ -1358,7 +1366,15 @@ export function avaliarRodada(job: JobRodada, leitura: LeituraRodada, agora: num
   const dado = avaliarDado(job, ultima, concluidaEm, leitura.dadoAte);
   const atrasada = prazo !== null && (idadeH === null || idadeH > prazo);
   const comAviso = avisos.length > 0 || (falhas ?? 0) > 0 || gravando?.parada === true;
-  const estado: EstadoRodada = atrasada ? "atrasada" : dado.situacao === "velho" ? "dado_velho" : comAviso ? "com_aviso" : "em_dia";
+  const estado: EstadoRodada = atrasada
+    ? "atrasada"
+    : dado.situacao === "velho"
+      ? "dado_velho"
+      : comAviso
+        ? "com_aviso"
+        : job.cadencia === "assistida"
+          ? "assistida"
+          : "em_dia";
 
   return {
     job,
@@ -1377,7 +1393,7 @@ export function avaliarRodada(job: JobRodada, leitura: LeituraRodada, agora: num
 
 /** Quantas linhas em cada estado, para os cartões do topo. */
 export function contarEstados(linhas: readonly Pick<LinhaRodada, "estado">[]): Record<EstadoRodada, number> {
-  const conta: Record<EstadoRodada, number> = { em_dia: 0, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 0 };
+  const conta: Record<EstadoRodada, number> = { em_dia: 0, atrasada: 0, dado_velho: 0, com_aviso: 0, nao_lido: 0, assistida: 0 };
   for (const l of linhas) conta[l.estado] += 1;
   return conta;
 }
@@ -1582,7 +1598,8 @@ export function valoresDaRodada(l: LinhaRodada): Record<string, ValorCelula> {
   return {
     job: job.nome,
     tabela: `${job.tabela}${job.recorte ? ` · recorte ${job.recorte}` : ""}`,
-    estado: ROTULO_ESTADO[l.estado],
+    // A coleta assistida leva a idade da carga no próprio estado (08/11/2026): é o que a linha tem no lugar do "em dia".
+    estado: l.estado === "assistida" && l.idadeH !== null ? `${ROTULO_ESTADO.assistida} · carga ${haQuanto(l.idadeH)}` : ROTULO_ESTADO[l.estado],
     concluida: lida && l.concluidaEm ? diaBrasilia(l.concluidaEm) : null,
     horas: lida && l.idadeH !== null ? Math.round(l.idadeH * 10) / 10 : null,
     "dado-ate": lida ? l.dado.dia : null,

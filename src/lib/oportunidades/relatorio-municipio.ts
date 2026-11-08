@@ -15,7 +15,7 @@
  */
 import { formatarData } from "./central.ts";
 import { DIAS_SEM_MEDICAO_MODERADO, riscosContasObras, type EntradaContasObras } from "./contas-obras.ts";
-import { DIAS_SEM_MOVIMENTO, DIAS_VIGENCIA_CRITICA, PCT_FINANCEIRO_ALTO, PCT_FISICO_BAIXO, ROTULO_TIPO_EMENDA } from "./diagnostico.ts";
+import { DIAS_FISICO_MINIMO, DIAS_SEM_MOVIMENTO, DIAS_VIGENCIA_CRITICA, PCT_FINANCEIRO_ALTO, PCT_FISICO_BAIXO, ROTULO_TIPO_EMENDA } from "./diagnostico.ts";
 import { NOME_CURTO, conclusaoDe, type ConclusaoFiscal, type MunicipioFiscal, type VerificacaoFiscal } from "./fiscal.ts";
 import { faixaConcentracao, type ConcentracaoMunicipio } from "./fornecedores.ts";
 import { pontosAConferir } from "./itens-laudo.ts";
@@ -710,8 +710,16 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
       numeros: s.liminar.map((l) => l.nr_convenio),
     });
   }
+  // 08/11/2026: a mesma regra do job e do laudo, com o piso de 180 dias desde o primeiro desembolso.
   const frente = is.filter(
-    (i) => i.situacao === "Em execução" && i.vl_repasse && (i.vl_desembolsado ?? 0) / i.vl_repasse >= PCT_FINANCEIRO_ALTO && i.pct_fisico !== null && i.pct_fisico < PCT_FISICO_BAIXO,
+    (i) =>
+      i.situacao === "Em execução" &&
+      i.vl_repasse &&
+      (i.vl_desembolsado ?? 0) / i.vl_repasse >= PCT_FINANCEIRO_ALTO &&
+      i.pct_fisico !== null &&
+      i.pct_fisico < PCT_FISICO_BAIXO &&
+      !!i.dt_primeiro_desembolso &&
+      diasEntre(i.dt_primeiro_desembolso, hoje) >= DIAS_FISICO_MINIMO,
   );
   if (frente.length) {
     a.push({
@@ -719,8 +727,9 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
       dimensao: "convenios",
       classe: "atencao",
       quem: "municipio",
-      titulo: frente.length === 1 ? "Dinheiro na frente da obra" : `${n(frente.length)} convênios com o dinheiro na frente da obra`,
-      fato: `${lista(frente.map((i) => i.nr_convenio))}: 80% ou mais do repasse desembolsado e menos de 30% de execução física registrada.`,
+      titulo:
+        frente.length === 1 ? "Desembolso elevado com baixo avanço físico registrado" : `${n(frente.length)} convênios com desembolso elevado e baixo avanço físico registrado`,
+      fato: `${lista(frente.map((i) => i.nr_convenio))}: 80% ou mais do repasse desembolsado, menos de 30% de execução física registrada e o primeiro desembolso há ${DIAS_FISICO_MINIMO} dias ou mais. O registro físico pode estar defasado.`,
       acao: "Atualizar a execução física no Transferegov ou explicar a diferença ao concedente.",
       peso: 5,
       numeros: frente.map((i) => i.nr_convenio),

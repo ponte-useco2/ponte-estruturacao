@@ -40,12 +40,12 @@ const linha = (nome: string, estado: RodadaNoResumo["estado"]): RodadaNoResumo =
 });
 
 test("a saúde diária sai também em dia, e diz quando a leitura falhou", () => {
-  const emDia = montarSaudeDiaria({ tipo: "em_dia", total: 15, naoLidas: [] }, "29/10/2026", BASE);
+  const emDia = montarSaudeDiaria({ tipo: "em_dia", total: 15, naoLidas: [], assistidas: 0 }, "29/10/2026", BASE);
   assert.equal(emDia.assunto, "[PONTE] Rodadas em 29/10/2026: em dia");
   assert.match(emDia.texto, /As 15 rodadas em dia\./);
   const falhou = montarSaudeDiaria({ tipo: "falhou" }, "29/10/2026", BASE);
   assert.match(falhou.assunto, /leitura falhou/);
-  const naoLida = montarSaudeDiaria({ tipo: "em_dia", total: 15, naoLidas: ["Exigências"] }, "29/10/2026", BASE);
+  const naoLida = montarSaudeDiaria({ tipo: "em_dia", total: 15, naoLidas: ["Exigências"], assistidas: 0 }, "29/10/2026", BASE);
   assert.match(naoLida.assunto, /não lida/);
 });
 

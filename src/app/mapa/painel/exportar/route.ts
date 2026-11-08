@@ -87,7 +87,7 @@ const COLUNAS_CONVENIO: ColunaCsv<ConvenioPainel>[] = [
   },
   { titulo: "Dias após o limite das contas (na data do arquivo)", valor: (c) => c.dias_apos_limite },
   { titulo: "Dias com o concedente (na data do arquivo)", valor: (c) => c.dias_com_concedente },
-  { titulo: "Financeiro ≥ 80% com físico < 30%", valor: (c) => c.financeiro_sem_fisico },
+  { titulo: "Financeiro ≥ 80% com físico < 30%, primeiro desembolso há 180 dias ou mais", valor: (c) => c.financeiro_sem_fisico },
 ];
 
 /** Os municípios com sinais (F3.3): os valores da tabela da tela, com o IBGE como texto. */

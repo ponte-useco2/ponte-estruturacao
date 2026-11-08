@@ -5,6 +5,7 @@ import {
   dataDaReferencia,
   janelaAberta,
   montarCarteira,
+  reclassificacaoDoAviso,
   recomendacoesInstrumento,
   recomendacoesJanela,
   recomendacoesMunicipio,
@@ -17,6 +18,25 @@ const aviso = (x: Partial<AvisoItem>): AvisoItem => ({
   id: "1", tipo: "municipio", chave: "2510808", evento: "cauc", titulo: null, antes: null, depois: null, criado_em: "2026-10-02T12:00:00Z", lida_em: null, arquivada_em: null, ...x,
 });
 const c = (x: Partial<AvisoItem>) => consequenciaDoAviso(aviso(x), HOJE);
+
+test("08/11/2026: a queda por mudança de regra é reclassificação, não melhora; fora da janela e na subida, a regra de sempre", () => {
+  const dentro = aviso({ evento: "contas_atrasadas", antes: "2", depois: "1", criado_em: "2026-11-10T12:30:00Z" });
+  assert.match(reclassificacaoDoAviso(dentro) ?? "", /complementação com o prazo em aberto deixou de contar/);
+  assert.equal(reclassificacaoDoAviso(aviso({ evento: "contas_atrasadas", antes: "2", depois: "1", criado_em: "2026-11-20T12:00:00Z" })), null, "fora da janela");
+  assert.equal(reclassificacaoDoAviso(aviso({ evento: "contas_atrasadas", antes: "1", depois: "2", criado_em: "2026-11-10T12:00:00Z" })), null, "subiu: é piora de verdade");
+  assert.equal(reclassificacaoDoAviso(aviso({ evento: "tce_tcu", antes: "2", depois: "1", criado_em: "2026-11-10T12:00:00Z" })), null, "outro evento");
+  // Na carteira: informativo, sem "melhorou", com a nota no detalhe. A queda real, fora da janela, segue como melhora.
+  const seguido: SeguidoCarteira = { tipo: "municipio", chave: "2510808", titulo: "Patos", estado: PATOS, referencia: "painel:2026-11-10T13:00:00Z", criado_em: "2026-10-01T00:00:00Z" };
+  const fora = aviso({ id: "2", evento: "contas_atrasadas", antes: "2", depois: "1", criado_em: "2026-11-20T12:30:00Z" });
+  const c = montarCarteira({ seguidos: [seguido], avisos: [dentro, fora] }, "2026-11-20");
+  const ms = c.itens[0].mudancas;
+  const m1 = ms.find((m) => m.id === "1");
+  const m2 = ms.find((m) => m.id === "2");
+  assert.deepEqual([m1?.consequencia, m1?.melhora], ["informativo", null]);
+  assert.match(m1?.detalhe ?? "", /2 → 1 · reclassificação de regra/);
+  assert.deepEqual([m2?.consequencia, m2?.melhora], ["informativo", true]);
+  assert.equal(m2?.detalhe.includes("reclassificação"), false);
+});
 
 // O retrato de Patos na rodada de 01/10 (fiscal, painel e TCU), como a oport_28 grava.
 const PATOS: Record<string, unknown> = {

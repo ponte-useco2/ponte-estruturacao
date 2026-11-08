@@ -134,6 +134,32 @@ const conjunto = (s: string | null) => new Set((s ?? "").split(",").map((x) => x
 
 const PIOR_ESTADO_FISCAL: Record<string, number> = { atendido: 0, nao_verificavel: 1, desatualizado: 1, atencao: 2, nao_atendido: 3 };
 
+// ================================================================ mudanças de regra
+
+/**
+ * Quedas de número que vêm de uma MUDANÇA DE REGRA, e não do convênio (08/11/2026, avaliação externa). O retrato da
+ * carteira é recontado a cada rodada pelas regras do dia; quando a regra muda, o número cai sem nada ter acontecido, e
+ * chamar isso de "melhorou" atribuiria ao convênio um resultado que não houve. A janela cobre a primeira rodada com a
+ * regra nova (publicada em 08/11/2026) e a folga do agendador. Fora da janela, a queda volta a valer como melhora.
+ */
+export const RECLASSIFICACOES_DE_REGRA: readonly { evento: string; de: string; ate: string; nota: string }[] = [
+  {
+    evento: "contas_atrasadas",
+    de: "2026-11-08",
+    ate: "2026-11-12",
+    nota: "reclassificação de regra (08/11/2026): a prestação de contas em complementação com o prazo em aberto deixou de contar como atrasada; nada mudou no convênio",
+  },
+];
+
+/** A nota da reclassificação para um aviso que caiu dentro da janela da regra; null para todo o resto. */
+export function reclassificacaoDoAviso(a: Pick<AvisoItem, "evento" | "antes" | "depois" | "criado_em">): string | null {
+  const de = num(a.antes);
+  const para = num(a.depois);
+  if (de === null || para === null || para >= de) return null;
+  const dia = diaBrasilia(a.criado_em);
+  return RECLASSIFICACOES_DE_REGRA.find((r) => r.evento === a.evento && dia >= r.de && dia <= r.ate)?.nota ?? null;
+}
+
 // ================================================================ consequência de uma mudança
 
 /**
@@ -513,8 +539,20 @@ export function montarCarteira(
     const dadoDe = dataDaReferencia(s.referencia);
     const mudancas: MudancaCarteira[] = (avisosPorItem.get(`${s.tipo}:${s.chave}`) ?? [])
       .map((a) => {
-        const c = consequenciaDoAviso(a, hoje);
-        return { id: a.id, evento: a.evento, ...fraseDoAviso(a, hoje), consequencia: c.nivel, melhora: c.melhora, criado_em: a.criado_em, lida: a.lida_em !== null };
+        // A queda por mudança de regra é informação sem direção, com a nota no detalhe (08/11/2026).
+        const nota = reclassificacaoDoAviso(a);
+        const c = nota ? { nivel: "informativo" as const, melhora: null } : consequenciaDoAviso(a, hoje);
+        const frase = fraseDoAviso(a, hoje);
+        return {
+          id: a.id,
+          evento: a.evento,
+          ...frase,
+          detalhe: nota ? `${frase.detalhe} · ${nota}` : frase.detalhe,
+          consequencia: c.nivel,
+          melhora: c.melhora,
+          criado_em: a.criado_em,
+          lida: a.lida_em !== null,
+        };
       })
       .sort((a, b) => Number(a.lida) - Number(b.lida) || ORDEM[a.consequencia] - ORDEM[b.consequencia] || b.criado_em.localeCompare(a.criado_em));
     const naoLidas = mudancas.filter((m) => !m.lida);
