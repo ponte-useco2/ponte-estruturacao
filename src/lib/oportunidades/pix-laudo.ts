@@ -11,7 +11,7 @@
  * Redação: "não atendido" é "a conferir", nunca "irregular"; falta de dado é "não verificável".
  * Função pura, sem banco e sem relógio.
  */
-import type { AcessoFicha } from "./cliente.ts";
+import type { AcessoCnpj, AcessoFicha } from "./cliente.ts";
 import { ROTULO_NIVEL, rotuloItem, type EstadoItem, type ItemLaudo, type NivelItem } from "./itens-laudo.ts";
 import { semDadoPessoal } from "./mascara.ts";
 import type { ColunaCsv } from "./painel.ts";
@@ -281,6 +281,19 @@ export function resumoPorItem(resumo: ResumoLaudoPix[], titulos: Record<string, 
  */
 export function podeVerPlanoPix(acesso: AcessoFicha, p: Pick<PlanoLaudoPix, "cod_ibge">): boolean {
   return acesso.ok && !!p.cod_ibge && p.cod_ibge === acesso.ibge;
+}
+
+/**
+ * Os dois portões do cliente no laudo do Pix (D1, A25, 09/11/2026): a prefeitura pelo IBGE confirmado; a organização
+ * que não é prefeitura (consórcio, OSC, órgão estadual) pelo CNPJ confirmado, que é o CNPJ beneficiário do plano. O
+ * laudo do instrumento já aceitava os dois; o do Pix só aceitava o primeiro.
+ */
+export function podeVerPlanoPixDoCliente(
+  municipio: AcessoFicha,
+  cnpj: AcessoCnpj,
+  p: Pick<PlanoLaudoPix, "cod_ibge" | "cnpj">,
+): boolean {
+  return podeVerPlanoPix(municipio, p) || (cnpj.ok && !!p.cnpj && p.cnpj === cnpj.cnpj);
 }
 
 export const urlLaudoPix = (id: number | string) => `/mapa/pix/plano/${encodeURIComponent(String(id))}`;

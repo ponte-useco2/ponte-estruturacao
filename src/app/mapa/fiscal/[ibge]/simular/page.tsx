@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { urlMunicipioFiscal, urlSimularFiscal } from "@/lib/oportunidades/fiscal";
 import { lerFiscalMunicipio } from "@/lib/oportunidades/fiscal.server";
+import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { FiscalIndisponivel } from "../../FiscalConteudo";
 import { SimuladorConteudo } from "./SimuladorConteudo";
@@ -13,8 +15,13 @@ export const metadata: Metadata = {
 };
 
 /**
- * Simulador de operação de crédito e diagnóstico por projeto (onda 9), só administradores como o
- * resto do painel fiscal. Formulário GET: cada simulação tem URL própria, e a mesma página imprime.
+ * Simulador de operação de crédito e diagnóstico por projeto (onda 9). Formulário GET: cada simulação tem URL
+ * própria, e a mesma página imprime.
+ *
+ * Quem vê (D1 A11, decisão do titular de 09/11/2026): o administrador, para qualquer município; e o cliente da
+ * prefeitura com o IBGE confirmado (`PODE.simulador`, nível 2), só para o próprio município. O simulador não tem
+ * nome de pessoa nem dado de terceiro: é o dado fiscal público do próprio ente mais as hipóteses que a pessoa digita.
+ * O município do cliente vem do vínculo confirmado, nunca da URL: outro IBGE devolve ao Mapa.
  */
 export default async function SimularPage({
   params,
@@ -25,10 +32,14 @@ export default async function SimularPage({
 }) {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
-  if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
   const { ibge } = await params;
   if (!/^25\d{5}$/.test(ibge)) notFound();
+  const admin = ehAdministrador(visitante.email);
+  if (!admin) {
+    const { acesso } = await lerAcessoFicha(visitante);
+    if (!acesso.ok || acesso.ibge !== ibge) redirect("/mapa");
+  }
   const sp = await searchParams;
   const leitura = await lerFiscalMunicipio(ibge);
   if (leitura.estado === "nao_encontrado") {
@@ -53,9 +64,13 @@ export default async function SimularPage({
       <FiscalIndisponivel
         estado={leitura.estado}
         endereco={`${urlSimularFiscal(ibge)}${consulta ? `?${consulta}` : ""}`}
-        voltarPara={{ rotulo: "Voltar à capacidade fiscal do município", href: urlMunicipioFiscal(ibge) }}
+        voltarPara={
+          admin
+            ? { rotulo: "Voltar à capacidade fiscal do município", href: urlMunicipioFiscal(ibge) }
+            : { rotulo: "Voltar às contas públicas do município", href: urlMunicipio(ibge, "contas") }
+        }
       />
     );
   }
-  return <SimuladorConteudo leitura={leitura} sp={sp} />;
+  return <SimuladorConteudo leitura={leitura} sp={sp} cliente={!admin} />;
 }

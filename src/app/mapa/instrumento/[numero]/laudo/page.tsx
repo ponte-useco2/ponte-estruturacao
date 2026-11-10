@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { numeroValido, urlInstrumento, urlLaudo } from "@/lib/oportunidades/busca";
-import { EXPLICACAO_SEM_CNPJ, EXPLICACAO_SEM_FICHA, podeVerInstrumento, podeVerInstrumentoPorCnpj } from "@/lib/oportunidades/cliente";
+import { explicacaoSemCliente, podeVerInstrumento, podeVerInstrumentoPorCnpj } from "@/lib/oportunidades/cliente";
 import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
 import { lerDiagnostico } from "@/lib/oportunidades/diagnostico";
 import { lerEntradaDiagnostico, type OpcoesLeitura } from "@/lib/oportunidades/diagnostico.server";
@@ -48,7 +48,8 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
     // Dois portões (oport_31): a prefeitura pelo município confirmado; as outras organizações pelo CNPJ confirmado.
     const { municipio: acesso, cnpj, organizacao } = await lerAcessoCliente(visitante);
     if (!acesso.ok && !cnpj.ok) {
-      const e = organizacao && organizacao.tipo !== "municipio" ? EXPLICACAO_SEM_CNPJ[cnpj.ok ? "sem_cnpj" : cnpj.motivo] : EXPLICACAO_SEM_FICHA[acesso.motivo];
+      // D1 A14 (09/11/2026): a explicação segue o perfil da organização ativa; sem organização, texto neutro.
+      const e = explicacaoSemCliente(organizacao, acesso, cnpj);
       return (
         <SemLaudo numero={numero} kicker={organizacao?.nome ?? null} titulo={e.titulo}>
           {e.texto}

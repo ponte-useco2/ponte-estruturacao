@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { EXPLICACAO_SEM_FICHA } from "@/lib/oportunidades/cliente";
-import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
-import { podeVerPlanoPix, urlLaudoPix } from "@/lib/oportunidades/pix-laudo";
+import { explicacaoSemCliente } from "@/lib/oportunidades/cliente";
+import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
+import { podeVerPlanoPixDoCliente, urlLaudoPix } from "@/lib/oportunidades/pix-laudo";
 import { lerLaudoPlanoPix } from "@/lib/oportunidades/pix-laudo.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
@@ -21,9 +21,10 @@ const VOLTA_CLIENTE = { rotulo: "Voltar ao Meu município", href: "/mapa/meu-mun
  * Laudo de um plano de ação das transferências especiais da PB (onda 13A).
  *
  *   · administrador: qualquer plano da PB;
- *   · cliente ("Meu município"): só os planos do município confirmado (`podeVerPlanoPix`). O plano de
- *     outro ente é "não disponível", sem dizer se existe. O conteúdo é o mesmo — o laudo do Pix não tem
- *     nome de servidor nem de fornecedor —, sem os atalhos de administrador.
+ *   · cliente: os planos do município confirmado (prefeitura, oport_12) ou do CNPJ confirmado (as outras
+ *     organizações, oport_31; D1 A25, 09/11/2026). O plano de outro ente é "não disponível", sem dizer se
+ *     existe. O conteúdo é o mesmo — o laudo do Pix não tem nome de servidor nem de fornecedor —, sem os
+ *     atalhos de administrador.
  * A mesma página é o relatório para imprimir.
  */
 export default async function LaudoPixPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,12 +37,12 @@ export default async function LaudoPixPage({ params }: { params: Promise<{ id: s
   const admin = ehAdministrador(visitante.email);
   let podeVer: Parameters<typeof lerLaudoPlanoPix>[1];
   if (!admin) {
-    const { acesso, organizacao } = await lerAcessoFicha(visitante);
-    if (!acesso.ok) {
-      const e = EXPLICACAO_SEM_FICHA[acesso.motivo];
+    const { municipio, cnpj, organizacao } = await lerAcessoCliente(visitante);
+    if (!municipio.ok && !cnpj.ok) {
+      const e = explicacaoSemCliente(organizacao, municipio, cnpj);
       return <SemLaudo kicker={organizacao?.nome ?? "Laudo do Pix"} titulo={e.titulo} texto={e.texto} volta={VOLTA_CLIENTE} />;
     }
-    podeVer = (p) => podeVerPlanoPix(acesso, p);
+    podeVer = (p) => podeVerPlanoPixDoCliente(municipio, cnpj, p);
   }
 
   // B14b (08/10/2026): a volta depende de quem vê. O administrador não tem "Meu município": volta ao painel do Pix.
@@ -59,7 +60,7 @@ export default async function LaudoPixPage({ params }: { params: Promise<{ id: s
       <SemLaudo
         kicker="Laudo do Pix"
         titulo="Este laudo não está disponível para a sua organização"
-        texto="O laudo do Pix mostra os planos de ação do seu município."
+        texto="O laudo do Pix mostra os planos de ação da sua organização: os do município confirmado, no caso da prefeitura, ou os do CNPJ confirmado."
         volta={volta}
       />
     );

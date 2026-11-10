@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { EXPLICACAO_SEM_FICHA } from "@/lib/oportunidades/cliente";
-import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
-import { chaveEnteValida, podeVerPlanoPix, urlEntePix } from "@/lib/oportunidades/pix-laudo";
+import { explicacaoSemCliente } from "@/lib/oportunidades/cliente";
+import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
+import { chaveEnteValida, podeVerPlanoPixDoCliente, urlEntePix } from "@/lib/oportunidades/pix-laudo";
 import { lerLaudoEntePix } from "@/lib/oportunidades/pix-laudo.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
@@ -33,12 +33,13 @@ export default async function EntePixPage({ params }: { params: Promise<{ chave:
   const admin = ehAdministrador(visitante.email);
   let podeVer: Parameters<typeof lerLaudoEntePix>[1];
   if (!admin) {
-    const { acesso } = await lerAcessoFicha(visitante);
-    if (!acesso.ok) {
-      const e = EXPLICACAO_SEM_FICHA[acesso.motivo];
+    // D1 A25 (09/11/2026): os dois portões do cliente, como no laudo do instrumento.
+    const { municipio, cnpj, organizacao } = await lerAcessoCliente(visitante);
+    if (!municipio.ok && !cnpj.ok) {
+      const e = explicacaoSemCliente(organizacao, municipio, cnpj);
       return <Aviso titulo={e.titulo} texto={e.texto} volta={VOLTA_CLIENTE} />;
     }
-    podeVer = (p) => podeVerPlanoPix(acesso, p);
+    podeVer = (p) => podeVerPlanoPixDoCliente(municipio, cnpj, p);
   }
 
   const leitura = await lerLaudoEntePix(k, podeVer);
@@ -52,7 +53,11 @@ export default async function EntePixPage({ params }: { params: Promise<{ chave:
         volta={volta}
       />
     ) : (
-      <Aviso titulo="Este laudo não está disponível para a sua organização" texto="O laudo do Pix mostra os planos de ação do seu município." volta={volta} />
+      <Aviso
+        titulo="Este laudo não está disponível para a sua organização"
+        texto="O laudo do Pix mostra os planos de ação da sua organização: os do município confirmado, no caso da prefeitura, ou os do CNPJ confirmado."
+        volta={volta}
+      />
     );
   }
   if (leitura.estado !== "ok") {

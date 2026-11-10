@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
-import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
+import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
 import { notasCsv } from "@/lib/oportunidades/csv";
 import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { paraCsv } from "@/lib/oportunidades/painel";
-import { catalogoDe, chaveEnteValida, colunasCsvEnte, podeVerPlanoPix } from "@/lib/oportunidades/pix-laudo";
+import { catalogoDe, chaveEnteValida, colunasCsvEnte, podeVerPlanoPixDoCliente } from "@/lib/oportunidades/pix-laudo";
 import { lerLaudoEntePix } from "@/lib/oportunidades/pix-laudo.server";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 
@@ -25,9 +25,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cha
 
   let podeVer: Parameters<typeof lerLaudoEntePix>[1];
   if (!ehAdministrador(visitante.email)) {
-    const { acesso } = await lerAcessoFicha(visitante);
-    if (!acesso.ok) return naoEncontrado();
-    podeVer = (p) => podeVerPlanoPix(acesso, p);
+    // D1 A25 (09/11/2026): o mesmo portão da página, pelos dois vínculos.
+    const { municipio, cnpj } = await lerAcessoCliente(visitante);
+    if (!municipio.ok && !cnpj.ok) return naoEncontrado();
+    podeVer = (p) => podeVerPlanoPixDoCliente(municipio, cnpj, p);
   }
   const leitura = await lerLaudoEntePix(k, podeVer);
   if (leitura.estado === "nao_encontrado") return naoEncontrado();

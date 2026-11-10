@@ -106,6 +106,9 @@ export const ABAS_MENU: readonly AbaMenu[] = [
   // "Território", e não "Brasil e estados", porque a aba também fica acesa no município e na entidade: é a palavra que
   // o próprio Mapa usa para a descida ("o território soma: Brasil › UF › município › entidade").
   { href: "/mapa/brasil", nome: "Território", exata: false, admin: false, municipio: false, tambem: ROTAS_DO_TERRITORIO },
+  // A cadeia do gasto (D1 A31, decisão do titular de 09/11/2026): a rota existia no nível 1 sem porta no menu. Acende
+  // também nos blocos (/mapa/cadeia-quebrada/<bloco>) e nos CNPJs (/mapa/cadeia-quebrada/cnpj/<cnpj>), por prefixo.
+  { href: "/mapa/cadeia-quebrada", nome: "Cadeia do gasto", exata: false, admin: false, municipio: false },
   // Só para quem está numa organização de município. A página confere o vínculo confirmado e explica o que falta; a
   // aba só evita mostrar a porta a quem não é prefeitura. Com o vínculo confirmado, a página redireciona para a do
   // município em abas, que também acende esta aba (e não o Território). O laudo do Pix (/mapa/pix/…) serve às duas:

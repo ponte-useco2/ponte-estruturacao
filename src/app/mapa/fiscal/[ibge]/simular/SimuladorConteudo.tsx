@@ -14,6 +14,7 @@ import {
   type EstadoFiscal,
 } from "@/lib/oportunidades/fiscal";
 import type { LeituraMunicipioFiscal } from "@/lib/oportunidades/fiscal.server";
+import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import {
   ALERTA_DCL,
@@ -66,7 +67,16 @@ const FRASE_ESTADO: Record<EstadoFiscal, string> = {
   atendido: "Nenhum bloqueio nas verificações automáticas.",
 };
 
-export function SimuladorConteudo({ leitura, sp }: { leitura: LeituraOk; sp: Record<string, string | string[] | undefined> }) {
+export function SimuladorConteudo({
+  leitura,
+  sp,
+  cliente = false,
+}: {
+  leitura: LeituraOk;
+  sp: Record<string, string | string[] | undefined>;
+  /** O cliente da prefeitura (nível 2; D1 A11): a trilha volta às contas públicas do município, não ao painel fiscal. */
+  cliente?: boolean;
+}) {
   const m = leitura.municipio;
   const p = parametrosSimulador(sp, Number(leitura.execucao.concluida_em.slice(0, 4)) + 1);
   const base = baseFiscal(m.indicadores, leitura.projecao);
@@ -83,7 +93,15 @@ export function SimuladorConteudo({ leitura, sp }: { leitura: LeituraOk; sp: Rec
     <div className="pa-pagina mp-radar mp-painel mp-fiscal mp-simulador">
       <div className="pa-pilha mp-radar-cabeca">
         <p className="pa-kicker">
-          <LinkMapa href="/mapa/fiscal">Capacidade fiscal · Paraíba</LinkMapa> · <LinkMapa href={urlMunicipioFiscal(m.ibge)}>{m.nome}</LinkMapa>
+          {cliente ? (
+            <>
+              <LinkMapa href={urlMunicipio(m.ibge, "contas")}>{m.nome} · Contas públicas</LinkMapa>
+            </>
+          ) : (
+            <>
+              <LinkMapa href="/mapa/fiscal">Capacidade fiscal · Paraíba</LinkMapa> · <LinkMapa href={urlMunicipioFiscal(m.ibge)}>{m.nome}</LinkMapa>
+            </>
+          )}
         </p>
         <h1 className="pa-titulo">Simular um projeto · {m.nome}/PB</h1>
         <p className="pa-sub">

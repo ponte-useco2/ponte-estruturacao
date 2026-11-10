@@ -129,6 +129,30 @@ export function podeVerInstrumentoPorCnpj(acesso: AcessoCnpj, i: { cnpj?: string
   return acesso.ok && !!i.cnpj && i.cnpj === acesso.cnpj;
 }
 
+/**
+ * O que dizer a quem não passou por nenhum dos dois portões (D1, A14, 09/11/2026). Antes, toda página de cliente
+ * respondia com a explicação da prefeitura ("Cadastre a prefeitura") para qualquer perfil, inclusive para quem não tem
+ * organização ou representa uma OSC. A explicação segue o perfil da organização ativa:
+ *   · sem organização: um texto neutro, que não presume prefeitura;
+ *   · organização que não é prefeitura: o motivo do portão por CNPJ;
+ *   · prefeitura: o motivo do portão por município.
+ */
+export function explicacaoSemCliente(
+  organizacao: { tipo: string } | null,
+  municipio: AcessoFicha,
+  cnpj: AcessoCnpj,
+): { titulo: string; texto: string } {
+  if (!organizacao) {
+    return {
+      titulo: "Nenhuma organização ativa",
+      texto:
+        "Cadastre ou escolha a sua organização em Conta → Organização: a prefeitura, com o município; ou a entidade, com o CNPJ. A PONTE confere o vínculo e libera as páginas de cliente.",
+    };
+  }
+  if (organizacao.tipo !== "municipio") return EXPLICACAO_SEM_CNPJ[cnpj.ok ? "sem_cnpj" : cnpj.motivo];
+  return EXPLICACAO_SEM_FICHA[municipio.ok ? "sem_ibge" : municipio.motivo];
+}
+
 // ============================================================================ laudo do cliente (onda 12, parte 3)
 
 export type MotivoSemLaudo = MotivoSemFicha | "outro_proponente" | "outro_municipio";

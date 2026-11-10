@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EXPLICACAO_SEM_CNPJ, EXPLICACAO_SEM_FICHA, podeVerEntidadePropria, podeVerInstrumento, podeVerInstrumentoPorCnpj, podeVerMunicipio, type MotivoSemCnpj, type MotivoSemFicha } from "./cliente.ts";
+import { EXPLICACAO_SEM_CNPJ, EXPLICACAO_SEM_FICHA, explicacaoSemCliente, podeVerEntidadePropria, podeVerInstrumento, podeVerInstrumentoPorCnpj, podeVerMunicipio, type MotivoSemCnpj, type MotivoSemFicha } from "./cliente.ts";
 
 const PREFEITURA = { tipo: "municipio", municipioIbge: "2507507" };
 const CONFIRMADO = { municipio_ibge: "2507507", confirmado_em: "2026-09-15T12:00:00Z" };
@@ -76,4 +76,15 @@ test("cliente por CNPJ (oport_31): só com o CNPJ do cadastro confirmado, e cada
   assert.equal(podeVerInstrumentoPorCnpj(acesso, { cnpj: "09084815000170" }), false, "instrumento de outro proponente");
   assert.equal(podeVerInstrumentoPorCnpj(acesso, { cnpj: null }), false);
   assert.equal(podeVerInstrumentoPorCnpj({ ok: false, motivo: "aguardando_confirmacao" }, { cnpj: "09112236000194" }), false);
+});
+
+test("D1 A14 (09/11/2026): a explicação segue o perfil da organização ativa, e sem organização é neutra", () => {
+  const semOrg = explicacaoSemCliente(null, { ok: false, motivo: "sem_organizacao" }, { ok: false, motivo: "sem_organizacao" });
+  assert.equal(semOrg.titulo, "Nenhuma organização ativa");
+  assert.doesNotMatch(semOrg.titulo, /prefeitura/i, "sem organização, não presume prefeitura");
+  assert.match(semOrg.texto, /CNPJ/, "diz os dois caminhos");
+  const osc = explicacaoSemCliente({ tipo: "osc" }, { ok: false, motivo: "nao_municipio" }, { ok: false, motivo: "aguardando_confirmacao" });
+  assert.deepEqual(osc, EXPLICACAO_SEM_CNPJ.aguardando_confirmacao);
+  const prefeitura = explicacaoSemCliente({ tipo: "municipio" }, { ok: false, motivo: "aguardando_confirmacao" }, { ok: false, motivo: "sem_organizacao" });
+  assert.deepEqual(prefeitura, EXPLICACAO_SEM_FICHA.aguardando_confirmacao);
 });

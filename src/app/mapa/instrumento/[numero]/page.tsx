@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { numeroValido, urlInstrumento } from "@/lib/oportunidades/busca";
-import { podeVerInstrumento } from "@/lib/oportunidades/cliente";
-import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
+import { podeVerInstrumento, podeVerInstrumentoPorCnpj } from "@/lib/oportunidades/cliente";
+import { lerAcessoCliente } from "@/lib/oportunidades/cliente.server";
 import { lerEmpresasDaExecucao, lerInstrumento } from "@/lib/oportunidades/busca.server";
 import { lerPagamentosDoConvenio } from "@/lib/oportunidades/pagamentos-empresa.server";
 import { abaDoInstrumento } from "@/lib/oportunidades/pagina-instrumento";
@@ -100,7 +100,13 @@ export default async function InstrumentoPage({
     );
   }
   const admin = ehAdministrador(visitante.email);
-  const laudo = admin || (i.tipo_agente === "municipio" && podeVerInstrumento((await lerAcessoFicha(visitante)).acesso, i).ok);
+  // D1 A12 (09/11/2026): o atalho segue os dois portões da página do laudo — a prefeitura pelo município confirmado,
+  // as outras organizações pelo CNPJ confirmado (oport_31). Antes só a prefeitura via o atalho.
+  let laudo = admin;
+  if (!admin) {
+    const { municipio, cnpj } = await lerAcessoCliente(visitante);
+    laudo = podeVerInstrumento(municipio, i).ok || podeVerInstrumentoPorCnpj(cnpj, i);
+  }
   // D1: a empresa com nome é só do administrador. A leitura acontece só na aba Execução, e só para ele. Onda 19: os
   // pagamentos um a um às empresas vêm junto, na mesma ida (oport_52; sem a tabela, `null` e a tela fica como era).
   const [empresas, pagamentos] =

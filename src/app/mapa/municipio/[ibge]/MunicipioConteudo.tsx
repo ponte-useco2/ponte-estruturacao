@@ -358,11 +358,14 @@ export function MunicipioConteudo({
       {aba === "contas" && (
         <>
           <BlocoFiscal r={r} destino={destino} />
-          {PODE.interno(nivel) && (
+          {/* D1 A11 (09/11/2026): o simulador abre ao cliente (nível 2), como `PODE.simulador` já dizia; o painel fiscal segue interno. */}
+          {PODE.simulador(nivel) && (
             <Mais>
-              <LinkMapa href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
-                Abrir o painel fiscal completo
-              </LinkMapa>
+              {PODE.interno(nivel) && (
+                <LinkMapa href={urlMunicipioFiscal(r.ibge)} className="pa-btn pa-btn-pequeno">
+                  Abrir o painel fiscal completo
+                </LinkMapa>
+              )}
               <LinkMapa href={`/mapa/fiscal/${r.ibge}/simular`} className="pa-btn pa-btn-pequeno">
                 Abrir o simulador de crédito
               </LinkMapa>

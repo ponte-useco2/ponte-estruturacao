@@ -9,6 +9,7 @@ import {
   impedidosPorAno,
   itensDoGrupo,
   podeVerPlanoPix,
+  podeVerPlanoPixDoCliente,
   planoSemContato,
   pontosAConferir,
   porQueImpedido,
@@ -77,6 +78,17 @@ test("cliente: só o plano do próprio município confirmado; o Estado fica de f
   assert.equal(podeVerPlanoPix(acesso, plano({ cod_ibge: "2513802" })), false);
   assert.equal(podeVerPlanoPix(acesso, plano({ cod_ibge: null })), false);
   assert.equal(podeVerPlanoPix({ ok: false, motivo: "aguardando_confirmacao" }, plano()), false);
+});
+
+test("D1 A25 (09/11/2026): o cliente por CNPJ confirmado vê o plano do próprio CNPJ; os dois portões somam", () => {
+  const semMunicipio = { ok: false as const, motivo: "nao_municipio" as const };
+  const cnpj = { ok: true as const, cnpj: "08917080000156" };
+  assert.equal(podeVerPlanoPixDoCliente(semMunicipio, cnpj, plano()), true);
+  assert.equal(podeVerPlanoPixDoCliente(semMunicipio, cnpj, plano({ cnpj: "09084815000170" })), false, "plano de outro CNPJ");
+  assert.equal(podeVerPlanoPixDoCliente(semMunicipio, cnpj, plano({ cnpj: null })), false);
+  assert.equal(podeVerPlanoPixDoCliente(semMunicipio, { ok: false, motivo: "aguardando_confirmacao" }, plano()), false);
+  // A prefeitura continua entrando pelo IBGE, mesmo sem CNPJ confirmado.
+  assert.equal(podeVerPlanoPixDoCliente({ ok: true, ibge: "2515302" }, { ok: false, motivo: "sem_organizacao" }, plano()), true);
 });
 
 test("chave do ente: CNPJ ou IBGE da PB, nada mais", () => {
