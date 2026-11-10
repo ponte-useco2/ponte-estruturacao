@@ -93,9 +93,9 @@ function acesa(perfil: keyof typeof PERFIS, caminho: string, de: string | null =
 test("B11: o menu tem a aba «Território», para todo aprovado, logo depois da Busca", () => {
   const nomes = (p: keyof typeof PERFIS) => abasDoMenu(PERFIS[p].perfil).map((a) => a.nome);
   // D1 A31 (09/11/2026): «Cadeia do gasto» entra depois do Território, para todo aprovado.
-  assert.deepEqual(nomes("aprovado"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Cadeia do gasto"]);
-  assert.deepEqual(nomes("prefeitura"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Cadeia do gasto", "Meu município"]);
-  assert.deepEqual(nomes("osc"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Cadeia do gasto", "Minha organização"]);
+  assert.deepEqual(nomes("aprovado"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Cadeia do gasto", "Explorador"]);
+  assert.deepEqual(nomes("prefeitura"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Cadeia do gasto", "Explorador", "Meu município"]);
+  assert.deepEqual(nomes("osc"), ["Janelas", "Avisos", "Carteira", "Busca", "Território", "Cadeia do gasto", "Explorador", "Minha organização"]);
   assert.deepEqual(nomes("administrador"), [
     "Janelas",
     "Avisos",
@@ -103,6 +103,7 @@ test("B11: o menu tem a aba «Território», para todo aprovado, logo depois da 
     "Busca",
     "Território",
     "Cadeia do gasto",
+    "Explorador",
     "Radar",
     "Painel",
     "Fiscal",

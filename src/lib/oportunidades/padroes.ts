@@ -671,8 +671,8 @@ export const TABELA_SUSPENSIVAS = "susp";
 
 /** As faixas do prazo da suspensiva em palavras, na ordem de urgência. */
 export const ROTULO_URGENCIA_PRAZO: Record<Nivel, string> = {
-  critico: "Vencido ou em até 30 dias",
-  alto: "Em 31 a 90 dias",
+  critico: "Vencido",
+  alto: "Vence em até 90 dias",
   moderado: "Mais de 90 dias",
   informativo: "Retirada ou sem prazo",
 };

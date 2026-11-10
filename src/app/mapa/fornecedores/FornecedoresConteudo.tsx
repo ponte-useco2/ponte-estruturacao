@@ -95,7 +95,7 @@ export function FornecedoresConteudo({ leitura, filtro, estado = ESTADO_VAZIO }:
           nota={
             totais.naoVerificados > 0
               ? `${n(totais.naoVerificados)} sem verificação: a lista do TCU não foi lida nesta atualização`
-              : "na lista de licitantes inidôneos hoje"
+              : "na lista de licitantes inidôneos do TCU, na leitura desta atualização"
           }
         />
         <Cartao titulo="Prefeituras concentradas" numero={n(altos)} nota={`um fornecedor com mais de ${pct(FATIA_ALTA)} do pago a empresas`} />

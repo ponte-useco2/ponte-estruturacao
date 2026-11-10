@@ -109,6 +109,9 @@ export const ABAS_MENU: readonly AbaMenu[] = [
   // A cadeia do gasto (D1 A31, decisão do titular de 09/11/2026): a rota existia no nível 1 sem porta no menu. Acende
   // também nos blocos (/mapa/cadeia-quebrada/<bloco>) e nos CNPJs (/mapa/cadeia-quebrada/cnpj/<cnpj>), por prefixo.
   { href: "/mapa/cadeia-quebrada", nome: "Cadeia do gasto", exata: false, admin: false, municipio: false },
+  // O explorador em camadas (D1 A43, decisão do titular de 10/11/2026): era protótipo só de administrador, fora do menu;
+  // passa a porta de todo aprovado. A descida em 3D é a mesma dos dados das páginas de nível.
+  { href: "/mapa/explorador", nome: "Explorador", exata: false, admin: false, municipio: false },
   // Só para quem está numa organização de município. A página confere o vínculo confirmado e explica o que falta; a
   // aba só evita mostrar a porta a quem não é prefeitura. Com o vínculo confirmado, a página redireciona para a do
   // município em abas, que também acende esta aba (e não o Território). O laudo do Pix (/mapa/pix/…) serve às duas:

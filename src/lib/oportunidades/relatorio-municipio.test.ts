@@ -320,7 +320,7 @@ test("Pix impedido (oport_29): os dois últimos anos viram pontos; pela vez do m
     ["Pix impedido em 2026: o ente não complementou o plano de trabalho no prazo (1 plano, R$ 300 mil perdidos)", "moderado"],
     ["Pix impedido em 2025: o órgão federal não analisou o plano no prazo (2 planos, R$ 200 mil perdidos)", "informativo"],
   ]);
-  assert.match(sp(pix[1].fato), /1 voltou no mesmo ano, reapresentado num ciclo seguinte \(R\$ 500 mil\); a perda líquida foi de R\$ 200 mil\. Em 2026, 1 teve o município indicado de novo pelo mesmo autor\./);
+  assert.match(sp(pix[1].fato), /1 voltou no mesmo ano, reapresentado num ciclo seguinte \(R\$ 500 mil\); o que não voltou no mesmo ano soma R\$ 200 mil e ainda pode voltar num ciclo seguinte\. Em 2026, 1 teve o município indicado de novo pelo mesmo autor\./);
   assert.ok(pix[0].acao?.startsWith("Acompanhar os prazos do próximo ciclo"));
   assert.equal(pix[1].acao, null);
 });

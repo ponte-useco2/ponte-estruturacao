@@ -170,19 +170,20 @@ function SecaoObras({ linhas, referencia }: { linhas: PainelContasObras["obras"]
   return (
     <section aria-labelledby="contas-obras" className="mp-radar-secao">
       <h2 id="contas-obras" className="mp-radar-h2">
-        Obras paradas no acompanhamento
+        Obras paralisadas ou sem medição recente
       </h2>
       <p className="pa-nota">
+        {/* D1 A63 (lote 5): "sem medição" não é obra parada; só a paralisação marcada pela mandatária é. O título e a nota separam os dois. */}
         {paradas.length === 0
-          ? "Nenhuma obra em execução paralisada ou atrasada"
-          : `${n(paradas.length)} obras em execução paralisadas ou atrasadas`}{" "}
-        há {DIAS_SEM_MEDICAO_MODERADO} dias ou mais sem medição, pelo módulo de acompanhamento de obras do Transferegov (coleta
-        {referencia ? ` de ${formatarData(referencia)}` : ""}).
+          ? "Nenhuma obra em execução paralisada pela mandatária nem sem medição recente"
+          : `${n(paradas.length)} obras em execução paralisadas pela mandatária ou há ${DIAS_SEM_MEDICAO_MODERADO} dias ou mais sem medição registrada`}
+        , pelo módulo de acompanhamento de obras do Transferegov (coleta{referencia ? ` de ${formatarData(referencia)}` : ""}). Sem medição não
+        quer dizer obra parada: pode ser aceite pendente da mandatária. Ponto para olhar, não irregularidade.
       </p>
       {paradas.length > 0 && (
         <TabelaFiltravel
           id="obras"
-          rotulo="Obras paradas no acompanhamento"
+          rotulo="Obras paralisadas ou sem medição recente"
           colunas={COLUNAS_OBRAS}
           linhas={paradas.map(linhaObra)}
           descricaoOrdemPadrao="as paralisadas primeiro, depois as há mais tempo sem medição"

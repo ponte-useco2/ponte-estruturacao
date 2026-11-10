@@ -1106,7 +1106,7 @@ function achadosPix(s: SecaoPix): Achado[] {
       fato:
         `${plural(i.planos, "plano", "planos")} do Pix ${i.planos === 1 ? "ficou impedido" : "ficaram impedidos"} em ${i.ano}, somando ${moedaCurta(i.valor)}.` +
         (i.recuperados
-          ? ` ${plural(i.recuperados, "voltou", "voltaram")} no mesmo ano, reapresentado${i.recuperados === 1 ? "" : "s"} num ciclo seguinte (${moedaCurta(i.valorRecuperado)}); a perda líquida foi de ${moedaCurta(i.valorPerdido)}.`
+          ? ` ${plural(i.recuperados, "voltou", "voltaram")} no mesmo ano, reapresentado${i.recuperados === 1 ? "" : "s"} num ciclo seguinte (${moedaCurta(i.valorRecuperado)}); o que não voltou no mesmo ano soma ${moedaCurta(i.valorPerdido)} e ainda pode voltar num ciclo seguinte.`
           : " Nenhum voltou no mesmo ano.") +
         (i.reindicados ? ` Em ${i.ano + 1}, ${i.reindicados === 1 ? "1 teve" : `${i.reindicados} tiveram`} o município indicado de novo pelo mesmo autor.` : "") +
         " O porquê de cada um, com o parecer do órgão quando há, está no laudo do plano.",

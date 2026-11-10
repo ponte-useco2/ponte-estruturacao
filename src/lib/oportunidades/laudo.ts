@@ -299,7 +299,7 @@ const listaCondicoes = (c: Condicao[]) => c.map((x) => `«${x.texto}»`).join(",
 
 // ------------------------------------------------------------------ limiares
 
-/** Prazo da suspensiva a esta distância ou menos já é crítico. */
+/** Prazo da suspensiva a esta distância ou menos pede ação imediata; desde 10/11/2026 (A65) é "alto", não "crítico": crítico só vencido. */
 export const DIAS_PRAZO_CRITICO = 30;
 /** A esta distância ou menos, é hora de pedir prorrogação. */
 export const DIAS_PRAZO_ALTO = 90;
@@ -576,7 +576,8 @@ function lerPrazo(c: ContextoLaudo, hoje: string): Laudo["prazo"] {
   if (d < 0) {
     return { data: c.dt_suspensiva, dias: d, nivel: "critico", frase: `O prazo da cláusula suspensiva venceu em ${data}, há ${dias(-d)}, sem retirada registrada.` };
   }
-  const nivel: Nivel = d <= DIAS_PRAZO_CRITICO ? "critico" : d <= DIAS_PRAZO_ALTO ? "alto" : "moderado";
+  // D1 A65 (decisão do titular, 10/11/2026): crítico só quando vencido (o prazo extingue o instrumento); até 90 dias é alto.
+  const nivel: Nivel = d <= DIAS_PRAZO_ALTO ? "alto" : "moderado";
   const frase = d === 0 ? `O prazo da cláusula suspensiva vence hoje, ${data}.` : `O prazo da cláusula suspensiva vence em ${data}, daqui a ${dias(d)}.`;
   return { data: c.dt_suspensiva, dias: d, nivel, frase };
 }
@@ -810,7 +811,8 @@ export interface ItemUrgencia {
 export function nivelPrazo(i: Pick<ItemUrgencia, "dt_suspensiva" | "dt_retirada_suspensiva">, hoje: string): Nivel {
   if (i.dt_retirada_suspensiva || !i.dt_suspensiva) return "informativo";
   const d = diasEntre(hoje, i.dt_suspensiva);
-  return d <= DIAS_PRAZO_CRITICO ? "critico" : d <= DIAS_PRAZO_ALTO ? "alto" : "moderado";
+  // D1 A65 (decisão do titular, 10/11/2026): vencido é crítico, porque extingue o instrumento; até 90 dias é alto.
+  return d < 0 ? "critico" : d <= DIAS_PRAZO_ALTO ? "alto" : "moderado";
 }
 
 /**

@@ -308,7 +308,8 @@ test("suspensivas: prazo, dias para o prazo, urgência e o tempo parado contados
   confereChaves(COLUNAS_SUSPENSIVAS, v[0], "suspensivas");
   assert.deepEqual(v.map((x) => x["dias-prazo"]), [-12, 19, 68, 231, null, null]);
   assert.deepEqual(v.map((x) => x.urgencia), [
-    ROTULO_URGENCIA_PRAZO.critico, ROTULO_URGENCIA_PRAZO.critico, ROTULO_URGENCIA_PRAZO.alto,
+    // A65 (10/11/2026): só o vencido é crítico; 19 dias é alto.
+    ROTULO_URGENCIA_PRAZO.critico, ROTULO_URGENCIA_PRAZO.alto, ROTULO_URGENCIA_PRAZO.alto,
     ROTULO_URGENCIA_PRAZO.moderado, ROTULO_URGENCIA_PRAZO.informativo, ROTULO_URGENCIA_PRAZO.informativo,
   ]);
   // Com a retirada, o prazo fica vazio e a data da retirada vai para a coluna oculta.

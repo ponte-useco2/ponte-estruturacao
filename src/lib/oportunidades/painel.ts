@@ -814,7 +814,7 @@ export const ROTULO_SINAL: Record<Sinal, string> = {
   saldo: "Saldo parado",
   suspensiva: "Suspensiva vencendo",
   contas_atrasadas: "Contas atrasadas",
-  contas_negativas: "Contas rejeitadas, inadimplência ou tomada de contas especial",
+  contas_negativas: "Contas rejeitadas ou inadimplência",
   sem_desembolso: "Sem desembolso há +1 ano",
 };
 /** Para as etiquetas da tabela, onde o rótulo inteiro dobra a altura da linha. */
@@ -829,7 +829,7 @@ export const DESCRICAO_SINAL: Record<Sinal, string> = {
   saldo: "R$ 100 mil ou mais sem saída há mais de um ano",
   suspensiva: "prazo vencido ou vencendo em até 90 dias",
   contas_atrasadas: "prazo das contas vencido, inclusive o prazo dado para a complementação",
-  contas_negativas: "prestação de contas rejeitada, inadimplência ou tomada de contas especial",
+  contas_negativas: "prestação de contas rejeitada ou inadimplência no SICONV; a tomada de contas especial é marca própria, do e-TCE",
   sem_desembolso: "assinado há mais de um ano, sem suspensiva e sem nenhum desembolso",
 };
 

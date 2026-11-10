@@ -43,7 +43,7 @@ const COLUNAS_IMPEDIDOS: ColunaTabela[] = [
   { id: "planos", titulo: "Planos", tipo: "numero", alinhar: "direita" },
   { id: "valor", titulo: "Valor", tipo: "numero", alinhar: "direita" },
   { id: "recuperado", titulo: "Voltou no mesmo ano", tipo: "numero", alinhar: "direita" },
-  { id: "perda", titulo: "Perda líquida", tipo: "numero", alinhar: "direita" },
+  { id: "perda", titulo: "Não voltou no mesmo ano", tipo: "numero", alinhar: "direita" },
 ];
 
 const COLUNAS_PLANOS: ColunaTabela[] = [
@@ -99,7 +99,7 @@ export function EntePixConteudo({ leitura, chave, cliente = false }: { leitura: 
           </h2>
           <p className="pa-nota">
             Plano impedido não recebe repasse. &quot;Voltou no mesmo ano&quot; é o plano reapresentado num ciclo seguinte que ficou ciente (ou a
-            repetição do mesmo plano); a perda líquida é o resto. O porquê de cada um está no laudo do plano.
+            repetição do mesmo plano); &quot;Não voltou no mesmo ano&quot; é o resto: pode voltar num ciclo seguinte, e por isso não se chama perda. O porquê de cada um está no laudo do plano.
           </p>
           <TabelaFiltravel
             id="pix-impedidos"

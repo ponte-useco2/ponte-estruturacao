@@ -261,7 +261,8 @@ test("vigência curta é risco e vira pedido de prorrogação junto com a retira
 
 test("prazo da suspensiva a 90 dias ou menos pede prorrogação logo no primeiro passo", () => {
   const l = lerLaudo(joaoPessoa979063(), { ...CONTEXTO, dt_suspensiva: "2026-09-29" }, HOJE);
-  assert.equal(l.prazo.nivel, "critico");
+  // A65 (10/11/2026): a 11 dias do prazo é alto; crítico só depois de vencido.
+  assert.equal(l.prazo.nivel, "alto");
   assert.equal(l.prazo.dias, 11);
   assert.equal(l.estrategia[0].titulo, "Pedir a prorrogação do prazo da suspensiva");
 });
@@ -299,7 +300,9 @@ test("analistas do concedente são contados com o que cada um decidiu", () => {
 test("nivelPrazo usa os mesmos limiares do laudo", () => {
   const sem = { dt_retirada_suspensiva: null };
   assert.equal(nivelPrazo({ ...sem, dt_suspensiva: "2025-10-01" }, HOJE), "critico");
-  assert.equal(nivelPrazo({ ...sem, dt_suspensiva: "2026-10-18" }, HOJE), "critico");
+  // A65 (10/11/2026): a 30 dias é alto; crítico só vencido.
+  assert.equal(nivelPrazo({ ...sem, dt_suspensiva: "2026-10-18" }, HOJE), "alto");
+  assert.equal(nivelPrazo({ ...sem, dt_suspensiva: "2026-09-18" }, HOJE), "alto", "vence hoje: ainda não venceu");
   assert.equal(nivelPrazo({ ...sem, dt_suspensiva: "2026-12-17" }, HOJE), "alto");
   assert.equal(nivelPrazo({ ...sem, dt_suspensiva: "2027-06-30" }, HOJE), "moderado");
   assert.equal(nivelPrazo({ ...sem, dt_suspensiva: null }, HOJE), "informativo");

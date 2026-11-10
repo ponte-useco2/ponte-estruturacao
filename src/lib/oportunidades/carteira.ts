@@ -149,6 +149,14 @@ export const RECLASSIFICACOES_DE_REGRA: readonly { evento: string; de: string; a
     ate: "2026-11-12",
     nota: "reclassificação de regra (08/11/2026): a prestação de contas em complementação com o prazo em aberto deixou de contar como atrasada; nada mudou no convênio",
   },
+  // D1 A58 (decisão do titular, 10/11/2026): o sinal "contas negativas" deixou de somar a tomada de contas especial, que
+  // já é marca própria do e-TCE. A primeira rodada com a regra nova é a seguinte à publicação; a janela cobre a folga.
+  {
+    evento: "contas_negativas",
+    de: "2026-11-10",
+    ate: "2026-11-14",
+    nota: "reclassificação de regra (10/11/2026): a tomada de contas especial deixou de contar em «contas negativas» e segue só na linha própria do e-TCE; nada mudou no convênio",
+  },
 ];
 
 /** A nota da reclassificação para um aviso que caiu dentro da janela da regra; null para todo o resto. */
