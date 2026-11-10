@@ -402,7 +402,7 @@ export function destinoPorMunicipio(
     lista.push(linha(m.ibge, m.nome, m.populacao));
   }
   lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || (a.ibge < b.ibge ? -1 : 1));
-  const fora = [...valor.keys()].filter((ibge) => !conhecidos.has(ibge)).sort().map((ibge) => linha(ibge, ibge, null));
+  const fora = [...valor.keys()].filter((ibge) => !conhecidos.has(ibge)).sort((a, b) => a.localeCompare(b)).map((ibge) => linha(ibge, ibge, null));
   return [...lista, ...fora];
 }
 

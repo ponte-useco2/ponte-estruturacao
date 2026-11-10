@@ -879,7 +879,7 @@ function lerRiscos(b: Base): Risco[] {
   }
 
   if (etapa === "execucao" && i.dt_primeiro_desembolso) {
-    const ultimo = [i.dt_ultimo_pagamento, i.dt_ultimo_desembolso].filter((x): x is string => !!x).sort().at(-1);
+    const ultimo = [i.dt_ultimo_pagamento, i.dt_ultimo_desembolso].filter((x): x is string => !!x).sort((a, b) => a.localeCompare(b)).at(-1);
     const parado = ultimo ? diasEntre(ultimo, b.hoje) : null;
     if (parado !== null && parado > DIAS_SEM_MOVIMENTO) {
       r.push({

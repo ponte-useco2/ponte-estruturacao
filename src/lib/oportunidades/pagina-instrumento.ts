@@ -100,7 +100,7 @@ export function pagamentosPorMes(eventos: readonly EventoInstrumento[]): Pagamen
     soma.set(mes, s);
   }
   if (soma.size === 0) return [];
-  const meses = [...soma.keys()].sort();
+  const meses = [...soma.keys()].sort((a, b) => a.localeCompare(b));
   const [a0, m0] = meses[0].split("-").map(Number);
   const [a1, m1] = meses[meses.length - 1].split("-").map(Number);
   const saida: PagamentoDoMes[] = [];

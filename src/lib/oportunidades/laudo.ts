@@ -700,7 +700,7 @@ function lerCausas(b: Base & { tempoPorLado: Laudo["tempoPorLado"]; maiorEspera:
   if (doConcedente >= 3) c.push(`O processo passou por ${doConcedente} pessoas diferentes do lado do concedente.`);
   const atraso = b.linha.filter((l) => l.atrasoRegistro !== null && l.atrasoRegistro > DIAS_ATRASO_REGISTRO);
   if (atraso.length) {
-    const pior = atraso.reduce((x, y) => ((y.atrasoRegistro ?? 0) > (x.atrasoRegistro ?? 0) ? y : x));
+    const pior = atraso.reduce((x, y) => ((y.atrasoRegistro ?? 0) > (x.atrasoRegistro ?? 0) ? y : x), atraso[0]);
     c.push(
       `${atraso.length === 1 ? "Uma análise foi registrada" : `${atraso.length} análises foram registradas`} bem depois da data informada pelo analista; ` +
         `a maior diferença: análise de ${dataBr(pior.analisadaEm)} registrada em ${dataBr(pior.dia)}, ${dias(pior.atrasoRegistro ?? 0)} depois.`,

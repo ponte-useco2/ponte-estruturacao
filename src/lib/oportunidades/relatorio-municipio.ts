@@ -565,7 +565,7 @@ function secaoConvenios(e: EntradaRelatorio, hoje: string): SecaoConvenios | nul
   const vencida = execucao.filter((i) => i.dt_fim_vigencia && i.dt_fim_vigencia < hoje);
   const semMovimento = execucao.filter((i) => {
     if (!i.dt_primeiro_desembolso) return false;
-    const ultimo = [i.dt_ultimo_pagamento, i.dt_ultimo_desembolso].filter((x): x is string => !!x).sort().at(-1);
+    const ultimo = [i.dt_ultimo_pagamento, i.dt_ultimo_desembolso].filter((x): x is string => !!x).sort((a, b) => a.localeCompare(b)).at(-1);
     return !!ultimo && diasEntre(ultimo, hoje) > DIAS_SEM_MOVIMENTO;
   });
   const atrasadas = is.filter((i) => i.situacao === "Aguardando Prestação de Contas" && i.dt_limite_contas && i.dt_limite_contas < hoje);
@@ -584,7 +584,7 @@ function secaoConvenios(e: EntradaRelatorio, hoje: string): SecaoConvenios | nul
     vigenciaVencida: vencida.map((i) =>
       linha(i, `vigência terminou em ${data(i.dt_fim_vigencia)}; ${moedaCurta(i.vl_saldo_conta ?? 0)} em conta`, { saldoConta: i.vl_saldo_conta }),
     ),
-    semMovimento: semMovimento.map((i) => linha(i, `último movimento em ${data([i.dt_ultimo_pagamento, i.dt_ultimo_desembolso].filter(Boolean).sort().at(-1))}`)),
+    semMovimento: semMovimento.map((i) => linha(i, `último movimento em ${data([i.dt_ultimo_pagamento, i.dt_ultimo_desembolso].filter((x): x is string => !!x).sort((a, b) => a.localeCompare(b)).at(-1))}`)),
     contasAtrasadas: atrasadas.map((i) => linha(i, `prazo terminou em ${data(i.dt_limite_contas)}`, { prazoContas: i.dt_limite_contas })),
     contasNegativas: negativas.map((i) => linha(i, i.situacao ?? "")),
     nuncaAssinados: nunca.filter((i) => !i.dt_fim_vigencia || i.dt_fim_vigencia >= hoje).map((i) => linha(i, `vigência até ${data(i.dt_fim_vigencia)}`)),
@@ -649,7 +649,7 @@ function achadosConvenios(s: SecaoConvenios, e: EntradaRelatorio, hoje: string, 
       dimensao: "convenios",
       classe: "prazo",
       quem: "municipio",
-      prazo: acabando.map((i) => i.dt_fim_vigencia as string).sort()[0] ?? null,
+      prazo: acabando.map((i) => i.dt_fim_vigencia as string).sort((a, b) => a.localeCompare(b))[0] ?? null,
       titulo: acabando.length === 1 ? "Vigência acabando em 30 dias" : `${n(acabando.length)} vigências acabando em 30 dias`,
       fato: lista(acabando.map((i) => `${i.nr_convenio} (até ${data(i.dt_fim_vigencia)})`)) + ".",
       acao: "Pedir o aditivo de prazo antes do fim da vigência, se o objeto não vai terminar a tempo.",
@@ -1152,7 +1152,7 @@ export interface SecaoTcePb {
 function secaoTcePb(e: EntradaRelatorio): SecaoTcePb | null {
   if (!e.conciliacao || !e.conciliacao.length) return null;
   const r = resumirConciliacao(e.conciliacao);
-  return { anos: [...new Set(e.conciliacao.map((m) => m.ano))].sort(), siconv: r.siconv, casado: r.siconvCasado, taxa: r.taxa, soTce: r.tceSo };
+  return { anos: [...new Set(e.conciliacao.map((m) => m.ano))].sort((a, b) => a - b), siconv: r.siconv, casado: r.siconvCasado, taxa: r.taxa, soTce: r.tceSo };
 }
 
 export interface SecaoFornecedores {

@@ -304,7 +304,7 @@ export function chaveDaChamada(execucaoId: number, funcao: string, args: Record<
     if (v && typeof v === "object") {
       return Object.fromEntries(
         Object.keys(v as Record<string, unknown>)
-          .sort()
+          .sort((a, b) => a.localeCompare(b))
           .filter((k) => (v as Record<string, unknown>)[k] !== undefined)
           .map((k) => [k, ordenado((v as Record<string, unknown>)[k])]),
       );

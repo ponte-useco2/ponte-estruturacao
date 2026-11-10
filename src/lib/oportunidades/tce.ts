@@ -216,7 +216,7 @@ export function tceDoFornecedor(pares: TceFederalPar[], cnpj: string, nrConvenio
 
 export function descreverCobertura(c: TceCobertura[]): string {
   const lidos = c.filter((x) => x.lido).length;
-  const datas = c.map((x) => x.coletado_em).filter((x): x is string => !!x).sort();
+  const datas = c.map((x) => x.coletado_em).filter((x): x is string => !!x).sort((a, b) => a.localeCompare(b));
   const ultima = datas.at(-1);
   return `${n(lidos)} de ${n(c.length)} arquivos de despesa lidos${ultima ? ` (o mais recente em ${formatarData(ultima)})` : ""}`;
 }

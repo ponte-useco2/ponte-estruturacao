@@ -233,7 +233,7 @@ export function pontosRetomada(s: SecaoRetomada, hoje: string): PontoRetomada[] 
       classe: "atencao",
       quem: "municipio",
       titulo: `Pacto de Retomada: saldo de extrato antigo em processo sem obra em andamento (${plural(antigos.length, "processo", "processos")})`,
-      fato: `${reais(antigos.reduce((a, p) => a + p.saldo, 0))} no último extrato publicado, com mais de um ano (o mais antigo de ${dataBr(antigos.map((p) => p.saldoData ?? "").sort()[0] || null)}). O saldo pode já ter saído.`,
+      fato: `${reais(antigos.reduce((a, p) => a + p.saldo, 0))} no último extrato publicado, com mais de um ano (o mais antigo de ${dataBr(antigos.map((p) => p.saldoData ?? "").sort((a, b) => a.localeCompare(b))[0] || null)}). O saldo pode já ter saído.`,
       acao: null,
       peso: 8,
     });
@@ -268,7 +268,7 @@ export function pontosRetomada(s: SecaoRetomada, hoje: string): PontoRetomada[] 
     });
   }
   if (perto.length) {
-    const prazo = perto.map((o) => (o.termo_vigencia as string).slice(0, 10)).sort()[0];
+    const prazo = perto.map((o) => (o.termo_vigencia as string).slice(0, 10)).sort((a, b) => a.localeCompare(b))[0];
     out.push({
       nivel: "alto",
       classe: "prazo",
@@ -289,7 +289,7 @@ export function pontosRetomada(s: SecaoRetomada, hoje: string): PontoRetomada[] 
       classe: "prazo",
       quem: "municipio",
       titulo: `Pacto de Retomada: pedido em diligência esperando o município (${plural(diligencia.length, "obra", "obras")})`,
-      fato: `${nomes(diligencia)}: o FNDE pediu complemento no pedido de repactuação, e a vez é do município desde ${dataBr(diligencia.map((o) => o.dt_ultimo_passo ?? "").sort()[0] || null)}.`,
+      fato: `${nomes(diligencia)}: o FNDE pediu complemento no pedido de repactuação, e a vez é do município desde ${dataBr(diligencia.map((o) => o.dt_ultimo_passo ?? "").sort((a, b) => a.localeCompare(b))[0] || null)}.`,
       acao: "Responder à diligência do FNDE no pedido de repactuação.",
       peso: 4,
     });

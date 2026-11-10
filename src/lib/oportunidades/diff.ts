@@ -104,7 +104,7 @@ export interface ResultadoDiff {
  * Os códigos são ordenados porque a posição no array não carrega significado.
  */
 export function chaveJanela(o: Pick<Oportunidade, "canal" | "natureza" | "codigos">): string {
-  return `${o.canal}|${o.natureza}|${[...o.codigos].sort().join(",")}`;
+  return `${o.canal}|${o.natureza}|${[...o.codigos].sort((a, b) => a.localeCompare(b)).join(",")}`;
 }
 
 /**
@@ -114,7 +114,7 @@ export function chaveJanela(o: Pick<Oportunidade, "canal" | "natureza" | "codigo
  * mundo. Partes sem espaço sobrando, sem repetição e em ordem alfabética.
  */
 export function situacaoNormalizada(s: string | null | undefined): string {
-  return [...new Set((s ?? "").split("/").map((x) => x.trim()).filter(Boolean))].sort().join(" / ");
+  return [...new Set((s ?? "").split("/").map((x) => x.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)).join(" / ");
 }
 
 function abertasDe(payload: Pick<Payload, "gerado_em" | "oportunidades">): Record<string, JanelaMemoria> {
@@ -276,7 +276,7 @@ export function calcularDiff(
 
   return {
     mudancas,
-    proximoEstado: { gerado_em: atual.gerado_em, abertas, saidas: [...saidas].sort() },
+    proximoEstado: { gerado_em: atual.gerado_em, abertas, saidas: [...saidas].sort((a, b) => a.localeCompare(b)) },
     linhaDeBase: false,
     suspeita: removidas > 0 ? `${removidas} janela(s) saíram do catálogo antes do prazo` : null,
   };

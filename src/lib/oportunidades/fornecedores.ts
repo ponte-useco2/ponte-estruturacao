@@ -482,8 +482,8 @@ const ehDoTcu = (r: Pick<RegistroSancao, "orgao">) => /tribunal de contas da uni
 
 /** O período que cobre os registros: o início mais antigo (sem início, desde sempre) e o fim mais distante. */
 function periodoRegistros(rs: RegistroSancao[]): { inicio: string | null; fim: string | null } {
-  const inicios = rs.map((r) => r.dt_inicio).filter((x): x is string => !!x).sort();
-  const fins = rs.map((r) => r.dt_fim).filter((x): x is string => !!x).sort();
+  const inicios = rs.map((r) => r.dt_inicio).filter((x): x is string => !!x).sort((a, b) => a.localeCompare(b));
+  const fins = rs.map((r) => r.dt_fim).filter((x): x is string => !!x).sort((a, b) => a.localeCompare(b));
   return {
     inicio: inicios.length === rs.length ? inicios[0] : null,
     fim: fins.length === rs.length ? (fins.at(-1) ?? null) : null,

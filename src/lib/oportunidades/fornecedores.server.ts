@@ -171,7 +171,7 @@ async function vigentesDoPainel(
         .range(a, b),
   );
   if (ehFalha(v)) return null;
-  const cnpjs = [...new Set(v.map((x) => x.cnpj))].sort();
+  const cnpjs = [...new Set(v.map((x) => x.cnpj))].sort((a, b) => a.localeCompare(b));
   const conv = await porCnpjs<{ cnpj: string; tipo_agente: string | null; municipio: string | null }>(
     `${onde} (convenentes das empresas com registro)`,
     cnpjs,
@@ -447,7 +447,7 @@ export async function lerPainelFornecedores(
 
   // Só com registro vigente no CEIS/CNEP: poucas dezenas de empresas, lidas em lotes pelo CNPJ (D1).
   if (filtro.marca === "sancionadas") {
-    const fs = await porCnpjs<Fornecedor>("lerPainelFornecedores (CEIS/CNEP)", [...vigentes].sort(), (lote) =>
+    const fs = await porCnpjs<Fornecedor>("lerPainelFornecedores (CEIS/CNEP)", [...vigentes].sort((a, b) => a.localeCompare(b)), (lote) =>
       db.from("painel_fornecedor").select(COLUNAS_FORNECEDOR).eq("execucao_id", id).in("cnpj", lote),
     );
     if (ehFalha(fs)) return fs;

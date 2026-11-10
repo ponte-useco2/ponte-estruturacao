@@ -123,7 +123,7 @@ function SecaoTce({ leitura }: { leitura: LeituraOk }) {
             id="tce-lista"
             rotulo="As tomadas de contas especiais, uma a uma"
             colunas={COLUNAS_TCE}
-            linhas={ordenadas.map(linhaTce)}
+            linhas={ordenadas.map((t, k) => linhaTce(t, k))}
             ordemPadrao={{ coluna: "instaurada", sentido: "desc" }}
             csv={{ nome: "contas-tomadas-de-contas-especiais" }}
           />

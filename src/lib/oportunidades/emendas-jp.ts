@@ -326,7 +326,7 @@ export function emendasDoRetrato(r: RetratoEjp): EmendaJp[] {
     const comValor = ls.filter((l) => l.dotacao > 0);
     const base = comValor[0] ?? ls[0];
     const emps = tce.get(chave) ?? [];
-    const datas = emps.map((e) => e.data_empenho).filter((d): d is string => !!d).sort();
+    const datas = emps.map((e) => e.data_empenho).filter((d): d is string => !!d).sort((a, b) => a.localeCompare(b));
     saida.push({
       chave,
       ano: base.ano,

@@ -855,7 +855,7 @@ export function BlocoPix({ r, destino }: { r: Relatorio; destino: Destino }) {
 
 /** Impedidos dos dois últimos exercícios numa linha: o valor bruto, o que voltou no mesmo ano e a perda líquida. */
 function ResumoImpedidos({ imp }: { imp: ImpedidosDoAno[] }) {
-  const anos = [...new Set(imp.map((i) => i.ano))].sort();
+  const anos = [...new Set(imp.map((i) => i.ano))].sort((a, b) => a - b);
   const planos = imp.reduce((t, i) => t + i.planos, 0);
   const valor = imp.reduce((t, i) => t + i.valor, 0);
   const recuperado = imp.reduce((t, i) => t + i.valorRecuperado, 0);

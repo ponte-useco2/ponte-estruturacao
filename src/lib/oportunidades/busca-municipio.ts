@@ -259,7 +259,7 @@ export function palavraMaisLonga(q: string): string | null {
     .map((p) => p.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
     .filter((p) => p.length >= 2);
   if (lista.length < 2) return null;
-  return lista.reduce((a, b) => (b.length > a.length ? b : a));
+  return lista.reduce((a, b) => (b.length > a.length ? b : a), lista[0]);
 }
 
 /** O título do resultado vazio: diz o que foi procurado. */

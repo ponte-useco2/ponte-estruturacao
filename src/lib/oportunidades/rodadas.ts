@@ -742,7 +742,7 @@ export const JOBS_RODADAS: readonly JobRodada[] = [
         const dias = [textoDe(contagens, "especiais_dado_ate"), textoDe(contagens, "fundo_dado_ate")]
           .map(diaDoDado)
           .filter((d): d is string => d !== null)
-          .sort();
+          .sort((a, b) => a.localeCompare(b));
         return dias[0] ?? null;
       },
       limite: DEFASAGEM_PIX_DIAS_UTEIS,

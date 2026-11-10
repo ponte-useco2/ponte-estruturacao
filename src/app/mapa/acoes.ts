@@ -255,7 +255,7 @@ export async function alternarPreferencia(eixo: unknown, valor: unknown, marcado
   const conjunto = new Set(prefs[campo]);
   if (marcado) conjunto.add(valor);
   else conjunto.delete(valor);
-  prefs[campo] = [...conjunto].sort();
+  prefs[campo] = [...conjunto].sort((a, b) => a.localeCompare(b));
 
   const nadaMarcado = !prefs.temas.length && !prefs.orgaos.length && !prefs.naturezas.length;
 
