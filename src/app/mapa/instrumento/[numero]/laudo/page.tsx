@@ -97,7 +97,10 @@ export default async function LaudoPage({ params }: { params: Promise<{ numero: 
   const { entrada, execucao } = leitura;
   const referencia = diaBrasilia(execucao.referencia ?? execucao.dado_ate ?? hoje);
   // O dossiê da suspensiva é complemento deste laudo, não condição: se a leitura dele falhar, o laudo sai sem.
-  if (suspensiva.estado !== "ok" && suspensiva.estado !== "sem_coleta") entrada.faltas.push("dossiê da suspensiva (Acesso Livre)");
+  // D1 A15 (lote 4): a falta diz que a LEITURA falhou agora; "sem coleta" não é falta e o laudo sai como diagnóstico sem aviso.
+  if (suspensiva.estado !== "ok" && suspensiva.estado !== "sem_coleta") {
+    entrada.faltas.push("dossiê da suspensiva (Acesso Livre): a leitura falhou agora, não é ausência de coleta");
+  }
 
   if (suspensiva.estado === "ok") {
     // No laudo do cliente, nenhum nome de servidor: sai do dossiê antes de qualquer leitura.

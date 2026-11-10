@@ -22,6 +22,7 @@ import {
   type JanelaVista,
 } from "@/lib/oportunidades/catalogo-v2";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { LIMIAR_HORAS } from "@/lib/oportunidades/idade-dado";
 import { CONDICAO_CANAL, ORDEM_CANAL, ROTULO_CANAL, type CanalV2 } from "@/lib/oportunidades/contrato-v2";
 import { ROTULO_TEMA, TEMAS_RAIZ, subtemasDe, type Tema } from "@/lib/oportunidades/temas";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
@@ -32,6 +33,7 @@ import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtr
 import { Tag } from "../_design/primitivos";
 import { TabelaFiltravel } from "./_componentes/TabelaFiltravel";
 import { EstrelaSeguir } from "./_componentes/EstrelaSeguir";
+import { IdadeDoDado } from "./_componentes/IdadeDoDado";
 import { LinkMapa } from "./_componentes/LinkMapa";
 
 interface Entidade {
@@ -449,9 +451,16 @@ export function CatalogoClient({
         </section>
       )}
 
+      {/* D1 A02 (lote 4): a idade do catálogo com o estado "Dado antigo", como na central, em vez de só a data no rodapé. */}
       <p className="pa-nota mp-procedencia">
-        Catálogo gerado em {formatarPublicacao(vista.geradoEm)}. Prazos contados a partir de{" "}
-        {formatarData(vista.hoje)}, no horário da Paraíba.
+        <IdadeDoDado
+          rotulo="Catálogo gerado em"
+          data={vista.geradoEm}
+          hoje={vista.hoje}
+          limiarHoras={LIMIAR_HORAS.diario}
+          explicacao="Janelas podem ter aberto, mudado de prazo ou fechado sem aparecer aqui."
+        />{" "}
+        ({formatarPublicacao(vista.geradoEm)}). Prazos contados a partir de {formatarData(vista.hoje)}, no horário da Paraíba.
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { chaveDoAmbiente } from "@/lib/oportunidades/publico";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { estilosEntrada } from "../estilos-entrada";
 import { SairBotao } from "./SairBotao";
@@ -67,6 +68,12 @@ export default async function AguardandoPage() {
         */}
         <SairBotao />
 
+        {/* D1 A33 (lote 4): com a versão pública ligada, quem espera a aprovação pode ver as janelas e o território sem cadastro. */}
+        {chaveDoAmbiente() && (
+          <Link className="op-entrar-voltar" href="/mapa">
+            Ver as janelas abertas e o território, sem cadastro
+          </Link>
+        )}
         <Link className="op-entrar-voltar" href="/">
           ← Site da PONTE
         </Link>

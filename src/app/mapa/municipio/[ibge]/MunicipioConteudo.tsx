@@ -16,6 +16,7 @@ import type { LeituraPI } from "@/lib/oportunidades/primeira-infancia.server";
 import { resumoMunicipio } from "@/lib/oportunidades/primeira-infancia";
 import { CartoesPI, DetalheMunicipioPI } from "../../primeira-infancia/PecasPrimeiraInfancia";
 import { formatarData } from "@/lib/oportunidades/central";
+import { LIMIAR_HORAS } from "@/lib/oportunidades/idade-dado";
 import { rotuloRegic } from "@/lib/oportunidades/indicadores-municipio";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import {
@@ -37,6 +38,7 @@ import { proximoDiaDoMes } from "@/lib/oportunidades/vazios";
 import { EstrelaSeguir } from "../../_componentes/EstrelaSeguir";
 import { Termo } from "../../_componentes/Termo";
 import { Trilha } from "../../_componentes/Trilha";
+import { IdadeDoDado } from "../../_componentes/IdadeDoDado";
 import { EmendasDoMunicipio } from "./EmendasDoMunicipio";
 import type { LeituraAssembleia } from "@/lib/oportunidades/emendas-pb";
 import type { LeituraTceEstadoMunicipio } from "@/lib/oportunidades/tce-estado";
@@ -95,7 +97,14 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
           </span>
         )}
         {g?.regic && <span>{rotuloRegic(g.regic)}</span>}
-        <span>dados lidos em {data(r.hoje)}</span>
+        {/* D1 A06 (lote 4): a data do DADO (o arquivo do Transferegov), não a da leitura, e "Dado antigo" passado o limiar diário. */}
+        <IdadeDoDado
+          rotulo="dados do Transferegov de"
+          data={r.fontes.find((f) => f.fonte.startsWith("SICONV"))?.data ?? null}
+          hoje={r.hoje}
+          limiarHoras={LIMIAR_HORAS.diario}
+          explicacao="Convênios podem ter mudado de situação sem aparecer aqui; as outras fontes têm a sua data na aba Relatório."
+        />
       </p>
       {/* C4a (C5 da R3): seguir e imprimir são do cadastro; no nível 0 a linha inteira sai. */}
       {PODE.cadastro(nivel) && (
