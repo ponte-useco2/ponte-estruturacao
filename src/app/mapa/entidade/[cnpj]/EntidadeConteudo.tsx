@@ -257,7 +257,15 @@ const cnae = (c: string | null) => (c && /^\d{5}$/.test(c) ? `${c.slice(0, 4)}-$
  * de endereço, dirigentes ou contato (o job não grava). Para a OSC que não está no Mapa, o porquê provável.
  */
 export function CadastroMapa({ osc, hoje, especie }: { osc: LeituraCadastroOsc; hoje: string; especie: string }) {
-  if (osc.estado === "indisponivel") return null;
+  // D1 A17 (09/11/2026): a falha da leitura não some em silêncio; para a OSC, uma linha diz que não pôde ser lida.
+  if (osc.estado === "indisponivel") {
+    if (especie !== "osc") return null;
+    return (
+      <Secao id="ent-cadastro" titulo="Cadastro no Mapa das OSC">
+        <p className="pa-nota">O cadastro no Mapa das OSC (Ipea) não pôde ser lido agora. O resto da página não depende dele.</p>
+      </Secao>
+    );
+  }
   if (osc.estado === "nao_encontrado") {
     if (especie !== "osc") return null;
     return (

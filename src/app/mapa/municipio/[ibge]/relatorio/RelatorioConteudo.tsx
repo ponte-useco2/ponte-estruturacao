@@ -78,6 +78,16 @@ const AVISO_INTERNO =
 const AVISO =
   "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, nunca " +
   "irregularidade; não substitui certidão, parecer do concedente, decisão do Tribunal de Contas nem orientação jurídica.";
+// D1 A08 (09/11/2026): o cliente (nível 2) lia o mesmo aviso do cadastrado; agora sabe que esta é a versão da sua organização.
+const AVISO_CLIENTE =
+  "Versão para a sua organização, sem nome de fornecedor nem de servidor. " + AVISO;
+
+/** O aviso do cabeçalho pelo nível: interno (3), cliente (2) ou cadastrado (1). */
+export function avisoDoNivel(nivel: NivelAcesso): string {
+  if (PODE.interno(nivel)) return AVISO_INTERNO;
+  if (PODE.laudo(nivel)) return AVISO_CLIENTE;
+  return AVISO;
+}
 
 /** Para onde vai o número de um convênio. */
 /**
@@ -1054,7 +1064,7 @@ export function RelatorioConteudo({
         </p>
         {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
         <MontarRelatorio />
-        <p className="mp-fiscal-aviso">{PODE.interno(nivel) ? AVISO_INTERNO : AVISO}</p>
+        <p className="mp-fiscal-aviso">{avisoDoNivel(nivel)}</p>
       </div>
 
       <Secao id="rel-pagina" titulo="Em uma página">

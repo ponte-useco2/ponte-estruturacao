@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { urlMunicipioFiscal, urlSimularFiscal } from "@/lib/oportunidades/fiscal";
 import { lerFiscalMunicipio } from "@/lib/oportunidades/fiscal.server";
 import { lerAcessoFicha } from "@/lib/oportunidades/cliente.server";
-import { urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
+import { ibgeDaUrl, urlMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { FiscalIndisponivel } from "../../FiscalConteudo";
 import { SimuladorConteudo } from "./SimuladorConteudo";
@@ -34,7 +34,8 @@ export default async function SimularPage({
   if (!visitante || visitante.status !== "aprovado") return null;
 
   const { ibge } = await params;
-  if (!/^25\d{5}$/.test(ibge)) notFound();
+  // D1 A09 (09/11/2026): um dos 223 da PB, como na página do município.
+  if (!ibgeDaUrl(ibge)) notFound();
   const admin = ehAdministrador(visitante.email);
   if (!admin) {
     const { acesso } = await lerAcessoFicha(visitante);
@@ -63,6 +64,7 @@ export default async function SimularPage({
     return (
       <FiscalIndisponivel
         estado={leitura.estado}
+        interno={admin}
         endereco={`${urlSimularFiscal(ibge)}${consulta ? `?${consulta}` : ""}`}
         voltarPara={
           admin

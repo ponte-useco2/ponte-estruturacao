@@ -6,13 +6,24 @@
  * tabela não aceita `authenticated` — quem confirma é o administrador, não o membro.
  */
 import { authConfigurada, clienteServidor, type Visitante } from "@/lib/supabase-auth";
-import { podeVerEntidadePropria, podeVerMunicipio, type AcessoCnpj, type AcessoFicha, type VinculoCnpj, type VinculoMunicipio } from "./cliente";
+import {
+  podeVerEntidadePropria,
+  podeVerMunicipio,
+  type AcessoCnpj,
+  type AcessoFicha,
+  type LeituraVinculo,
+  type VinculoCnpj,
+  type VinculoMunicipio,
+} from "./cliente";
 import { ehEsquemaAusente } from "./esquema";
 import type { Organizacao } from "./organizacao";
 import { lerContexto } from "./organizacao.server";
 
-/** O vínculo confirmado da organização, ou null (sem confirmação, ou oport_12 ainda não aplicada). */
-export async function lerVinculo(organizacaoId: string): Promise<VinculoMunicipio | null> {
+/**
+ * O vínculo confirmado da organização; null sem confirmação (ou oport_12 ainda não aplicada); `"falha"` quando o
+ * banco não respondeu (D1 A28, 09/11/2026: a falha deixou de passar por ausência).
+ */
+export async function lerVinculo(organizacaoId: string): Promise<LeituraVinculo<VinculoMunicipio>> {
   if (!authConfigurada()) return null;
   const { data, error } = await clienteServidor()
     .from("oport_vinculo_municipio")
@@ -20,8 +31,9 @@ export async function lerVinculo(organizacaoId: string): Promise<VinculoMunicipi
     .eq("organizacao_id", organizacaoId)
     .maybeSingle();
   if (error) {
-    if (!ehEsquemaAusente(error.code)) console.error("lerVinculo:", error.message);
-    return null;
+    if (ehEsquemaAusente(error.code)) return null;
+    console.error("lerVinculo:", error.message);
+    return "falha";
   }
   return (data as VinculoMunicipio | null) ?? null;
 }
@@ -36,8 +48,8 @@ export async function lerAcessoFicha(visitante: Pick<Visitante, "status">): Prom
   return { acesso: podeVerMunicipio(visitante.status, ativa, vinculo), organizacao: ativa };
 }
 
-/** O vínculo confirmado entre organização e CNPJ (oport_31), ou null (sem confirmação, ou sem a migração). */
-export async function lerVinculoCnpj(organizacaoId: string): Promise<VinculoCnpj | null> {
+/** O vínculo confirmado entre organização e CNPJ (oport_31); null sem confirmação ou sem a migração; `"falha"` no erro. */
+export async function lerVinculoCnpj(organizacaoId: string): Promise<LeituraVinculo<VinculoCnpj>> {
   if (!authConfigurada()) return null;
   const { data, error } = await clienteServidor()
     .from("oport_vinculo_cnpj")
@@ -45,8 +57,9 @@ export async function lerVinculoCnpj(organizacaoId: string): Promise<VinculoCnpj
     .eq("organizacao_id", organizacaoId)
     .maybeSingle();
   if (error) {
-    if (!ehEsquemaAusente(error.code)) console.error("lerVinculoCnpj:", error.message);
-    return null;
+    if (ehEsquemaAusente(error.code)) return null;
+    console.error("lerVinculoCnpj:", error.message);
+    return "falha";
   }
   return (data as VinculoCnpj | null) ?? null;
 }

@@ -477,7 +477,13 @@ function Fornecedores({
           </li>
         ))}
       </ul>
-      {!administrador && <p className="pa-nota">Somados por tipo de quem recebeu. O nome das empresas fica com a equipe da PONTE.</p>}
+      {/* D1 A13 (09/11/2026): diz também como chegar à lista com nomes, em vez de só fechar a porta. */}
+      {!administrador && (
+        <p className="pa-nota">
+          Somados por tipo de quem recebeu. A lista com o nome das empresas é parte do apoio que a PONTE presta sob contrato: peça pelo canal da
+          sua organização com a PONTE.
+        </p>
+      )}
       {administrador && empresas && empresas.estado !== "ok" && <p className="pa-nota">A lista das empresas não pôde ser lida agora.</p>}
       {lista && lista.length > 0 && (
         <>

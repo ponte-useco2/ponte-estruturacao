@@ -164,23 +164,35 @@ export function FiscalIndisponivel({
   estado,
   endereco,
   voltarPara = { rotulo: "Voltar ao painel de execução", href: "/mapa/painel" },
+  interno = true,
 }: {
   estado: "nao_ativado" | "sem_execucao" | "erro";
   endereco?: string;
   voltarPara?: Saida;
+  /**
+   * D1 A10 (09/11/2026): os textos de operação (migração, workflow, registro do servidor) são do administrador. Para o
+   * cliente, que chega ao simulador desde o lote 1, a tela diz só que o dado fiscal não pôde ser lido.
+   */
+  interno?: boolean;
 }) {
-  const texto = {
-    nao_ativado: { titulo: "O painel fiscal ainda não foi ativado no banco", corpo: "Falta aplicar a migração fiscal_1 no Supabase." },
-    sem_execucao: {
-      titulo: "O painel fiscal ainda não rodou",
-      corpo: "As tabelas existem, mas nenhuma execução foi concluída. O job roda todo dia às 12h UTC no workflow Painel fiscal do monorepo.",
-    },
-    erro: { titulo: "O painel fiscal está indisponível agora", corpo: "A leitura dos dados falhou. O detalhe está no registro do servidor." },
-  }[estado];
+  const texto = interno
+    ? {
+        nao_ativado: { titulo: "O painel fiscal ainda não foi ativado no banco", corpo: "Falta aplicar a migração fiscal_1 no Supabase." },
+        sem_execucao: {
+          titulo: "O painel fiscal ainda não rodou",
+          corpo: "As tabelas existem, mas nenhuma execução foi concluída. O job roda todo dia às 12h UTC no workflow Painel fiscal do monorepo.",
+        },
+        erro: { titulo: "O painel fiscal está indisponível agora", corpo: "A leitura dos dados falhou. O detalhe está no registro do servidor." },
+      }[estado]
+    : {
+        nao_ativado: { titulo: "Os dados fiscais ainda não estão disponíveis", corpo: "A PONTE ainda não publicou a leitura fiscal deste município." },
+        sem_execucao: { titulo: "Os dados fiscais ainda não estão disponíveis", corpo: "A PONTE ainda não publicou a leitura fiscal deste município." },
+        erro: { titulo: "Os dados fiscais não puderam ser lidos agora", corpo: "Tente de novo em instantes. Se continuar, avise a PONTE." },
+      }[estado];
   return (
     <div className="pa-pagina pa-pagina-estreita">
       <div className="pa-pilha">
-        <p className="pa-kicker">Painel da PONTE · uso interno</p>
+        <p className="pa-kicker">{interno ? "Painel da PONTE · uso interno" : "Capacidade fiscal"}</p>
         <h1 className="pa-titulo">{texto.titulo}</h1>
         <p>{texto.corpo}</p>
         <p className="pa-linha">

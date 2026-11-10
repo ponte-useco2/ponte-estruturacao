@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { LIMITE_POR_PAGINA, PAGINA_MAXIMA, parametrosBusca, urlBusca } from "@/lib/oportunidades/busca";
-import { estadoDaBusca, tetoDePaginas } from "@/lib/oportunidades/busca-tabelas";
+import { estadoDaBusca, tetoDePaginas, urlComTabela } from "@/lib/oportunidades/busca-tabelas";
 import { parametrosDaPagina } from "@/lib/oportunidades/painel-tabelas";
 import { lerBusca, lerBuscaUnificada } from "@/lib/oportunidades/busca.server";
 import { classificarEntrada, pedeDireto } from "@/lib/oportunidades/busca-unificada";
@@ -58,6 +58,8 @@ export default async function BuscaPage({
   // é a porta da raspagem), e a página pedida além do teto vira a última permitida.
   const estado = estadoDaBusca(p.aba, parametrosDaPagina(sp));
   const teto = tetoDePaginas(LIMITE_POR_PAGINA, ehAdministrador(visitante.email), PAGINA_MAXIMA);
+  // D1 A03 (09/11/2026): a página além do teto não é trocada em silêncio; o endereço passa a dizer a página que abriu.
+  if (p.pagina > teto) redirect(urlComTabela(urlBusca(p, { pagina: teto }), p.aba, estado));
   const naPagina = { ...p, pagina: Math.min(p.pagina, teto) };
   const [leitura, seguidas] = await Promise.all([lerBusca(naPagina, estado), lerSeguidas()]);
   // "Tentar de novo" refaz a mesma busca, na mesma página (B12).

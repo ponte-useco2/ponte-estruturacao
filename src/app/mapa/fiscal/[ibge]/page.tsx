@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { urlMunicipioFiscal } from "@/lib/oportunidades/fiscal";
 import { lerFiscalMunicipio } from "@/lib/oportunidades/fiscal.server";
+import { ibgeDaUrl } from "@/lib/oportunidades/pagina-municipio";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { FiscalIndisponivel } from "../FiscalConteudo";
 import { FiscalMunicipioConteudo } from "./FiscalMunicipioConteudo";
@@ -19,7 +20,8 @@ export default async function FiscalMunicipioPage({ params }: { params: Promise<
   if (!ehAdministrador(visitante.email)) redirect("/mapa");
 
   const { ibge } = await params;
-  if (!/^25\d{5}$/.test(ibge)) notFound();
+  // D1 A09 (09/11/2026): um dos 223 da PB, como na página do município; o código inventado não chega ao banco.
+  if (!ibgeDaUrl(ibge)) notFound();
   const leitura = await lerFiscalMunicipio(ibge);
   if (leitura.estado === "nao_encontrado") {
     return (

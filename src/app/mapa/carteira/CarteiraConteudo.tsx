@@ -163,6 +163,8 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
             <>
               {c.itens.length} {c.itens.length === 1 ? "item seguido" : "itens seguidos"} ·{" "}
               {c.naoLidas === 0 ? "nenhuma mudança não lida" : c.naoLidas === 1 ? "1 mudança não lida" : `${c.naoLidas} mudanças não lidas`}
+              {/* D1 A20 (09/11/2026): o corte aparece no topo, não só no rodapé. */}
+              {truncada ? " (há mais avisos do que a carteira mostra)" : ""}
             </>
           )}{" "}
           · dados lidos em {formatarData(hoje)}

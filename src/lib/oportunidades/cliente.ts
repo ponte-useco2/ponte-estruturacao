@@ -13,7 +13,8 @@ export type MotivoSemFicha =
   | "nao_municipio"
   | "sem_ibge"
   | "aguardando_confirmacao"
-  | "municipio_mudou";
+  | "municipio_mudou"
+  | "leitura_falhou";
 
 export type AcessoFicha = { ok: true; ibge: string } | { ok: false; motivo: MotivoSemFicha };
 
@@ -27,17 +28,26 @@ export interface VinculoMunicipio {
   confirmado_em: string;
 }
 
+/**
+ * O que a leitura do vínculo devolve: o vínculo, `null` quando não há confirmação, ou `"falha"` quando o banco não
+ * respondeu (D1 A28, 09/11/2026). Antes a falha virava `null` e a tela dizia "Vínculo em conferência" a quem já
+ * estava confirmado: erro tratado como ausência. Agora a falha tem motivo próprio e a pessoa sabe que é para tentar
+ * de novo, não para esperar a PONTE.
+ */
+export type LeituraVinculo<T> = T | null | "falha";
+
 const IBGE = /^\d{7}$/;
 
 export function podeVerMunicipio(
   status: string | null | undefined,
   organizacao: OrganizacaoParaFicha | null,
-  vinculo: VinculoMunicipio | null,
+  vinculo: LeituraVinculo<VinculoMunicipio>,
 ): AcessoFicha {
   if (status !== "aprovado") return { ok: false, motivo: "nao_aprovado" };
   if (!organizacao) return { ok: false, motivo: "sem_organizacao" };
   if (organizacao.tipo !== "municipio") return { ok: false, motivo: "nao_municipio" };
   if (!organizacao.municipioIbge || !IBGE.test(organizacao.municipioIbge)) return { ok: false, motivo: "sem_ibge" };
+  if (vinculo === "falha") return { ok: false, motivo: "leitura_falhou" };
   if (!vinculo) return { ok: false, motivo: "aguardando_confirmacao" };
   // Confirmado para outro município: o cadastro mudou depois da confirmação.
   if (vinculo.municipio_ibge !== organizacao.municipioIbge) return { ok: false, motivo: "municipio_mudou" };
@@ -70,6 +80,10 @@ export const EXPLICACAO_SEM_FICHA: Record<MotivoSemFicha, { titulo: string; text
     titulo: "O município do cadastro mudou",
     texto: "A confirmação era para outro município. A PONTE precisa conferir o vínculo de novo antes de mostrar a ficha.",
   },
+  leitura_falhou: {
+    titulo: "Não foi possível conferir o vínculo agora",
+    texto: "A leitura do cadastro falhou. Não é pendência sua nem da PONTE: recarregue a página; se continuar, avise a PONTE.",
+  },
 };
 
 // ============================================================================ cliente por CNPJ (oport_31, E2)
@@ -79,7 +93,7 @@ export const EXPLICACAO_SEM_FICHA: Record<MotivoSemFicha, { titulo: string; text
  * página da própria entidade e o laudo dos próprios instrumentos, depois que um administrador confirma que a
  * organização representa aquele CNPJ. O CNPJ vem SEMPRE da organização ativa e da confirmação, nunca da URL.
  */
-export type MotivoSemCnpj = "nao_aprovado" | "sem_organizacao" | "sem_cnpj" | "aguardando_confirmacao" | "cnpj_mudou";
+export type MotivoSemCnpj = "nao_aprovado" | "sem_organizacao" | "sem_cnpj" | "aguardando_confirmacao" | "cnpj_mudou" | "leitura_falhou";
 
 export type AcessoCnpj = { ok: true; cnpj: string } | { ok: false; motivo: MotivoSemCnpj };
 
@@ -93,11 +107,12 @@ const CNPJ = /^[0-9A-Z]{12}[0-9]{2}$/;
 export function podeVerEntidadePropria(
   status: string | null | undefined,
   organizacao: { cnpj: string | null } | null,
-  vinculo: VinculoCnpj | null,
+  vinculo: LeituraVinculo<VinculoCnpj>,
 ): AcessoCnpj {
   if (status !== "aprovado") return { ok: false, motivo: "nao_aprovado" };
   if (!organizacao) return { ok: false, motivo: "sem_organizacao" };
   if (!organizacao.cnpj || !CNPJ.test(organizacao.cnpj)) return { ok: false, motivo: "sem_cnpj" };
+  if (vinculo === "falha") return { ok: false, motivo: "leitura_falhou" };
   if (!vinculo) return { ok: false, motivo: "aguardando_confirmacao" };
   // Confirmado para outro CNPJ: o cadastro mudou depois da confirmação.
   if (vinculo.cnpj !== organizacao.cnpj) return { ok: false, motivo: "cnpj_mudou" };
@@ -121,6 +136,10 @@ export const EXPLICACAO_SEM_CNPJ: Record<MotivoSemCnpj, { titulo: string; texto:
   cnpj_mudou: {
     titulo: "O CNPJ do cadastro mudou",
     texto: "A confirmação era para outro CNPJ. A PONTE precisa conferir o vínculo de novo.",
+  },
+  leitura_falhou: {
+    titulo: "Não foi possível conferir o vínculo agora",
+    texto: "A leitura do cadastro falhou. Não é pendência sua nem da PONTE: recarregue a página; se continuar, avise a PONTE.",
   },
 };
 

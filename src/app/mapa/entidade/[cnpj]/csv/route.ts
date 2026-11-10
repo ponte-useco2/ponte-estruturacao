@@ -3,9 +3,11 @@ import { notasCsv } from "@/lib/oportunidades/csv";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { COLUNAS_CSV_INSTRUMENTOS, cnpjDaUrl } from "@/lib/oportunidades/pagina-entidade";
 import { paraCsv } from "@/lib/oportunidades/painel";
+import { PODE } from "@/lib/oportunidades/pagina-municipio";
 import { COLUNAS_CSV_ACHADOS, relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioEntidade } from "@/lib/oportunidades/relatorio-municipio.server";
-import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
+import { visitanteAtual } from "@/lib/supabase-auth";
+import { nivelDoVisitanteNaEntidade } from "../nivel.server";
 
 /**
  * CSV da entidade (E1): os instrumentos do CNPJ (padrão) ou os achados (`?tipo=achados`). Para todo aprovado (D1:
@@ -28,7 +30,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cnpj
   if (leitura.estado !== "ok") return new Response("Indisponível", { status: 503, headers: CABECALHOS_PRIVADOS });
 
   const achados = req.nextUrl.searchParams.get("tipo") === "achados";
-  const r = ehAdministrador(visitante.email) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
+  // D1 A18 (09/11/2026): o mesmo nível da página (`nivelDoVisitanteNaEntidade`) decide os nomes, em um lugar só.
+  const nivel = await nivelDoVisitanteNaEntidade(visitante, leitura.entidade);
+  const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);
   const notas = notasCsv({
     titulo: achados ? `Achados da entidade de CNPJ ${cnpj}` : `Instrumentos da entidade de CNPJ ${cnpj}`,
     fontes: achados ? r.fontes : r.fontes.filter((f) => f.fonte.startsWith("SICONV")),

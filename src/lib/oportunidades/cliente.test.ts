@@ -20,6 +20,8 @@ test("cada falta tem o seu motivo, na ordem em que a pessoa resolve", () => {
     [["aprovado", { tipo: "municipio", municipioIbge: "25075" }, CONFIRMADO], "sem_ibge"],
     [["aprovado", PREFEITURA, null], "aguardando_confirmacao"],
     [["aprovado", { tipo: "municipio", municipioIbge: "2504009" }, CONFIRMADO], "municipio_mudou"],
+    // D1 A28 (09/11/2026): a falha da leitura não é ausência de confirmação.
+    [["aprovado", PREFEITURA, "falha"], "leitura_falhou"],
   ];
   for (const [args, motivo] of casos) {
     assert.deepEqual(podeVerMunicipio(...args), { ok: false, motivo }, JSON.stringify(args));
@@ -32,7 +34,7 @@ test("o município liberado é o confirmado, não um que chegue de fora", () => 
 });
 
 test("toda recusa tem explicação", () => {
-  const motivos: MotivoSemFicha[] = ["nao_aprovado", "sem_organizacao", "nao_municipio", "sem_ibge", "aguardando_confirmacao", "municipio_mudou"];
+  const motivos: MotivoSemFicha[] = ["nao_aprovado", "sem_organizacao", "nao_municipio", "sem_ibge", "aguardando_confirmacao", "municipio_mudou", "leitura_falhou"];
   assert.ok(motivos.every((m) => EXPLICACAO_SEM_FICHA[m].titulo && EXPLICACAO_SEM_FICHA[m].texto));
 });
 
@@ -66,6 +68,7 @@ test("cliente por CNPJ (oport_31): só com o CNPJ do cadastro confirmado, e cada
     [["aprovado", { cnpj: "09.112.236/0001-94" }, v], "sem_cnpj"],
     [["aprovado", osc, null], "aguardando_confirmacao"],
     [["aprovado", { cnpj: "12671814000137" }, v], "cnpj_mudou"],
+    [["aprovado", osc, "falha"], "leitura_falhou"],
   ];
   for (const [args, motivo] of motivos) {
     assert.deepEqual(podeVerEntidadePropria(...args), { ok: false, motivo });

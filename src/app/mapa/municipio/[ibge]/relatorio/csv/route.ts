@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { notasCsv } from "@/lib/oportunidades/csv";
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import { paraCsv } from "@/lib/oportunidades/painel";
-import { PODE, ibgeDaUrl } from "@/lib/oportunidades/pagina-municipio";
+import { PODE, ibgeDaUrl, podeAbaMunicipio } from "@/lib/oportunidades/pagina-municipio";
 import { nivelNoMunicipio } from "@/lib/oportunidades/pagina-municipio.server";
 import { COLUNAS_CSV_ACHADOS, relatorioSemNomes } from "@/lib/oportunidades/relatorio-municipio";
 import { lerRelatorioMunicipio } from "@/lib/oportunidades/relatorio-municipio.server";
@@ -26,6 +26,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ibg
   if (!ibgeDaUrl(ibge)) return naoEncontrado();
   const hoje = diaBrasilia(new Date().toISOString());
   const [leitura, nivel] = await Promise.all([lerRelatorioMunicipio(ibge, hoje), nivelNoMunicipio(visitante, ibge)]);
+  // D1 A07 (09/11/2026): a mesma regra da página — o CSV é da aba "relatório", e o nível decide se ela abre.
+  if (!podeAbaMunicipio("relatorio", nivel)) return naoEncontrado();
   if (leitura.estado === "nao_encontrado") return naoEncontrado();
   if (leitura.estado !== "ok") return new Response("Indisponível", { status: 503, headers: CABECALHOS_PRIVADOS });
   const r = PODE.interno(nivel) ? leitura.relatorio : relatorioSemNomes(leitura.relatorio);

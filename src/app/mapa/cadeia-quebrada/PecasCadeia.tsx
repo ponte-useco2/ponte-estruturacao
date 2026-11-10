@@ -12,16 +12,28 @@ import {
 import { formatarData } from "@/lib/oportunidades/central";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import { LinkMapa } from "../_componentes/LinkMapa";
+import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
 export const n = (x: number) => x.toLocaleString("pt-BR");
-export const pct = (x: number) => `${(x * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+export const pct = (x: number) =>
+  `${(x * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 const num = (v: number | string | null) => (v === null ? null : Number(v));
 
 /** O bloco da página de cada `teste` dos casos. */
-export const BLOCO_DO_TESTE: Record<string, BlocoId> = { notas_empenho: "notas", emendas: "emendas", sancoes: "sancoes" };
+export const BLOCO_DO_TESTE: Record<string, BlocoId> = {
+  notas_empenho: "notas",
+  emendas: "emendas",
+  sancoes: "sancoes",
+};
 
 /** Link para fora do portal: abre em outra aba, sem levar o endereço de quem clicou. */
-export function LinkFora({ href, children }: { href: string; children: React.ReactNode }) {
+export function LinkFora({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   return (
     <a href={href} target="_blank" rel="noopener noreferrer">
       {children}
@@ -46,58 +58,83 @@ export function FontesDoBloco({ bloco }: { bloco: BlocoId }) {
 }
 
 /** A tabela de situações de um bloco: cada situação leva à página dela (órgãos ou motivos, e os casos). */
-export function TabelaSituacao({ id, bloco, titulo, dados, nota, valor = false }: { id: string; bloco: BlocoId; titulo: string; dados: BlocoCq; nota: string; valor?: boolean }) {
+export function TabelaSituacao({
+  id,
+  bloco,
+  titulo,
+  dados,
+  nota,
+  valor = false,
+}: {
+  id: string;
+  bloco: BlocoId;
+  titulo: string;
+  dados: BlocoCq;
+  nota: string;
+  valor?: boolean;
+}) {
   return (
     <section aria-labelledby={id} className="mp-radar-secao">
       <h2 id={id} className="mp-radar-h2">
         {titulo}
       </h2>
-      <table className="mp-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Situação</th>
-            <th scope="col" className="mp-num">
-              Pares
-            </th>
-            <th scope="col" className="mp-num">
-              Fatia
-            </th>
-            {valor && (
+      {/* D1 A30 (09/11/2026): a caixa que rola, como o resto do Mapa, para a tabela não estourar a página a 375 px. */}
+      <TabelaRolagem rotuloId={id}>
+        <table className="mp-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Situação</th>
               <th scope="col" className="mp-num">
-                Pago
+                Pares
               </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {dados.linhas.map((l) => {
-            const href = urlSituacao(bloco, l.situacao);
-            return (
-              <tr key={l.situacao}>
-                <th scope="row">
-                  <LinkMapa href={href}>
-                    {rotuloSituacao(l.situacao)}
-                    {l.fecha ? " ✓" : ""}
-                  </LinkMapa>
+              <th scope="col" className="mp-num">
+                Fatia
+              </th>
+              {valor && (
+                <th scope="col" className="mp-num">
+                  Pago
                 </th>
-                <td className="mp-num">
-                  <LinkMapa href={href}>{n(l.pares)}</LinkMapa>
-                </td>
-                <td className="mp-num">{pct(l.fatia)}</td>
-                {valor && <td className="mp-num">{l.pago === null ? "—" : <LinkMapa href={href}>{moedaCurta(l.pago)}</LinkMapa>}</td>}
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row">Total</th>
-            <td className="mp-num">{n(dados.pares)}</td>
-            <td className="mp-num">100%</td>
-            {valor && <td className="mp-num">{moedaCurta(dados.pago)}</td>}
-          </tr>
-        </tfoot>
-      </table>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {dados.linhas.map((l) => {
+              const href = urlSituacao(bloco, l.situacao);
+              return (
+                <tr key={l.situacao}>
+                  <th scope="row">
+                    <LinkMapa href={href}>
+                      {rotuloSituacao(l.situacao)}
+                      {l.fecha ? " ✓" : ""}
+                    </LinkMapa>
+                  </th>
+                  <td className="mp-num">
+                    <LinkMapa href={href}>{n(l.pares)}</LinkMapa>
+                  </td>
+                  <td className="mp-num">{pct(l.fatia)}</td>
+                  {valor && (
+                    <td className="mp-num">
+                      {l.pago === null ? (
+                        "—"
+                      ) : (
+                        <LinkMapa href={href}>{moedaCurta(l.pago)}</LinkMapa>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              <td className="mp-num">{n(dados.pares)}</td>
+              <td className="mp-num">100%</td>
+              {valor && <td className="mp-num">{moedaCurta(dados.pago)}</td>}
+            </tr>
+          </tfoot>
+        </table>
+      </TabelaRolagem>
       <p className="pa-nota">{nota}</p>
       <FontesDoBloco bloco={bloco} />
     </section>
@@ -108,10 +145,18 @@ export function TabelaSituacao({ id, bloco, titulo, dados, nota, valor = false }
  * Os casos por CNPJ: cada CNPJ leva à página dele, cada órgão ao recorte da situação, e o ato à página do Diário
  * Oficial. Sem razão social (o pacote marca exibir por CNPJ).
  */
-export function TabelaCasos({ casos, bloco, situacao }: { casos: CasoCq[]; bloco: BlocoId | null; situacao: string | null }) {
+export function TabelaCasos({
+  casos,
+  bloco,
+  situacao,
+}: {
+  casos: CasoCq[];
+  bloco: BlocoId | null;
+  situacao: string | null;
+}) {
   if (casos.length === 0) return null;
   return (
-    <div className="mp-tabela-rolagem">
+    <TabelaRolagem rotulo="Casos por CNPJ">
       <table className="mp-tabela">
         <thead>
           <tr>
@@ -138,11 +183,30 @@ export function TabelaCasos({ casos, bloco, situacao }: { casos: CasoCq[]; bloco
                     {cnpjLegivelCq(c.cnpj)}
                   </LinkMapa>
                 </th>
-                <td>{c.orgao ? bloco && situacao ? <LinkMapa href={urlSituacao(bloco, situacao, c.orgao)}>{c.orgao}</LinkMapa> : c.orgao : "—"}</td>
+                <td>
+                  {c.orgao ? (
+                    bloco && situacao ? (
+                      <LinkMapa href={urlSituacao(bloco, situacao, c.orgao)}>
+                        {c.orgao}
+                      </LinkMapa>
+                    ) : (
+                      c.orgao
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 {!situacao && (
                   <td>
                     {BLOCO_DO_TESTE[c.teste] ? (
-                      <LinkMapa href={urlSituacao(BLOCO_DO_TESTE[c.teste], c.teste === "sancoes" ? c.situacao.replace(/^sanção /, "") : c.situacao)}>
+                      <LinkMapa
+                        href={urlSituacao(
+                          BLOCO_DO_TESTE[c.teste],
+                          c.teste === "sancoes"
+                            ? c.situacao.replace(/^sanção /, "")
+                            : c.situacao,
+                        )}
+                      >
                         {rotuloSituacao(c.situacao)}
                       </LinkMapa>
                     ) : (
@@ -150,7 +214,9 @@ export function TabelaCasos({ casos, bloco, situacao }: { casos: CasoCq[]; bloco
                     )}
                   </td>
                 )}
-                <td className="mp-num">{pago === null ? "—" : moedaCurta(pago)}</td>
+                <td className="mp-num">
+                  {pago === null ? "—" : moedaCurta(pago)}
+                </td>
                 <td className="mp-num">{c.notas ?? "—"}</td>
                 <td>{(c.anos ?? []).join(", ") || "—"}</td>
                 <td>
@@ -168,6 +234,6 @@ export function TabelaCasos({ casos, bloco, situacao }: { casos: CasoCq[]; bloco
           })}
         </tbody>
       </table>
-    </div>
+    </TabelaRolagem>
   );
 }
