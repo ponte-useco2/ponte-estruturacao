@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
+/**
+ * `unsafe-eval` só em desenvolvimento (12/11/2026). O modo de desenvolvimento do
+ * Next e do framer-motion usa eval; o build de produção, não. Antes ele valia
+ * para o site inteiro, o que abria a porta de `eval()` a qualquer script
+ * injetado.
+ */
+const evalEmDesenvolvimento = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
+
 const nextConfig: NextConfig = {
+  /**
+   * Sem o cabeçalho `X-Powered-By: Next.js` (12/11/2026): ele anunciava o
+   * framework a quem procura site com falha conhecida, e não serve a ninguém.
+   */
+  poweredByHeader: false,
   experimental: {
     serverActions: {
       /**
@@ -31,14 +44,14 @@ const nextConfig: NextConfig = {
    * para HTTP.
    *
    * SOBRE A CSP: `unsafe-inline` em script-src é necessário enquanto o Next
-   * injetar scripts inline sem nonce, e `unsafe-eval` sai do framer-motion em
-   * desenvolvimento. Apertar isso exige nonce por requisição no proxy — vale
+   * injetar scripts inline sem nonce; `unsafe-eval` entra só em desenvolvimento
+   * (ver `evalEmDesenvolvimento`). Apertar isso exige nonce por requisição no proxy — vale
    * fazer, mas é mudança de outra natureza e não cabia nesta rodada.
    */
   async headers() {
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
+      `script-src 'self' 'unsafe-inline'${evalEmDesenvolvimento} https://va.vercel-scripts.com`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",

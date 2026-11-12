@@ -1,0 +1,6 @@
+# Relato de falhas de segurança do site da PONTE Estruturação de Projetos de Impacto.
+# Formato da RFC 9116. Renovar o campo Expires antes do vencimento.
+Contact: mailto:diretoria.ponte.projetos@gmail.com
+Expires: 2027-11-12T00:00:00.000Z
+Preferred-Languages: pt, en
+Canonical: https://ponteprojetos.com.br/.well-known/security.txt
