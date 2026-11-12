@@ -62,5 +62,5 @@ export default async function OrganizacoesPage({
   const parametros = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) for (const x of Array.isArray(v) ? v : v === undefined ? [] : [v]) parametros.append(k, x);
   const estado = lerEstado(TABELA_OSC_MUNICIPIO, COLUNAS_OSC_MUNICIPIO, parametros);
-  return <OrganizacoesConteudo ibge={ibge} osc={osc} instrumentos={instrumentos} area={area} q={q} estado={estado} />;
+  return <OrganizacoesConteudo ibge={ibge} osc={osc} instrumentos={instrumentos} area={area} q={q} pagina={pagina} estado={estado} />;
 }

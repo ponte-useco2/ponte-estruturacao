@@ -18,7 +18,6 @@ import {
   TABELA_EMENDAS_DEPUTADO,
   TABELA_MUNICIPIOS_DEPUTADO,
   porcento,
-  resumir,
   valoresDaEmenda,
   valoresDoAno,
   valoresDoCredor,
@@ -43,6 +42,7 @@ import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../../../_design/primitivos";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
+import { Objeto } from "../../Objeto";
 import { CartaoNumero, CasasParlamentares, dinheiro, n } from "../../PecasParlamentares";
 import { AVISO_ASSEMBLEIA, CarimboEpb, NotaDeMetodoEpb } from "../PecasAssembleia";
 
@@ -170,7 +170,7 @@ export function DeputadoConteudo({ retrato, pessoa, hoje }: { retrato: RetratoEp
                   </LinkMapa>
                 ),
                 ano: String(e.ano),
-                objeto: <span title={e.objeto ?? undefined}>{resumir(e.objeto)}</span>,
+                objeto: <Objeto texto={e.objeto} />,
                 secretaria: e.secretaria ?? "—",
                 valor: dinheiro(e.valor),
                 empenhado: dinheiro(e.empenhado),

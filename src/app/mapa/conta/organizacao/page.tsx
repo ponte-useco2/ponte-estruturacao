@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { OrganizacaoForm } from "./OrganizacaoForm";
-import { podeVerMunicipio } from "@/lib/oportunidades/cliente";
-import { lerVinculo } from "@/lib/oportunidades/cliente.server";
+import { podeVerEntidadePropria, podeVerMunicipio, type AcessoCnpj, type AcessoFicha } from "@/lib/oportunidades/cliente";
+import { lerVinculo, lerVinculoCnpj } from "@/lib/oportunidades/cliente.server";
 import { lerContexto } from "@/lib/oportunidades/organizacao.server";
-import { ROTULO_AGENTE } from "@/lib/oportunidades/organizacao";
+import { ROTULO_AGENTE, ROTULO_PAPEL, type Organizacao } from "@/lib/oportunidades/organizacao";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 
@@ -27,19 +27,35 @@ export default async function OrganizacaoPage() {
   const visitante = await visitanteAtual();
   if (!visitante || visitante.status !== "aprovado") return null;
   const { todas } = await lerContexto();
-  // Para prefeituras: a situação do vínculo que libera a ficha em "Meu município".
-  const situacoes = new Map(
+  // A situação do vínculo que libera a página própria: o município (prefeitura, "Meu município") ou o CNPJ (as outras
+  // organizações, "Minha organização"). D1 A44 (12/11/2026): antes só a prefeitura via a situação aqui, e a falha de
+  // leitura passava por "em conferência" (o mesmo de A28).
+  const situacoes = new Map<string, AcessoFicha | AcessoCnpj>(
     await Promise.all(
-      todas
-        .filter((o) => o.tipo === "municipio")
-        .map(async (o) => [o.id, podeVerMunicipio("aprovado", o, await lerVinculo(o.id))] as const),
+      todas.map(async (o: Organizacao) =>
+        o.tipo === "municipio"
+          ? ([o.id, podeVerMunicipio("aprovado", o, await lerVinculo(o.id))] as const)
+          : ([o.id, podeVerEntidadePropria("aprovado", o, await lerVinculoCnpj(o.id))] as const),
+      ),
     ),
   );
-  const rotuloVinculo = (id: string) => {
-    const s = situacoes.get(id);
+  const rotuloVinculo = (o: Organizacao) => {
+    const s = situacoes.get(o.id);
     if (!s) return null;
-    if (s.ok) return <LinkMapa href="/mapa/meu-municipio">município confirmado · ver a página do município</LinkMapa>;
-    return s.motivo === "sem_ibge" ? "sem município no cadastro" : "município em conferência pela PONTE";
+    if (o.tipo === "municipio") {
+      if (s.ok) return <LinkMapa href="/mapa/meu-municipio">município confirmado · ver a página do município</LinkMapa>;
+      const motivo = (s as AcessoFicha & { ok: false }).motivo;
+      if (motivo === "sem_ibge") return "sem município no cadastro";
+      if (motivo === "leitura_falhou") return "vínculo não lido agora";
+      if (motivo === "municipio_mudou") return "o município mudou depois da confirmação";
+      return "município em conferência pela PONTE";
+    }
+    if (s.ok) return <LinkMapa href="/mapa/minha-organizacao">CNPJ confirmado · ver a página da organização</LinkMapa>;
+    const motivo = (s as AcessoCnpj & { ok: false }).motivo;
+    if (motivo === "sem_cnpj") return "sem CNPJ no cadastro";
+    if (motivo === "leitura_falhou") return "vínculo não lido agora";
+    if (motivo === "cnpj_mudou") return "o CNPJ mudou depois da confirmação";
+    return "CNPJ em conferência pela PONTE";
   };
 
   return (
@@ -64,8 +80,8 @@ export default async function OrganizacaoPage() {
                 <strong>{o.nome}</strong>
                 <span className="pa-tag">{ROTULO_AGENTE[o.tipo]}</span>
                 {o.uf && <span className="pa-mono">{o.uf}</span>}
-                <span className="pa-mono">{o.papel}</span>
-                {situacoes.has(o.id) && <span className="pa-mono">{rotuloVinculo(o.id)}</span>}
+                <span className="pa-mono">{ROTULO_PAPEL[o.papel]}</span>
+                {situacoes.has(o.id) && <span className="pa-mono">{rotuloVinculo(o)}</span>}
               </li>
             ))}
           </ul>

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   AGENTES,
   ROTULO_AGENTE,
+  ROTULO_PAPEL,
   UFS,
   agentesPorGrupo,
   cnpjValido,
@@ -52,6 +53,10 @@ test("nenhum id repetido e todo id tem rótulo", () => {
     assert.ok(ROTULO_AGENTE[a.id], `sem rótulo: ${a.id}`);
     assert.ok(a.exemplos.length > 10, `exemplo curto demais em ${a.id}`);
   }
+});
+
+test("todo papel de membro tem rótulo (D1 A44)", () => {
+  for (const papel of ["dono", "editor", "leitor"] as const) assert.ok(ROTULO_PAPEL[papel], `sem rótulo: ${papel}`);
 });
 
 test("os grupos cobrem os quinze, sem sobra nem repetição", () => {

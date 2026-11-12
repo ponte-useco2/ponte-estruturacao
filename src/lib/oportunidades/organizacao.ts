@@ -226,3 +226,10 @@ export interface Organizacao {
   cnpj: string | null;
   papel: "dono" | "editor" | "leitor";
 }
+
+/** O papel do membro como a tela diz (D1 A44, 12/11/2026): o valor cru ("dono") saía na conta. */
+export const ROTULO_PAPEL: Record<Organizacao["papel"], string> = {
+  dono: "responsável pelo cadastro",
+  editor: "edita o cadastro",
+  leitor: "só lê",
+};

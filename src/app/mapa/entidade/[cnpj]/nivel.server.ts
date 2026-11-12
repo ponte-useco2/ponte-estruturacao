@@ -13,16 +13,23 @@ import { ehAdministrador, type Visitante } from "@/lib/supabase-auth";
  * cliente para ler: é o "não aprovado" da D1, nível 0, pela mesma regra (`nivelNaEntidade`).
  */
 export async function nivelDoVisitanteNaEntidade(visitante: Pick<Visitante, "email" | "status"> | null, entidade: IdentidadeEntidade): Promise<NivelAcesso> {
-  if (!visitante) return nivelNaEntidade({ aprovado: false, administrador: false, ibgeConfirmado: null }, entidade);
+  return (await prepararNivel(visitante))(entidade);
+}
+
+/**
+ * A parte do nível que não depende da entidade (D1 A41, 12/11/2026): lê o vínculo do cliente uma vez e devolve a função
+ * que, com a identidade da entidade, dá o nível. Assim a página lê o vínculo em paralelo com o relatório, em vez de
+ * esperar o relatório inteiro para só então saber quem está olhando.
+ */
+export async function prepararNivel(visitante: Pick<Visitante, "email" | "status"> | null): Promise<(entidade: IdentidadeEntidade) => NivelAcesso> {
+  if (!visitante) return (entidade) => nivelNaEntidade({ aprovado: false, administrador: false, ibgeConfirmado: null }, entidade);
   const administrador = ehAdministrador(visitante.email);
   const acesso = administrador ? null : await lerAcessoCliente(visitante);
-  return nivelNaEntidade(
-    {
-      aprovado: visitante.status === "aprovado",
-      administrador,
-      ibgeConfirmado: acesso?.municipio.ok ? acesso.municipio.ibge : null,
-      cnpjConfirmado: acesso?.cnpj.ok ? acesso.cnpj.cnpj : null,
-    },
-    entidade,
-  );
+  const quem = {
+    aprovado: visitante.status === "aprovado",
+    administrador,
+    ibgeConfirmado: acesso?.municipio.ok ? acesso.municipio.ibge : null,
+    cnpjConfirmado: acesso?.cnpj.ok ? acesso.cnpj.cnpj : null,
+  };
+  return (entidade) => nivelNaEntidade(quem, entidade);
 }

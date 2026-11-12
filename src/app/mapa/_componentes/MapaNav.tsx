@@ -29,7 +29,7 @@ export function MapaNav({
   municipio?: boolean;
   /** O IBGE dessa organização: na página dele, a aba acesa é "Meu município", não o Território. */
   meuIbge?: string | null;
-  /** A organização ativa não é prefeitura e tem CNPJ: mostra "Minha organização". */
+  /** A organização ativa não é prefeitura: mostra "Minha organização" (a página explica o que falta, D1 A46). */
   organizacao?: boolean;
   /** O CNPJ dela: na página dessa entidade, a aba acesa é "Minha organização". */
   minhaEntidade?: string | null;

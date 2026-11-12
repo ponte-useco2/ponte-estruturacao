@@ -18,7 +18,8 @@ import {
   valoresDoPontoJp,
   valoresDoVereadorJp,
 } from "@/lib/oportunidades/camara-jp-tela";
-import { resumir } from "@/lib/oportunidades/assembleia-tela";
+import { Objeto } from "../Objeto";
+import { LinkFora } from "../../_componentes/LinkFora";
 import {
   URL_FILA_EJP,
   URL_PAINEL_PREFEITURA,
@@ -78,7 +79,7 @@ export function CamaraJpConteudo({ retrato }: { retrato: RetratoEjp }) {
       ),
       ano: String(p.emenda.ano),
       vereador: p.emenda.pessoa ? <LinkMapa href={urlVereadorJp(p.emenda.pessoa)}>{p.emenda.pessoa}</LinkMapa> : (p.emenda.autorPublicado ?? "—"),
-      objeto: <span title={p.emenda.objeto ?? undefined}>{resumir(p.emenda.objeto)}</span>,
+      objeto: <Objeto texto={p.emenda.objeto} />,
       atual: reais(p.emenda.atual),
     },
   }));
@@ -101,9 +102,9 @@ export function CamaraJpConteudo({ retrato }: { retrato: RetratoEjp }) {
           <LinkMapa href={URL_FILA_EJP} className="pa-btn pa-btn-pequeno">
             Ver a fila da execução
           </LinkMapa>
-          <a href={URL_PAINEL_PREFEITURA} className="pa-btn pa-btn-pequeno" rel="noreferrer">
+          <LinkFora href={URL_PAINEL_PREFEITURA} className="pa-btn pa-btn-pequeno">
             Abrir o painel da Prefeitura
-          </a>
+          </LinkFora>
         </p>
       </div>
 

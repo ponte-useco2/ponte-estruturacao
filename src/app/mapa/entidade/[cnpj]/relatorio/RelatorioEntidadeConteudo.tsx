@@ -63,6 +63,12 @@ import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 // Os mesmos avisos do relatório do município, pela frase comum (D1 A39, 12/11/2026); o do cadastro é só desta página.
 const AVISO_INTERNO = avisoLeitura({ interno: true, datasNoFim: true });
 const AVISO = avisoLeitura({ datasNoFim: true });
+// D1 A41 (12/11/2026; o mesmo que A08 no município): o cliente por CNPJ (nível 2) lia o aviso do cadastrado e não sabia
+// que o relatório mistura o público com o que é só dele, os laudos dos próprios instrumentos.
+const AVISO_CLIENTE = avisoLeitura({
+  datasNoFim: true,
+  antes: "Versão para a sua organização, sem nome de fornecedor nem de servidor: os instrumentos dela levam ao laudo, que só a organização e a PONTE veem.",
+});
 const AVISO_CADASTRO =
   "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). O cadastro é o do Mapa das OSC (Ipea), com " +
   "dados da Receita Federal; não substitui certidão nem a consulta ao cadastro da Receita.";
@@ -141,7 +147,7 @@ function Cabeca({
       </p>
       {/* Onda 16, M4: o relatório completo ou só as seções escolhidas. */}
       <MontarRelatorio />
-      <p className="mp-fiscal-aviso">{soCadastro ? AVISO_CADASTRO : PODE.interno(nivel) ? AVISO_INTERNO : AVISO}</p>
+      <p className="mp-fiscal-aviso">{soCadastro ? AVISO_CADASTRO : PODE.interno(nivel) ? AVISO_INTERNO : PODE.laudo(nivel) ? AVISO_CLIENTE : AVISO}</p>
     </div>
   );
 }

@@ -35,7 +35,9 @@ const pct = (x: number | null) => (x === null ? "—" : `${x.toLocaleString("pt-
 const mes = (aaaamm: number | null) => (aaaamm ? `${String(aaaamm % 100).padStart(2, "0")}/${Math.floor(aaaamm / 100)}` : "—");
 const plural = (x: number, um: string, varios: string) => `${n(x)} ${x === 1 ? um : varios}`;
 
-function Cartao({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; nota: ReactNode; tom?: "urgente" }) {
+type NivelTitulo = "h2" | "h3" | "h4";
+
+function Cartao({ rotulo, valor, nota, tom, titulo: H = "h3" }: { rotulo: string; valor: string; nota: ReactNode; tom?: "urgente"; titulo?: NivelTitulo }) {
   return (
     <article className={`pa-cartao mp-painel-cartao${tom ? " mp-painel-urgente" : ""}`}>
       {/* D1 A48 (12/11/2026): o nível do dicionário (4a: alto) com a marca e a palavra, não só a cor. */}
@@ -44,7 +46,7 @@ function Cartao({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; n
           <span className="pa-tag mp-laudo-nivel mp-laudo-alto">alto</span>
         </p>
       )}
-      <h3 className="pa-mono">{rotulo}</h3>
+      <H className="pa-mono">{rotulo}</H>
       <p className="pa-numero">{valor}</p>
       <p className="mp-painel-valor">{nota}</p>
     </article>
@@ -53,11 +55,16 @@ function Cartao({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; n
 
 /** Os cartões: o carimbado em cima, o contexto embaixo. Servem à lista estadual e à aba (um município). */
 export function CartoesPI({ t, datas, estadual }: { t: ResumoPI & { acimaDoLimite?: string[] }; datas: DatasPI; estadual: boolean }) {
+  // D1 A47 (12/11/2026; WCAG 1.3.1): na página estadual o h1 saltava para estes h3; na aba do município eles ficam
+  // debaixo do h2 da seção. O nível segue o lugar: h2/h3 lá, h3/h4 aqui.
+  const H: NivelTitulo = estadual ? "h2" : "h3";
+  const cartao: NivelTitulo = estadual ? "h3" : "h4";
   return (
     <>
-      <h3 className="mp-radar-h3">Dinheiro carimbado para a primeira infância</h3>
+      <H className="mp-radar-h3">Dinheiro carimbado para a primeira infância</H>
       <div className="pa-grade pa-grade-4 mp-painel-cartoes">
         <Cartao
+          titulo={cartao}
           rotulo="Creches: em conta, sem pagamento"
           valor={moedaCurta(t.parado)}
           tom={t.parado > 0 ? "urgente" : undefined}
@@ -69,8 +76,9 @@ export function CartoesPI({ t, datas, estadual }: { t: ResumoPI & { acimaDoLimit
             </>
           }
         />
-        <Cartao rotulo="Creches: assinadas, a liberar" valor={moedaCurta(t.aLiberar)} nota={`${plural(t.nALiberar, "termo", "termos")} do MEC sem nenhuma liberação.`} />
+        <Cartao titulo={cartao} rotulo="Creches: assinadas, a liberar" valor={moedaCurta(t.aLiberar)} nota={`${plural(t.nALiberar, "termo", "termos")} do MEC sem nenhuma liberação.`} />
         <Cartao
+          titulo={cartao}
           rotulo="Criança Feliz: saldo"
           valor={moedaCurta(t.cfSaldo)}
           nota={
@@ -81,14 +89,16 @@ export function CartoesPI({ t, datas, estadual }: { t: ResumoPI & { acimaDoLimit
           }
         />
         <Cartao
+          titulo={cartao}
           rotulo="Pix só de creche e PAR4"
           valor={moedaCurta(t.pixSaldo + t.parSaldo)}
           nota={`Pix ${moedaCurta(t.pixSaldo)} (data do saldo varia por plano); PAR4 ${moedaCurta(t.parSaldo)} em conta.${t.obrasParalisadas ? ` ${plural(t.obrasParalisadas, "obra de creche paralisada", "obras de creche paralisadas")} no Obrasgov.` : ""}`}
         />
       </div>
-      <h3 className="mp-radar-h3">Contexto: dinheiro que pode ir para a primeira infância, mas não é carimbado</h3>
+      <H className="mp-radar-h3">Contexto: dinheiro que pode ir para a primeira infância, mas não é carimbado</H>
       <div className="pa-grade pa-grade-3 mp-painel-cartoes">
         <Cartao
+          titulo={cartao}
           rotulo={`FUNDEB não usado em ${datas.siopeAno ?? "—"}`}
           valor={moedaCurta(t.fundebNaoUsado)}
           tom={t.fundebAcimaDoLimite ? "urgente" : undefined}
@@ -105,8 +115,9 @@ export function CartoesPI({ t, datas, estadual }: { t: ResumoPI & { acimaDoLimit
             </>
           }
         />
-        <Cartao rotulo={`Salário-educação: saldo ${datas.siopeAno ?? ""}`} valor={moedaCurta(t.salarioEducacao)} nota="Serve a toda a educação básica." />
+        <Cartao titulo={cartao} rotulo={`Salário-educação: saldo ${datas.siopeAno ?? ""}`} valor={moedaCurta(t.salarioEducacao)} nota="Serve a toda a educação básica." />
         <Cartao
+          titulo={cartao}
           rotulo="Saúde: saldo nas contas do FNS"
           valor={moedaCurta(t.saude)}
           nota={`Fundos municipais${datas.saudeData ? `, em ${formatarDataBr(datas.saudeData)}` : ""}. Sem marca de idade.`}

@@ -45,6 +45,7 @@ export function OrganizacoesConteudo({
   instrumentos,
   area,
   q,
+  pagina = 1,
   estado = ESTADO_VAZIO,
 }: {
   ibge: string;
@@ -52,6 +53,8 @@ export function OrganizacoesConteudo({
   instrumentos: ReadonlyMap<string, number>;
   area: string | null;
   q: string;
+  /** D1 A42 (12/11/2026): a página (`?p=`), que era lida e ignorada: a lista sempre mostrava as primeiras linhas. */
+  pagina?: number;
   /** F3.3: o estado da tabela, aplicado aqui no servidor sobre a lista inteira. */
   estado?: EstadoTabela;
 }) {
@@ -62,7 +65,14 @@ export function OrganizacoesConteudo({
   // Todas as linhas com os valores crus; o filtro e a ordem da tabela, em memória; à tela vão as primeiras.
   const todas: LinhaTabela[] = lista.grupos.map((g) => ({ chave: g.principal.cnpj, valores: valoresDaOsc(g), celulas: celulasDaOsc(g) }));
   const filtradas = aplicar(COLUNAS_OSC_MUNICIPIO, todas, estado);
-  const naTela = filtradas.slice(0, OSC_NA_TELA);
+  // D1 A42: a página corta o filtrado; fora do alcance, vale a última. O filtro novo volta à primeira (`soltar`).
+  const paginas = Math.max(1, Math.ceil(filtradas.length / OSC_NA_TELA));
+  const p = Math.min(Math.max(1, pagina), paginas);
+  const naTela = filtradas.slice((p - 1) * OSC_NA_TELA, p * OSC_NA_TELA);
+  const paginaDa = (x: number) => {
+    const s = gravarEstado(TABELA_OSC_MUNICIPIO, estado, new URLSearchParams(urlOrganizacoes(ibge, { area, q, p: x }).split("?")[1] ?? "")).toString();
+    return `/mapa/municipio/${ibge}/organizacoes${s ? `?${s}` : ""}`;
+  };
   const naturezas = [...new Set(todas.map((l) => String(l.valores.natureza ?? "")).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const consulta = gravarEstado(TABELA_OSC_MUNICIPIO, estado, new URLSearchParams(urlOrganizacoes(ibge, { area, q }).split("?")[1] ?? "")).toString();
   const fora = r.inaptas + r.suspensas + r.baixadas;
@@ -136,8 +146,26 @@ export function OrganizacoesConteudo({
               total: filtradas.length,
               opcoes: { natureza: naturezas.map((valor) => ({ valor, linhas: todas.filter((l) => l.valores.natureza === valor).length })) },
               csvHref: `/mapa/municipio/${ibge}/organizacoes/exportar${consulta ? `?${consulta}` : ""}`,
+              soltar: ["p"],
             }}
           />
+        )}
+        {paginas > 1 && (
+          <nav aria-label="Páginas" className="pa-linha mp-busca-paginas">
+            {p > 1 && (
+              <LinkMapa href={paginaDa(p - 1)} className="pa-btn pa-btn-pequeno" rel="prev">
+                ← Página anterior
+              </LinkMapa>
+            )}
+            <span className="pa-nota">
+              Página {n(p)} de {n(paginas)} · {OSC_NA_TELA} por página
+            </span>
+            {p < paginas && (
+              <LinkMapa href={paginaDa(p + 1)} className="pa-btn pa-btn-pequeno" rel="next">
+                Próxima página →
+              </LinkMapa>
+            )}
+          </nav>
         )}
         <p className="pa-nota">
           Fonte: Mapa das Organizações da Sociedade Civil (Ipea), arquivo de divulgação da versão de {versaoLegivel(osc.fonte.versao)}, com o

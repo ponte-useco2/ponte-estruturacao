@@ -121,12 +121,14 @@ export async function MapaFrame(
             )}
           </div>
 
+          {/* D1 A46 (12/11/2026): a porta aparece para toda organização ativa; o que falta (IBGE, CNPJ, a conferência)
+              a própria página explica. Antes, quem cadastrou sem CNPJ (ou sem município) não achava a porta. */}
           <MapaNav
             naoLidas={naoLidas}
             admin={conta ? ehAdministrador(conta.email) : false}
-            municipio={ativa?.tipo === "municipio" && Boolean(ativa.municipioIbge)}
+            municipio={ativa?.tipo === "municipio"}
             meuIbge={ativa?.tipo === "municipio" ? ativa.municipioIbge : null}
-            organizacao={!!ativa && ativa.tipo !== "municipio" && Boolean(ativa.cnpj)}
+            organizacao={!!ativa && ativa.tipo !== "municipio"}
             minhaEntidade={ativa && ativa.tipo !== "municipio" ? ativa.cnpj : null}
             publico={publico !== null}
           />

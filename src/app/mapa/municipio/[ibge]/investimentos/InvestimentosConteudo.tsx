@@ -128,6 +128,14 @@ export function InvestimentosConteudo({
           {!completo && (
             <p className="pa-nota">Especiais e fundo a fundo plano a plano existem só para a Paraíba.</p>
           )}
+          {/* D1 A37 (12/11/2026): no nível 0 as linhas perdiam o link e o CSV sumia em silêncio; a marca do resto do Mapa
+              vem uma vez, aqui, em vez de em cada linha. */}
+          {publico && (
+            <p className="pa-nota">
+              Com cadastro, cada tema e cada situação abrem a lista dos convênios na busca, e a tabela por tema tem CSV.{" "}
+              <LinkMapa href={busca.href}>Entrar</LinkMapa> {MARCA_PEDE_CADASTRO}.
+            </p>
+          )}
 
           <PorTema
             linhas={temas}

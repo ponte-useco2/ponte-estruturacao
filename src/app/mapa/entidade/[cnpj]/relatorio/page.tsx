@@ -11,7 +11,7 @@ import { lerRelatorioEntidade } from "@/lib/oportunidades/relatorio-municipio.se
 import { registrarUso } from "@/lib/oportunidades/uso.server";
 import { visitanteAtual } from "@/lib/supabase-auth";
 import { DadoIndisponivel } from "../../../busca/BuscaConteudo";
-import { nivelDoVisitanteNaEntidade } from "../nivel.server";
+import { prepararNivel } from "../nivel.server";
 import { RelatorioEntidadeConteudo } from "./RelatorioEntidadeConteudo";
 
 export const metadata: Metadata = {
@@ -37,7 +37,8 @@ export default async function RelatorioEntidadePage({ params }: { params: Promis
   if (!cnpj) notFound();
   if (cnpj !== bruto) redirect(urlRelatorioEntidade(cnpj));
 
-  const leitura = await lerRelatorioEntidade(cnpj, diaBrasilia(new Date().toISOString()));
+  // D1 A41 (12/11/2026): o vínculo do cliente e o relatório saem juntos; antes o relatório inteiro vinha primeiro.
+  const [leitura, nivelDe] = await Promise.all([lerRelatorioEntidade(cnpj, diaBrasilia(new Date().toISOString())), prepararNivel(visitante)]);
   if (leitura.estado === "nao_encontrado") notFound();
   if (leitura.estado !== "ok") {
     return (
@@ -50,7 +51,7 @@ export default async function RelatorioEntidadePage({ params }: { params: Promis
     );
   }
 
-  const nivel = await nivelDoVisitanteNaEntidade(visitante, leitura.entidade);
+  const nivel = nivelDe(leitura.entidade);
   if (!podeAbaEntidade("relatorio", nivel)) redirect(urlEntidade(cnpj));
   const soCadastro = !leitura.instrumentos.length && !leitura.propostas.length;
   after(() => registrarUso(visitante, "mapa_entidade_relatorio", { cnpj, nivel, soCadastro }));

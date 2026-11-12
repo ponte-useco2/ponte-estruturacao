@@ -11,6 +11,7 @@ import {
 } from "@/lib/oportunidades/cadeia-quebrada";
 import { formatarData } from "@/lib/oportunidades/central";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { LinkFora } from "../_componentes/LinkFora";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 
@@ -26,20 +27,8 @@ export const BLOCO_DO_TESTE: Record<string, BlocoId> = {
   sancoes: "sancoes",
 };
 
-/** Link para fora do portal: abre em outra aba, sem levar o endereço de quem clicou. */
-export function LinkFora({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  );
-}
+/** O link para fora do portal mora em `_componentes/LinkFora.tsx` desde o D1 A53 (12/11/2026); o nome fica para quem importa daqui. */
+export { LinkFora };
 
 /** As fontes de origem de um bloco, cada uma com o endereço público onde o dado nasce. */
 export function FontesDoBloco({ bloco }: { bloco: BlocoId }) {

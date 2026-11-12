@@ -763,6 +763,10 @@
 .pa-root .mp-fiscal-verificacao.mp-fiscal-atendido, .pa-root .mp-fiscal-decisao.mp-fiscal-atendido { border-left: 4px solid var(--pa-brand); }
 .pa-root .mp-fiscal-verificacao-cabeca { align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .pa-root .mp-fiscal-verificacao-cabeca h3 { margin: 0; }
+/* D1 A50 (12/11/2026): o objeto da emenda na célula, com o resumo como `summary` e o inteiro embaixo. */
+.pa-root .mp-objeto > summary { cursor: pointer; }
+.pa-root .mp-objeto > summary:focus-visible { outline: 2px solid var(--pa-brand-2); outline-offset: 2px; }
+.pa-root .mp-objeto > p { margin: 0.35rem 0 0; white-space: normal; overflow-wrap: anywhere; }
 .pa-root .mp-fiscal-detalhe { margin-top: 0.4rem; }
 .pa-root .mp-fiscal-detalhe > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
 .pa-root .mp-fiscal-detalhe > * + * { margin-top: 0.6rem; }

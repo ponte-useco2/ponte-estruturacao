@@ -7,7 +7,7 @@
  * enviada. A coluna "Ano" separa; o resumo por ano está na lista da Assembleia.
  */
 import type { ReactNode } from "react";
-import { COLUNAS_FILA, TABELA_FILA, resumir, valoresDaFila } from "@/lib/oportunidades/assembleia-tela";
+import { COLUNAS_FILA, TABELA_FILA, valoresDaFila } from "@/lib/oportunidades/assembleia-tela";
 import {
   ROTULO_PASSO,
   URL_ASSEMBLEIA,
@@ -23,6 +23,7 @@ import { formatarDataBr, type LinhaTabela } from "@/lib/oportunidades/tabela-fil
 import { Tag } from "../../../../_design/primitivos";
 import { LinkMapa } from "../../../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../../../_componentes/TabelaFiltravel";
+import { Objeto } from "../../Objeto";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 import { CasasParlamentares, dinheiro, n } from "../../PecasParlamentares";
 import { AVISO_ASSEMBLEIA, CarimboEpb, NotaDeMetodoEpb } from "../PecasAssembleia";
@@ -115,7 +116,7 @@ function celulasDaFila(i: ItemFila): Record<string, ReactNode> {
     ),
     ano: String(i.ano),
     deputado: i.pessoa ? <LinkMapa href={urlDeputado(i.pessoa)}>{i.pessoa}</LinkMapa> : "—",
-    objeto: <span title={i.objeto ?? undefined}>{resumir(i.objeto)}</span>,
+    objeto: <Objeto texto={i.objeto} />,
     secretaria: i.secretaria ?? "—",
     passo: (
       <>

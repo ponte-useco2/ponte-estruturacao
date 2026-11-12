@@ -53,6 +53,7 @@ import { Tag } from "../../../../../_design/primitivos";
 import { EstrelaSeguir } from "../../../../_componentes/EstrelaSeguir";
 import { LinkMapa } from "../../../../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../../../../_componentes/TabelaFiltravel";
+import { LinkFora } from "../../../../_componentes/LinkFora";
 import { TabelaRolagem } from "../../../../_componentes/TabelaRolagem";
 import { CartaoNumero, CasasParlamentares, n } from "../../../PecasParlamentares";
 import { AVISO_CAMARA_JP, CarimboEjp, NotaDeMetodoEjp, Secao, reais } from "../../PecasCamaraJp";
@@ -157,9 +158,9 @@ export function EmendaJpConteudo({
             </LinkMapa>
           )}
           {materia && (
-            <a href={`${URL_SAPL_MATERIA}${materia.sapl_id}`} className="pa-btn pa-btn-pequeno" rel="noreferrer">
+            <LinkFora href={`${URL_SAPL_MATERIA}${materia.sapl_id}`} className="pa-btn pa-btn-pequeno">
               Abrir a matéria no SAPL
-            </a>
+            </LinkFora>
           )}
           <LinkMapa href={e.origem === "painel" ? URL_FILA_EJP : URL_CAMARA_JP} className="pa-btn pa-btn-pequeno">
             {e.origem === "painel" ? "Ver a fila da execução" : "Ver a lista dos vereadores"}

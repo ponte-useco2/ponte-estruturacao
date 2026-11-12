@@ -5,6 +5,7 @@
 import type { ReactNode } from "react";
 import { URL_PAINEL_PREFEITURA, type ExecucaoEjp } from "@/lib/oportunidades/emendas-jp";
 import { dataHoraBrasilia } from "@/lib/oportunidades/rodadas";
+import { LinkFora } from "../../_componentes/LinkFora";
 import { LinkMapa } from "../../_componentes/LinkMapa";
 import { dinheiro } from "../PecasParlamentares";
 import "../parlamentares.css";
@@ -37,9 +38,7 @@ export function NotaDeMetodoEjp({ id }: { id: string }) {
       <ul className="pa-nota mp-parl-lista">
         <li>
           <strong>Cada ano tem uma fonte.</strong> O exercício corrente vem do{" "}
-          <a href={URL_PAINEL_PREFEITURA} rel="noreferrer">
-            painel da Prefeitura
-          </a>{" "}
+          <LinkFora href={URL_PAINEL_PREFEITURA}>painel da Prefeitura</LinkFora>{" "}
           (lido todo dia); 2021 a 2025, dos arquivos de execução do portal da Prefeitura (2023 só tem a posição de agosto). As duas fontes
           nunca se somam no mesmo ano.
         </li>
