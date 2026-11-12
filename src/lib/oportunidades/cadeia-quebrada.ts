@@ -14,7 +14,9 @@ export const FRASE_FIXA = "Ponto para olhar, não irregularidade.";
 
 /** Tira do texto do pacote as referências internas do plano ("(PUB-04b: 20/20)"), que não dizem nada a quem lê. */
 export function semReferenciaInterna(t: string | null | undefined): string {
-  return (t ?? "").replace(/\s*\(PUB-[^)]*\)/g, "").trim();
+  // Sonar S8786 (12/11/2026): o `\s*` antes do parêntese voltava atrás a cada espaço; o espaço antes da marca sai pelo trimEnd.
+  const partes = (t ?? "").split(/\(PUB-[^)]*\)/);
+  return partes.map((p, i) => (i < partes.length - 1 ? p.trimEnd() : p)).join("").trim();
 }
 
 export interface LinhaCq {

@@ -259,8 +259,9 @@ export interface DadosSala {
 // ------------------------------------------------------------------ texto livre
 
 const CPF = [/\d{3}\.\d{3}\.\d{3}-\d{2}/, /(^|[^0-9./-])\d{11}([^0-9./-]|$)/];
-const TELEFONE = [/\(\d{2}\)\s*9?\d{4}[-\s.]?\d{4}/, /(^|[^0-9])9\d{4}-\d{4}([^0-9]|$)/, /\+55\s?\d/];
-const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+// Sonar S8786 (12/11/2026): `9?\d{4}` virou `\d{4,5}`, sem o nono dígito opcional disputando com os quatro seguintes.
+const TELEFONE = [/\(\d{2}\)\s*\d{4,5}[-\s.]?\d{4}/, /(^|[^0-9])9\d{4}-\d{4}([^0-9]|$)/, /\+55\s?\d/];
+const EMAIL = /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/i;
 const REAIS = /R\$\s*\d/i;
 
 /** O motivo da recusa do texto livre, ou null. O mesmo critério de `sala_texto` (oport_59). */

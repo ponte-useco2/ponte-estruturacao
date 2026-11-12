@@ -22,6 +22,7 @@ import {
 } from "./emendas-pb.ts";
 import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
 import { tituloDaPagina } from "./titulo-pagina.ts";
+import { semPontuacaoNoFim } from "./pontas.ts";
 
 // ================================================================ títulos
 
@@ -40,7 +41,7 @@ export function resumir(texto: string | null | undefined, max = 160): string {
   if (t.length <= max) return t;
   const corte = t.slice(0, max);
   const espaco = corte.lastIndexOf(" ");
-  return `${(espaco > max * 0.6 ? corte.slice(0, espaco) : corte).replace(/[\s,;.:]+$/, "")}…`;
+  return `${semPontuacaoNoFim(espaco > max * 0.6 ? corte.slice(0, espaco) : corte, ",;.:")}…`;
 }
 
 /** "88,9%"; sem base, "—". */

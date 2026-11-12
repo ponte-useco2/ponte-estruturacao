@@ -10,6 +10,7 @@ import { UFS } from "./organizacao.ts";
 import { ufDoIbge } from "./painel.ts";
 import { ehTemaConhecido } from "./temas.ts";
 import { urlMunicipio, type AbaMunicipio } from "./pagina-municipio.ts";
+import { soLetrasENumerosNasPontas } from "./pontas.ts";
 
 /**
  * "organizacoes" (E3): o cadastro do Mapa das OSC (Ipea), só da PB.
@@ -181,7 +182,7 @@ export function termosDaBusca(q: string): string[] {
   const termos = dobrar(semCnpj)
     .replace(/[%_\\]/g, " ")
     .split(" ")
-    .map((t) => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+    .map((t) => soLetrasENumerosNasPontas(t))
     .filter((t) => t.length >= 2);
   return [...new Set(termos)].slice(0, MAXIMO_TERMOS);
 }

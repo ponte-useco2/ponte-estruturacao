@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email";
 import { lerFalhaRodada, montarAlertaFalha } from "@/lib/oportunidades/alerta-rodadas";
 import { dataHoraBrasilia } from "@/lib/oportunidades/rodadas";
 import { administradores } from "@/lib/supabase-auth";
+import { semBarraNoFim } from "@/lib/oportunidades/pontas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   const admins = administradores();
   if (admins.length === 0) return resposta({ erro: "OPORTUNIDADES_ADMINS vazio." }, 500);
 
-  const urlBase = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br").replace(/\/+$/, "");
+  const urlBase = semBarraNoFim(process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br");
   const email = montarAlertaFalha(falha, dataHoraBrasilia(new Date().toISOString()), urlBase);
   const envio = await sendEmail({ to: admins.join(", "), subject: email.assunto, html: email.html, text: email.texto, fromName: "Painel da PONTE" });
   if (!envio.success) return resposta({ erro: envio.error ?? "Falha no envio." }, 502);

@@ -11,5 +11,7 @@ export function semConsultaNasAreasDeDado(url: string): string {
   }
   const naArea = AREAS_DE_DADO.some((a) => caminho === a || caminho.startsWith(`${a}/`));
   if (!naArea) return url;
-  return url.replace(/[?#].*$/, "");
+  // Sonar S8786 (12/11/2026): `[?#].*$` voltava atrás; o corte é no primeiro `?` ou `#`.
+  const corte = url.search(/[?#]/);
+  return corte < 0 ? url : url.slice(0, corte);
 }

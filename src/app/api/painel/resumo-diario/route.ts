@@ -12,6 +12,7 @@ import {
 } from "@/lib/oportunidades/resumo-diario";
 import { lerRodadas } from "@/lib/oportunidades/rodadas.server";
 import { administradores, authConfigurada, clienteServidor } from "@/lib/supabase-auth";
+import { semBarraNoFim } from "@/lib/oportunidades/pontas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
     brasil: contagens,
     uf: (uf.data ?? []) as ContagemMudanca[],
     destaques: (destaques.data ?? []) as MudancaPainel[],
-    urlBase: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br").replace(/\/+$/, ""),
+    urlBase: semBarraNoFim(process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br"),
     rodadas,
   });
   const envio = await sendEmail({

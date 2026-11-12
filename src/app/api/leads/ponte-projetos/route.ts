@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
 import { consumir, origemDoPedido } from "@/lib/freio";
+import { emailValido } from "@/lib/email-valido";
 
 /**
  * Endpoint de captação da apresentação PONTE Projetos (/plataforma).
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+  if (!email || !emailValido(email)) {
     return NextResponse.json(
       { ok: false, error: "E-mail inválido." },
       { status: 400 }

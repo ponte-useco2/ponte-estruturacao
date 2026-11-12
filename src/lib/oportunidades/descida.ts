@@ -7,6 +7,8 @@
  * Fora da descida (janelas, busca, relatório para imprimir, CSV, laudo, troca de aba na mesma página), não há tipo e a
  * troca é a de sempre, sem animação. Puro, com teste (`descida.test.ts`).
  */
+import { semBarraNoFim } from "./pontas.ts";
+
 
 export type DirecaoDescida = "descer" | "subir";
 
@@ -33,7 +35,7 @@ export function caminhoDe(href: string): string {
   const origem = /^[a-z][a-z0-9+.-]*:\/\/[^/]*/i.exec(c);
   if (origem) c = c.slice(origem[0].length);
   c = c.split(/[?#]/, 1)[0] ?? "";
-  if (c.length > 1) c = c.replace(/\/+$/, "");
+  if (c.length > 1) c = semBarraNoFim(c);
   return c || "/";
 }
 

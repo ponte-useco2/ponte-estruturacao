@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { renderAdminNotificationEmail } from "@/lib/email-templates/admin-notification";
 import { consumir, origemDoPedido } from "@/lib/freio";
+import { emailValido } from "@/lib/email-valido";
 
 const ADMIN_EMAIL = process.env.EMAIL_USER || "diretoria.ponte.projetos@gmail.com";
 
@@ -19,7 +20,6 @@ function limpar(v: unknown, max = 200): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
 
-const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export async function submitLead(formData: FormData) {
   // Freio antes de qualquer trabalho: esta action grava no banco e dispara
@@ -47,7 +47,7 @@ export async function submitLead(formData: FormData) {
   if (nome.length < 2) {
     return { success: false, error: "Nome é obrigatório." };
   }
-  if (!EMAIL_VALIDO.test(email)) {
+  if (!emailValido(email)) {
     return { success: false, error: "E-mail inválido." };
   }
 

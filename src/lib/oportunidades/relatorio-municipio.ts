@@ -45,6 +45,7 @@ import { tituloOrgao } from "./padroes.ts";
 import { DIAS_PARADO_LONGO, ehCreche } from "./primeira-infancia.ts";
 import { pontosRetomada, secaoRetomada, VERSAO_REGRAS_RETOMADA, type ObraRetomada, type SecaoRetomada } from "./retomada.ts";
 import type { ColunaTabela, Ordem, ValorCelula } from "./tabela-filtro.ts";
+import { semHifenNasPontas } from "./pontas.ts";
 
 export const VERSAO_RELATORIO = "2026-10-01.2";
 
@@ -1855,7 +1856,6 @@ export function trechoDoArquivo(nome: string): string {
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .slice(0, 60)
-    .replace(/^-+|-+$/g, "");
-  return s || "relatorio";
+    .slice(0, 60);
+  return semHifenNasPontas(s) || "relatorio";
 }

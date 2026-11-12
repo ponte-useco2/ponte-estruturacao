@@ -19,6 +19,8 @@
  *     Todas as telas daqui são de administrador até a revisão jurídica;
  *   · "ponto para olhar", nunca "irregular".
  */
+import { semHifenNasPontas } from "./pontas.ts";
+
 
 // ================================================================ o que vem do banco
 
@@ -231,10 +233,7 @@ export const URL_FILA_EPB = "/mapa/parlamentares/assembleia/fila";
 
 /** "DR. ERICO" → "dr-erico". Só letras sem acento, dígitos e hífen. */
 export function slugPessoa(pessoa: string): string {
-  return dobrar(pessoa)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return semHifenNasPontas(dobrar(pessoa).toLowerCase().replace(/[^a-z0-9]+/g, "-"));
 }
 
 export function urlDeputado(pessoa: string): string {

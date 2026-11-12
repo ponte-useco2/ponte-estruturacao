@@ -20,6 +20,7 @@ import { diaBrasilia } from "./datas.ts";
 // Só o tipo: padroes.ts importa este arquivo, e o cálculo do tempo no órgão mora lá.
 import type { TempoOrgao } from "./padroes.ts";
 import { moedaCurta } from "./radar.ts";
+import { semPontuacaoNasPontas } from "./pontas.ts";
 
 // ================================================================ dados de entrada
 
@@ -243,11 +244,13 @@ const ITENS_PADRAO: { rotulo: string; padrao: RegExp; chaves: string[] }[] = [
 
 /** Tira o que é só separador das pontas de um resto de texto: vírgula, ponto, travessão e o "e" solto. */
 function limparResto(s: string): string {
-  const junta = /^(?:[\s,;.:–—-]|e\s)+|(?:[\s,;.:–—-]|\se)+$/gi;
-  let atual = s.replace(/\s+/g, " ");
+  // Sonar S8786 (12/11/2026): era uma regex só, com os dois lados em alternância repetida; o laço faz o mesmo sem voltar atrás.
+  let atual = s.replace(/\s+/g, " ").trim();
   for (let anterior = ""; anterior !== atual; ) {
     anterior = atual;
-    atual = atual.replace(junta, "").trim();
+    atual = semPontuacaoNasPontas(atual, ",;.:–—-");
+    if (/^e\s/i.test(atual)) atual = atual.slice(2);
+    if (/\se$/i.test(atual)) atual = atual.slice(0, -2);
   }
   return atual;
 }

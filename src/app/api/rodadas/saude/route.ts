@@ -6,6 +6,7 @@ import { diaBrasilia } from "@/lib/oportunidades/datas";
 import { escolherRodadas, type BlocoRodadas } from "@/lib/oportunidades/resumo-diario";
 import { lerRodadas } from "@/lib/oportunidades/rodadas.server";
 import { administradores, authConfigurada } from "@/lib/supabase-auth";
+import { semBarraNoFim } from "@/lib/oportunidades/pontas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
   if (admins.length === 0) return NextResponse.json({ erro: "OPORTUNIDADES_ADMINS vazio." }, { status: 500 });
 
   const b = await bloco();
-  const urlBase = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br").replace(/\/+$/, "");
+  const urlBase = semBarraNoFim(process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br");
   const dia = diaBrasilia(new Date().toISOString());
   const email = montarSaudeDiaria(b, `${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}`, urlBase);
   const envio = await sendEmail({ to: admins.join(", "), subject: email.assunto, html: email.html, text: email.texto, fromName: "Painel da PONTE" });

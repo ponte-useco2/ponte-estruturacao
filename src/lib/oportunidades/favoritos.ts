@@ -12,6 +12,7 @@ import { URL_CAMARA_JP, emendaJpDaUrl } from "./emendas-jp.ts";
 import { PASSOS_EPB, ROTULO_PASSO, URL_ASSEMBLEIA, emendaDaUrl, type PassoEpb } from "./emendas-pb.ts";
 import { ROTULO_DESFECHO, percentual } from "./painel.ts";
 import { moedaCurta } from "./radar.ts";
+import { semPontuacaoNoFim } from "./pontas.ts";
 
 /**
  * `emenda_estadual` (E4, 16/10/2026, oport_43): a emenda impositiva da ALPB, só de administrador, como as telas da
@@ -72,7 +73,7 @@ function encurtar(t: string): string {
   if (s.length <= LIMITE_NOME) return s;
   const corte = s.slice(0, LIMITE_NOME - 1);
   const espaco = corte.lastIndexOf(" ");
-  return `${(espaco > LIMITE_NOME * 0.6 ? corte.slice(0, espaco) : corte).replace(/[\s,.;:–—-]+$/, "")}…`;
+  return `${semPontuacaoNoFim(espaco > LIMITE_NOME * 0.6 ? corte.slice(0, espaco) : corte, ",.;:–—-")}…`;
 }
 
 /**

@@ -108,7 +108,8 @@ export function tituloOrgao(o: string): string {
   const maiuscula = (p: string) => p.split("-").map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join("-");
   return o
     .toLowerCase()
-    .replace(/([a-zà-ú]{2,})\.(?=[a-zà-ú])/g, "$1. ")
+    // Sonar S8786 (12/11/2026): "duas ou mais letras antes do ponto" é o mesmo que "as duas letras antes do ponto".
+    .replace(/([a-zà-ú][a-zà-ú])\.(?=[a-zà-ú])/g, "$1. ")
     .replace(/[a-zà-ú]+/g, (p) => ACENTOS_ORGAO[p] ?? p)
     .split(/\s+/)
     .map((p, k) => (k > 0 && CONECTIVOS_ORGAO.has(p) ? p : maiuscula(p)))

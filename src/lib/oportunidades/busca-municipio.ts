@@ -19,6 +19,7 @@ import { dobrar, urlBusca, urlDoMunicipio, type ParametrosBusca } from "./busca.
 import { MUNICIPIOS_PB } from "./municipios-pb.ts";
 import { NOME_UF, urlUf } from "./pagina-uf.ts";
 import { ufDoIbge } from "./painel.ts";
+import { soLetrasENumerosNasPontas } from "./pontas.ts";
 
 /** Menos que isso não diz que município é ("sa" casaria com centenas). */
 export const MINIMO_LETRAS = 3;
@@ -256,7 +257,7 @@ const temFiltro = (p: ParametrosBusca) => Boolean((p.aba !== "organizacoes" && p
 export function palavraMaisLonga(q: string): string | null {
   const lista = q
     .split(/\s+/)
-    .map((p) => p.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+    .map((p) => soLetrasENumerosNasPontas(p))
     .filter((p) => p.length >= 2);
   if (lista.length < 2) return null;
   return lista.reduce((a, b) => (b.length > a.length ? b : a), lista[0]);

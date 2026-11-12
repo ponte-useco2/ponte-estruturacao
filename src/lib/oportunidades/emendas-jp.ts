@@ -14,6 +14,7 @@
  */
 import { dobrar } from "./emendas-pb.ts";
 import type { EstadualAno, FederalAno, MunicipalAno } from "./lado-a-lado.ts";
+import { semHifenNasPontas } from "./pontas.ts";
 
 // ================================================================ o que vem do banco
 
@@ -221,10 +222,7 @@ export function emendaJpDaUrl(v: string | null | undefined): { ano: number; codi
 
 /** "CARLÃO PELO BEM" → "carlao-pelo-bem". */
 export function slugVereador(pessoa: string): string {
-  return dobrar(pessoa)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return semHifenNasPontas(dobrar(pessoa).toLowerCase().replace(/[^a-z0-9]+/g, "-"));
 }
 
 export const urlVereadorJp = (pessoa: string): string => `${URL_CAMARA_JP}/${slugVereador(pessoa)}`;

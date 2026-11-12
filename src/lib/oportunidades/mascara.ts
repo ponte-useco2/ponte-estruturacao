@@ -10,7 +10,8 @@
 
 // CPF com ou sem pontuação, fora de sequência maior (o mesmo de `semCpf` da busca unificada).
 const CPF = /(^|[^0-9])[0-9]{3}\.?[0-9]{3}\.?[0-9]{3}-?[0-9]{2}(?=[^0-9]|$)/g;
-const EMAIL = /[\w.+-]+@[\w.-]+\.\w{2,}/g;
+// Sonar S8786 (12/11/2026): o domínio como rótulos separados por ponto, sem o ponto repetido dentro e fora da classe.
+const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 // Com DDD (entre parênteses ou não) e celular sem DDD; o CPF sai antes, para não virar meio telefone.
 const TELEFONE = /\(?\b\d{2}\)?[\s.-]?9?\d{4}[\s.-]?\d{4}\b/g;
 const CELULAR = /\b9\d{4}[\s-]\d{4}\b/g;

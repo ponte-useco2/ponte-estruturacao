@@ -22,6 +22,7 @@ import type { NivelDoMorph } from "@/lib/oportunidades/mapa-vivo";
 import type { AreaMapa, Malha } from "@/lib/oportunidades/pagina-brasil";
 import { MapaVivo, type TemasDoMapa } from "../_movimento/MapaVivo";
 import { LinkArea } from "./LinkMapa";
+import { semHifenNasPontas } from "@/lib/oportunidades/pontas";
 
 /**
  * Até quantas áreas com link o mapa entra no Tab. 27 paradas (as UFs), com "Pular o mapa" e em ordem alfabética,
@@ -37,9 +38,8 @@ function idDoMapa(titulo: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
+    .replace(/[^a-z0-9]+/g, "-");
+  return semHifenNasPontas(base).slice(0, 48);
   return `mp-mapa-${base || "territorio"}`;
 }
 
