@@ -701,7 +701,7 @@ test("a entrada da leitura: com todas as fontes, a mesma; com as do público, o 
   assert.deepEqual(entradaDasFontes(e, FONTES_RELATORIO), e);
   const p = entradaDasFontes(e, fontesDoNivel(0));
   assert.ok(e.fiscal && e.tcu && e.pix && e.fornecedores, "não mexe na recebida");
-  const fixos = new Set(["ibge", "nome", "referenciaPainel", "escopo", "areaExcetuada", "faltas"]);
+  const fixos = new Set(["ibge", "nome", "referenciaPainel", "painelLidoEm", "escopo", "areaExcetuada", "faltas"]);
   const comDado = Object.entries(p)
     .filter(([k, v]) => !fixos.has(k) && v !== null && v !== undefined)
     .map(([k]) => k)

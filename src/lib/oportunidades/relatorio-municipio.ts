@@ -141,6 +141,8 @@ export interface EntradaRelatorio {
   instrumentos: InstrumentoRelatorio[] | null;
   /** Data do arquivo do SICONV que o painel leu. */
   referenciaPainel: string | null;
+  /** Quando a rodada do painel concluiu (12/11/2026): diz se o dado antigo é da fonte ou da nossa leitura. */
+  painelLidoEm?: string | null;
   emendas: EmendaRelatorio[] | null;
   propostas: PropostaRelatorio[] | null;
   tcu: { consultas: ConsultaTcu[]; tces: TceTcu[]; referencia: string | null } | null;
@@ -275,7 +277,8 @@ export interface Relatorio {
   indicadores: LeituraIndicadores | null;
   /** As obras do Pacto de Retomada (R2); ausente no relatório montado antes de 05/11/2026. */
   retomada?: SecaoRetomada | null;
-  fontes: { fonte: string; data: string | null; nota: string }[];
+  /** `lidaEm`: quando o nosso job leu a fonte pela última vez, onde se sabe (12/11/2026). */
+  fontes: { fonte: string; data: string | null; nota: string; lidaEm?: string | null }[];
   faltas: string[];
 }
 
@@ -1429,7 +1432,7 @@ export function montarRelatorio(e: EntradaRelatorio, hoje: string): Relatorio {
     retomada,
     fontes: [
       { fonte: "Painel fiscal (Siconfi, CAUC, SIOPE, SIOPS, SADIPEM)", data: e.fiscal?.referencia ?? null, nota: "RGF do Executivo; série desde 2021 na evidência da despesa com pessoal." },
-      { fonte: "SICONV / Transferegov (arquivos abertos)", data: e.referenciaPainel, nota: "Convênios, propostas, emendas e os pontos da Portaria Conjunta 33/2023." },
+      { fonte: "SICONV / Transferegov (arquivos abertos)", data: e.referenciaPainel, nota: "Convênios, propostas, emendas e os pontos da Portaria Conjunta 33/2023.", lidaEm: e.painelLidoEm ?? null },
       { fonte: "e-TCE do TCU (API pública)", data: e.tcu?.referencia ?? null, nota: "Tomadas de contas especiais por convênio." },
       { fonte: "Acesso Livre do Transferegov", data: null, nota: "Prestação de contas e obras, só nos convênios das coletas." },
       { fonte: "API das transferências especiais e do fundo a fundo", data: null, nota: "Laudo do Pix pelo roteiro da IN-TCU 93/2024." },
@@ -1591,7 +1594,7 @@ export function fontesDoNivel(nivel: NivelAcesso): readonly FonteRelatorio[] {
 }
 
 /** Os campos da entrada que não são de fonte nenhuma: quem é, a data do painel (lida em toda leitura) e as faltas. */
-type CampoFixo = "ibge" | "nome" | "referenciaPainel" | "escopo" | "areaExcetuada" | "faltas";
+type CampoFixo = "ibge" | "nome" | "referenciaPainel" | "painelLidoEm" | "escopo" | "areaExcetuada" | "faltas";
 
 /**
  * De que fonte vem cada campo da entrada. É `Record` de todos os campos que não são fixos: campo novo na

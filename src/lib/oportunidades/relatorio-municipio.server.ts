@@ -335,7 +335,7 @@ async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRela
     console.error("relatório do município (painel):", painel.error.message);
     return { estado: "erro" };
   }
-  const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
+  const ex = ((painel.data as { id: number; dado_ate: string; referencia: string; concluida_em: string | null }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
   const [fiscal, instrumentos, propostas, tcu, pix, tce, fornecedores, fundo, indicadores, pixCiclo, retomada] = await Promise.all([
@@ -395,6 +395,7 @@ async function lerDoBanco(ibge: string, hoje: string, fontes: readonly FonteRela
     serie,
     instrumentos,
     referenciaPainel: ex.referencia ?? ex.dado_ate ?? null,
+    painelLidoEm: ex.concluida_em ?? null,
     emendas,
     propostas,
     tcu,
@@ -551,7 +552,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
     console.error("relatório da entidade (painel):", painel.error.message);
     return { estado: "erro" };
   }
-  const ex = ((painel.data as { id: number; dado_ate: string; referencia: string }[] | null) ?? [])[0];
+  const ex = ((painel.data as { id: number; dado_ate: string; referencia: string; concluida_em: string | null }[] | null) ?? [])[0];
   if (!ex) return { estado: "sem_execucao" };
 
   // Os instrumentos, as propostas e o cadastro do Mapa das OSC dizem quem é a entidade e se a página existe: toda
@@ -620,6 +621,7 @@ async function lerEntidadeDoBanco(cnpj: string, hoje: string, fontes: readonly F
     serie: (g2?.evidencia as { serie?: SeriePessoal } | undefined)?.serie ?? null,
     instrumentos,
     referenciaPainel: ex.referencia ?? ex.dado_ate ?? null,
+    painelLidoEm: ex.concluida_em ?? null,
     emendas,
     propostas,
     tcu,

@@ -50,6 +50,41 @@ export function idadeDoDado(data: string | null | undefined, hoje: string | Date
   return { estado: horas >= limiarHoras ? "antigo" : "fresco", horas, dias: Math.floor(horas / 24) };
 }
 
+/**
+ * Quem atrasou o dado antigo (12/11/2026): a fonte ou a nossa leitura.
+ *
+ * Em 08–12/11/2026 o Transferegov regravou os zips todo dia sem dado novo dentro (o carimbo do histórico parou em
+ * 08/11), e o job leu certo a cada rodada; o selo "Dado antigo" sozinho fazia parecer que a leitura tinha quebrado.
+ * - "fonte": o dado passou do limiar, mas a última leitura está dentro dele (lemos, e a fonte não trouxe nada novo);
+ * - "leitura": a última leitura também passou do limiar (o job parou de rodar);
+ * - null: o dado não é antigo, ou falta a data da leitura (nada a afirmar).
+ *
+ * A leitura pode ser posterior a `hoje` quando `hoje` é só o dia (meio-dia de Brasília) e o job rodou à tarde: conta
+ * como leitura recente, e não como relógio torto.
+ */
+export type CausaAtraso = "fonte" | "leitura";
+
+export function causaDoAtraso(
+  data: string | null | undefined,
+  lidoEm: string | null | undefined,
+  hoje: string | Date,
+  limiarHoras: number,
+): CausaAtraso | null {
+  if (idadeDoDado(data, hoje, limiarHoras).estado !== "antigo") return null;
+  const l = instante(lidoEm);
+  const h = typeof hoje === "string" ? instante(hoje) : hoje;
+  if (!l || !h) return null;
+  return (h.getTime() - l.getTime()) / 36e5 < limiarHoras ? "fonte" : "leitura";
+}
+
+const DIA_RECIFE = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Recife", day: "2-digit", month: "2-digit", year: "numeric" });
+
+/** Instante (ISO com hora) → "DD/MM/AAAA" no horário da Paraíba; "" quando não dá para ler. */
+export function diaDaLeitura(v: string | null | undefined): string {
+  const d = instante(v);
+  return d ? DIA_RECIFE.format(d) : "";
+}
+
 /** "há 3 dias", "há 1 dia", "hoje". */
 export function textoIdade(i: IdadeDoDado): string {
   if (i.dias === undefined) return "";

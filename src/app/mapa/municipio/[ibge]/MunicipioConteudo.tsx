@@ -101,6 +101,7 @@ function Cabeca({ r, nivel, seguindo }: { r: Relatorio; nivel: NivelAcesso; segu
         <IdadeDoDado
           rotulo="dados do Transferegov de"
           data={r.fontes.find((f) => f.fonte.startsWith("SICONV"))?.data ?? null}
+          lidoEm={r.fontes.find((f) => f.fonte.startsWith("SICONV"))?.lidaEm ?? null}
           hoje={r.hoje}
           limiarHoras={LIMIAR_HORAS.diario}
           explicacao="Convênios podem ter mudado de situação sem aparecer aqui; as outras fontes têm a sua data na aba Relatório."
