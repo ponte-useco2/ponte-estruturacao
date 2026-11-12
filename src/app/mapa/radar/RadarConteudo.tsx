@@ -9,6 +9,7 @@
  * e "por tipo de proponente" (até 6 linhas fixas) são resumo: ficam sem filtro e sem ordem, na ordem do banco (mais
  * propostas primeiro). Os chips de janela, categoria, canal e tipo e o "Onde" continuam indo ao banco.
  */
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 import type { ReactNode } from "react";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
 import { UFS } from "@/lib/oportunidades/organizacao";
@@ -46,6 +47,12 @@ import { LinkMapa } from "../_componentes/LinkMapa";
 import { TabelaFiltravel } from "../_componentes/TabelaFiltravel";
 import { TabelaRolagem } from "../_componentes/TabelaRolagem";
 import { Termo } from "../_componentes/Termo";
+
+// D1 A62 (12/11/2026): o radar não tinha o aviso fixo de leitura automática.
+const AVISO_RADAR = avisoLeitura({
+  interno: true,
+  depois: "«Parado» é triagem por tempo desde o último registro, não desistência do proponente.",
+});
 
 type LeituraOk = Extract<LeituraRadar, { estado: "ok" }>;
 
@@ -129,6 +136,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
             </>
           )}
         </p>
+        <p className="mp-fiscal-aviso">{AVISO_RADAR}</p>
       </div>
 
       <Filtros p={p} />

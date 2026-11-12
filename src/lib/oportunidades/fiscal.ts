@@ -95,7 +95,10 @@ const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julh
 
 export const AVISO_FIXO =
   "Leitura automática de fontes públicas, cada uma com a sua data. Não substitui certidão nem a análise da STN, do Tribunal de " +
-  "Contas, do concedente ou do agente financeiro. “Não verificável” quer dizer que a fonte não trouxe o dado, nunca que está tudo certo.";
+  "Contas, do concedente ou do agente financeiro. “Não verificável” quer dizer que a fonte não trouxe o dado, nunca que está tudo certo. " +
+  // D1 A56 (12/11/2026): a incerteza da linha "Transferência voluntária travada" do dicionário, que a coluna do CAUC e a
+  // decisão B não carregavam: o arquivo do portal é semanal.
+  "O CAUC lido é o arquivo semanal do portal: uma pendência pode ter sido sanada depois da data mostrada, e a decisão B segue essa data.";
 
 export interface ConclusaoFiscal {
   decisao: Decisao;

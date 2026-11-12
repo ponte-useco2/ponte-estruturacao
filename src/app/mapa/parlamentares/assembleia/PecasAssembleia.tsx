@@ -49,6 +49,10 @@ export function NotaDeMetodoEpb({ id }: { id: string }) {
           está na página da emenda.
         </li>
         <li>
+          <strong>As etiquetas.</strong> «com devolução» (âmbar) é triagem pela palavra no parecer; «autoria divergente» (azul) é fato nas
+          duas fontes; «fora da tabela curada» (cinza) é o estado da tabela da PONTE, não da emenda.
+        </li>
+        <li>
           <strong>Sem posição, sem nota.</strong> A lista abre por nome. Execução só se compara na mesma safra (o ano da emenda) e depende
           também do município, da entidade, da secretaria e da SEFAZ. O que chama a atenção é ponto para olhar, nunca irregularidade.
         </li>

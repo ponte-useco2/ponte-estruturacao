@@ -135,7 +135,9 @@ test("termosEmOrdem: todos os termos, cada um depois do anterior", () => {
     assert.ok(colador.compare(a, b) <= 0, `${ordem[i - 1].termo} veio antes de ${ordem[i].termo}`);
   }
   const pos = (slug: string) => ordem.findIndex((t) => t.slug === slug);
-  assert.equal(ordem[0].slug, "cauc");
+  // D1 A38 (12/11/2026): "Ausência de dado" passou a ser o primeiro termo; antes era o CAUC.
+  assert.equal(ordem[0].slug, "ausencia-de-dado");
+  assert.ok(pos("ausencia-de-dado") < pos("cauc"));
   assert.ok(pos("regiao-imediata") < pos("regiao-intermediaria"));
   assert.ok(pos("macrorregiao") < pos("mapa-das-osc"));
   assert.ok(pos("transferegov") < pos("transferencia-voluntaria"));

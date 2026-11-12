@@ -7,9 +7,19 @@
  */
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
+import { Tag } from "../../_design/primitivos";
+
+// D1 A62 e A59 (12/11/2026): a ficha não tinha o aviso fixo; os sinais dizem se são triagem ou registro da fonte.
+const AVISO_FICHA = avisoLeitura({
+  interno: true,
+  depois: "Os cinco sinais da prefeitura são triagem por regra da PONTE, salvo os de contas, que a fonte registra.",
+});
 import { diaBrasilia } from "@/lib/oportunidades/laudo";
 import {
   DESCRICAO_SINAL,
+  ORIGEM_SINAL,
+  ROTULO_ORIGEM,
   MOVIMENTOS,
   ROTULO_MOVIMENTO,
   ROTULO_SINAL,
@@ -87,6 +97,7 @@ export function FichaConteudo({ f, ficha }: { f: ParametrosFicha; ficha: FichaMu
           IBGE {f.ibge}. Dado até <strong>{formatarPublicacao(ficha.execucao.dado_ate)}</strong>: o arquivo do Transferegov traz a
           situação de {formatarData(ficha.execucao.referencia)}. Prazos contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}.
         </p>
+        <p className="mp-fiscal-aviso">{AVISO_FICHA}</p>
         {/* A página do município em abas (F1) e o painel fiscal (onda 8) cobrem só a PB. */}
         {f.uf === "PB" && (
           <p className="pa-nota">
@@ -423,7 +434,8 @@ function Sinais({ sinais, uf }: { sinais: MunicipioPainel | null; uf: string }) 
                 {marca(sinais) ? "●" : "○"}
               </span>
               <span>
-                <strong>{ROTULO_SINAL[sinal]}</strong>
+                <strong>{ROTULO_SINAL[sinal]}</strong>{" "}
+                <Tag tom={ORIGEM_SINAL[sinal] === "confirmado" ? "nova" : "proto"}>{ROTULO_ORIGEM[ORIGEM_SINAL[sinal]]}</Tag>
                 <span className="pa-sr">{marca(sinais) ? " — aceso" : " — apagado"}</span>
                 <span className="mp-tabela-secundario">
                   {marca(sinais) ? resumo(sinais) : DESCRICAO_SINAL[sinal]}

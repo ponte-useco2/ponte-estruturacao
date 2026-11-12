@@ -825,6 +825,21 @@ export const ROTULO_SINAL_CURTO: Record<Sinal, string> = {
   contas_negativas: "Contas negativas",
   sem_desembolso: "Sem desembolso",
 };
+/**
+ * D1 A59 (12/11/2026), regra 5 do dicionário: saldo, suspensiva e sem desembolso são triagem por regra da PONTE (prazo,
+ * valor, tempo); contas atrasadas (prazo vencido) e contas rejeitadas ou inadimplência são estados que o SICONV registra.
+ */
+export const ORIGEM_SINAL: Record<Sinal, "triagem" | "confirmado"> = {
+  saldo: "triagem",
+  suspensiva: "triagem",
+  contas_atrasadas: "confirmado",
+  contas_negativas: "confirmado",
+  sem_desembolso: "triagem",
+};
+export const ROTULO_ORIGEM: Record<"triagem" | "confirmado", string> = {
+  triagem: "triagem por regra",
+  confirmado: "registrado na fonte",
+};
 export const DESCRICAO_SINAL: Record<Sinal, string> = {
   saldo: "R$ 100 mil ou mais sem saída há mais de um ano",
   suspensiva: "prazo vencido ou vencendo em até 90 dias",

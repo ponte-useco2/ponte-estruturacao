@@ -19,6 +19,8 @@ import { UFS } from "@/lib/oportunidades/organizacao";
 import {
   CHAVE_TODOS,
   DESCRICAO_SINAL,
+  ORIGEM_SINAL,
+  ROTULO_ORIGEM,
   ETAPAS_CAMINHO,
   ETAPAS_LICITACAO,
   ETAPAS_VEZ,
@@ -105,6 +107,14 @@ import { TabelaDaVisao, TabelaDasMudancas } from "./TabelasConvenio";
 import { moedaCurta } from "@/lib/oportunidades/radar";
 import type { ColunaTabela, LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { Tag } from "../../_design/primitivos";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
+
+// D1 A62 (12/11/2026): o painel não tinha o aviso fixo de leitura automática (regras 1 e 4); A59: os sinais são triagem,
+// salvo os de contas, que a fonte registra.
+const AVISO_PAINEL = avisoLeitura({
+  interno: true,
+  depois: "Os cinco sinais são triagem por regra da PONTE, salvo os de contas, que a fonte registra (ver a legenda em Municípios).",
+});
 import { CopiarNumero } from "./CopiarNumero";
 import {
   Cartao,
@@ -233,6 +243,7 @@ export function PainelConteudo({ p, leitura }: { p: ParametrosPainel; leitura: L
           {formatarData(execucao.referencia)}. Prazos e idades contados até hoje, {formatarData(diaBrasilia(new Date().toISOString()))}; a
           seleção de cada lista segue o dia do arquivo.
         </p>
+        <p className="mp-fiscal-aviso">{AVISO_PAINEL}</p>
       </div>
 
       <nav aria-label="Visões do painel" className="pa-chips mp-painel-visoes">
@@ -835,14 +846,17 @@ function Municipios({ p, leitura }: { p: ParametrosPainel; leitura: LeituraOk })
   return (
     <>
       <div className="pa-grade pa-grade-3 mp-painel-cartoes">
-        <Cartao rotulo="Com 4 ou 5 sinais" quantidade={com(5) + com(4)} tom="urgente" />
+        <Cartao rotulo="Com 4 ou 5 sinais" quantidade={com(5) + com(4)} tom="urgente" palavra="atenção" />
         <Cartao rotulo="Com 3 sinais" quantidade={com(3)} />
         <Cartao rotulo="Com 1 ou 2 sinais" quantidade={com(2) + com(1)} />
       </div>
       <dl className="mp-painel-legenda">
         {SINAIS.map((s) => (
           <div key={s}>
-            <dt>{ROTULO_SINAL[s]}</dt>
+            <dt>
+              {ROTULO_SINAL[s]}{" "}
+              <Tag tom={ORIGEM_SINAL[s] === "confirmado" ? "nova" : "proto"}>{ROTULO_ORIGEM[ORIGEM_SINAL[s]]}</Tag>
+            </dt>
             <dd>{DESCRICAO_SINAL[s]}</dd>
           </div>
         ))}

@@ -156,7 +156,12 @@ export function marcasPix(p: TcePixMunicipio): MarcaPix[] {
   const divida = p.pago_juros + p.pago_amortizacao;
   if (divida > 0) add("divida", `${moedaCurta(divida)} pagos em juros e amortização de dívida com a fonte do Pix em ${p.ano}.`);
   if (p.pago >= PAGO_MINIMO_PIX && p.pct_capital !== null && p.pct_capital < CAPITAL_MINIMO) {
-    add("capital", `Em ${p.ano}, ${pct(p.pct_capital)} do pago com o Pix foi capital (a CF pede ao menos 70% da transferência especial).`);
+    // D1 A64 (12/11/2026): a incerteza do dicionário (4a) vai junto do fato, não só na nota da página.
+    add(
+      "capital",
+      `Em ${p.ano}, ${pct(p.pct_capital)} do pago com o Pix foi capital (a CF pede ao menos 70% da transferência especial). ` +
+        "Depende da classificação contábil do município, e o ano pode ter ajuste.",
+    );
   }
   return m;
 }

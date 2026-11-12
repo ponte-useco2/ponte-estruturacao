@@ -5,6 +5,7 @@ import { temCarimbado, totais } from "@/lib/oportunidades/primeira-infancia";
 import { lerPrimeiraInfancia } from "@/lib/oportunidades/primeira-infancia.server";
 import { chaveDoAmbiente, quemAPaginaAtende } from "@/lib/oportunidades/publico";
 import { tituloDaPagina } from "@/lib/oportunidades/titulo-pagina";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
 import { LinkMapa } from "../_componentes/LinkMapa";
 import { DadoIndisponivel } from "../busca/BuscaConteudo";
@@ -58,6 +59,13 @@ export default async function PrimeiraInfanciaPage({
         <p className="pa-sub">
           Creches e educação infantil, Criança Feliz e Pix: o que já foi depositado e não virou obra nem serviço, o que foi
           contratado e ainda não saiu, e, como contexto, o FUNDEB, o salário-educação e a saúde.
+        </p>
+        {/* D1 A48 e A62 (12/11/2026): o aviso fixo com a incerteza do sinal da creche, que só existia dentro do <details>. */}
+        <p className="mp-fiscal-aviso">
+          {avisoLeitura({
+            depois:
+              "«Em conta, sem pagamento» é a posição de 90 dias ou mais sem movimento registrado: pode haver obra em andamento sem pagamento lançado.",
+          })}
         </p>
       </div>
       {leitura.faltas.length > 0 && (

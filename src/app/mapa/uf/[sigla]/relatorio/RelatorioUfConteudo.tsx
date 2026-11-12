@@ -24,11 +24,17 @@ import { BotaoImprimir } from "../../../fiscal/[ibge]/simular/BotaoImprimir";
 import { Secao } from "../../../municipio/[ibge]/relatorio/RelatorioConteudo";
 import { AtalhosAdmin, AvisoCobertura, Dinheiro, Estado, FontesUf, MapaDaUf, Resumo, Tempos } from "../UfConteudo";
 import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 
-const AVISO =
-  "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). Os números dizem o que a base guarda, não fazem juízo " +
-  "sobre nenhum ente e não substituem certidão, parecer do concedente, decisão do Tribunal de Contas nem orientação jurídica.";
-const AVISO_INTERNO = `Uso interno da PONTE: a tabela das regiões traz o fiscal e os sinais do painel. ${AVISO}`;
+// D1 A39 (12/11/2026): a mesma frase dos relatórios do município e da entidade (regras 1 e 4 do dicionário); só o que é
+// desta tela entra depois.
+const AVISO = avisoLeitura({ datasNoFim: true, depois: "Os números dizem o que a base guarda e não fazem juízo sobre nenhum ente." });
+const AVISO_INTERNO = avisoLeitura({
+  interno: true,
+  datasNoFim: true,
+  antes: "A tabela das regiões traz o fiscal e os sinais do painel.",
+  depois: "Os números dizem o que a base guarda e não fazem juízo sobre nenhum ente.",
+});
 
 const n = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("pt-BR"));
 // A4x (08/10/2026): "Transferegov até" pelo dia de Brasília, como a página (o carimbo de 22h34 não vira o dia seguinte).
@@ -103,7 +109,7 @@ function MunicipiosNoPapel({ l, nivel }: { l: LeituraUfOk; nivel: NivelAcesso })
           <Termo slug="regiao-intermediaria">regiões intermediárias</Termo> em ordem alfabética e, dentro de cada uma, as imediatas. A cor é a da intermediária,
           a mesma do mapa. Instrumentos: todos os da base desde 2008; OSC: as <Termo slug="osc-ativa">ativas</Termo> no Mapa das OSC.
           {admin &&
-            " Administrador: «Bloqueadas no fiscal» conta os municípios com a transferência voluntária bloqueada no painel fiscal; «Sinais» soma os sinais do painel de execução."}
+            " Administrador: «Bloqueadas no fiscal» conta os municípios com a transferência voluntária bloqueada no painel fiscal, um estado que a fonte registra (CAUC e LRF, decisão B); «Sinais» soma os cinco sinais do painel de execução, que são triagem por regra da PONTE (prazo, saldo, físico × financeiro), salvo os de contas. As duas colunas não se somam nem se comparam."}
         </>
       }
     >

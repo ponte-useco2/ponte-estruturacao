@@ -50,7 +50,7 @@ const ENTRADAS = [
     explica:
       "Regida pela Lei Complementar 187/2021, a certificação reconhece a entidade como beneficente e é requisito para a imunidade das contribuições para a seguridade social. É concedida pelo Ministério da Saúde, pelo MEC ou pelo MDS, conforme a área de atuação principal, e tem prazo de validade. No Mapa, \"tem CEBAS\" é o que consta nas planilhas de certificação reunidas pelo Mapa das OSC, que podem estar desatualizadas: confirme no ministério.",
     fonte: "Lei Complementar 187/2021",
-    veja: ["osc", "mapa-das-osc"],
+    veja: ["osc", "mapa-das-osc", "imune-e-isenta", "filantropica", "sem-fins-lucrativos"],
   },
   {
     slug: "condicao-suspensiva",
@@ -448,6 +448,90 @@ const ENTRADAS = [
       "Vai da assinatura, ou da data fixada no termo, até a data final registrada no instrumento. Pode ser prorrogada por termo aditivo, a pedido do convenente, ou de ofício pelo concedente, nos casos da norma, como atraso na liberação dos recursos. Terminada a vigência, o objeto deveria estar concluído, e corre o prazo da prestação de contas final. No Mapa, \"vigência vencida ainda em execução\" marca o instrumento cuja data final já passou e que segue \"em execução\" no Transferegov: um ponto a conferir.",
     fonte: "Decreto 11.531/2023; Portaria Conjunta MGI/MF/CGU 33/2023",
     veja: ["em-execucao", "prestacao-de-contas", "condicao-suspensiva"],
+  },
+  // ---- D1 A38 (12/11/2026): os vocabulários da seção 1 do dicionário dos sinais e as cinco palavras que o portal usava
+  // sem distinguir (sem fins lucrativos, imune, isenta, certificada, filantrópica). Cada verbete é uma entrada do dicionário
+  // (D0, entrega 3) ou da pesquisa do CEBAS de 11/11/2026.
+  {
+    slug: "estado-fiscal",
+    termo: "Estado de uma verificação fiscal",
+    curta: "Atendido, não atendido, atenção, não verificável ou desatualizado: a posição de cada verificação na fonte, na data da leitura.",
+    explica:
+      "O painel fiscal lê cada verificação (declarações, pessoal, CAUC, educação, saúde, dívida) numa fonte pública e guarda a posição na data. Atendido e não atendido são o que a fonte registra; atenção é o limite prudencial ou de alerta, antes do bloqueio; não verificável quer dizer que a fonte não trouxe o dado; desatualizado é retificação pendente ou dado velho, agrupado como alerta. Nenhum deles é juízo sobre o município: o CAUC do portal é semanal, e uma pendência pode ter sido sanada depois da data.",
+    fonte: "Critério da PONTE; LRF (LC 101/2000); CAUC (Tesouro Nacional)",
+    veja: ["decisoes-fiscais", "cauc", "ausencia-de-dado"],
+  },
+  {
+    slug: "estado-da-rodada",
+    termo: "Estado da rodada de coleta",
+    curta: "Em dia, atrasada, dado velho, com aviso, não lido ou coleta assistida: a saúde da coleta, não do caso que ela mostra.",
+    explica:
+      "Cada fonte do Mapa é lida por uma rodada automática, e a página das rodadas diz como cada uma está. Em dia: a última rodada terminou no prazo. Atrasada: passou do prazo sem rodar. Dado velho: rodou, mas a fonte não publicou nada novo. Com aviso: rodou com alguma parte faltando. Não lido: a fonte não respondeu. Coleta assistida: feita por uma pessoa, com a idade da carga registrada. É o estado da leitura, nunca do município, do convênio ou da entidade.",
+    fonte: "Critério da PONTE",
+    veja: ["transferegov", "ausencia-de-dado"],
+  },
+  {
+    slug: "saldo-parado",
+    termo: "Saldo parado",
+    curta: "Convênio com R$ 100 mil ou mais na conta e sem saída há mais de um ano. É triagem por regra: ponto para olhar, não conclusão.",
+    explica:
+      "Um dos cinco sinais do painel de execução. Conta o convênio em execução cujo saldo em conta (com o rendimento da aplicação) é de R$ 100 mil ou mais e cujo último pagamento tem mais de um ano, na data do arquivo do Transferegov. O dinheiro pode estar esperando uma licitação, uma medição ou a liberação de uma parcela seguinte; o sinal diz só que está parado. A soma dos saldos parados é o que o painel chama de dinheiro em conta.",
+    fonte: "Critério da PONTE sobre os dados abertos do Transferegov",
+    veja: ["desembolso", "em-execucao", "triagem-e-confirmado"],
+  },
+  {
+    slug: "legado",
+    termo: "Legado",
+    curta: "Item anterior à regra que o avalia: plano do Pix de antes da ADPF 854 ou convênio de antes da Portaria 29/2024. Não é falha.",
+    explica:
+      "Quando uma regra nova passa a valer, o que foi feito antes dela fica como legado: a tela não marca como não atendido, porque a exigência não existia. É o caso do plano de ação do Pix pago antes da decisão da ADPF 854 (dezembro de 2024), que passou a exigir o plano aprovado antes do primeiro pagamento, e do convênio celebrado antes da Portaria Conjunta 29/2024, que mudou os níveis e as parcelas. O estado legado aparece no laudo do Pix e na seção da Portaria 33 do laudo do convênio.",
+    fonte: "STF, ADPF 854 (decisão de 02/12/2024); Portaria Conjunta MGI/MF/CGU 29/2024",
+    veja: ["pix", "pc-33"],
+  },
+  {
+    slug: "triagem-e-confirmado",
+    termo: "Triagem e confirmado",
+    curta: "Triagem é o sinal calculado por regra da PONTE; confirmado é o estado que a fonte registra como ato. A etiqueta diz qual é qual.",
+    explica:
+      "Um sinal de triagem nasce de uma regra aplicada ao dado: prazo vencido há tantos dias, saldo acima de um valor, físico abaixo do financeiro, concentração de fornecedores. Um sinal confirmado é um ato registrado na fonte: a tomada de contas especial autuada no TCU, a impugnação, a prestação de contas rejeitada, o bloqueio no CAUC. A triagem pede conferência; o confirmado pede providência. No painel e na ficha, cada sinal leva a etiqueta «triagem por regra» ou «registrado na fonte».",
+    fonte: "Dicionário dos sinais da PONTE, regra 5",
+    veja: ["ponto-a-conferir", "nivel-do-ponto", "saldo-parado"],
+  },
+  {
+    slug: "ausencia-de-dado",
+    termo: "Ausência de dado",
+    curta: "Não verificável, não lido, sem coleta ou não consta registro são estados próprios: nunca viram atendido nem pendente.",
+    explica:
+      "Quando a fonte não traz o dado, o Mapa diz isso, e não deduz nada: a verificação fica não verificável, a rodada fica não lida, a coleta fica sem coleta, o registro fica não consta. Esses estados não entram na soma dos atendidos nem na dos pendentes, e um município ou convênio sem dado não é melhor nem pior que outro. A regra protege contra o silêncio da fonte virar sinal verde.",
+    fonte: "Dicionário dos sinais da PONTE, regra 2",
+    veja: ["estado-fiscal", "estado-da-rodada"],
+  },
+  {
+    slug: "sem-fins-lucrativos",
+    termo: "Sem fins lucrativos",
+    curta: "Entidade que não distribui resultado a sócios ou dirigentes: associações e fundações privadas. Não diz se é imune, isenta ou certificada.",
+    explica:
+      "É a condição de base de toda OSC: o estatuto proíbe distribuir lucro, e o eventual superávit volta à atividade. Daí partem quatro situações diferentes, que o portal distingue: a imunidade de impostos, a isenção dada por lei, a certificação CEBAS e o uso comum da palavra filantrópica. Uma entidade sem fins lucrativos pode não ter nenhuma delas. No Mapa das OSC, a natureza jurídica (associação privada, fundação privada, organização religiosa) é o que identifica a condição.",
+    fonte: "Código Civil, arts. 53 e 62; Lei 13.019/2014, art. 2º, I",
+    veja: ["osc", "natureza-juridica", "imune-e-isenta", "cebas", "filantropica"],
+  },
+  {
+    slug: "imune-e-isenta",
+    termo: "Imune e isenta",
+    curta: "Imune é quem a Constituição protege do imposto: educação e assistência social sem fins lucrativos. Isenta é quem a lei dispensa de um tributo.",
+    explica:
+      "A imunidade vem da Constituição (art. 150, VI, c) e alcança os impostos sobre patrimônio, renda e serviços da entidade de educação ou de assistência social sem fins lucrativos que cumpra o art. 14 do CTN. A imunidade das contribuições da seguridade social (art. 195, § 7º) é outra: exige a certificação CEBAS. A isenção vem de lei ordinária e dispensa um tributo específico: a Lei 9.532/1997 isenta do IRPJ e da CSLL a entidade sem fins lucrativos; a Lei 11.096/2005 isenta a instituição de ensino que adere ao ProUni. Imune não é sinônimo de certificada.",
+    fonte: "CF, arts. 150, VI, c, e 195, § 7º; CTN, art. 14; Lei 9.532/1997, arts. 12 e 15; Lei 11.096/2005, art. 8º",
+    veja: ["cebas", "sem-fins-lucrativos", "filantropica"],
+  },
+  {
+    slug: "filantropica",
+    termo: "Filantrópica",
+    curta: "Palavra de uso comum para a entidade beneficente. No Censo Escolar é uma categoria de escola privada. Não é a certificação CEBAS.",
+    explica:
+      "Filantrópica não é um estado jurídico: é como se chama, no uso comum e em alguns cadastros, a entidade que presta serviço gratuito ou subsidiado. No Censo Escolar, é uma das quatro categorias da escola privada (particular, comunitária, confessional, filantrópica), declarada pela própria escola. O hospital filantrópico do SUS é o que tem a certificação CEBAS na saúde. No portal, a palavra aparece como a fonte a usa; a certificação, quando existe, é dita como CEBAS, com a área e a validade.",
+    fonte: "Censo Escolar (INEP), dicionário de variáveis; Lei Complementar 187/2021",
+    veja: ["cebas", "sem-fins-lucrativos", "imune-e-isenta"],
   },
 ] as const satisfies readonly EntradaGlossario[];
 

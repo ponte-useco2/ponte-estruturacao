@@ -265,7 +265,7 @@ function celulaPasso(rotulo: string, vez: string | null, devolvida: boolean): Re
     <>
       {rotulo}
       {vez && <span className="mp-tabela-secundario">vez de {vez}</span>}
-      {devolvida && <Tag>com devolução</Tag>}
+      {devolvida && <Tag tom="proto">com devolução</Tag>}
     </>
   );
 }

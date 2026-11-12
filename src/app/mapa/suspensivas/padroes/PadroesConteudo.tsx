@@ -101,6 +101,10 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
             </p>
           </article>
           <article className="pa-cartao mp-laudo-risco mp-laudo-critico">
+            {/* D1 A67 (12/11/2026): a borda vermelha ganha a marca e a palavra do nível (regra 3: perda do instrumento). */}
+            <p className="mp-painel-cartao-nivel">
+              <span className="pa-tag mp-laudo-nivel mp-laudo-critico">crítico</span>
+            </p>
             <h3 className="pa-mono">Extintos na suspensiva</h3>
             <p className="pa-numero">{n(t.destinos.morreu.n + t.destinos.encerrou.n)}</p>
             <p className="pa-nota">
@@ -156,7 +160,8 @@ export function PadroesConteudo({ leitura, hoje }: { leitura: LeituraOk; hoje: s
         <p className="pa-nota">
           Pessoas do lado do concedente com {MINIMO_PADRAO} atos ou mais ({n(comPadrao.length)} de {n(analistas.length)}). “Onde mais atua” é o
           órgão e o programa em que a pessoa mais atua, com a fatia dos convênios dela. “Última palavra” são os convênios em que o evento mais
-          recente é dela, e há quanto tempo, até a coleta.
+          recente é dela, e há quanto tempo, até a coleta. O nome serve para achar padrão de exigência entre convênios, nunca para
+          atribuir atraso: a vez é do órgão e o tempo parado é do processo (regra 7 do dicionário dos sinais).
         </p>
         {/* B14b (08/10/2026): "Carteira" é o nome da página dos itens seguidos; aqui a coluna diz o que mostra. A tabela
             vazia passa a dizer que está vazia. */}

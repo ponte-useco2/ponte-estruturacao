@@ -48,9 +48,10 @@ export default async function OrganizacaoPage() {
         <p className="pa-kicker">Conta</p>
         <h1 className="pa-titulo">Quem é a entidade</h1>
         <p className="pa-sub">
-          O Mapa hoje mostra todas as janelas do Transferegov na Paraíba. Quando o catálogo
-          multifonte entrar — Finep, CNPq e FAPESQ, além do Transferegov —, é o tipo declarado aqui
-          que separa o que a entidade pode pleitear do que não pode.
+          Declarar a entidade é opcional e não bloqueia nada no Mapa. O tipo (prefeitura, OSC, empresa, instituição de
+          pesquisa) é o que liga a conta à página da própria organização: a prefeitura confirmada vê o «Meu município», e a OSC
+          entra pelo CNPJ. O catálogo ainda não filtra as janelas pelo tipo declarado; o radar de saúde já diz em que papel cada
+          tipo entra.
         </p>
       </div>
 

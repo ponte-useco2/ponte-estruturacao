@@ -582,6 +582,8 @@
 .pa-root .mp-painel-valor { font-size: 0.9rem; color: var(--pa-muted); margin: 0; }
 /* Urgência pela borda e pelo texto, não só pela cor de fundo. */
 .pa-root .mp-painel-cartao-urgente { border-left: 3px solid var(--pa-danger); }
+/* D1 A48, A61 e A67 (12/11/2026): a marca e a palavra do nível numa linha acima do rótulo, como o `.mp-cart-numero`. */
+.pa-root .mp-painel-cartao-nivel { margin: 0 0 0.3rem; font-size: 0.78rem; }
 .pa-root .mp-painel-urgente { color: var(--pa-danger); font-weight: 600; }
 .pa-root .mp-painel-duas { align-items: start; }
 /* Nas tabelas lado a lado o rótulo é curto: a largura mínima do Radar (16rem)

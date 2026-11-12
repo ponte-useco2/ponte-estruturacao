@@ -25,6 +25,7 @@ export function Cartao({
   legenda,
   nota,
   tom,
+  palavra = "atenção",
 }: {
   rotulo: string;
   quantidade: number;
@@ -32,9 +33,16 @@ export function Cartao({
   legenda?: string;
   nota?: ReactNode;
   tom?: "urgente";
+  /** D1 A61 (12/11/2026): a palavra que acompanha a marca ▲ do cartão urgente; a borda vermelha nunca fica sozinha. */
+  palavra?: string;
 }) {
   return (
     <article className={`pa-cartao mp-painel-cartao${tom === "urgente" ? " mp-painel-cartao-urgente" : ""}`}>
+      {tom === "urgente" && (
+        <p className="mp-painel-cartao-nivel mp-painel-urgente">
+          <Urgente palavra={palavra} />
+        </p>
+      )}
       <h3 className="pa-mono">{rotulo}</h3>
       <p className="pa-numero">{n(quantidade)}</p>
       {valor !== undefined && (

@@ -49,7 +49,8 @@ const ORDEM_MARCAS = Object.keys(REGRAS_PIX) as RegraPix[];
 // B14b (08/10/2026): "TCE" solto aqui é sempre o TCE-PB, e passa a ser escrito assim (H06).
 export const AVISO_TCE =
   "Uso interno da PONTE. Despesas abertas do TCE-PB cruzadas com os pagamentos do SICONV. O TCE-PB não traz o número do convênio: o " +
-  "casamento é pelo município, pelo CNPJ do credor e pelo ano. O que não casa é para conferir, não irregularidade. Pessoa física não " +
+  "casamento é pelo município, pelo CNPJ do credor e pelo ano. O que não casa é para conferir, não irregularidade. As marcas do Pix " +
+  "leem a classificação contábil do município, que pode ter ajuste no ano: são ponto para olhar, não apuração. Pessoa física não " +
   "aparece: só o valor somado.";
 
 const n = (x: number) => x.toLocaleString("pt-BR");

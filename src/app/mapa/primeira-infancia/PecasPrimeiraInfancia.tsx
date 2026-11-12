@@ -38,6 +38,12 @@ const plural = (x: number, um: string, varios: string) => `${n(x)} ${x === 1 ? u
 function Cartao({ rotulo, valor, nota, tom }: { rotulo: string; valor: string; nota: ReactNode; tom?: "urgente" }) {
   return (
     <article className={`pa-cartao mp-painel-cartao${tom ? " mp-painel-urgente" : ""}`}>
+      {/* D1 A48 (12/11/2026): o nível do dicionário (4a: alto) com a marca e a palavra, não só a cor. */}
+      {tom && (
+        <p className="mp-painel-cartao-nivel">
+          <span className="pa-tag mp-laudo-nivel mp-laudo-alto">alto</span>
+        </p>
+      )}
       <h3 className="pa-mono">{rotulo}</h3>
       <p className="pa-numero">{valor}</p>
       <p className="mp-painel-valor">{nota}</p>

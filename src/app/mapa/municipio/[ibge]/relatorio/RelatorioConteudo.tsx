@@ -71,16 +71,13 @@ import { Termo } from "../../../_componentes/Termo";
 import { Trilha } from "../../../_componentes/Trilha";
 import { TabelaRolagem } from "../../../_componentes/TabelaRolagem";
 import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 
-const AVISO_INTERNO =
-  "Uso interno da PONTE. Leitura automática de fontes públicas, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, " +
-  "nunca irregularidade; não substitui certidão, parecer do concedente, decisão do Tribunal de Contas nem orientação jurídica.";
-const AVISO =
-  "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, nunca " +
-  "irregularidade; não substitui certidão, parecer do concedente, decisão do Tribunal de Contas nem orientação jurídica.";
+// D1 A39 (12/11/2026): a frase comum vem de `aviso-leitura.ts`, a mesma dos relatórios da entidade, da UF e do Brasil.
+const AVISO_INTERNO = avisoLeitura({ interno: true, datasNoFim: true });
+const AVISO = avisoLeitura({ datasNoFim: true });
 // D1 A08 (09/11/2026): o cliente (nível 2) lia o mesmo aviso do cadastrado; agora sabe que esta é a versão da sua organização.
-const AVISO_CLIENTE =
-  "Versão para a sua organização, sem nome de fornecedor nem de servidor. " + AVISO;
+const AVISO_CLIENTE = avisoLeitura({ datasNoFim: true, antes: "Versão para a sua organização, sem nome de fornecedor nem de servidor." });
 
 /** O aviso do cabeçalho pelo nível: interno (3), cliente (2) ou cadastrado (1). */
 export function avisoDoNivel(nivel: NivelAcesso): string {

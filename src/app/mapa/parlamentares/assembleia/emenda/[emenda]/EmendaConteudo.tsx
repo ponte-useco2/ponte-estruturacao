@@ -100,7 +100,7 @@ export function EmendaConteudo({
         )}
         {e.autoriaDivergente && (
           <p>
-            <Tag>autoria divergente</Tag> O catálogo publica <strong>{e.autorCatalogo ?? "—"}</strong> e a ficha publica{" "}
+            <Tag tom="nova">autoria divergente</Tag> O catálogo publica <strong>{e.autorCatalogo ?? "—"}</strong> e a ficha publica{" "}
             <strong>{e.deputadoFicha ?? "—"}</strong>, que a tabela curada liga a pessoas diferentes. Ponto para olhar.
           </p>
         )}
@@ -144,8 +144,9 @@ export function EmendaConteudo({
           O caminho
         </h2>
         <p className="pa-nota">
-          Os passos com data na ficha da emenda, com o responsável (servidor que enviou ou deu o parecer) e o texto do parecer, como a API
-          publica (CPF, e-mail e telefone mascarados).
+          Os passos com data na ficha da emenda, com quem registrou cada passo (o servidor que enviou ou deu o parecer) e o texto do
+          parecer, como a API publica (CPF, e-mail e telefone mascarados). O nome serve para achar padrão entre emendas; a vez e o tempo
+          parado são do órgão, nunca da pessoa.
           {e.foraDeOrdem && " As datas desta ficha estão fora de ordem em algum passo: marca de qualidade do dado, não erro da emenda."}
           {e.devolvida && " Um dos pareceres fala em devolver a emenda."}
         </p>
@@ -158,7 +159,7 @@ export function EmendaConteudo({
                 <tr>
                   <th scope="col">Passo</th>
                   <th scope="col">Data</th>
-                  <th scope="col">Responsável</th>
+                  <th scope="col">Quem registrou</th>
                   <th scope="col">Parecer</th>
                 </tr>
               </thead>

@@ -3,6 +3,13 @@
  */
 import type { ReactNode } from "react";
 import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
+
+// D1 A62 (12/11/2026): o painel do Pix não tinha o aviso fixo; «legado» era só uma palavra na nota.
+const AVISO_PAINEL_PIX = avisoLeitura({
+  interno: true,
+  depois: "«Legado ADPF 854» é o plano anterior à regra que o avalia: não é falha. Falta de relatório é posição da API na data, não ausência de execução.",
+});
 import { UFS } from "@/lib/oportunidades/organizacao";
 import {
   ROTULO_LADO_MOTIVO,
@@ -81,6 +88,7 @@ export function PixConteudo({
           {data(dataDasContagens(c, "especiais_ultimo_pagamento"))}. Fundo a fundo: movimento até{" "}
           {data(dataDasContagens(c, "fundo_dado_ate"))}.
         </p>
+        <p className="mp-fiscal-aviso">{AVISO_PAINEL_PIX}</p>
       </div>
 
       <nav aria-label="Seções" className="pa-chips mp-painel-visoes">

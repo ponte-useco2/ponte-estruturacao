@@ -120,7 +120,7 @@ function celulasDaFila(i: ItemFila): Record<string, ReactNode> {
     passo: (
       <>
         {ROTULO_PASSO[i.passo]}
-        {i.devolvida && <Tag>com devolução</Tag>}
+        {i.devolvida && <Tag tom="proto">com devolução</Tag>}
       </>
     ),
     desde: i.passoEm ? formatarDataBr(i.passoEm) : "—",

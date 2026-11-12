@@ -58,14 +58,11 @@ import {
   temAvisoFiscal,
 } from "../EntidadeConteudo";
 import { MontarRelatorio } from "../../../_movimento/MontarRelatorio";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 
-// Os mesmos avisos do relatório do município (lá não são exportados); o do cadastro é só desta página.
-const AVISO_INTERNO =
-  "Uso interno da PONTE. Leitura automática de fontes públicas, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, " +
-  "nunca irregularidade; não substitui certidão, parecer do concedente, decisão do Tribunal de Contas nem orientação jurídica.";
-const AVISO =
-  "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). «A conferir» é ponto para olhar, nunca " +
-  "irregularidade; não substitui certidão, parecer do concedente, decisão do Tribunal de Contas nem orientação jurídica.";
+// Os mesmos avisos do relatório do município, pela frase comum (D1 A39, 12/11/2026); o do cadastro é só desta página.
+const AVISO_INTERNO = avisoLeitura({ interno: true, datasNoFim: true });
+const AVISO = avisoLeitura({ datasNoFim: true });
 const AVISO_CADASTRO =
   "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). O cadastro é o do Mapa das OSC (Ipea), com " +
   "dados da Receita Federal; não substitui certidão nem a consulta ao cadastro da Receita.";

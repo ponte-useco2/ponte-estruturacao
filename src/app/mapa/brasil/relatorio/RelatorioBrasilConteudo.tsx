@@ -18,10 +18,13 @@ import { Trilha } from "../../_componentes/Trilha";
 import { BotaoImprimir } from "../../fiscal/[ibge]/simular/BotaoImprimir";
 import { DinheiroDoBrasil, Estados, FontesDoBrasil, Resumo, Tempos } from "../BrasilConteudo";
 import { MontarRelatorio } from "../../_movimento/MontarRelatorio";
+import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 
-const AVISO =
-  "Leitura automática de fontes públicas pela PONTE, cada uma com a sua data (ver o fim). Fora da Paraíba a base guarda só os " +
-  "instrumentos vivos: é por eles que as 27 UFs aparecem lado a lado, em ordem alfabética. Não substitui as fontes oficiais.";
+// D1 A39 (12/11/2026): a mesma frase dos outros relatórios; a cobertura fora da PB é o que é só desta tela.
+const AVISO = avisoLeitura({
+  datasNoFim: true,
+  depois: "Fora da Paraíba a base guarda só os instrumentos vivos: é por eles que as 27 UFs aparecem lado a lado, em ordem alfabética.",
+});
 
 // A4x (08/10/2026): "Transferegov até" pelo dia de Brasília, como a página (o carimbo de 22h34 não vira o dia seguinte).
 const data = (iso: string | null | undefined) => dataBrasilia(iso);

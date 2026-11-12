@@ -397,7 +397,7 @@ export function TabelaDasPropostas({
             </span>
             {p.limbo && (
               <span className="mp-tabela-secundario mp-painel-urgente">
-                <Urgente palavra="nunca analisada" />
+                <Urgente palavra="sem análise registrada" />
               </span>
             )}
           </>
