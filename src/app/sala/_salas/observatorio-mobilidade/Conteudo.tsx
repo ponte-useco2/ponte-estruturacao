@@ -5,7 +5,8 @@
  *
  * A página organiza o interesse em três pontos: o problema público; o que os R$ 200 mil permitem desenvolver e
  * investigar; e as capacidades que esta etapa pode deixar para um programa maior — a carteira "Um observatório,
- * múltiplas capacidades", seis hipóteses de expansão. Dois acessos na abertura levam ao demonstrador e ao programa; a
+ * múltiplas capacidades", seis hipóteses de expansão, cada uma com o valor indicativo e os módulos (estimativa interna
+ * da coordenação, 16/11/2026: nunca cotação nem compromisso). Dois acessos na abertura levam ao demonstrador e ao programa; a
  * rolagem suave é a do site (desligada para quem pede menos movimento). As ressalvas técnicas ficam no fim, discretas.
  *
  * IDENTIDADE: a da Ilha Tech, aplicada só nesta sala, em `observatorio.css` — preto, grafite, branco e o laranja como
@@ -35,9 +36,24 @@ import { BotaoImprimir } from "@/app/mapa/fiscal/[ibge]/simular/BotaoImprimir";
 import {
   AVISO_ATIVOS,
   AVISO_CARTEIRA,
+  AVISO_ENVELOPES,
+  AVISO_MODULOS,
+  AVISO_VALORES,
+  DEFINICAO_AUTONOMIA,
+  ROTULO_AUTONOMIA,
+  ROTULO_NATUREZA,
+  condicoesDeReaproveitamento,
+  emSequencia,
+  entradaDaCarteira,
+  fontesDosValores,
+  lerEnvelopes,
+  lerModulos,
+  lerValoresDoPrograma,
+  quantidadePorExtenso,
   RESSALVA_PROVA_PRELIMINAR,
   ROTULO_GRAU,
   TIPOS_DE_ATIVO,
+  centavosEmEscala,
   centavosEmReais,
   centavosResumidos,
   dataBr,
@@ -95,6 +111,69 @@ function TotalDaLinha({ item }: { item: ItemDeComposicao }) {
   return <span className="ob-invalido">inválido</span>;
 }
 
+/**
+ * A distribuição inicial em envelopes (coordenação, 16/11/2026): estimativa interna, referência para a pesquisa de
+ * preços. Não é a composição, que segue em elaboração logo abaixo. A barra é proporcional ao maior envelope.
+ */
+function Envelopes({ proposta }: { proposta: Proposta }) {
+  const { estimativa, itens } = proposta.envelopes;
+  if (itens.length === 0) return null;
+  const leitura = lerEnvelopes(proposta);
+  const maior = Math.max(...itens.map((x) => x.centavos));
+  return (
+    <div className="ob-envelopes">
+      <div className="ob-envelopes-topo">
+        <p className="ob-envelopes-titulo">Distribuição inicial em envelopes</p>
+        <p className="ob-natureza">{ROTULO_NATUREZA[estimativa.natureza]}</p>
+      </div>
+      <p className="ob-envelopes-aviso">{AVISO_ENVELOPES}</p>
+      <div className="ob-rolagem">
+        <table className="ob-tabela ob-envelopes-tabela">
+          <caption className="pa-sr">
+            Distribuição inicial do investimento em envelopes, {ROTULO_NATUREZA[estimativa.natureza].toLowerCase()}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Envelope</th>
+              <th scope="col" className="ob-num">
+                Valor
+              </th>
+              <th scope="col" className="ob-envelope-col-barra">
+                <span className="pa-sr">Proporção</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {itens.map((x) => (
+              <tr key={x.rotulo}>
+                <th scope="row">{x.rotulo}</th>
+                <td className="ob-num">{centavosResumidos(x.centavos)}</td>
+                <td className="ob-envelope-col-barra" aria-hidden="true">
+                  <span className="ob-envelope-barra" style={{ width: `${(x.centavos / maior) * 100}%` }} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">
+                Soma{" "}
+                {leitura.confere ? (
+                  "· fecha com o investimento proposto"
+                ) : (
+                  <span className="ob-invalido">· não fecha com o investimento proposto</span>
+                )}
+              </th>
+              <td className="ob-num">{centavosResumidos(leitura.somaCentavos)}</td>
+              <td className="ob-envelope-col-barra" />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /** A composição do orçamento. Enquanto a equipe não preencher, diz "em elaboração" — sem rubrica, sem percentual. */
 function Composicao({ proposta }: { proposta: Proposta }) {
   if (proposta.composicao.length === 0) {
@@ -102,7 +181,7 @@ function Composicao({ proposta }: { proposta: Proposta }) {
       <div className="ob-pendente">
         <p className="ob-pendente-titulo">Composição financeira em elaboração</p>
         <p>
-          A distribuição do investimento ainda não foi definida. Cada linha vai trazer a atividade, a unidade de medida, a
+          A composição detalhada ainda não foi definida. Cada linha vai trazer a atividade, a unidade de medida, a
           quantidade, o valor unitário e os produtos a que serve, e a soma terá de fechar com o investimento proposto.
         </p>
       </div>
@@ -174,6 +253,8 @@ export function ConteudoObservatorio() {
   const etapaDe = (codigo: CodigoProduto) => apresentacao.etapas.find((e) => e.produto === codigo);
   const investimento = centavosResumidos(proposta.investimentoPretendidoCentavos);
   const prova = apresentacao.provaPreliminar;
+  const valores = lerValoresDoPrograma(proposta, apresentacao);
+  const entrada = entradaDaCarteira(apresentacao);
 
   return (
     <div className={`ob-raiz ${fonteTitulo.variable} ${fonteTexto.variable}`}>
@@ -388,6 +469,7 @@ export function ConteudoObservatorio() {
                 <dd className="ob-grande-nota">para os {proposta.produtos.length} produtos</dd>
               </div>
             </dl>
+            <Envelopes proposta={proposta} />
             <Composicao proposta={proposta} />
           </div>
         </section>
@@ -405,7 +487,7 @@ export function ConteudoObservatorio() {
               <li className="ob-camada ob-camada-demonstrador">
                 <p className="ob-camada-quando">Esta proposta</p>
                 <h3>
-                  O demonstrador: {investimento} em {proposta.prazoMeses} meses
+                  O demonstrador: <span className="ob-sem-quebra">{investimento}</span> em {proposta.prazoMeses} meses
                 </h3>
               </li>
               <li className="ob-camada ob-camada-infra">
@@ -458,49 +540,168 @@ export function ConteudoObservatorio() {
             />
             <p className="ob-carteira-abertura">{apresentacao.carteira.abertura}</p>
             <div className="ob-carteira-base">
-              <p className="ob-camada-quando">A base comum · o demonstrador de {investimento}</p>
+              <p className="ob-camada-quando">A base comum · o demonstrador de <span className="ob-sem-quebra">{investimento}</span></p>
               <p>
                 Os seis projetos aproveitam o que o demonstrador pretende deixar: {apresentacao.reuso.map((r) => r.ativo).join(", ")}.
               </p>
             </div>
+            {/* A abertura da carteira em números: projetos, módulos e o investimento modular mínimo, que é o menor
+                módulo potencialmente autônomo. Os valores levam sempre a natureza: estimativa interna. */}
+            <dl className="ob-carteira-numeros">
+              <div>
+                <dt>Projetos</dt>
+                <dd className="ob-cn-valor">{entrada.projetos}</dd>
+                <dd className="ob-cn-nota">hipóteses de expansão</dd>
+              </div>
+              <div>
+                <dt>Módulos</dt>
+                <dd className="ob-cn-valor">{entrada.modulos}</dd>
+                <dd className="ob-cn-nota">
+                  {quantidadePorExtenso(entrada.autonomos, "potencialmente autônomo", "potencialmente autônomos")}
+                </dd>
+              </div>
+              {entrada.aPartirDeCentavos !== null && (
+                <div className="ob-cn-destaque">
+                  <dt>Investimento modular</dt>
+                  <dd className="ob-cn-valor">
+                    <span className="ob-cn-prefixo">a partir de</span>{" "}
+                    <span className="ob-sem-quebra">{centavosResumidos(entrada.aPartirDeCentavos)}</span>
+                  </dd>
+                  <dd className="ob-cn-nota">estimativa interna, por módulo potencialmente autônomo</dd>
+                </div>
+              )}
+            </dl>
+            <p className="ob-cn-definicao">{DEFINICAO_AUTONOMIA}</p>
+            <dl className="ob-programa-totais">
+              <div>
+                <dt>O demonstrador</dt>
+                <dd className="ob-programa-valor">{investimento}</dd>
+                <dd className="ob-programa-nota">investimento proposto nesta etapa</dd>
+              </div>
+              <div>
+                <dt>Carteira complementar</dt>
+                <dd className="ob-programa-valor">{centavosEmEscala(valores.carteiraCentavos)}</dd>
+                <dd className="ob-programa-nota">
+                  estimativa interna, em {quantidadePorExtenso(apresentacao.carteira.projetos.length, "projeto", "projetos")}
+                </dd>
+              </div>
+              <div className="ob-programa-destaque">
+                <dt>Programa completo</dt>
+                <dd className="ob-programa-valor">{centavosEmEscala(valores.programaCentavos)}</dd>
+                <dd className="ob-programa-nota">estimativa interna, com o demonstrador</dd>
+              </div>
+            </dl>
+            <p className="ob-valores-aviso">{AVISO_VALORES}</p>
+            {/* Cada card mostra só o essencial; módulos, componentes e dependências abrem por clique ou teclado
+                (details nativo, fechado por padrão). Nada do conteúdo some: só muda de lugar. */}
             <ol className="ob-carteira-grade">
-              {apresentacao.carteira.projetos.map((pr, i) => (
-                <li key={pr.nome} className="ob-projeto">
-                  <p className="ob-projeto-topo">
-                    <span className="ob-projeto-num">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="ob-projeto-tag">Hipótese de expansão</span>
-                  </p>
-                  <h3>{pr.nome}</h3>
-                  <dl>
-                    <div>
-                      <dt>Problema público</dt>
-                      <dd>{pr.problema}</dd>
-                    </div>
-                    <div>
-                      <dt>Capacidade proposta</dt>
-                      <dd>{pr.capacidade}</dd>
-                    </div>
-                    <div>
-                      <dt>Componentes aproveitáveis</dt>
-                      <dd>
-                        <ul className="ob-projeto-componentes">
-                          {pr.componentes.map((c) => (
-                            <li key={c}>{c}</li>
+              {apresentacao.carteira.projetos.map((pr, i) => {
+                const modulos = lerModulos(pr);
+                return (
+                  <li key={pr.nome} className="ob-projeto">
+                    <p className="ob-projeto-topo">
+                      <span className="ob-projeto-num">{String(i + 1).padStart(2, "0")}</span>
+                      <span className="ob-projeto-tag">Hipótese de expansão</span>
+                    </p>
+                    <h3>{pr.nome}</h3>
+                    <dl>
+                      <div>
+                        <dt>Problema público</dt>
+                        <dd>{pr.problema}</dd>
+                      </div>
+                      <div>
+                        <dt>Capacidade proposta</dt>
+                        <dd>{pr.capacidade}</dd>
+                      </div>
+                    </dl>
+                    <dl className="ob-projeto-valor">
+                      <div className="ob-projeto-investimento">
+                        <dt>Investimento indicativo · {ROTULO_NATUREZA[pr.estimativa.natureza].toLowerCase()}</dt>
+                        <dd className="ob-projeto-total">{centavosResumidos(pr.totalIndicativoCentavos)}</dd>
+                      </div>
+                      <div>
+                        <dt>Módulos</dt>
+                        <dd className="ob-projeto-fato">{modulos.quantidade}</dd>
+                      </div>
+                      {modulos.menorCentavos !== null && (
+                        <div>
+                          <dt>Menor módulo</dt>
+                          <dd className="ob-projeto-fato">
+                            <span className="ob-sem-quebra">{centavosResumidos(modulos.menorCentavos)}</span>
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                    <div className="ob-projeto-detalhes">
+                      <details className="ob-projeto-detalhe">
+                        <summary>
+                          Módulos e entregas<span className="ob-sr">: {pr.nome}</span>
+                        </summary>
+                        <ol className="ob-modulos">
+                          {pr.modulos.map((m, j) => (
+                            <li key={m.titulo}>
+                              <p className="ob-modulo-topo">
+                                <span className="ob-modulo-num">Módulo {j + 1}</span>
+                                <span className="ob-modulo-valor">{centavosResumidos(m.centavos)}</span>
+                              </p>
+                              <p className="ob-modulo-titulo">{m.titulo}</p>
+                              <p className="ob-modulo-autonomia">
+                                <span className={`ob-modulo-selo ob-modulo-${m.autonomia}`}>{ROTULO_AUTONOMIA[m.autonomia]}</span>
+                                {m.autonomia === "dependente" && <> · exige antes: {emSequencia(m.dependeDe)}</>}
+                              </p>
+                              <ul className="ob-modulo-entregas">
+                                {m.entregas.map((e) => (
+                                  <li key={e}>{e}</li>
+                                ))}
+                              </ul>
+                            </li>
+                          ))}
+                        </ol>
+                        <p className="ob-modulos-nota">{AVISO_MODULOS}</p>
+                      </details>
+                      <details className="ob-projeto-detalhe">
+                        <summary>
+                          Componentes reutilizáveis<span className="ob-sr">: {pr.nome}</span>
+                        </summary>
+                        {condicoesDeReaproveitamento(pr, apresentacao.reuso).map((g) => (
+                          <div key={g.titulo} className="ob-detalhe-grupo">
+                            <p className="ob-detalhe-sub">{g.titulo}</p>
+                            <ul className="ob-projeto-componentes">
+                              {g.ativos.map((x) => (
+                                <li key={x.ativo}>
+                                  {x.ativo} <span className="ob-componente-produto">{x.produto}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <p className="ob-detalhe-condicao">{g.condicao}</p>
+                          </div>
+                        ))}
+                        <p className="ob-modulos-nota">{AVISO_ATIVOS}</p>
+                      </details>
+                      <details className="ob-projeto-detalhe">
+                        <summary>
+                          Dependências<span className="ob-sr">: {pr.nome}</span>
+                        </summary>
+                        <p className="ob-detalhe-sub">Dependências técnicas</p>
+                        <ul>
+                          {pr.dependencias.map((d) => (
+                            <li key={d}>{d}</li>
                           ))}
                         </ul>
-                      </dd>
+                        <p className="ob-detalhe-sub">Ordem entre os módulos</p>
+                        <ul>
+                          {pr.modulos.map((m, j) => (
+                            <li key={m.titulo}>
+                              Módulo {j + 1}, {m.titulo}:{" "}
+                              {m.autonomia === "dependente" ? `depende de ${emSequencia(m.dependeDe)}` : "potencialmente autônomo"}.
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     </div>
-                  </dl>
-                  <details className="ob-projeto-detalhe">
-                    <summary>Dependências relevantes</summary>
-                    <ul>
-                      {pr.dependencias.map((d) => (
-                        <li key={d}>{d}</li>
-                      ))}
-                    </ul>
-                  </details>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ol>
             <p className="ob-carteira-aviso">{AVISO_CARTEIRA}</p>
           </div>
@@ -544,7 +745,7 @@ export function ConteudoObservatorio() {
               <div>
                 <h3>Fontes</h3>
                 <ul>
-                  {[...apresentacao.fontes, apresentacao.carteira.fonte].map((f) => (
+                  {[...apresentacao.fontes, apresentacao.carteira.fonte, ...fontesDosValores(proposta, apresentacao)].map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </ul>

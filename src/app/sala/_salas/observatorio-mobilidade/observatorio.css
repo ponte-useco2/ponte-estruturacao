@@ -230,6 +230,19 @@ html:has(.pa-root.mp-root .ob-raiz) { scroll-padding-top: calc(var(--pa-top, 60p
 .pa-root .ob-tabela th, .pa-root .ob-tabela td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--ob-linha-escura); }
 .pa-root .ob-tabela .ob-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pa-root .ob-invalido { color: var(--ob-laranja); font-weight: 700; }
+/* Envelopes do demonstrador: estimativa interna, antes da composição (que segue em elaboração). */
+.pa-root .ob-envelopes { display: flex; flex-direction: column; gap: 0.6rem; max-width: 46rem; margin-bottom: 1.5rem; }
+.pa-root .ob-envelopes-topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.4rem 1rem; }
+.pa-root .ob-envelopes-titulo { font-weight: 700; font-size: 1.02rem; }
+.pa-root .ob-natureza {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px dashed var(--ob-branco-suave); padding: 0.18rem 0.45rem; color: var(--ob-branco-suave);
+}
+.pa-root .ob-envelopes-aviso { font-size: 0.9rem; line-height: 1.5; color: var(--ob-branco-suave); }
+.pa-root .ob-envelopes-tabela tbody th { font-weight: 500; }
+.pa-root .ob-envelopes-tabela tfoot th, .pa-root .ob-envelopes-tabela tfoot td { font-weight: 700; border-bottom: 0; }
+.pa-root .ob-envelope-col-barra { width: 34%; }
+.pa-root .ob-envelope-barra { display: block; height: 0.55rem; background: var(--ob-laranja); }
 
 /* ----------------------------------------------------------------- 05 reuso, em três camadas */
 
@@ -386,13 +399,80 @@ html:has(.pa-root.mp-root .ob-raiz) { scroll-padding-top: calc(var(--pa-top, 60p
 .pa-root .ob-projeto-componentes { list-style: none; margin: 0.15rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .pa-root .ob-projeto-componentes li { border: 1px solid var(--ob-laranja); padding: 0.15rem 0.5rem; font-size: 0.8rem; line-height: 1.35; }
 .pa-root .ob-projeto-detalhe { border-top: 1px solid var(--ob-linha-escura); padding-top: 0.7rem; margin-top: auto; }
-.pa-root .ob-projeto-detalhe summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; min-height: 24px; }
+.pa-root .ob-projeto-detalhe summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  min-height: 44px; font-weight: 700; font-size: 0.9rem; line-height: 1.3;
+}
+.pa-root .ob-projeto-detalhe summary::-webkit-details-marker { display: none; }
+.pa-root .ob-projeto-detalhe summary::after {
+  content: "+"; flex: none; font-family: var(--ob-titulo); font-weight: 700; font-size: 1.15rem; line-height: 1;
+  color: var(--ob-laranja);
+}
+.pa-root .ob-projeto-detalhe[open] > summary::after { content: "\2212"; }
+.pa-root .ob-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 .pa-root .ob-projeto-detalhe ul { margin: 0.5rem 0 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .pa-root .ob-projeto-detalhe li { font-size: 0.88rem; line-height: 1.45; color: var(--ob-branco-suave); }
 .pa-root .ob-carteira-aviso {
   margin-top: 1.5rem; padding-top: 0.9rem; border-top: 1px solid var(--ob-linha-escura);
   font-size: 0.9rem; color: var(--ob-branco-suave);
 }
+/* A carteira em números: seis projetos, dezoito módulos, a partir do menor módulo potencialmente autônomo. */
+.pa-root .ob-carteira-numeros { margin: 0 0 0.75rem; display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 1rem; }
+.pa-root .ob-carteira-numeros > div { display: flex; flex-direction: column; gap: 0.3rem; border-top: 1px solid var(--ob-branco-suave); padding-top: 0.85rem; min-width: 0; }
+.pa-root .ob-carteira-numeros > .ob-cn-destaque { border-top: 3px solid var(--ob-laranja); padding-top: calc(0.85rem - 2px); }
+.pa-root .ob-carteira-numeros dt { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ob-branco-suave); }
+.pa-root .ob-cn-valor { font-family: var(--ob-titulo); font-weight: 700; font-size: clamp(2rem, 1.4rem + 2.2vw, 3.4rem); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.pa-root .ob-cn-destaque .ob-cn-valor { color: var(--ob-laranja); }
+.pa-root .ob-cn-prefixo { font-family: var(--ob-texto); font-size: 0.95rem; font-weight: 700; color: var(--ob-branco); vertical-align: middle; }
+.pa-root .ob-cn-nota { font-size: 0.88rem; line-height: 1.45; color: var(--ob-branco-suave); }
+.pa-root .ob-cn-definicao { margin-bottom: 1.6rem; max-width: 72ch; font-size: 0.85rem; line-height: 1.5; color: var(--ob-branco-suave); }
+/* Os totais do programa: somas dos módulos (estimativa interna), com o aviso discreto logo abaixo. */
+.pa-root .ob-programa-totais { margin: 0 0 0.6rem; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.pa-root .ob-programa-totais > div { display: flex; flex-direction: column; gap: 0.25rem; border-top: 1px solid var(--ob-linha-escura); padding-top: 0.8rem; }
+.pa-root .ob-programa-totais > .ob-programa-destaque { border-top: 3px solid var(--ob-laranja); padding-top: calc(0.8rem - 2px); }
+.pa-root .ob-programa-totais dt { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ob-branco-suave); }
+.pa-root .ob-programa-valor { font-family: var(--ob-titulo); font-weight: 700; font-size: clamp(1.2rem, 1rem + 0.8vw, 1.7rem); line-height: 1.15; }
+.pa-root .ob-programa-destaque .ob-programa-valor { color: var(--ob-laranja); }
+.pa-root .ob-programa-nota { font-size: 0.88rem; color: var(--ob-branco-suave); }
+.pa-root .ob-valores-aviso { margin-bottom: 1.5rem; font-size: 0.85rem; line-height: 1.5; color: var(--ob-branco-suave); }
+/* Em cada projeto: a síntese financeira sempre à vista; módulos, componentes e dependências, ao abrir. */
+.pa-root .ob-projeto dl.ob-projeto-valor {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1rem; margin-top: auto;
+  border-top: 1px solid var(--ob-linha-escura); padding-top: 0.7rem;
+}
+.pa-root .ob-projeto-investimento { grid-column: 1 / -1; }
+.pa-root .ob-projeto dd.ob-projeto-fato { font-family: var(--ob-titulo); font-weight: 700; font-size: 1.05rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.pa-root .ob-projeto dd.ob-projeto-total { font-family: var(--ob-titulo); font-weight: 700; font-size: 1.45rem; line-height: 1.15; color: var(--ob-laranja); }
+.pa-root .ob-projeto-detalhes { display: flex; flex-direction: column; }
+.pa-root .ob-projeto-detalhes .ob-projeto-detalhe { margin-top: 0; padding-top: 0; }
+.pa-root .ob-projeto-detalhes .ob-projeto-detalhe[open] { padding-bottom: 0.9rem; }
+.pa-root .ob-modulos { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.pa-root .ob-projeto-detalhe .ob-modulos > li { display: flex; flex-direction: column; gap: 0.15rem; border-left: 3px solid var(--ob-laranja); padding-left: 0.7rem; color: var(--ob-branco); }
+.pa-root .ob-modulo-topo {
+  display: flex; justify-content: space-between; gap: 0.6rem;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ob-branco-suave);
+}
+.pa-root .ob-modulo-valor { font-size: 0.82rem; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; white-space: nowrap; color: var(--ob-branco); }
+.pa-root .ob-modulo-titulo { font-weight: 700; font-size: 0.92rem; line-height: 1.35; }
+.pa-root .ob-modulo-autonomia { font-size: 0.8rem; line-height: 1.45; color: var(--ob-branco-suave); }
+.pa-root .ob-modulo-selo {
+  display: inline-block; padding: 0.05rem 0.4rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; border: 1px solid var(--ob-branco-suave); color: var(--ob-branco);
+}
+.pa-root .ob-modulo-selo.ob-modulo-potencialmente-autonomo { border-color: var(--ob-laranja); }
+.pa-root .ob-modulo-selo.ob-modulo-dependente { border-style: dashed; }
+.pa-root .ob-projeto-detalhe ul.ob-modulo-entregas { margin: 0.3rem 0 0; padding-left: 1rem; gap: 0.2rem; }
+.pa-root .ob-projeto-detalhe .ob-modulo-entregas li { font-size: 0.85rem; line-height: 1.45; color: var(--ob-branco-suave); }
+.pa-root .ob-detalhe-grupo { display: flex; flex-direction: column; gap: 0.3rem; }
+.pa-root .ob-projeto-detalhe ul.ob-projeto-componentes { margin: 0; padding: 0; flex-direction: row; gap: 0.35rem; }
+.pa-root .ob-projeto-detalhe .ob-projeto-componentes li { color: var(--ob-branco); }
+.pa-root .ob-componente-produto { font-size: 0.7rem; font-weight: 700; color: var(--ob-branco-suave); }
+.pa-root .ob-detalhe-condicao { font-size: 0.82rem; line-height: 1.45; color: var(--ob-branco-suave); }
+.pa-root .ob-modulos-nota { margin-top: 0.75rem; font-size: 0.8rem; line-height: 1.45; color: var(--ob-branco-suave); }
+.pa-root .ob-detalhe-sub { margin-top: 0.65rem; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ob-branco-suave); }
 
 /* ----------------------------------------------------------------- 07: a próxima decisão */
 
@@ -407,7 +487,7 @@ html:has(.pa-root.mp-root .ob-raiz) { scroll-padding-top: calc(var(--pa-top, 60p
   .pa-root .ob-tela .pa-btn { transition: background-color 200ms ease, color 200ms ease; }
   .pa-root .ob-esq-g { transition: opacity 200ms ease; }
   .pa-root .ob-tela .ob-esq-botao { transition: border-color 150ms ease, box-shadow 150ms ease; }
-  .pa-root .ob-projeto-detalhe[open] > ul { animation: ob-surgir 200ms ease-out; }
+  .pa-root .ob-projeto-detalhe[open] > :not(summary) { animation: ob-surgir 200ms ease-out; }
 }
 @keyframes ob-surgir { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
@@ -438,6 +518,10 @@ html:has(.pa-root.mp-root .ob-raiz) { scroll-padding-top: calc(var(--pa-top, 60p
   .pa-root .ob-dentro { width: calc(100% - 2rem); }
   .pa-root .ob-produtos { grid-template-columns: minmax(0, 1fr); }
   .pa-root .ob-carteira-grade { grid-template-columns: minmax(0, 1fr); }
+  .pa-root .ob-carteira-numeros { grid-template-columns: 1fr 1fr; }
+  .pa-root .ob-carteira-numeros > .ob-cn-destaque { grid-column: 1 / -1; }
+  .pa-root .ob-programa-totais { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+  .pa-root .ob-envelope-col-barra { display: none; }
   .pa-root .ob-camada { padding: 1.15rem 1.1rem 1.25rem; }
   .pa-root .ob-identificacao { gap: 0.6rem 1.5rem; }
 }

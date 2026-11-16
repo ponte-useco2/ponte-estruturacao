@@ -1,5 +1,5 @@
 // Só tipo: o Node apaga a linha ao rodar o teste, então o atalho "@/" não precisa resolver fora do Next.
-import type { Apresentacao, Proposta } from "@/lib/oportunidades/proposta-observatorio";
+import type { Apresentacao, Estimativa, Proposta } from "@/lib/oportunidades/proposta-observatorio";
 
 /**
  * Proposta da PONTE para apreciação (16/11/2026). Objeto, produtos, evidências de conclusão, investimento e prazo vêm
@@ -8,21 +8,33 @@ import type { Apresentacao, Proposta } from "@/lib/oportunidades/proposta-observ
  * A Associação Ilha Tech é a entidade executora prevista. Não há aprovação institucional prévia dela, e a sala não
  * atribui aprovação nem endosso a ninguém (correção estratégica do titular, 16/11/2026).
  *
- * Nada foi acrescentado aqui: nenhum valor, critério normativo, parceria, resultado técnico ou financiamento. O que não
- * veio na orientação está vazio ou "em elaboração", de propósito.
+ * Nada foi acrescentado aqui: nenhum critério normativo, parceria, resultado técnico ou financiamento. Os valores
+ * indicativos (envelopes do demonstrador, projetos e módulos da carteira) vêm da estratégia financeira preliminar da
+ * coordenação, de 16/11/2026, como ESTIMATIVA INTERNA: não são cotação, orçamento aprovado nem compromisso financeiro.
+ * O que não veio na orientação está vazio ou "em elaboração", de propósito.
  *
  * QUEM MUDA O QUÊ
  *   · `versao`: muda a cada alteração de texto ou número (AAAA-MM-DD.n), inclusive de `APRESENTACAO`, abaixo.
  *     Histórico: .1 = incremento 1; .2 = textos da rodada visual; .3 = síntese, entregas e reuso (rodada 5);
  *     .4 = ativos por natureza; .5 = proposta da PONTE para apreciação; .6 = esquema e carteira macro;
- *     .7 = temas da próxima decisão (demonstrador e programa maior), redação do titular.
+ *     .7 = temas da próxima decisão (demonstrador e programa maior), redação do titular;
+ *     .8 = valores indicativos: envelopes do demonstrador e valores e módulos da carteira (estimativa interna);
+ *     .9 = módulos pela matriz da coordenação, com entregas mensuráveis e autonomia; cards da carteira enxutos.
  *     Todas de 16/11/2026.
+ *   · `envelopes`: a distribuição inicial dos R$ 200 mil, da coordenação. Referência para a pesquisa de preços; não
+ *     substitui a composição, que continua em elaboração.
  *   · `composicao`: a equipe preenche linha a linha (atividade, unidade, quantidade, valor unitário em centavos e os
  *     produtos a que serve). Enquanto vazia, a página diz "composição em elaboração".
  *   · `evidencias`: resultado só entra como demonstrado quando chega verificado, com a fonte.
  */
+/** A natureza dos valores indicativos desta versão: todos vêm da mesma decisão da coordenação. */
+const ESTIMATIVA_DA_COORDENACAO: Estimativa = {
+  natureza: "estimativa-interna",
+  origem: "Estratégia financeira preliminar da coordenação, de 16/11/2026.",
+};
+
 export const PROPOSTA: Proposta = {
-  versao: "2026-11-16.7",
+  versao: "2026-11-16.9",
   preparadaEm: "2026-11-16",
   titulo: "Observatório de Mobilidade Urbana de João Pessoa",
   autoria: "PONTE Estruturação de Projetos de Impacto",
@@ -59,6 +71,19 @@ export const PROPOSTA: Proposta = {
     },
   ],
   investimentoPretendidoCentavos: 20_000_000, // R$ 200.000,00
+  // Envelopes da coordenação (16/11/2026). A soma fecha com o investimento ao centavo (o teste confere).
+  envelopes: {
+    estimativa: ESTIMATIVA_DA_COORDENACAO,
+    itens: [
+      { rotulo: "Dados e base territorial", centavos: 3_000_000 },
+      { rotulo: "Modelagem de acessibilidade", centavos: 4_800_000 },
+      { rotulo: "Pesquisa empírica", centavos: 3_400_000 },
+      { rotulo: "Protótipo tecnológico", centavos: 3_800_000 },
+      { rotulo: "Avaliação e testes", centavos: 2_000_000 },
+      { rotulo: "Documentação e transferência", centavos: 1_800_000 },
+      { rotulo: "Coordenação e gestão", centavos: 1_200_000 },
+    ],
+  },
   // Em elaboração pela equipe. Vazia de propósito: inventar linha para satisfazer o tipo é o que a restrição 4 proíbe.
   composicao: [],
   prazoMeses: 8,
@@ -72,7 +97,10 @@ export const PROPOSTA: Proposta = {
  *   · cada `trecho` das etapas é cópia LITERAL do objeto completo (o teste confere);
  *   · nenhum texto de apresentação tem algarismo: indicador ou estatística só entra com fonte conferida;
  *   · nenhum texto diz que alguém aprovou, autorizou ou endossou a proposta (o teste confere);
- *   · a expansão, os novos projetos e a carteira são hipótese, sem orçamento, financiamento ou apoio presumido;
+ *   · a expansão, os novos projetos e a carteira são hipótese, sem financiamento ou apoio presumido; os valores da
+ *     carteira são estimativa interna, no campo próprio, e nunca aparecem no texto;
+ *   · os títulos e as entregas dos módulos são redação provisória da PONTE, tirada da capacidade de cada projeto (a
+ *     coordenação definiu os valores, não os títulos): validar antes do envio;
  *   · os componentes de cada projeto da carteira são ativos que o demonstrador entrega (o teste confere);
  *   · nenhum texto cita pessoa nem lhe atribui compromisso.
  */
@@ -173,7 +201,10 @@ export const APRESENTACAO: Apresentacao = {
     ressalva: "Esquema conceitual: não representa o território, os caminhos nem os serviços reais de João Pessoa.",
   },
   // A carteira macro (titular, 16/11/2026). Seis hipóteses de expansão: o problema é a pergunta que a cidade precisa
-  // responder; a capacidade e as dependências vêm das frentes do programa nos materiais de trabalho da equipe.
+  // responder; a capacidade e as dependências vêm das frentes do programa nos materiais de trabalho da equipe. Os
+  // valores, os títulos e a ordem dos módulos são da matriz da coordenação (revisão da entrega 13, 16/11/2026). As
+  // entregas e a autonomia de cada módulo são redação da PONTE: o dependente diz de qual módulo anterior depende, e
+  // só o potencialmente autônomo pode ser porta de entrada (o teste confere).
   carteira: {
     abertura:
       "O primeiro investimento constrói a capacidade. Os próximos ampliam o que João Pessoa poderá compreender e avaliar.",
@@ -184,6 +215,43 @@ export const APRESENTACAO: Apresentacao = {
         capacidade: "Estender a análise do acesso a hospitais, escolas, empregos e outros serviços, em mais territórios e por modo de deslocamento, para identificar desigualdades territoriais.",
         componentes: ["Catálogo de fontes", "Processamento documentado", "Protótipo", "Relatório metodológico"],
         dependencias: ["Dados atualizados sobre a localização e a oferta dos serviços.", "Bases de deslocamento por modo, com permissão de uso."],
+        totalIndicativoCentavos: 32_000_000, // R$ 320.000,00
+        estimativa: ESTIMATIVA_DA_COORDENACAO,
+        modulos: [
+          {
+            titulo: "Novos territórios",
+            centavos: 7_000_000,
+            autonomia: "potencialmente-autonomo",
+            dependeDe: [],
+            entregas: [
+              "Base territorial estendida aos novos territórios definidos no plano de trabalho, com o processamento documentado.",
+              "Análise do acesso aos serviços essenciais da etapa inicial em cada novo território, com o método da etapa inicial.",
+              "Testes reproduzíveis atualizados para a base estendida.",
+            ],
+          },
+          {
+            titulo: "Novos serviços",
+            centavos: 10_000_000,
+            autonomia: "potencialmente-autonomo",
+            dependeDe: [],
+            entregas: [
+              "Catálogo de fontes ampliado com a localização e a oferta de cada novo serviço essencial, com o período, a cobertura e as lacunas de cada fonte.",
+              "Análise do acesso a cada novo serviço nos territórios da etapa inicial, com o mesmo método.",
+              "Relatório metodológico atualizado com as escolhas feitas para cada novo serviço.",
+            ],
+          },
+          {
+            titulo: "Painéis de equidade",
+            centavos: 15_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Novos territórios", "Novos serviços"],
+            entregas: [
+              "Indicadores de equidade do acesso, com ficha técnica de cada indicador.",
+              "Painéis no protótipo que comparam o acesso entre territórios e entre serviços, e por modo de deslocamento onde houver base de deslocamento com permissão de uso.",
+              "Relatório sobre as desigualdades territoriais do acesso, com o método e os limites da análise.",
+            ],
+          },
+        ],
       },
       {
         nome: "Mobilidade ativa e caminhabilidade",
@@ -191,6 +259,42 @@ export const APRESENTACAO: Apresentacao = {
         capacidade: "Levar a pesquisa de campo sobre caminhabilidade a novos territórios, com o mesmo protocolo, incluindo calçadas, travessias e rotas acessíveis.",
         componentes: ["Protocolo", "Registros de campo", "Comparação entre estimativas e observações"],
         dependencias: ["Equipe e logística de campo nos novos territórios.", "Participação dos moradores na pesquisa."],
+        totalIndicativoCentavos: 30_000_000, // R$ 300.000,00
+        estimativa: ESTIMATIVA_DA_COORDENACAO,
+        modulos: [
+          {
+            titulo: "Inventário territorial",
+            centavos: 6_000_000,
+            autonomia: "potencialmente-autonomo",
+            dependeDe: [],
+            entregas: [
+              "Inventário georreferenciado de calçadas, travessias e rampas nos territórios definidos no plano de trabalho, com ficha por trecho.",
+              "Método de levantamento documentado, para repetir o inventário em outros territórios.",
+            ],
+          },
+          {
+            titulo: "Auditoria ampliada",
+            centavos: 10_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Inventário territorial"],
+            entregas: [
+              "Protocolo de auditoria revisto para incluir calçadas, travessias e rotas acessíveis.",
+              "Auditoria de campo dos trechos inventariados, com registros comparáveis aos da etapa inicial.",
+              "Comparação, trecho a trecho, entre o inventário e as condições observadas na auditoria.",
+            ],
+          },
+          {
+            titulo: "Priorização de melhorias",
+            centavos: 14_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Auditoria ampliada"],
+            entregas: [
+              "Critérios de priorização documentados, com o peso e a justificativa de cada critério.",
+              "Lista priorizada de melhorias nos trechos auditados, com a justificativa de cada posição.",
+              "Recomendações para os trajetos até os serviços, com as rotas acessíveis indicadas.",
+            ],
+          },
+        ],
       },
       {
         nome: "Transporte coletivo e integração modal",
@@ -198,6 +302,43 @@ export const APRESENTACAO: Apresentacao = {
         capacidade: "Analisar viagens, confiabilidade e atendimento do transporte coletivo e a integração entre os modos, para apoiar a melhoria do serviço.",
         componentes: ["Catálogo de fontes", "Processamento documentado", "Protótipo"],
         dependencias: ["Dados de itinerários, horários e operação do transporte coletivo.", "Cooperação com os responsáveis pela operação para o acesso aos dados."],
+        totalIndicativoCentavos: 47_000_000, // R$ 470.000,00
+        estimativa: ESTIMATIVA_DA_COORDENACAO,
+        modulos: [
+          {
+            titulo: "Diagnóstico de dados operacionais",
+            centavos: 9_000_000,
+            autonomia: "potencialmente-autonomo",
+            dependeDe: [],
+            entregas: [
+              "Inventário dos dados operacionais do transporte coletivo (itinerários, horários, posição dos veículos e bilhetagem), com a situação de cada fonte: acesso, formato, período, cobertura e lacunas.",
+              "Integração à base territorial dos dados operacionais que forem disponibilizados, com o processamento documentado.",
+              "Relatório de diagnóstico com as condições de uso de cada fonte e o que falta para as análises seguintes.",
+            ],
+          },
+          {
+            titulo: "Acessibilidade multimodal",
+            centavos: 16_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Diagnóstico de dados operacionais"],
+            entregas: [
+              "Análise do acesso aos serviços essenciais combinando caminhada e transporte coletivo, com o método da etapa inicial.",
+              "Mapa dos pontos de integração entre os modos, com os critérios usados para avaliar cada ponto.",
+              "Painel no protótipo com o acesso por combinação de modos, com testes reproduzíveis.",
+            ],
+          },
+          {
+            titulo: "Monitoramento de confiabilidade",
+            centavos: 22_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Diagnóstico de dados operacionais"],
+            entregas: [
+              "Indicadores de confiabilidade do serviço, como o cumprimento de horários e a regularidade, com ficha técnica de cada indicador e calculados só com os dados que o diagnóstico confirmar.",
+              "Rotina de atualização documentada, para recalcular os indicadores a cada nova série de dados.",
+              "Painel de acompanhamento da confiabilidade no protótipo, com testes reproduzíveis.",
+            ],
+          },
+        ],
       },
       {
         nome: "Segurança viária",
@@ -205,6 +346,41 @@ export const APRESENTACAO: Apresentacao = {
         capacidade: "Acompanhar sinistros e condições de risco nos trajetos, para fundamentar a priorização de intervenções.",
         componentes: ["Catálogo de fontes", "Processamento documentado", "Registros de campo"],
         dependencias: ["Registros de sinistros de trânsito, com permissão de uso e proteção dos dados pessoais.", "Critérios de priorização definidos com os órgãos responsáveis."],
+        totalIndicativoCentavos: 32_000_000, // R$ 320.000,00
+        estimativa: ESTIMATIVA_DA_COORDENACAO,
+        modulos: [
+          {
+            titulo: "Base de sinistros",
+            centavos: 7_000_000,
+            autonomia: "potencialmente-autonomo",
+            dependeDe: [],
+            entregas: [
+              "Registros de sinistros de trânsito integrados à base territorial, com proteção dos dados pessoais e o processamento documentado.",
+              "Ficha de cada fonte de registros, com o período, a cobertura, a permissão de uso e as lacunas.",
+            ],
+          },
+          {
+            titulo: "Análise de risco",
+            centavos: 11_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Base de sinistros"],
+            entregas: [
+              "Análise da concentração de sinistros e das condições de risco nos caminhos até os serviços essenciais, com o método documentado.",
+              "Indicadores de risco por trecho, com ficha técnica de cada indicador e testes reproduzíveis.",
+            ],
+          },
+          {
+            titulo: "Painel e priorização",
+            centavos: 14_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Análise de risco"],
+            entregas: [
+              "Painel de acompanhamento no protótipo, com os indicadores de risco por trecho.",
+              "Proposta de critérios de priorização, documentada para discussão com os órgãos responsáveis.",
+              "Lista priorizada de trechos para intervenção, com a justificativa de cada posição.",
+            ],
+          },
+        ],
       },
       {
         nome: "Avaliação de intervenções e investimentos",
@@ -212,6 +388,42 @@ export const APRESENTACAO: Apresentacao = {
         capacidade: "Relacionar investimentos, entregas e indicadores aos efeitos no território, e comparar alternativas antes do investimento.",
         componentes: ["Relatório metodológico", "Processamento documentado", "Comparação entre estimativas e observações"],
         dependencias: ["Informações sobre intervenções e investimentos executados e previstos.", "Indicadores acompanhados ao longo do tempo."],
+        totalIndicativoCentavos: 41_000_000, // R$ 410.000,00
+        estimativa: ESTIMATIVA_DA_COORDENACAO,
+        modulos: [
+          {
+            titulo: "Inventário e indicadores",
+            centavos: 8_000_000,
+            autonomia: "potencialmente-autonomo",
+            dependeDe: [],
+            entregas: [
+              "Inventário das intervenções e dos investimentos em mobilidade, executados e previstos, com a fonte e a data de cada registro.",
+              "Conjunto de indicadores de acompanhamento, com ficha técnica de cada indicador.",
+              "Linha de base dos indicadores nos territórios analisados, com a data de referência.",
+            ],
+          },
+          {
+            titulo: "Simulação de cenários antes de intervenções",
+            centavos: 16_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Inventário e indicadores"],
+            entregas: [
+              "Método de simulação documentado, para comparar alternativas de intervenção antes do investimento.",
+              "Simulação dos cenários das intervenções previstas no inventário, a partir da linha de base, com testes reproduzíveis.",
+              "Relatório comparativo das alternativas, com as premissas e os limites de cada cenário.",
+            ],
+          },
+          {
+            titulo: "Avaliação de resultados observados",
+            centavos: 17_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Inventário e indicadores"],
+            entregas: [
+              "Comparação entre a linha de base e os indicadores medidos depois das intervenções executadas, nos territórios em que houver medição.",
+              "Relatório de avaliação com o método, os limites da comparação e o que não pode ser atribuído às intervenções.",
+            ],
+          },
+        ],
       },
       {
         nome: "Mobilidade sustentável e resiliência urbana",
@@ -219,8 +431,45 @@ export const APRESENTACAO: Apresentacao = {
         capacidade: "Avaliar a participação dos modos sustentáveis e a vulnerabilidade da rede a interrupções, para orientar o planejamento.",
         componentes: ["Catálogo de fontes", "Protótipo", "Plano de replicação"],
         dependencias: ["Dados ambientais e de ocorrências que afetam a circulação.", "Integração com o planejamento urbano e ambiental do município."],
+        totalIndicativoCentavos: 35_000_000, // R$ 350.000,00
+        estimativa: ESTIMATIVA_DA_COORDENACAO,
+        modulos: [
+          {
+            titulo: "Dados e indicadores ambientais",
+            centavos: 7_000_000,
+            autonomia: "potencialmente-autonomo",
+            dependeDe: [],
+            entregas: [
+              "Catálogo das fontes de dados ambientais e de ocorrências que afetam a circulação, com o período, a cobertura e as lacunas de cada fonte.",
+              "Indicadores ambientais com ficha técnica, integrados à base territorial, com o processamento documentado.",
+            ],
+          },
+          {
+            titulo: "Modelagem de emissões",
+            centavos: 13_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Dados e indicadores ambientais"],
+            entregas: [
+              "Modelo de estimativa das emissões dos deslocamentos por modo, a partir das bases de deslocamento que houver com permissão de uso, com o método, as premissas e testes reproduzíveis.",
+              "Comparação entre cenários de participação dos modos sustentáveis nos deslocamentos até os serviços.",
+            ],
+          },
+          {
+            titulo: "Vulnerabilidade e resiliência",
+            centavos: 15_000_000,
+            autonomia: "dependente",
+            dependeDe: ["Dados e indicadores ambientais"],
+            entregas: [
+              "Identificação dos trechos da rede mais expostos a interrupções e eventos extremos, com os critérios documentados.",
+              "Recomendações para o planejamento urbano e ambiental, a partir da análise de exposição da rede.",
+            ],
+          },
+        ],
       },
     ],
+    // Os totais como a coordenação os definiu (16/11/2026); a página mostra as somas dos módulos, e o teste confere.
+    totalIndicativoCentavos: 217_000_000, // R$ 2,17 milhões
+    programaIndicativoCentavos: 237_000_000, // R$ 2,37 milhões, com o demonstrador
     // Só na página: a folha resume o primeiro investimento e não leva a carteira.
     fonte:
       "Projetos candidatos da carteira: elaborados pela PONTE a partir das frentes do programa discutidas nos materiais " +

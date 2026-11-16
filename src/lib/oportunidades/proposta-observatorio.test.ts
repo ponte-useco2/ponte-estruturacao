@@ -13,6 +13,22 @@ import {
   centavosEmReais,
   AVISO_ATIVOS,
   AVISO_CARTEIRA,
+  AVISO_ENVELOPES,
+  AVISO_MODULOS,
+  AVISO_VALORES,
+  DEFINICAO_AUTONOMIA,
+  NATUREZAS_DO_VALOR,
+  ROTULO_AUTONOMIA,
+  centavosEmEscala,
+  condicoesDeReaproveitamento,
+  emSequencia,
+  entradaDaCarteira,
+  fontesDosValores,
+  lerEnvelopes,
+  lerModulos,
+  lerValoresDoPrograma,
+  pendenciasDaEstimativa,
+  quantidadePorExtenso,
   emVoltaDoValor,
   TIPOS_DE_ATIVO,
   centavosResumidos,
@@ -453,7 +469,7 @@ test("a carteira tem os seis projetos candidatos, na ordem definida, com a abert
     assert.ok(pr.problema.endsWith("?"), `${pr.nome}: o problema é a pergunta que a cidade precisa responder`);
     assert.ok(pr.componentes.length > 0 && pr.dependencias.length > 0, pr.nome);
   }
-  assert.match(AVISO_CARTEIRA, /hipóteses de expansão: nenhum tem orçamento, financiamento ou apoio institucional definido/);
+  assert.match(AVISO_CARTEIRA, /hipóteses de expansão: nenhum tem financiamento ou apoio institucional definido/);
 });
 
 test("cada projeto só aproveita componentes que o demonstrador pretende deixar", () => {
@@ -476,13 +492,17 @@ test("hipótese não presume dinheiro, não fala como coisa feita, e a carteira 
     ...APRESENTACAO,
     carteira: { ...APRESENTACAO.carteira, projetos: APRESENTACAO.carteira.projetos.map((pr, i) => (i === 3 ? { ...pr, ...mudanca } : pr)) },
   });
-  assert.ok(comPendencia(com({ capacidade: "Projeto financiado pela secretaria." }), '"Segurança viária" presume valor ou recurso assegurado'));
-  assert.ok(comPendencia(com({ dependencias: ["Orçamento já reservado."] }), '"Segurança viária" presume valor'));
+  assert.ok(comPendencia(com({ capacidade: "Projeto financiado pela secretaria." }), '"Segurança viária" presume recurso assegurado'));
+  assert.ok(comPendencia(com({ dependencias: ["Orçamento já reservado."] }), '"Segurança viária" presume recurso'));
+  // Valor no texto, sem natureza, não é estimativa identificada: barra; o mesmo valor no campo próprio passa.
+  assert.ok(comPendencia(com({ capacidade: "Monitorar sinistros por R$ 320 mil." }), '"Segurança viária" traz valor no texto'));
+  assert.ok(!comPendencia(APRESENTACAO, "traz valor no texto"));
   assert.ok(comPendencia(com({ capacidade: "Monitoramento já implantado." }), '"Segurança viária" fala como se já estivesse feito.'));
   const cinco: Apresentacao = { ...APRESENTACAO, carteira: { ...APRESENTACAO.carteira, projetos: APRESENTACAO.carteira.projetos.slice(0, 5) } };
   assert.ok(comPendencia(cinco, "A carteira precisa dos seis projetos candidatos."));
   for (const pr of APRESENTACAO.carteira.projetos) {
-    for (const t of [pr.problema, pr.capacidade, ...pr.dependencias]) assert.doesNotMatch(t, /\d|R\$/, `${pr.nome}: ${t}`);
+    const textos = [pr.problema, pr.capacidade, ...pr.dependencias, ...pr.modulos.flatMap((m) => [m.titulo, ...m.entregas])];
+    for (const t of textos) assert.doesNotMatch(t, /\d|R\$/, `${pr.nome}: ${t}`);
   }
 });
 
@@ -552,10 +572,12 @@ test("mencionar fontes potenciais de financiamento não é declarar recurso asse
   ]) {
     assert.ok(comPendencia(comTextoDaDecisao(frase), ASSEGURADO), frase);
   }
-  // Outro valor que não o da proposta continua barrado, como número e como valor.
+  // Outro valor que não o da proposta continua barrado no texto, como valor solto e como número; não é "recurso
+  // assegurado": a trava de dinheiro presumido e a de valor sem natureza são duas.
   const outroValor = comTextoDaDecisao("A próxima decisão possível: aprofundar a etapa inicial de R$ 300 mil.");
-  assert.ok(comPendencia(outroValor, ASSEGURADO));
+  assert.ok(comPendencia(outroValor, "Texto de apresentação com valor solto"));
   assert.ok(comPendencia(outroValor, "Texto de apresentação com número"));
+  assert.ok(!comPendencia(outroValor, ASSEGURADO));
   // Na carteira, a mesma distinção: dependência que cita fontes potenciais passa.
   const carteira: Apresentacao = {
     ...APRESENTACAO,
@@ -566,7 +588,7 @@ test("mencionar fontes potenciais de financiamento não é declarar recurso asse
       ),
     },
   };
-  assert.ok(!comPendencia(carteira, '"Acessibilidade territorial ampliada" presume valor'));
+  assert.ok(!comPendencia(carteira, '"Acessibilidade territorial ampliada" presume recurso'));
 });
 
 test("o valor da proposta fica inteiro: o texto é partido em volta dele", () => {
@@ -598,7 +620,10 @@ test("a abertura tem os dois percursos, e cada âncora tem destino", () => {
   }
   assert.match(conteudo, /titulo="O que o projeto pretende deixar como base para o Observatório"/);
   assert.match(conteudo, /titulo="Um observatório, múltiplas capacidades"/);
-  assert.match(conteudo, /<summary>Dependências relevantes<\/summary>/, "detalhe abre por clique e por teclado, sem script");
+  // Detalhe abre por clique e por teclado, sem script; o leitor de tela ouve também o nome do projeto.
+  for (const rotulo of ["Módulos e entregas", "Componentes reutilizáveis", "Dependências"]) {
+    assert.match(conteudo, new RegExp(`<summary>\\s*${rotulo}<span className="ob-sr">: \\{pr\\.nome\\}</span>\\s*</summary>`), rotulo);
+  }
 });
 
 test("movimento discreto: transições de 150 a 250 ms, só para quem não pediu menos movimento", () => {
@@ -615,4 +640,318 @@ test("movimento discreto: transições de 150 a 250 ms, só para quem não pediu
 test("a folha continua sendo o resumo do primeiro investimento: a carteira não entra nela", () => {
   const folha = fonte("Folha.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(folha, /apresentacao\.carteira|apresentacao\.esquema/);
+  // Nem as estimativas novas: a folha continua dedicada aos R$ 200 mil (coordenação, 16/11/2026).
+  assert.doesNotMatch(
+    folha,
+    /envelopes|modulos|totalIndicativo|programaIndicativo|lerValoresDoPrograma|fontesDosValores|lerEnvelopes|AVISO_VALORES|autonomia|dependeDe|entradaDaCarteira|lerModulos|DEFINICAO_AUTONOMIA/,
+  );
+});
+
+// ------------------------------------------------------------------ valores indicativos (coordenação, 16/11/2026)
+
+const MIL = 100_000; // R$ 1.000,00 em centavos
+
+test("os envelopes do demonstrador são os da coordenação e fecham os R$ 200 mil ao centavo", () => {
+  assert.deepEqual(
+    PROPOSTA.envelopes.itens.map((x) => [x.rotulo, x.centavos / MIL]),
+    [
+      ["Dados e base territorial", 30],
+      ["Modelagem de acessibilidade", 48],
+      ["Pesquisa empírica", 34],
+      ["Protótipo tecnológico", 38],
+      ["Avaliação e testes", 20],
+      ["Documentação e transferência", 18],
+      ["Coordenação e gestão", 12],
+    ],
+  );
+  assert.equal(PROPOSTA.envelopes.estimativa.natureza, "estimativa-interna");
+  const e = lerEnvelopes(PROPOSTA);
+  assert.equal(e.somaCentavos, 20_000_000);
+  assert.ok(e.confere);
+  assert.deepEqual(e.pendencias, []);
+  assert.match(AVISO_ENVELOPES, /^Referências internas para a futura pesquisa de preços, não custos cotados\.$/);
+});
+
+test("os envelopes não viram orçamento: a composição continua vazia e a página diz 'em elaboração'", () => {
+  assert.deepEqual(PROPOSTA.composicao, []);
+  assert.ok(prontidaoTecnica(PROPOSTA).pendencias.includes("A composição do orçamento ainda não foi informada."));
+  const conteudo = fonte("Conteudo.tsx");
+  assert.match(conteudo, /Composição financeira em elaboração/);
+  assert.match(conteudo, /<Envelopes proposta=\{proposta\} \/>\s*<Composicao proposta=\{proposta\} \/>/);
+});
+
+test("envelope que não fecha, ou com valor inválido, é pendência; nunca arredondado", () => {
+  const com = (itens: Proposta["envelopes"]["itens"]): Proposta => ({ ...PROPOSTA, envelopes: { ...PROPOSTA.envelopes, itens } });
+  const menos = com(PROPOSTA.envelopes.itens.slice(1));
+  assert.ok(prontidaoTecnica(menos).pendencias.includes("Os envelopes somam R$ 170.000,00; o investimento pretendido é R$ 200.000,00."));
+  const quebrado = com([{ rotulo: "Coordenação e gestão", centavos: 1_200_000.5 }]);
+  assert.ok(prontidaoTecnica(quebrado).pendencias.some((x) => x.includes('"Coordenação e gestão" tem valor inválido')));
+  assert.deepEqual(lerEnvelopes(com([])).pendencias, [], "sem envelopes, nada a conferir");
+});
+
+test("a carteira traz os valores e os módulos da coordenação, e cada projeto soma exatamente o total", () => {
+  const esperado: [string, number, number[]][] = [
+    ["Acessibilidade territorial ampliada", 320, [70, 100, 150]],
+    ["Mobilidade ativa e caminhabilidade", 300, [60, 100, 140]],
+    ["Transporte coletivo e integração modal", 470, [90, 160, 220]],
+    ["Segurança viária", 320, [70, 110, 140]],
+    ["Avaliação de intervenções e investimentos", 410, [80, 160, 170]],
+    ["Mobilidade sustentável e resiliência urbana", 350, [70, 130, 150]],
+  ];
+  assert.deepEqual(
+    APRESENTACAO.carteira.projetos.map((pr) => [pr.nome, pr.totalIndicativoCentavos / MIL, pr.modulos.map((m) => m.centavos / MIL)]),
+    esperado,
+  );
+  const v = lerValoresDoPrograma(PROPOSTA, APRESENTACAO);
+  for (const x of v.projetos) assert.ok(x.confere, x.nome);
+  assert.equal(v.carteiraCentavos, 217_000_000);
+  assert.equal(v.programaCentavos, 237_000_000);
+  assert.equal(centavosEmEscala(v.carteiraCentavos), "R$ 2,17 milhões");
+  assert.equal(centavosEmEscala(v.programaCentavos), "R$ 2,37 milhões");
+  for (const pr of APRESENTACAO.carteira.projetos) {
+    assert.equal(pr.estimativa.natureza, "estimativa-interna", pr.nome);
+    for (const m of pr.modulos) assert.ok(m.titulo.trim() && m.entregas.length > 0, `${pr.nome}: módulo sem título ou entregas`);
+  }
+});
+
+test("a soma é sempre dos módulos: total declarado diferente vira pendência, nos três níveis", () => {
+  const projeto = (i: number, mudanca: Partial<Apresentacao["carteira"]["projetos"][number]>): Apresentacao => ({
+    ...APRESENTACAO,
+    carteira: { ...APRESENTACAO.carteira, projetos: APRESENTACAO.carteira.projetos.map((pr, j) => (j === i ? { ...pr, ...mudanca } : pr)) },
+  });
+  assert.ok(comPendencia(projeto(0, { totalIndicativoCentavos: 33_000_000 }), '"Acessibilidade territorial ampliada": os módulos somam R$ 320.000,00; o total indicado é R$ 330.000,00.'));
+  const semModulo = projeto(1, { modulos: APRESENTACAO.carteira.projetos[1].modulos.slice(0, 2) });
+  assert.ok(comPendencia(semModulo, '"Mobilidade ativa e caminhabilidade": os módulos somam R$ 160.000,00'));
+  assert.ok(comPendencia(projeto(2, { modulos: [] }), '"Transporte coletivo e integração modal" está sem módulos.'));
+  const invalido = projeto(3, { modulos: APRESENTACAO.carteira.projetos[3].modulos.map((m, j) => (j === 0 ? { ...m, centavos: -1 } : m)) });
+  assert.ok(comPendencia(invalido, '"Segurança viária": o módulo "Base de sinistros" tem valor inválido'));
+  const semTitulo = projeto(4, { modulos: APRESENTACAO.carteira.projetos[4].modulos.map((m, j) => (j === 1 ? { ...m, titulo: " " } : m)) });
+  assert.ok(comPendencia(semTitulo, '"Avaliação de intervenções e investimentos" tem módulo sem título ou sem entregas.'));
+  const carteira: Apresentacao = { ...APRESENTACAO, carteira: { ...APRESENTACAO.carteira, totalIndicativoCentavos: 220_000_000 } };
+  assert.ok(comPendencia(carteira, "A carteira soma R$ 2.170.000,00; o total indicado é R$ 2.200.000,00."));
+  const programa: Apresentacao = { ...APRESENTACAO, carteira: { ...APRESENTACAO.carteira, programaIndicativoCentavos: 217_000_000 } };
+  assert.ok(comPendencia(programa, "O programa soma R$ 2.370.000,00; o total indicado é R$ 2.170.000,00."));
+});
+
+test("as quatro naturezas do valor são distintas, e só a estimativa interna dispensa documento", () => {
+  assert.deepEqual([...NATUREZAS_DO_VALOR], ["estimativa-interna", "cotacao-recebida", "referencia-validada", "orcamento-consolidado"]);
+  assert.deepEqual(pendenciasDaEstimativa({ natureza: "estimativa-interna", origem: "Coordenação." }, "X"), []);
+  for (const natureza of ["cotacao-recebida", "referencia-validada", "orcamento-consolidado"] as const) {
+    const sem = pendenciasDaEstimativa({ natureza, origem: "Coordenação." }, "X");
+    assert.equal(sem.length, 1, natureza);
+    assert.match(sem[0], /precisa do documento que o sustenta/);
+    assert.deepEqual(pendenciasDaEstimativa({ natureza, origem: "Coordenação.", documento: "Cotação de teste." }, "X"), []);
+  }
+  // Dar a um projeto natureza que ele não tem, sem documento, é pendência: a página nunca promove estimativa sozinha.
+  const promovido: Apresentacao = {
+    ...APRESENTACAO,
+    carteira: {
+      ...APRESENTACAO.carteira,
+      projetos: APRESENTACAO.carteira.projetos.map((pr, i) =>
+        i === 5 ? { ...pr, estimativa: { natureza: "orcamento-consolidado", origem: pr.estimativa.origem } } : pr,
+      ),
+    },
+  };
+  assert.ok(comPendencia(promovido, '"Mobilidade sustentável e resiliência urbana": valor como "Orçamento consolidado" precisa do documento'));
+  const errada = pendenciasDaEstimativa({ natureza: "orcamento-aprovado" as never, origem: "Coordenação." }, "X");
+  assert.match(errada[0], /natureza do valor inválida/);
+});
+
+test("estimativa identificada não é financiamento presumido: os valores reais não geram pendência nova", () => {
+  const p = pendenciasDaApresentacao(PROPOSTA, APRESENTACAO);
+  assert.ok(!p.some((x) => /presume recurso|valor no texto|valor solto|somam|sem módulos|natureza/.test(x)), p.join(" | "));
+  assert.ok(!prontidaoTecnica(PROPOSTA).pendencias.some((x) => /envelope/i.test(x)));
+});
+
+test("a página mostra os valores com a natureza e os avisos, e o celular vê a síntese sem abrir os módulos", () => {
+  const conteudo = fonte("Conteudo.tsx");
+  assert.match(conteudo, /\{AVISO_VALORES\}/);
+  assert.match(conteudo, /\{AVISO_MODULOS\}/);
+  assert.match(conteudo, /\{AVISO_ENVELOPES\}/);
+  assert.match(conteudo, /Investimento indicativo · \{ROTULO_NATUREZA\[pr\.estimativa\.natureza\]\.toLowerCase\(\)\}/);
+  // A síntese financeira (total, quantidade e menor módulo) fica fora do <details>; os módulos ficam dentro.
+  const card = conteudo.slice(conteudo.indexOf('className="ob-projeto-valor"'), conteudo.indexOf('className="ob-projeto-detalhes"'));
+  assert.match(card, /ob-projeto-total/);
+  assert.match(card, /modulos\.quantidade/);
+  assert.match(card, /Menor módulo/);
+  assert.doesNotMatch(card, /<details/);
+  assert.match(AVISO_VALORES, /não são cotações nem compromissos financeiros/);
+  assert.match(AVISO_MODULOS, /projetos independentes, quando tecnicamente e juridicamente cabível/);
+});
+
+test("as condições de reaproveitamento vêm da natureza de cada ativo, com o produto que o entrega", () => {
+  const pr = APRESENTACAO.carteira.projetos[1]; // Mobilidade ativa: protocolo, registros e comparação
+  assert.deepEqual(condicoesDeReaproveitamento(pr, APRESENTACAO.reuso), [
+    { titulo: "Ativos metodológicos", condicao: "Poderão orientar futuros projetos.", ativos: [{ ativo: "Protocolo", produto: "P3" }] },
+    {
+      titulo: "Registros e evidências",
+      condicao: "Reutilização sujeita às condições pertinentes.",
+      ativos: [
+        { ativo: "Registros de campo", produto: "P3" },
+        { ativo: "Comparação entre estimativas e observações", produto: "P3" },
+      ],
+    },
+  ]);
+  for (const p of APRESENTACAO.carteira.projetos) {
+    const n = condicoesDeReaproveitamento(p, APRESENTACAO.reuso).flatMap((g) => g.ativos).length;
+    assert.equal(n, p.componentes.length, `${p.nome}: todo componente tem condição`);
+  }
+});
+
+test("a origem dos valores entra nas fontes da página, uma vez por decisão", () => {
+  assert.deepEqual(fontesDosValores(PROPOSTA, APRESENTACAO), [
+    "Valores indicativos (envelopes do demonstrador e projetos e módulos da carteira): Estimativa interna. " +
+      "Estratégia financeira preliminar da coordenação, de 16/11/2026.",
+  ]);
+  assert.match(fonte("Conteudo.tsx"), /\.\.\.fontesDosValores\(proposta, apresentacao\)/);
+});
+
+test("formatos: milhões só nos totais, sem arredondar; listas e quantidades por extenso", () => {
+  assert.equal(centavosEmEscala(217_000_000), "R$ 2,17 milhões");
+  assert.equal(centavosEmEscala(250_000_000), "R$ 2,5 milhões");
+  assert.equal(centavosEmEscala(100_000_000), "R$ 1 milhão");
+  assert.equal(centavosEmEscala(217_500_000), "R$ 2.175 mil", "sem exatidão de dez mil, não abrevia em milhões");
+  assert.equal(centavosEmEscala(32_000_000), "R$ 320 mil");
+  assert.equal(centavosResumidos(150_000_000), "R$ 1.500 mil", "o resumo de sempre não muda");
+  assert.equal(emSequencia(["a"]), "a");
+  assert.equal(emSequencia(["a", "b", "c"]), "a, b e c");
+  assert.equal(quantidadePorExtenso(3, "módulo", "módulos"), "três módulos");
+  assert.equal(quantidadePorExtenso(1, "módulo", "módulos"), "um módulo");
+  assert.equal(quantidadePorExtenso(12, "módulo", "módulos"), "12 módulos");
+});
+
+// ------------------------------------------------------------------ revisão da entrega 13 (coordenação, 16/11/2026)
+
+test("os módulos seguem a matriz da coordenação: títulos, valores e ordem", () => {
+  assert.deepEqual(
+    APRESENTACAO.carteira.projetos.map((pr) => pr.modulos.map((m) => [m.titulo, m.centavos / MIL])),
+    [
+      [["Novos territórios", 70], ["Novos serviços", 100], ["Painéis de equidade", 150]],
+      [["Inventário territorial", 60], ["Auditoria ampliada", 100], ["Priorização de melhorias", 140]],
+      [["Diagnóstico de dados operacionais", 90], ["Acessibilidade multimodal", 160], ["Monitoramento de confiabilidade", 220]],
+      [["Base de sinistros", 70], ["Análise de risco", 110], ["Painel e priorização", 140]],
+      [["Inventário e indicadores", 80], ["Simulação de cenários antes de intervenções", 160], ["Avaliação de resultados observados", 170]],
+      [["Dados e indicadores ambientais", 70], ["Modelagem de emissões", 130], ["Vulnerabilidade e resiliência", 150]],
+    ],
+  );
+  // Os totais não mudam: a matriz preserva os valores da coordenação.
+  const v = lerValoresDoPrograma(PROPOSTA, APRESENTACAO);
+  assert.equal(v.carteiraCentavos, 217_000_000);
+  assert.equal(v.programaCentavos, 237_000_000);
+  assert.ok(v.projetos.every((x) => x.confere));
+});
+
+test("cada módulo tem entregas mensuráveis: produtos verificáveis, sem número e sem coisa feita", () => {
+  // Verificável = diz o que se confere ao receber: documentado, ficha técnica, reproduzível, critério, período ou cobertura.
+  const VERIFICAVEL = /documentad|ficha|reproduzíve|critério|justificativa|período|cobertura|lacunas|método|premissas|limites|georreferenciad|comparáve|data/;
+  for (const pr of APRESENTACAO.carteira.projetos) {
+    for (const m of pr.modulos) {
+      assert.ok(m.entregas.length >= 2, `${pr.nome} · ${m.titulo}: pelo menos duas entregas`);
+      for (const e of m.entregas) {
+        assert.ok(e.endsWith("."), `${m.titulo}: "${e}"`);
+        assert.doesNotMatch(e, /\d|R\$/, `${m.titulo}: "${e}"`);
+      }
+      assert.ok(m.entregas.some((e) => VERIFICAVEL.test(e)), `${pr.nome} · ${m.titulo}: nenhuma entrega diz como se confere`);
+    }
+  }
+  const p = pendenciasDaApresentacao(PROPOSTA, APRESENTACAO);
+  assert.ok(!p.some((x) => /módulo|porta de entrada|autonomia/.test(x)), p.join(" | "));
+});
+
+test("autonomia: o dependente diz de qual módulo anterior depende, e a porta de entrada é sempre autônoma", () => {
+  const A = "potencialmente-autonomo";
+  const D = "dependente";
+  assert.deepEqual(
+    APRESENTACAO.carteira.projetos.map((pr) => pr.modulos.map((m) => [m.autonomia, m.dependeDe])),
+    [
+      [[A, []], [A, []], [D, ["Novos territórios", "Novos serviços"]]],
+      [[A, []], [D, ["Inventário territorial"]], [D, ["Auditoria ampliada"]]],
+      [[A, []], [D, ["Diagnóstico de dados operacionais"]], [D, ["Diagnóstico de dados operacionais"]]],
+      [[A, []], [D, ["Base de sinistros"]], [D, ["Análise de risco"]]],
+      [[A, []], [D, ["Inventário e indicadores"]], [D, ["Inventário e indicadores"]]],
+      [[A, []], [D, ["Dados e indicadores ambientais"]], [D, ["Dados e indicadores ambientais"]]],
+    ],
+  );
+  for (const pr of APRESENTACAO.carteira.projetos) {
+    const l = lerModulos(pr);
+    assert.equal(l.quantidade, 3, pr.nome);
+    assert.equal(l.menorCentavos, pr.modulos[0].centavos, `${pr.nome}: o menor é o primeiro`);
+    assert.equal(l.entradaCentavos, l.menorCentavos, `${pr.nome}: o menor módulo pode começar sozinho`);
+  }
+  assert.equal(ROTULO_AUTONOMIA[A], "Potencialmente autônomo");
+  // Mutações: cada incoerência vira pendência, nomeada.
+  const mudar = (i: number, j: number, m: Partial<Apresentacao["carteira"]["projetos"][number]["modulos"][number]>): Apresentacao => ({
+    ...APRESENTACAO,
+    carteira: {
+      ...APRESENTACAO.carteira,
+      projetos: APRESENTACAO.carteira.projetos.map((pr, k) =>
+        k === i ? { ...pr, modulos: pr.modulos.map((x, n) => (n === j ? { ...x, ...m } : x)) } : pr,
+      ),
+    },
+  });
+  assert.ok(comPendencia(mudar(1, 1, { dependeDe: [] }), '"Mobilidade ativa e caminhabilidade": o módulo "Auditoria ampliada" é dependente e não diz de qual módulo.'));
+  assert.ok(comPendencia(mudar(1, 1, { autonomia: A }), '"Mobilidade ativa e caminhabilidade": o módulo "Auditoria ampliada" é potencialmente autônomo, mas depende de outro módulo.'));
+  assert.ok(comPendencia(mudar(3, 1, { dependeDe: ["Base de acidentes"] }), '"Segurança viária": o módulo "Análise de risco" depende de "Base de acidentes", que não é módulo do projeto.'));
+  assert.ok(comPendencia(mudar(3, 1, { dependeDe: ["Painel e priorização"] }), '"Segurança viária": o módulo "Análise de risco" depende de "Painel e priorização", que não vem antes dele.'));
+  assert.ok(comPendencia(mudar(3, 0, { autonomia: "independente" as never }), '"Segurança viária": o módulo "Base de sinistros" está sem autonomia válida'));
+  assert.ok(comPendencia(mudar(3, 2, { titulo: "Análise de risco" }), '"Segurança viária" tem módulos com o mesmo título.'));
+  assert.ok(comPendencia(mudar(4, 0, { entregas: [] }), '"Avaliação de intervenções e investimentos" tem módulo sem título ou sem entregas.'));
+  // O menor módulo dependente: o card mostraria como entrada algo que não começa sozinho.
+  const menorDependente = mudar(1, 0, { autonomia: D, dependeDe: ["Auditoria ampliada"] });
+  assert.ok(comPendencia(menorDependente, '"Mobilidade ativa e caminhabilidade": o menor módulo depende de outro; a porta de entrada tem de ser potencialmente autônoma.'));
+});
+
+test("a abertura da carteira: seis projetos, dezoito módulos e a partir de R$ 60 mil, sempre como estimativa", () => {
+  assert.deepEqual(entradaDaCarteira(APRESENTACAO), { projetos: 6, modulos: 18, autonomos: 7, aPartirDeCentavos: 6_000_000 });
+  assert.equal(centavosResumidos(6_000_000), "R$ 60 mil");
+  // O "a partir de" é o menor AUTÔNOMO: tornar dependente o módulo de R$ 60 mil leva a entrada para o seguinte.
+  const semEntrada: Apresentacao = {
+    ...APRESENTACAO,
+    carteira: {
+      ...APRESENTACAO.carteira,
+      projetos: APRESENTACAO.carteira.projetos.map((pr, k) =>
+        k === 1 ? { ...pr, modulos: pr.modulos.map((m, n) => (n === 0 ? { ...m, autonomia: "dependente" as const } : m)) } : pr,
+      ),
+    },
+  };
+  assert.equal(entradaDaCarteira(semEntrada).aPartirDeCentavos, 7_000_000);
+  const conteudo = fonte("Conteudo.tsx");
+  assert.match(conteudo, /entradaDaCarteira\(apresentacao\)/);
+  assert.match(conteudo, /<dt>Investimento modular<\/dt>/);
+  assert.match(conteudo, /estimativa interna, por módulo potencialmente autônomo/);
+  assert.match(conteudo, /\{DEFINICAO_AUTONOMIA\}/);
+  assert.match(conteudo, /estimativa interna, em \{quantidadePorExtenso/);
+  assert.match(conteudo, /estimativa interna, com o demonstrador/);
+  assert.match(DEFINICAO_AUTONOMIA, /não exige outro módulo da carteira, só a base do demonstrador/);
+  // Independência só para os autônomos (coordenação, 16/11/2026).
+  assert.match(AVISO_MODULOS, /^Os módulos potencialmente autônomos poderão ser estruturados como projetos independentes/);
+  assert.match(AVISO_MODULOS, /Os dependentes exigem, antes, a entrega do módulo indicado\./);
+});
+
+test("os cards mostram só o essencial; módulos, componentes e dependências ficam fechados, com o conteúdo inteiro", () => {
+  const conteudo = fonte("Conteudo.tsx");
+  const inicio = conteudo.indexOf('<li key={pr.nome} className="ob-projeto">');
+  const detalhes = conteudo.indexOf('className="ob-projeto-detalhes"', inicio);
+  const fim = conteudo.indexOf("{AVISO_CARTEIRA}", detalhes);
+  assert.ok(inicio > 0 && detalhes > inicio && fim > detalhes);
+  const visivel = conteudo.slice(inicio, detalhes);
+  const fechado = conteudo.slice(detalhes, fim);
+  // À vista: nome, finalidade (o problema público), síntese da capacidade, investimento, quantidade e menor módulo.
+  for (const x of ["{pr.nome}", "{pr.problema}", "{pr.capacidade}", "pr.totalIndicativoCentavos", "modulos.quantidade", "modulos.menorCentavos"]) {
+    assert.ok(visivel.includes(x), `falta à vista: ${x}`);
+  }
+  // Fechado por padrão: nada de detalhe técnico à vista, e nenhum <details> nasce aberto.
+  for (const x of ["pr.componentes", "pr.dependencias", "m.entregas", "condicoesDeReaproveitamento", "AVISO_MODULOS"]) {
+    assert.ok(!visivel.includes(x), `à vista sem precisar: ${x}`);
+  }
+  assert.doesNotMatch(conteudo, /<details[^>]*\sopen/);
+  // O conteúdo continua inteiro: só mudou de lugar.
+  for (const x of ["m.entregas", "m.dependeDe", "ROTULO_AUTONOMIA[m.autonomia]", "condicoesDeReaproveitamento(pr, apresentacao.reuso)", "pr.dependencias", "{AVISO_ATIVOS}", "{AVISO_MODULOS}", "g.condicao", "x.produto"]) {
+    assert.ok(fechado.includes(x), `sumiu do card: ${x}`);
+  }
+  assert.equal((fechado.match(/<details className="ob-projeto-detalhe">/g) ?? []).length, 3);
+  // Alvo de toque de 44 px no resumo e o nome escondido só para leitor de tela.
+  const css = fonte("observatorio.css");
+  assert.match(css, /\.ob-projeto-detalhe summary \{[^}]*min-height: 44px/);
+  assert.match(css, /\.ob-sr \{[^}]*clip: rect\(0, 0, 0, 0\)/);
 });

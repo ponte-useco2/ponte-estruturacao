@@ -10,7 +10,8 @@
  *
  *  1. O tipo carrega o que ainda não se sabe. Um valor em elaboração não vira zero, nem estimativa, nem texto plausível:
  *     vira `{ estado: "em-elaboracao" }`, e a página diz "em elaboração" com todas as letras. Dinheiro é sempre em
- *     CENTAVOS INTEIROS; valor que não é inteiro positivo é rejeitado, nunca arredondado em silêncio.
+ *     CENTAVOS INTEIROS; valor que não é inteiro positivo é rejeitado, nunca arredondado em silêncio. Estimativa só
+ *     entra IDENTIFICADA: no campo próprio, com a natureza declarada (`Estimativa`), nunca como número solto no texto.
  *
  *  2. Nada de endosso emprestado. A proposta é da PONTE, para apreciação; a Ilha Tech aparece como entidade executora
  *     prevista, nunca como quem aprovou. Nenhum texto de apresentação diz que alguém aprovou, autorizou ou endossou
@@ -75,6 +76,11 @@ export interface Proposta {
   objetoCompleto: string;
   produtos: Produto[];
   investimentoPretendidoCentavos: number;
+  /**
+   * A distribuição inicial do investimento em envelopes (coordenação, 16/11/2026). É estimativa interna, referência para
+   * a futura pesquisa de preços: não é a composição (que segue em elaboração) nem orçamento aprovado.
+   */
+  envelopes: { estimativa: Estimativa; itens: EnvelopeDoDemonstrador[] };
   composicao: ItemDeComposicao[];
   prazoMeses: number;
   evidencias: { grau: GrauDeEvidencia; texto: string }[];
@@ -103,6 +109,96 @@ export function centavosEmReais(centavos: number): string {
   const reais = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   const resto = (abs % 100).toString().padStart(2, "0");
   return `${sinal}R$ ${reais},${resto}`;
+}
+
+// ------------------------------------------------------------------ estimativas indicativas
+
+/**
+ * A natureza de um valor indicativo (coordenação, 16/11/2026). A estimativa interna é referência para a futura pesquisa
+ * de preços: não é custo cotado, orçamento aprovado nem compromisso financeiro. As outras três naturezas existem para
+ * quando houver documento, e nenhuma é presumida: valor que muda de natureza traz junto o documento que a sustenta.
+ */
+export type NaturezaDoValor = "estimativa-interna" | "cotacao-recebida" | "referencia-validada" | "orcamento-consolidado";
+export const NATUREZAS_DO_VALOR: readonly NaturezaDoValor[] = [
+  "estimativa-interna",
+  "cotacao-recebida",
+  "referencia-validada",
+  "orcamento-consolidado",
+];
+export const ROTULO_NATUREZA: Record<NaturezaDoValor, string> = {
+  "estimativa-interna": "Estimativa interna",
+  "cotacao-recebida": "Cotação recebida",
+  "referencia-validada": "Referência validada",
+  "orcamento-consolidado": "Orçamento consolidado",
+};
+
+/** A natureza e a origem de um conjunto de valores. Fora da estimativa interna, o documento é obrigatório. */
+export interface Estimativa {
+  natureza: NaturezaDoValor;
+  /** Quem definiu os valores, e quando. */
+  origem: string;
+  /** A cotação, a referência ou o orçamento que sustenta o valor. Só a estimativa interna dispensa. */
+  documento?: string;
+}
+
+/** Um envelope da distribuição inicial do demonstrador. Referência interna, não linha da composição. */
+export interface EnvelopeDoDemonstrador {
+  rotulo: string;
+  centavos: number;
+}
+
+/** Vai junto dos envelopes do demonstrador, na página (palavras da coordenação, 16/11/2026). */
+export const AVISO_ENVELOPES = "Referências internas para a futura pesquisa de preços, não custos cotados.";
+
+/** Vai junto dos valores da carteira, na página. */
+export const AVISO_VALORES =
+  "Os valores são estimativas internas, indicativas: não são cotações nem compromissos financeiros.";
+
+/**
+ * Vai junto dos módulos de cada projeto. A primeira frase é da coordenação (16/11/2026), restrita aos módulos
+ * potencialmente autônomos: módulo cuja entrega exige outro não é declarado independente (coordenação, 16/11/2026).
+ */
+export const AVISO_MODULOS =
+  "Os módulos potencialmente autônomos poderão ser estruturados como projetos independentes, quando tecnicamente e " +
+  "juridicamente cabível. Os dependentes exigem, antes, a entrega do módulo indicado.";
+
+/** O que impede a estimativa de valer: natureza fora da lista, origem vazia, ou falta do documento que ela exige. */
+export function pendenciasDaEstimativa(e: Estimativa, onde: string): string[] {
+  const pendencias: string[] = [];
+  if (!NATUREZAS_DO_VALOR.includes(e.natureza)) {
+    pendencias.push(`${onde}: natureza do valor inválida (${String(e.natureza)}).`);
+  } else if (e.natureza !== "estimativa-interna" && !e.documento?.trim()) {
+    pendencias.push(`${onde}: valor como "${ROTULO_NATUREZA[e.natureza]}" precisa do documento que o sustenta.`);
+  }
+  if (!e.origem.trim()) pendencias.push(`${onde}: falta dizer quem definiu os valores.`);
+  return pendencias;
+}
+
+/** A soma dos envelopes, conferida com o investimento pretendido ao centavo. */
+export function lerEnvelopes(p: Proposta): { somaCentavos: number; confere: boolean; pendencias: string[] } {
+  const { estimativa, itens } = p.envelopes;
+  if (itens.length === 0) return { somaCentavos: 0, confere: false, pendencias: [] };
+  const pendencias = pendenciasDaEstimativa(estimativa, "Envelopes do demonstrador");
+  let somaCentavos = 0;
+  let validos = true;
+  for (const x of itens) {
+    if (!x.rotulo.trim()) pendencias.push("Envelope do demonstrador sem nome.");
+    if (centavosValidos(x.centavos)) somaCentavos += x.centavos;
+    else {
+      validos = false;
+      pendencias.push(`O envelope "${x.rotulo}" tem valor inválido (centavos inteiros e positivos).`);
+    }
+  }
+  // Com o investimento inválido, a prontidão já acusa; aqui não há com o que conferir.
+  const investimentoOk = centavosValidos(p.investimentoPretendidoCentavos);
+  const confere = validos && investimentoOk && somaCentavos === p.investimentoPretendidoCentavos;
+  if (validos && investimentoOk && !confere) {
+    pendencias.push(
+      `Os envelopes somam ${centavosEmReais(somaCentavos)}; o investimento pretendido é ` +
+        `${centavosEmReais(p.investimentoPretendidoCentavos)}.`,
+    );
+  }
+  return { somaCentavos, confere, pendencias };
 }
 
 /** O total de uma linha, ou o motivo de não haver. */
@@ -187,6 +283,9 @@ export function prontidaoTecnica(p: Proposta): { pronta: boolean; pendencias: st
   const investimentoOk = centavosValidos(p.investimentoPretendidoCentavos);
   if (!investimentoOk) pendencias.push("O investimento pretendido é inválido (centavos inteiros e positivos).");
   if (!(Number.isSafeInteger(p.prazoMeses) && p.prazoMeses > 0)) pendencias.push("O prazo em meses é inválido.");
+
+  // Envelopes: referência interna; se existem, fecham com o investimento ao centavo. Não substituem a composição.
+  pendencias.push(...lerEnvelopes(p).pendencias);
 
   // Composição do orçamento
   if (p.composicao.length === 0) {
@@ -308,9 +407,41 @@ export interface CamadaDoEsquema {
 }
 
 /**
- * Um projeto candidato da carteira macro. É HIPÓTESE DE EXPANSÃO: sem orçamento, financiamento ou apoio institucional
- * presumido. O problema público é a pergunta que a cidade precisa responder, não afirmação de fato sobre João Pessoa.
- * Os componentes aproveitáveis só podem ser ativos que o demonstrador entrega (trava em `pendenciasDaApresentacao`).
+ * A autonomia de um módulo em relação aos OUTROS MÓDULOS da carteira. A base comum de todos é o demonstrador: a carteira
+ * só existe depois dele. "Potencialmente autônomo" não promete nada: diz só que a entrega não exige outro módulo.
+ */
+export type AutonomiaDoModulo = "potencialmente-autonomo" | "dependente";
+
+export const ROTULO_AUTONOMIA: Record<AutonomiaDoModulo, string> = {
+  "potencialmente-autonomo": "Potencialmente autônomo",
+  dependente: "Dependente",
+};
+
+/** O que as duas classes querem dizer, dito na página, junto dos números da carteira. */
+export const DEFINICAO_AUTONOMIA =
+  "Potencialmente autônomo: a entrega não exige outro módulo da carteira, só a base do demonstrador. Dependente: " +
+  "começa depois da entrega do módulo indicado.";
+
+/** Uma parte de um projeto da carteira: título, entregas mensuráveis, valor indicativo e de que módulo depende. */
+export interface ModuloDoProjeto {
+  titulo: string;
+  /**
+   * Entregas mensuráveis: cada uma é um produto verificável (documentado, com ficha técnica, reproduzível ou com
+   * critério declarado), sem número, sem falar como coisa feita e sem presumir dado ou resultado que ainda não existe.
+   */
+  entregas: string[];
+  centavos: number;
+  autonomia: AutonomiaDoModulo;
+  /** Os módulos do MESMO projeto cuja entrega este exige, pelo título, sempre anteriores a ele. Vazio quando autônomo. */
+  dependeDe: string[];
+}
+
+/**
+ * Um projeto candidato da carteira macro. É HIPÓTESE DE EXPANSÃO: sem financiamento ou apoio institucional presumido.
+ * O valor é indicativo, com a natureza declarada (`estimativa`), e o total é a soma exata dos módulos (estratégia
+ * financeira preliminar da coordenação, 16/11/2026). O problema público é a pergunta que a cidade precisa responder,
+ * não afirmação de fato sobre João Pessoa. Os componentes aproveitáveis só podem ser ativos que o demonstrador entrega
+ * (trava em `pendenciasDaApresentacao`).
  */
 export interface ProjetoCandidato {
   nome: string;
@@ -318,10 +449,107 @@ export interface ProjetoCandidato {
   capacidade: string;
   componentes: string[];
   dependencias: string[];
+  /** O total indicativo, como a coordenação o definiu: a soma dos módulos tem de dar exatamente ele. */
+  totalIndicativoCentavos: number;
+  /** As partes do projeto. Só as potencialmente autônomas poderão virar projetos independentes, quando cabível. */
+  modulos: ModuloDoProjeto[];
+  estimativa: Estimativa;
 }
 
 export const AVISO_CARTEIRA =
-  "Os seis projetos são hipóteses de expansão: nenhum tem orçamento, financiamento ou apoio institucional definido.";
+  "Os seis projetos são hipóteses de expansão: nenhum tem financiamento ou apoio institucional definido.";
+
+/** As somas da carteira e do programa, sempre a partir dos módulos. O que é declarado só serve para conferir. */
+export interface LeituraDosValores {
+  projetos: { nome: string; somaCentavos: number; confere: boolean }[];
+  carteiraCentavos: number;
+  /** O demonstrador mais a carteira. */
+  programaCentavos: number;
+}
+
+export function lerValoresDoPrograma(p: Proposta, a: Apresentacao): LeituraDosValores {
+  const projetos = a.carteira.projetos.map((pr) => {
+    const somaCentavos = pr.modulos.reduce((t, m) => t + (centavosValidos(m.centavos) ? m.centavos : 0), 0);
+    const validos = pr.modulos.length > 0 && pr.modulos.every((m) => centavosValidos(m.centavos));
+    return { nome: pr.nome, somaCentavos, confere: validos && somaCentavos === pr.totalIndicativoCentavos };
+  });
+  const carteiraCentavos = projetos.reduce((t, x) => t + x.somaCentavos, 0);
+  return { projetos, carteiraCentavos, programaCentavos: p.investimentoPretendidoCentavos + carteiraCentavos };
+}
+
+/** O que o card mostra sem abrir nada: quantos módulos, o menor e a porta de entrada (o menor autônomo). */
+export interface LeituraDosModulos {
+  quantidade: number;
+  autonomos: number;
+  /** O menor valor entre os módulos com valor válido. */
+  menorCentavos: number | null;
+  /** O menor valor entre os módulos potencialmente autônomos: por onde o projeto pode começar. */
+  entradaCentavos: number | null;
+}
+
+export function lerModulos(pr: ProjetoCandidato): LeituraDosModulos {
+  const validos = pr.modulos.filter((m) => centavosValidos(m.centavos));
+  const menor = (ms: ModuloDoProjeto[]) => (ms.length > 0 ? Math.min(...ms.map((m) => m.centavos)) : null);
+  return {
+    quantidade: pr.modulos.length,
+    autonomos: pr.modulos.filter((m) => m.autonomia === "potencialmente-autonomo").length,
+    menorCentavos: menor(validos),
+    entradaCentavos: menor(validos.filter((m) => m.autonomia === "potencialmente-autonomo")),
+  };
+}
+
+/**
+ * Os números da abertura da carteira: projetos, módulos e o investimento modular mínimo. O "a partir de" é o menor
+ * módulo POTENCIALMENTE AUTÔNOMO: um módulo dependente nunca é a porta de entrada, porque não pode começar sozinho.
+ */
+export function entradaDaCarteira(a: Apresentacao): {
+  projetos: number;
+  modulos: number;
+  autonomos: number;
+  aPartirDeCentavos: number | null;
+} {
+  const lidos = a.carteira.projetos.map(lerModulos);
+  const entradas = lidos.map((x) => x.entradaCentavos).filter((c): c is number => c !== null);
+  return {
+    projetos: a.carteira.projetos.length,
+    modulos: lidos.reduce((t, x) => t + x.quantidade, 0),
+    autonomos: lidos.reduce((t, x) => t + x.autonomos, 0),
+    aPartirDeCentavos: entradas.length > 0 ? Math.min(...entradas) : null,
+  };
+}
+
+/**
+ * As condições de reaproveitamento dos componentes de um projeto, pela natureza de cada ativo: as condições são as do
+ * titular (`TIPOS_DE_ATIVO`), e cada ativo leva o produto do demonstrador que o entrega. Nada de critério novo.
+ */
+export function condicoesDeReaproveitamento(
+  pr: ProjetoCandidato,
+  reuso: AtivoReutilizavel[],
+): { titulo: string; condicao: string; ativos: { ativo: string; produto: CodigoProduto }[] }[] {
+  return TIPOS_DE_ATIVO.map((t) => ({
+    titulo: t.titulo,
+    condicao: t.condicao,
+    ativos: pr.componentes
+      .map((c) => reuso.find((r) => r.ativo === c))
+      .filter((r): r is AtivoReutilizavel => r !== undefined && r.tipo === t.tipo)
+      .map((r) => ({ ativo: r.ativo, produto: r.produto })),
+  })).filter((g) => g.ativos.length > 0);
+}
+
+/** De onde vêm os valores indicativos, para a seção de fontes da página (a folha não leva valores da carteira). */
+export function fontesDosValores(p: Proposta, a: Apresentacao): string[] {
+  const grupos = new Map<string, string[]>();
+  const juntar = (e: Estimativa, parte: string) => {
+    const natureza = ROTULO_NATUREZA[e.natureza] ?? String(e.natureza);
+    const chave = `${natureza}. ${e.origem}${e.documento ? ` Documento: ${e.documento}` : ""}`;
+    const partes = grupos.get(chave) ?? [];
+    if (!partes.includes(parte)) partes.push(parte);
+    grupos.set(chave, partes);
+  };
+  if (p.envelopes.itens.length > 0) juntar(p.envelopes.estimativa, "envelopes do demonstrador");
+  for (const pr of a.carteira.projetos) juntar(pr.estimativa, "projetos e módulos da carteira");
+  return [...grupos].map(([chave, partes]) => `Valores indicativos (${emSequencia(partes)}): ${chave}`);
+}
 
 /**
  * Os textos com que a sala se apresenta e que a orientação de 16/11/2026 não traz. São redação da PONTE, montada a
@@ -346,7 +574,14 @@ export interface Apresentacao {
   /** O esquema metodológico conceitual: territórios, caminhos, serviços e barreiras. */
   esquema: { camadas: CamadaDoEsquema[]; ressalva: string };
   /** A carteira macro: um observatório, múltiplas capacidades. */
-  carteira: { abertura: string; projetos: ProjetoCandidato[]; fonte: string };
+  carteira: {
+    abertura: string;
+    projetos: ProjetoCandidato[];
+    fonte: string;
+    /** Os totais como a coordenação os definiu. A página mostra as somas dos módulos; estes números só conferem. */
+    totalIndicativoCentavos: number;
+    programaIndicativoCentavos: number;
+  };
   /** O encerramento: uma próxima decisão possível, nunca um compromisso já assumido por alguém. */
   proximaDecisao: { texto: string; temas: TemaDaDecisao[] };
   fontes: string[];
@@ -359,13 +594,21 @@ export interface TemaDaDecisao {
 }
 
 /**
- * Recurso dado como assegurado: um valor, ou dinheiro dito financiado, custeado, garantido, reservado, captado,
- * disponível. Mencionar instrumentos ou potenciais fontes de financiamento é outra coisa e passa ("identificar
- * potenciais fontes de financiamento"): a trava separa a menção da afirmação de que o recurso existe (orientação do
- * titular, 16/11/2026). O único valor que um texto pode citar é o da própria proposta (`semOValorDaProposta`).
+ * Recurso dado como assegurado: dinheiro dito financiado, custeado, garantido, reservado, captado, disponível.
+ * Mencionar instrumentos ou potenciais fontes de financiamento é outra coisa e passa ("identificar potenciais fontes de
+ * financiamento"): a trava separa a menção da afirmação de que o recurso existe (orientação do titular, 16/11/2026).
+ * Estimativa identificada também passa: ela não mora no texto, mora no campo próprio, com a natureza (`Estimativa`).
  */
 const RECURSO_ASSEGURADO =
-  /(^|[^\p{L}])(R\$|financiad[oa]s?|custead[oa]s?|patrocinad[oa]s?|(?:recursos?|verbas?|orçamentos?|financiamentos?|dinheiro)\s+(?:já\s+)?(?:garantid|assegurad|aprovad|reservad|captad|liberad|empenhad|contratad|comprometid|dispon[ií]ve)\p{L}*|com\s+(?:recursos?|financiamentos?|verbas?)\s+d[oae]s?)(?![\p{L}])/iu;
+  /(^|[^\p{L}])(financiad[oa]s?|custead[oa]s?|patrocinad[oa]s?|(?:recursos?|verbas?|orçamentos?|financiamentos?|dinheiro)\s+(?:já\s+)?(?:garantid|assegurad|aprovad|reservad|captad|liberad|empenhad|contratad|comprometid|dispon[ií]ve)\p{L}*|com\s+(?:recursos?|financiamentos?|verbas?)\s+d[oae]s?)(?![\p{L}])/iu;
+
+/**
+ * Valor solto no texto: sem natureza nem origem, não é estimativa identificada. Valor entra só pelo campo próprio
+ * (envelopes, módulos), e a página o mostra com a natureza. O único valor que um texto pode citar é o da própria
+ * proposta (`semOValorDaProposta`). A regra impede financiamento presumido, não estimativa explicitamente identificada
+ * (coordenação, 16/11/2026).
+ */
+const VALOR_SOLTO = /R\$/;
 
 /**
  * Interlocutores da proposta. Identificá-los é legítimo: a trava não proíbe o nome, proíbe atribuir-lhe aprovação,
@@ -454,8 +697,10 @@ export function pendenciasDaApresentacao(p: Proposta, a: Apresentacao): string[]
     pendencias.push("O esquema precisa dizer que é conceitual e que não representa o território real.");
   }
 
-  // Carteira: seis projetos completos, componentes que o demonstrador entrega, nada de dinheiro presumido.
+  // Carteira: seis projetos completos, componentes que o demonstrador entrega, valores identificados que fecham,
+  // nada de recurso presumido.
   const ativos = new Set(a.reuso.map((r) => r.ativo));
+  const valores = lerValoresDoPrograma(p, a);
   if (a.carteira.projetos.length !== 6) pendencias.push("A carteira precisa dos seis projetos candidatos.");
   if (!a.carteira.fonte.trim()) pendencias.push("A carteira precisa dizer de onde vêm os projetos.");
   for (const pr of a.carteira.projetos) {
@@ -465,11 +710,72 @@ export function pendenciasDaApresentacao(p: Proposta, a: Apresentacao): string[]
     for (const c of pr.componentes) {
       if (!ativos.has(c)) pendencias.push(`"${pr.nome}" aproveita "${c}", que o demonstrador não entrega.`);
     }
-    const doProjeto = [pr.nome, pr.problema, pr.capacidade, ...pr.dependencias];
+    pendencias.push(...pendenciasDaEstimativa(pr.estimativa, `"${pr.nome}"`));
+    if (pr.modulos.length === 0) pendencias.push(`"${pr.nome}" está sem módulos.`);
+    const titulos = pr.modulos.map((m) => m.titulo);
+    if (new Set(titulos).size !== titulos.length) pendencias.push(`"${pr.nome}" tem módulos com o mesmo título.`);
+    pr.modulos.forEach((m, j) => {
+      const entregas = Array.isArray(m.entregas) ? m.entregas : [];
+      if (!m.titulo.trim() || entregas.length === 0 || entregas.some((e) => !e.trim())) {
+        pendencias.push(`"${pr.nome}" tem módulo sem título ou sem entregas.`);
+      }
+      if (!centavosValidos(m.centavos)) {
+        pendencias.push(`"${pr.nome}": o módulo "${m.titulo}" tem valor inválido (centavos inteiros e positivos).`);
+      }
+      // Autonomia declarada e coerente: o dependente diz de quem; o autônomo não depende de ninguém; a dependência é de
+      // módulo do mesmo projeto e anterior a este (a ordem dos módulos é uma ordem de execução possível).
+      const dependeDe = Array.isArray(m.dependeDe) ? m.dependeDe : [];
+      if (m.autonomia !== "potencialmente-autonomo" && m.autonomia !== "dependente") {
+        pendencias.push(`"${pr.nome}": o módulo "${m.titulo}" está sem autonomia válida (potencialmente autônomo ou dependente).`);
+      } else if (m.autonomia === "dependente" && dependeDe.length === 0) {
+        pendencias.push(`"${pr.nome}": o módulo "${m.titulo}" é dependente e não diz de qual módulo.`);
+      } else if (m.autonomia === "potencialmente-autonomo" && dependeDe.length > 0) {
+        pendencias.push(`"${pr.nome}": o módulo "${m.titulo}" é potencialmente autônomo, mas depende de outro módulo.`);
+      }
+      for (const d of dependeDe) {
+        const k = titulos.indexOf(d);
+        if (k < 0) pendencias.push(`"${pr.nome}": o módulo "${m.titulo}" depende de "${d}", que não é módulo do projeto.`);
+        else if (k >= j) pendencias.push(`"${pr.nome}": o módulo "${m.titulo}" depende de "${d}", que não vem antes dele.`);
+      }
+    });
+    // A porta de entrada: o card mostra o menor módulo, e ele tem de poder começar sozinho.
+    const leituraModulos = lerModulos(pr);
+    if (leituraModulos.menorCentavos !== null && leituraModulos.entradaCentavos !== leituraModulos.menorCentavos) {
+      pendencias.push(`"${pr.nome}": o menor módulo depende de outro; a porta de entrada tem de ser potencialmente autônoma.`);
+    }
+    const lido = valores.projetos.find((x) => x.nome === pr.nome);
+    const modulosValidos = pr.modulos.length > 0 && pr.modulos.every((m) => centavosValidos(m.centavos));
+    if (!centavosValidos(pr.totalIndicativoCentavos)) pendencias.push(`"${pr.nome}": o total indicado é inválido.`);
+    else if (lido && modulosValidos && !lido.confere) {
+      pendencias.push(
+        `"${pr.nome}": os módulos somam ${centavosEmReais(lido.somaCentavos)}; o total indicado é ` +
+          `${centavosEmReais(pr.totalIndicativoCentavos)}.`,
+      );
+    }
+    const doProjeto = [
+      pr.nome, pr.problema, pr.capacidade, ...pr.dependencias, ...pr.modulos.flatMap((m) => [m.titulo, ...m.entregas]),
+    ];
+    if (doProjeto.some((t) => VALOR_SOLTO.test(t))) {
+      pendencias.push(`"${pr.nome}" traz valor no texto: valor só entra como estimativa identificada, no campo próprio.`);
+    }
     if (doProjeto.some((t) => RECURSO_ASSEGURADO.test(t))) {
-      pendencias.push(`"${pr.nome}" presume valor ou recurso assegurado: é hipótese de expansão.`);
+      pendencias.push(`"${pr.nome}" presume recurso assegurado: é hipótese de expansão.`);
     }
     if (doProjeto.some((t) => JA_FEITO.test(t))) pendencias.push(`"${pr.nome}" fala como se já estivesse feito.`);
+  }
+  if (valores.projetos.every((x) => x.confere)) {
+    if (valores.carteiraCentavos !== a.carteira.totalIndicativoCentavos) {
+      pendencias.push(
+        `A carteira soma ${centavosEmReais(valores.carteiraCentavos)}; o total indicado é ` +
+          `${centavosEmReais(a.carteira.totalIndicativoCentavos)}.`,
+      );
+    }
+    if (valores.programaCentavos !== a.carteira.programaIndicativoCentavos) {
+      pendencias.push(
+        `O programa soma ${centavosEmReais(valores.programaCentavos)}; o total indicado é ` +
+          `${centavosEmReais(a.carteira.programaIndicativoCentavos)}.`,
+      );
+    }
   }
 
   const textos = [
@@ -477,7 +783,9 @@ export function pendenciasDaApresentacao(p: Proposta, a: Apresentacao): string[]
     a.proximaDecisao.texto, ...a.proximaDecisao.temas.flatMap((t) => [t.rotulo, t.texto]), a.esquema.ressalva,
     a.carteira.abertura,
     ...a.esquema.camadas.flatMap((c) => [c.rotulo, c.texto]),
-    ...a.carteira.projetos.flatMap((pr) => [pr.nome, pr.problema, pr.capacidade, ...pr.dependencias]),
+    ...a.carteira.projetos.flatMap((pr) => [
+      pr.nome, pr.problema, pr.capacidade, ...pr.dependencias, ...pr.modulos.flatMap((m) => [m.titulo, ...m.entregas]),
+    ]),
     ...a.sintese.map((x) => `${x.verbo} ${x.texto}`), ...a.etapas.map((e) => e.entrega), ...a.reuso.map((r) => r.uso),
   ];
   const todos = [...textos, ...a.fontes, a.carteira.fonte, a.provaPreliminar.descricao, a.provaPreliminar.conferencia];
@@ -489,6 +797,12 @@ export function pendenciasDaApresentacao(p: Proposta, a: Apresentacao): string[]
     pendencias.push(
       "Texto de apresentação atribui aprovação, apoio ou compromisso a interlocutor: citar é permitido; atribuir sem " +
         "fato documentado, não.",
+    );
+  }
+  if (textos.some((t) => VALOR_SOLTO.test(semOValorDaProposta(t)))) {
+    pendencias.push(
+      "Texto de apresentação com valor solto: valor só entra como estimativa identificada, com a natureza, no campo " +
+        "próprio.",
     );
   }
   if (textos.some((t) => RECURSO_ASSEGURADO.test(semOValorDaProposta(t)))) {
@@ -523,6 +837,32 @@ export function centavosResumidos(centavos: number): string {
     return `R$ ${mil} mil`;
   }
   return centavosEmReais(centavos);
+}
+
+/**
+ * Para os totais da carteira e do programa: "R$ 2,17 milhões" a partir de um milhão, quando o valor é múltiplo exato de
+ * dez mil reais; abaixo disso, ou sem a exatidão, o mesmo que `centavosResumidos`. Nunca arredonda.
+ */
+export function centavosEmEscala(centavos: number): string {
+  const MILHAO = 100_000_000;
+  if (!(Number.isSafeInteger(centavos) && centavos >= MILHAO && centavos % 1_000_000 === 0)) return centavosResumidos(centavos);
+  const inteiro = Math.floor(centavos / MILHAO);
+  const decimais = ((centavos % MILHAO) / 1_000_000).toString().padStart(2, "0").replace(/0+$/, "");
+  const numero = `${inteiro.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}${decimais ? `,${decimais}` : ""}`;
+  return `R$ ${numero} ${inteiro === 1 ? "milhão" : "milhões"}`;
+}
+
+/** "a", "a e b", "a, b e c". */
+export function emSequencia(itens: string[]): string {
+  return itens.length <= 1 ? (itens[0] ?? "") : `${itens.slice(0, -1).join(", ")} e ${itens[itens.length - 1]}`;
+}
+
+const POR_EXTENSO = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez"];
+
+/** "três módulos", "um módulo"; de onze em diante, em algarismos. */
+export function quantidadePorExtenso(n: number, singular: string, plural: string): string {
+  const numero = Number.isSafeInteger(n) && n >= 0 && n < POR_EXTENSO.length ? POR_EXTENSO[n] : String(n);
+  return `${numero} ${n === 1 ? singular : plural}`;
 }
 
 // ------------------------------------------------------------------ utilidades
