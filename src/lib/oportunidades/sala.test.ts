@@ -15,6 +15,9 @@ test("só as salas cadastradas existem", () => {
   assert.equal(salaPorSlug("outra"), null);
   assert.equal(salaPorSlug("__proto__"), null, "nada herdado do Object vira sala");
   assert.equal(nomeDoCookie(SALA), "sala_ilha_tech");
+  const obs = salaPorSlug("observatorio-mobilidade");
+  assert.equal(obs?.variavel, "SALA_SENHA_OBSERVATORIO_MOBILIDADE");
+  assert.equal(nomeDoCookie(obs!), "sala_observatorio_mobilidade", "cada sala tem o seu cookie");
 });
 
 test("sem a variável, ou com senha curta, a sala fica fechada", () => {

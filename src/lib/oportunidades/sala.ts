@@ -24,6 +24,8 @@ export interface DefinicaoSala {
 
 export const SALAS: Record<string, DefinicaoSala> = {
   "ilha-tech": { slug: "ilha-tech", titulo: "Associação Ilha Tech", variavel: "SALA_SENHA_ILHA_TECH" },
+  // 16/11/2026: proposta da PONTE para o Observatório de Mobilidade Urbana de João Pessoa (executora prevista: Ilha Tech).
+  "observatorio-mobilidade": { slug: "observatorio-mobilidade", titulo: "Observatório de Mobilidade Urbana", variavel: "SALA_SENHA_OBSERVATORIO_MOBILIDADE" },
 };
 
 /** Validade do acesso depois de acertar a senha. */

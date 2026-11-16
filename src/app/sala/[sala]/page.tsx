@@ -4,6 +4,7 @@ import { acessoValido, nomeDoCookie, salaPorSlug, senhaDaSala, type DefinicaoSal
 import { hojeEmBrasilia } from "@/lib/oportunidades/sala-programas";
 import { lerProgramasParaOsc } from "@/lib/oportunidades/sala.server";
 import { ConteudoIlhaTech } from "../_salas/ilha-tech/Conteudo";
+import { ConteudoObservatorio } from "../_salas/observatorio-mobilidade/Conteudo";
 
 /**
  * A porta da sala: sem a variável da senha, fechada; sem o cookie certo, o formulário; com ele, o conteúdo. A senha nunca
@@ -28,6 +29,8 @@ export default async function SalaPage({
     return <FormularioSenha sala={sala} erro={typeof erro === "string" ? erro : undefined} />;
   }
 
+  // Conteúdo estático revisado: não lê banco nem catálogo, e por isso não tem modo de falha.
+  if (sala.slug === "observatorio-mobilidade") return <ConteudoObservatorio />;
   const hoje = hojeEmBrasilia();
   const leitura = await lerProgramasParaOsc("PB", hoje);
   return <ConteudoIlhaTech hoje={hoje} leitura={leitura} />;
