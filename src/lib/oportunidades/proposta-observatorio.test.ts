@@ -12,6 +12,8 @@ import {
   LIMITE_OBJETO_CURTO,
   centavosEmReais,
   AVISO_ATIVOS,
+  AVISO_CARTEIRA,
+  emVoltaDoValor,
   TIPOS_DE_ATIVO,
   centavosResumidos,
   evidenciasDe,
@@ -238,7 +240,7 @@ test("a folha não tem fonte própria: recebe a proposta por parâmetro, sem imp
   assert.ok(!folha.includes(PROPOSTA.titulo), "a folha escreve o título à mão");
   assert.ok(!folha.includes(PROPOSTA.autoria), "a folha escreve a autoria à mão");
   assert.ok(!folha.includes(PROPOSTA.executoraPrevista), "a folha escreve a executora à mão");
-  for (const c of APRESENTACAO.conversa) assert.ok(!folha.includes(c), "a folha repete a conversa à mão");
+  for (const c of APRESENTACAO.proximaDecisao.temas) assert.ok(!folha.includes(c.texto.slice(0, 40)), "a folha repete a decisão à mão");
   for (const e of APRESENTACAO.etapas) {
     assert.ok(!folha.includes(e.trecho), `a folha repete a atividade de ${e.produto}`);
     assert.ok(!folha.includes(e.entrega), `a folha repete a entrega de ${e.produto}`);
@@ -420,7 +422,7 @@ test("nenhum texto atribui aprovação ou endosso a terceiros", () => {
   assert.ok(comPendencia(endosso(["Proposta aprovada pela Associação Ilha Tech."]), "Texto de apresentação atribui aprovação"));
   assert.ok(comPendencia(endosso(["Projeto endossado pela prefeitura."]), "Texto de apresentação atribui aprovação"));
   assert.ok(!comPendencia(APRESENTACAO, "Texto de apresentação atribui aprovação"), "os textos reais estão limpos");
-  assert.ok(APRESENTACAO.conversa.length > 0, "a sala termina num convite para a conversa");
+  assert.ok(APRESENTACAO.proximaDecisao.temas.length > 0, "a sala termina numa decisão possível");
 });
 
 test("a sala e a folha não trazem marca d'água nem linguagem de aprovação interna", () => {
@@ -429,4 +431,188 @@ test("a sala e a folha não trazem marca d'água nem linguagem de aprovação in
     assert.doesNotMatch(codigo, /minuta|não divulgar|autoriza|aprovad|ob-folha-marca/i, arquivo);
   }
   assert.doesNotMatch(fonte("observatorio.css"), /ob-folha-marca/);
+});
+
+// ------------------------------------------------------------------ incremento macro: carteira, esquema, percursos
+
+test("a carteira tem os seis projetos candidatos, na ordem definida, com a abertura do titular", () => {
+  assert.deepEqual(APRESENTACAO.carteira.projetos.map((pr) => pr.nome), [
+    "Acessibilidade territorial ampliada",
+    "Mobilidade ativa e caminhabilidade",
+    "Transporte coletivo e integração modal",
+    "Segurança viária",
+    "Avaliação de intervenções e investimentos",
+    "Mobilidade sustentável e resiliência urbana",
+  ]);
+  assert.equal(
+    APRESENTACAO.carteira.abertura,
+    "O primeiro investimento constrói a capacidade. Os próximos ampliam o que João Pessoa poderá compreender e avaliar.",
+  );
+  for (const pr of APRESENTACAO.carteira.projetos) {
+    assert.ok(pr.problema.trim() && pr.capacidade.trim(), pr.nome);
+    assert.ok(pr.problema.endsWith("?"), `${pr.nome}: o problema é a pergunta que a cidade precisa responder`);
+    assert.ok(pr.componentes.length > 0 && pr.dependencias.length > 0, pr.nome);
+  }
+  assert.match(AVISO_CARTEIRA, /hipóteses de expansão: nenhum tem orçamento, financiamento ou apoio institucional definido/);
+});
+
+test("cada projeto só aproveita componentes que o demonstrador pretende deixar", () => {
+  const ativos = new Set(APRESENTACAO.reuso.map((r) => r.ativo));
+  for (const pr of APRESENTACAO.carteira.projetos) {
+    for (const c of pr.componentes) assert.ok(ativos.has(c), `${pr.nome}: "${c}" não é ativo do demonstrador`);
+  }
+  const inventado: Apresentacao = {
+    ...APRESENTACAO,
+    carteira: {
+      ...APRESENTACAO.carteira,
+      projetos: APRESENTACAO.carteira.projetos.map((pr, i) => (i === 0 ? { ...pr, componentes: ["Plataforma de dados em nuvem"] } : pr)),
+    },
+  };
+  assert.ok(comPendencia(inventado, '"Acessibilidade territorial ampliada" aproveita "Plataforma de dados em nuvem"'));
+});
+
+test("hipótese não presume dinheiro, não fala como coisa feita, e a carteira não perde projeto", () => {
+  const com = (mudanca: Partial<Apresentacao["carteira"]["projetos"][number]>): Apresentacao => ({
+    ...APRESENTACAO,
+    carteira: { ...APRESENTACAO.carteira, projetos: APRESENTACAO.carteira.projetos.map((pr, i) => (i === 3 ? { ...pr, ...mudanca } : pr)) },
+  });
+  assert.ok(comPendencia(com({ capacidade: "Projeto financiado pela secretaria." }), '"Segurança viária" presume valor ou recurso assegurado'));
+  assert.ok(comPendencia(com({ dependencias: ["Orçamento já reservado."] }), '"Segurança viária" presume valor'));
+  assert.ok(comPendencia(com({ capacidade: "Monitoramento já implantado." }), '"Segurança viária" fala como se já estivesse feito.'));
+  const cinco: Apresentacao = { ...APRESENTACAO, carteira: { ...APRESENTACAO.carteira, projetos: APRESENTACAO.carteira.projetos.slice(0, 5) } };
+  assert.ok(comPendencia(cinco, "A carteira precisa dos seis projetos candidatos."));
+  for (const pr of APRESENTACAO.carteira.projetos) {
+    for (const t of [pr.problema, pr.capacidade, ...pr.dependencias]) assert.doesNotMatch(t, /\d|R\$/, `${pr.nome}: ${t}`);
+  }
+});
+
+const ATRIBUI = "Texto de apresentação atribui aprovação, apoio ou compromisso a interlocutor";
+const comTextoDaDecisao = (texto: string): Apresentacao => ({
+  ...APRESENTACAO,
+  proximaDecisao: { ...APRESENTACAO.proximaDecisao, texto },
+});
+
+test("interlocutor pode ser identificado; aprovação, apoio ou compromisso não podem ser atribuídos a ele", () => {
+  // Identificar é legítimo (versões futuras podem fazê-lo).
+  assert.ok(!comPendencia(comTextoDaDecisao("A próxima decisão possível: proposta para apreciação de Ruy Dantas."), ATRIBUI));
+  assert.ok(!comPendencia(comTextoDaDecisao("A próxima decisão possível pode envolver Thiago Lucena como interlocutor."), ATRIBUI));
+  // Atribuir, não.
+  for (const frase of [
+    "Ruy Dantas vai levar a proposta adiante.",
+    "Proposta com o apoio de Thiago Lucena.",
+    "Ruy Dantas aprovou o enquadramento.",
+    "Thiago Lucena assumiu o compromisso de financiar a etapa.",
+  ]) {
+    assert.ok(comPendencia(comTextoDaDecisao(frase), ATRIBUI), frase);
+  }
+  // A regra olha a frase: nome numa, verbo de compromisso noutra, sem atribuição.
+  assert.ok(!comPendencia(comTextoDaDecisao("Proposta para apreciação de Ruy Dantas. A equipe vai aprofundar o enquadramento."), ATRIBUI));
+  assert.ok(!comPendencia(APRESENTACAO, ATRIBUI));
+});
+
+test("nesta versão, Ruy Dantas e Thiago Lucena ficam fora do conteúdo (decisão do titular, 16/11/2026)", () => {
+  const tudo = JSON.stringify({ PROPOSTA, APRESENTACAO });
+  assert.doesNotMatch(tudo, /Ruy|Thiago|Lucena|Dantas/);
+  assert.match(APRESENTACAO.proximaDecisao.texto, /^A próxima decisão possível/);
+});
+
+test("os temas da próxima decisão são os do titular: demonstrador e programa maior", () => {
+  assert.deepEqual(APRESENTACAO.proximaDecisao.temas, [
+    {
+      rotulo: "Demonstrador",
+      texto: "Aprofundar o enquadramento, a composição financeira e as condições de execução da etapa inicial de R$ 200 mil.",
+    },
+    {
+      rotulo: "Programa maior",
+      texto:
+        "Selecionar os projetos prioritários da carteira, avaliar suas dependências e identificar instrumentos e " +
+        "potenciais fontes de financiamento, sem pressupor compromissos já assumidos.",
+    },
+  ]);
+  // O valor citado é o da proposta, não um número solto.
+  assert.ok(APRESENTACAO.proximaDecisao.temas[0].texto.includes(centavosResumidos(PROPOSTA.investimentoPretendidoCentavos)));
+  assert.deepEqual(pendenciasDaApresentacao(PROPOSTA, APRESENTACAO).filter((x) => /número|assegurado|interlocutor/.test(x)), []);
+});
+
+test("mencionar fontes potenciais de financiamento não é declarar recurso assegurado", () => {
+  const ASSEGURADO = "Texto de apresentação dá recurso como assegurado";
+  for (const frase of [
+    "A próxima decisão possível: identificar instrumentos e potenciais fontes de financiamento.",
+    "A próxima decisão possível: avaliar o orçamento necessário e os financiamentos possíveis.",
+    "A próxima decisão possível: aprofundar a etapa inicial de R$ 200 mil.",
+  ]) {
+    assert.ok(!comPendencia(comTextoDaDecisao(frase), ASSEGURADO), frase);
+  }
+  for (const frase of [
+    "A próxima decisão possível conta com recursos assegurados.",
+    "A próxima decisão possível tem financiamento garantido.",
+    "A próxima decisão possível será executada com recursos do fundo.",
+    "A próxima decisão possível tem orçamento já reservado.",
+    "A próxima decisão possível é a etapa financiada pela secretaria.",
+  ]) {
+    assert.ok(comPendencia(comTextoDaDecisao(frase), ASSEGURADO), frase);
+  }
+  // Outro valor que não o da proposta continua barrado, como número e como valor.
+  const outroValor = comTextoDaDecisao("A próxima decisão possível: aprofundar a etapa inicial de R$ 300 mil.");
+  assert.ok(comPendencia(outroValor, ASSEGURADO));
+  assert.ok(comPendencia(outroValor, "Texto de apresentação com número"));
+  // Na carteira, a mesma distinção: dependência que cita fontes potenciais passa.
+  const carteira: Apresentacao = {
+    ...APRESENTACAO,
+    carteira: {
+      ...APRESENTACAO.carteira,
+      projetos: APRESENTACAO.carteira.projetos.map((pr, i) =>
+        i === 0 ? { ...pr, dependencias: [...pr.dependencias, "Identificar potenciais fontes de financiamento."] } : pr,
+      ),
+    },
+  };
+  assert.ok(!comPendencia(carteira, '"Acessibilidade territorial ampliada" presume valor'));
+});
+
+test("o valor da proposta fica inteiro: o texto é partido em volta dele", () => {
+  assert.deepEqual(emVoltaDoValor("etapa inicial de R$ 200 mil.", "R$ 200 mil"), [
+    { trecho: "etapa inicial de ", valor: false },
+    { trecho: "R$ 200 mil", valor: true },
+    { trecho: ".", valor: false },
+  ]);
+  assert.deepEqual(emVoltaDoValor("sem valor", "R$ 200 mil"), [{ trecho: "sem valor", valor: false }]);
+});
+
+test("o esquema é conceitual: quatro camadas, nessa ordem, e a ressalva dita em texto", () => {
+  assert.deepEqual(APRESENTACAO.esquema.camadas.map((c) => c.id), ["territorio", "caminhos", "servicos", "barreiras"]);
+  assert.match(APRESENTACAO.esquema.ressalva, /^Esquema conceitual: não representa/);
+  const semRessalva: Apresentacao = { ...APRESENTACAO, esquema: { ...APRESENTACAO.esquema, ressalva: "Mapa de João Pessoa." } };
+  assert.ok(comPendencia(semRessalva, "O esquema precisa dizer que é conceitual"));
+  const esquema = fonte("Esquema.tsx").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  assert.match(esquema, /role="img"/);
+  assert.match(esquema, /aria-pressed=\{foco === c\.id\}/);
+  assert.doesNotMatch(esquema, /João Pessoa|latitude|longitude|fetch\(|setInterval|requestAnimationFrame/, "sem geografia real nem movimento sozinho");
+});
+
+test("a abertura tem os dois percursos, e cada âncora tem destino", () => {
+  const conteudo = fonte("Conteudo.tsx");
+  assert.match(conteudo, /href="#ob-demonstrador"[^>]*>\s*Conhecer o demonstrador de <span className="ob-sem-quebra">\{investimento\}<\/span>/);
+  assert.match(conteudo, /href="#ob-programa"[^>]*>\s*Explorar o programa completo/);
+  for (const destino of ["ob-demonstrador", "ob-programa", "ob-produtos", "ob-fontes"]) {
+    assert.match(conteudo, new RegExp(`id="${destino}"`), `a âncora #${destino} não tem destino`);
+  }
+  assert.match(conteudo, /titulo="O que o projeto pretende deixar como base para o Observatório"/);
+  assert.match(conteudo, /titulo="Um observatório, múltiplas capacidades"/);
+  assert.match(conteudo, /<summary>Dependências relevantes<\/summary>/, "detalhe abre por clique e por teclado, sem script");
+});
+
+test("movimento discreto: transições de 150 a 250 ms, só para quem não pediu menos movimento", () => {
+  const css = fonte("observatorio.css");
+  const bloco = css.match(/@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/);
+  assert.ok(bloco, "falta o bloco de movimento");
+  const fora = css.replace(bloco![0], "");
+  assert.doesNotMatch(fora, /transition\s*:|animation\s*:/, "transição ou animação fora do bloco de movimento");
+  const duracoes = [...bloco![1].matchAll(/(\d+)ms/g)].map((m) => Number(m[1]));
+  assert.ok(duracoes.length > 0 && duracoes.every((d) => d >= 150 && d <= 250), duracoes.join(", "));
+  assert.doesNotMatch(css, /infinite|background-attachment:\s*fixed/, "nada de animação sem fim nem parallax");
+});
+
+test("a folha continua sendo o resumo do primeiro investimento: a carteira não entra nela", () => {
+  const folha = fonte("Folha.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(folha, /apresentacao\.carteira|apresentacao\.esquema/);
 });

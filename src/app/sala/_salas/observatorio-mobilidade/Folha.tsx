@@ -8,6 +8,8 @@
  * para apreciação · versão preliminar"), sem marca d'água nem linguagem de aprovação (correção estratégica do titular,
  * 16/11/2026). A autoria é da PONTE; a Ilha Tech aparece como entidade executora prevista.
  *
+ * A folha é o resumo do PRIMEIRO investimento: a carteira macro fica só na página (não cabe em uma folha, e não deve).
+ *
  * Não tem fonte própria: recebe a proposta e os textos de apresentação por parâmetro, os mesmos que a página mostra.
  * Nenhum texto de conteúdo é escrito aqui — o teste `proposta-observatorio.test.ts` confere isso lendo este arquivo.
  *
@@ -19,6 +21,7 @@ import {
   centavosEmReais,
   centavosResumidos,
   dataBr,
+  emVoltaDoValor,
   evidenciasDe,
   lerComposicao,
   seloDeEstado,
@@ -154,8 +157,15 @@ export function Folha({
           </p>
         </div>
         <div>
-          <h2>Para a próxima conversa</h2>
-          <p className="ob-folha-conversa">{apresentacao.conversa.join(" ")}</p>
+          <h2>Próxima decisão possível</h2>
+          {apresentacao.proximaDecisao.temas.map((t) => (
+            <p key={t.rotulo} className="ob-folha-conversa">
+              <strong>{t.rotulo}:</strong>{" "}
+              {emVoltaDoValor(t.texto, centavosResumidos(proposta.investimentoPretendidoCentavos)).map((x, i) =>
+                x.valor ? <span key={i} className="ob-sem-quebra">{x.trecho}</span> : x.trecho,
+              )}
+            </p>
+          ))}
         </div>
       </section>
 

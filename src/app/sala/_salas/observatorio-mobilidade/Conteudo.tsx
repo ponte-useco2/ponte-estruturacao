@@ -4,8 +4,9 @@
  * a sala não atribui aprovação nem endosso a ninguém (correção estratégica do titular, 16/11/2026).
  *
  * A página organiza o interesse em três pontos: o problema público; o que os R$ 200 mil permitem desenvolver e
- * investigar; e as capacidades que esta etapa pode deixar para um programa maior. As ressalvas técnicas ficam no fim,
- * discretas, sem dominar.
+ * investigar; e as capacidades que esta etapa pode deixar para um programa maior — a carteira "Um observatório,
+ * múltiplas capacidades", seis hipóteses de expansão. Dois acessos na abertura levam ao demonstrador e ao programa; a
+ * rolagem suave é a do site (desligada para quem pede menos movimento). As ressalvas técnicas ficam no fim, discretas.
  *
  * IDENTIDADE: a da Ilha Tech, aplicada só nesta sala, em `observatorio.css` — preto, grafite, branco e o laranja como
  * destaque; Unbounded nos títulos e Montserrat no texto, servidas pelo `next/font` do próprio domínio. A moldura da sala
@@ -33,6 +34,7 @@ import { Montserrat, Unbounded } from "next/font/google";
 import { BotaoImprimir } from "@/app/mapa/fiscal/[ibge]/simular/BotaoImprimir";
 import {
   AVISO_ATIVOS,
+  AVISO_CARTEIRA,
   RESSALVA_PROVA_PRELIMINAR,
   ROTULO_GRAU,
   TIPOS_DE_ATIVO,
@@ -47,8 +49,10 @@ import {
   type CodigoProduto,
   type ItemDeComposicao,
   type Proposta,
+  emVoltaDoValor,
 } from "@/lib/oportunidades/proposta-observatorio";
 import { APRESENTACAO, PROPOSTA } from "./dados";
+import { Esquema } from "./Esquema";
 import { Folha } from "./Folha";
 import "./observatorio.css";
 
@@ -193,6 +197,14 @@ export function ConteudoObservatorio() {
                 {proposta.titulo}
               </h1>
               <p className="ob-valor">{proposta.objetoCurto}</p>
+              <nav className="ob-acessos" aria-label="Percursos da proposta">
+                <a className="ob-acesso ob-acesso-primario" href="#ob-demonstrador">
+                  Conhecer o demonstrador de <span className="ob-sem-quebra">{investimento}</span>
+                </a>
+                <a className="ob-acesso" href="#ob-programa">
+                  Explorar o programa completo
+                </a>
+              </nav>
             </div>
             <dl className="ob-numeros">
               <div className="ob-numero ob-numero-destaque">
@@ -236,12 +248,6 @@ export function ConteudoObservatorio() {
           <div className="ob-dentro">
             <Cabeca id="ob-problema" numero="01" nome="O problema público" titulo={apresentacao.problema.pergunta} />
             <p className="ob-lead">{apresentacao.problema.necessidade}</p>
-            {demonstrado.length === 0 && (
-              <p className="ob-nota-estado" role="note">
-                Nenhum resultado aparece como comprovado nesta versão. Tudo o que segue é o que a pesquisa vai fazer e
-                verificar.
-              </p>
-            )}
             <ul
               className={`ob-estados${demonstrado.length === 0 ? " ob-estados-dois" : ""}`}
               aria-label="O que a pesquisa vai verificar e o que é hipótese"
@@ -261,13 +267,10 @@ export function ConteudoObservatorio() {
               <li className="ob-estado ob-estado-previsto">
                 <ClipboardList aria-hidden="true" className="ob-icone" strokeWidth={1.75} />
                 <h3>{ROTULO_GRAU.previsto}</h3>
-                <ul className="ob-estado-lista">
-                  {apresentacao.etapas.map((e) => (
-                    <li key={e.produto}>
-                      <strong>{e.produto}</strong> {e.entrega}
-                    </li>
-                  ))}
-                </ul>
+                <p>
+                  Cada entrega da pesquisa, e como a conclusão será comprovada, está em{" "}
+                  <a href="#ob-produtos">Os quatro produtos</a>.
+                </p>
                 {previsto.length > 0 && (
                   <ul>
                     {previsto.map((t) => (
@@ -279,8 +282,9 @@ export function ConteudoObservatorio() {
               <li className="ob-estado ob-estado-hipotese">
                 <Telescope aria-hidden="true" className="ob-icone" strokeWidth={1.75} />
                 <h3>{ROTULO_GRAU.hipotese}</h3>
-                <p>{apresentacao.expansao}</p>
-                <p>{apresentacao.novosProjetos}</p>
+                <p>
+                  {apresentacao.expansao} <a href="#ob-programa">Ver a carteira de capacidades</a>.
+                </p>
                 {hipotese.length > 0 && (
                   <ul>
                     {hipotese.map((t) => (
@@ -290,11 +294,17 @@ export function ConteudoObservatorio() {
                 )}
               </li>
             </ul>
+            {demonstrado.length === 0 && (
+              <p className="ob-nota-estado" role="note">
+                Nenhum resultado aparece como comprovado nesta versão: o que esta página descreve é o que a pesquisa vai
+                fazer e verificar.
+              </p>
+            )}
           </div>
         </section>
 
         {/* ------------------------------------------------ 02 solução */}
-        <section className="ob-secao ob-grafite" aria-labelledby="ob-solucao">
+        <section id="ob-demonstrador" className="ob-secao ob-grafite" aria-labelledby="ob-solucao">
           <div className="ob-dentro">
             <Cabeca id="ob-solucao" numero="02" nome="A solução proposta" titulo="A primeira etapa do Observatório" />
             <p className="ob-lead">{apresentacao.solucao}</p>
@@ -316,6 +326,8 @@ export function ConteudoObservatorio() {
                 );
               })}
             </ol>
+            <h3 className="ob-esq-titulo">Como o núcleo relaciona territórios, caminhos, serviços e barreiras</h3>
+            <Esquema camadas={apresentacao.esquema.camadas} ressalva={apresentacao.esquema.ressalva} />
           </div>
         </section>
 
@@ -386,8 +398,8 @@ export function ConteudoObservatorio() {
             <Cabeca
               id="ob-continuidade"
               numero="05"
-              nome="Próxima capacidade"
-              titulo="O que fica para o Observatório"
+              nome="A base"
+              titulo="O que o projeto pretende deixar como base para o Observatório"
             />
             <ol className="ob-camadas">
               <li className="ob-camada ob-camada-demonstrador">
@@ -395,18 +407,11 @@ export function ConteudoObservatorio() {
                 <h3>
                   O demonstrador: {investimento} em {proposta.prazoMeses} meses
                 </h3>
-                <ul className="ob-chips">
-                  {proposta.produtos.map((p) => (
-                    <li key={p.codigo} className="ob-chip">
-                      <strong>{p.codigo}</strong> {p.nome}
-                    </li>
-                  ))}
-                </ul>
               </li>
               <li className="ob-camada ob-camada-infra">
                 <ArrowDown aria-hidden="true" className="ob-camada-seta" strokeWidth={1.5} />
-                <p className="ob-camada-quando">O que fica · entregas previstas nos produtos</p>
-                <h3>O que o projeto entrega e o Observatório pode reaproveitar</h3>
+                <p className="ob-camada-quando">A base · entregas previstas nos produtos</p>
+                <h3>O que o Observatório poderá reaproveitar</h3>
                 <div className="ob-ativos-grade">
                   {TIPOS_DE_ATIVO.map((t) => (
                     <div key={t.tipo} className={`ob-ativos-grupo ob-ativos-${t.tipo}`}>
@@ -432,28 +437,99 @@ export function ConteudoObservatorio() {
               <li className="ob-camada ob-camada-hipotese">
                 <ArrowDown aria-hidden="true" className="ob-camada-seta" strokeWidth={1.5} />
                 <p className="ob-camada-quando">Depois · {ROTULO_GRAU.hipotese.toLowerCase()}</p>
-                <h3>O programa maior</h3>
+                <h3>O que essa base pode sustentar</h3>
                 <p>{apresentacao.novosProjetos}</p>
-                <p>{apresentacao.expansao}</p>
+                <p>
+                  <a href="#ob-programa">Explorar o programa completo</a>
+                </p>
               </li>
             </ol>
-            <div className="ob-conversa">
-              <h3>Para a próxima conversa</h3>
-              <ul>
-                {apresentacao.conversa.map((c) => (
-                  <li key={c}>{c}</li>
-                ))}
-              </ul>
-            </div>
           </div>
         </section>
 
-        {/* ------------------------------------------------ 06 fontes e ressalvas */}
+        {/* ------------------------------------------------ 06 carteira macro */}
+        <section id="ob-programa" className="ob-secao ob-preta ob-carteira" aria-labelledby="ob-carteira-titulo">
+          <div className="ob-dentro">
+            <Cabeca
+              id="ob-carteira-titulo"
+              numero="06"
+              nome="O programa completo"
+              titulo="Um observatório, múltiplas capacidades"
+            />
+            <p className="ob-carteira-abertura">{apresentacao.carteira.abertura}</p>
+            <div className="ob-carteira-base">
+              <p className="ob-camada-quando">A base comum · o demonstrador de {investimento}</p>
+              <p>
+                Os seis projetos aproveitam o que o demonstrador pretende deixar: {apresentacao.reuso.map((r) => r.ativo).join(", ")}.
+              </p>
+            </div>
+            <ol className="ob-carteira-grade">
+              {apresentacao.carteira.projetos.map((pr, i) => (
+                <li key={pr.nome} className="ob-projeto">
+                  <p className="ob-projeto-topo">
+                    <span className="ob-projeto-num">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="ob-projeto-tag">Hipótese de expansão</span>
+                  </p>
+                  <h3>{pr.nome}</h3>
+                  <dl>
+                    <div>
+                      <dt>Problema público</dt>
+                      <dd>{pr.problema}</dd>
+                    </div>
+                    <div>
+                      <dt>Capacidade proposta</dt>
+                      <dd>{pr.capacidade}</dd>
+                    </div>
+                    <div>
+                      <dt>Componentes aproveitáveis</dt>
+                      <dd>
+                        <ul className="ob-projeto-componentes">
+                          {pr.componentes.map((c) => (
+                            <li key={c}>{c}</li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  </dl>
+                  <details className="ob-projeto-detalhe">
+                    <summary>Dependências relevantes</summary>
+                    <ul>
+                      {pr.dependencias.map((d) => (
+                        <li key={d}>{d}</li>
+                      ))}
+                    </ul>
+                  </details>
+                </li>
+              ))}
+            </ol>
+            <p className="ob-carteira-aviso">{AVISO_CARTEIRA}</p>
+          </div>
+        </section>
+
+        {/* ------------------------------------------------ 07 próxima decisão */}
+        <section className="ob-secao ob-clara ob-decisao" aria-labelledby="ob-decisao-titulo">
+          <div className="ob-dentro">
+            <Cabeca id="ob-decisao-titulo" numero="07" nome="Próxima decisão" titulo="A próxima decisão possível" />
+            <p className="ob-lead">{apresentacao.proximaDecisao.texto}</p>
+            <ul className="ob-decisao-temas">
+              {apresentacao.proximaDecisao.temas.map((t) => (
+                <li key={t.rotulo}>
+                  <span className="ob-decisao-rotulo">{t.rotulo}</span>
+                  {emVoltaDoValor(t.texto, investimento).map((x, i) =>
+                    x.valor ? <span key={i} className="ob-sem-quebra">{x.trecho}</span> : x.trecho,
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* ------------------------------------------------ 08 fontes e ressalvas */}
         <section id="ob-fontes" className="ob-secao ob-grafite ob-fontes" aria-labelledby="ob-fontes-titulo">
           <div className="ob-dentro">
             <Cabeca
               id="ob-fontes-titulo"
-              numero="06"
+              numero="08"
               nome="Fontes e ressalvas"
               titulo="De onde vem cada informação"
             />
@@ -468,7 +544,7 @@ export function ConteudoObservatorio() {
               <div>
                 <h3>Fontes</h3>
                 <ul>
-                  {apresentacao.fontes.map((f) => (
+                  {[...apresentacao.fontes, apresentacao.carteira.fonte].map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </ul>

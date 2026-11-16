@@ -14,13 +14,15 @@ import type { Apresentacao, Proposta } from "@/lib/oportunidades/proposta-observ
  * QUEM MUDA O QUÊ
  *   · `versao`: muda a cada alteração de texto ou número (AAAA-MM-DD.n), inclusive de `APRESENTACAO`, abaixo.
  *     Histórico: .1 = incremento 1; .2 = textos da rodada visual; .3 = síntese, entregas e reuso (rodada 5);
- *     .4 = ativos por natureza; .5 = proposta da PONTE para apreciação. Todas de 16/11/2026.
+ *     .4 = ativos por natureza; .5 = proposta da PONTE para apreciação; .6 = esquema e carteira macro;
+ *     .7 = temas da próxima decisão (demonstrador e programa maior), redação do titular.
+ *     Todas de 16/11/2026.
  *   · `composicao`: a equipe preenche linha a linha (atividade, unidade, quantidade, valor unitário em centavos e os
  *     produtos a que serve). Enquanto vazia, a página diz "composição em elaboração".
  *   · `evidencias`: resultado só entra como demonstrado quando chega verificado, com a fonte.
  */
 export const PROPOSTA: Proposta = {
-  versao: "2026-11-16.5",
+  versao: "2026-11-16.7",
   preparadaEm: "2026-11-16",
   titulo: "Observatório de Mobilidade Urbana de João Pessoa",
   autoria: "PONTE Estruturação de Projetos de Impacto",
@@ -70,7 +72,9 @@ export const PROPOSTA: Proposta = {
  *   · cada `trecho` das etapas é cópia LITERAL do objeto completo (o teste confere);
  *   · nenhum texto de apresentação tem algarismo: indicador ou estatística só entra com fonte conferida;
  *   · nenhum texto diz que alguém aprovou, autorizou ou endossou a proposta (o teste confere);
- *   · a expansão e os novos projetos são hipótese, sem compromisso nesta proposta.
+ *   · a expansão, os novos projetos e a carteira são hipótese, sem orçamento, financiamento ou apoio presumido;
+ *   · os componentes de cada projeto da carteira são ativos que o demonstrador entrega (o teste confere);
+ *   · nenhum texto cita pessoa nem lhe atribui compromisso.
  */
 export const APRESENTACAO: Apresentacao = {
   estado: "redacao-provisoria",
@@ -158,11 +162,92 @@ export const APRESENTACAO: Apresentacao = {
     "fazem parte desta proposta: serão desenhados a partir do plano de ampliação e replicação do quarto produto.",
   expansao:
     "A ampliação do Observatório além desta etapa, orientada pelo plano de ampliação e replicação do quarto produto.",
-  // A sala termina num convite para a conversa, nos termos em que o titular a define.
-  conversa: [
-    "A viabilização desta etapa inicial: enquadramento da proposta e composição financeira.",
-    "O desenho do programa maior: novos projetos, capacidades e fontes de financiamento.",
-  ],
+  // O esquema metodológico é CONCEITUAL: relaciona as quatro camadas sem fingir geografia de João Pessoa.
+  esquema: {
+    camadas: [
+      { id: "territorio", rotulo: "Territórios", texto: "De onde as pessoas partem: os territórios selecionados para a pesquisa.", produtos: ["P1"] },
+      { id: "caminhos", rotulo: "Caminhos", texto: "Os trajetos possíveis até os serviços, estimados pelo modelo.", produtos: ["P2"] },
+      { id: "servicos", rotulo: "Serviços essenciais", texto: "Os destinos que a análise considera.", produtos: ["P1", "P2"] },
+      { id: "barreiras", rotulo: "Barreiras possíveis", texto: "O que pode dificultar o caminho a pé: só a pesquisa de campo vai identificá-las.", produtos: ["P3"] },
+    ],
+    ressalva: "Esquema conceitual: não representa o território, os caminhos nem os serviços reais de João Pessoa.",
+  },
+  // A carteira macro (titular, 16/11/2026). Seis hipóteses de expansão: o problema é a pergunta que a cidade precisa
+  // responder; a capacidade e as dependências vêm das frentes do programa nos materiais de trabalho da equipe.
+  carteira: {
+    abertura:
+      "O primeiro investimento constrói a capacidade. Os próximos ampliam o que João Pessoa poderá compreender e avaliar.",
+    projetos: [
+      {
+        nome: "Acessibilidade territorial ampliada",
+        problema: "Quais partes da cidade têm mais dificuldade de chegar a serviços essenciais, e quais serviços ficam mais longe de quem precisa deles?",
+        capacidade: "Estender a análise do acesso a hospitais, escolas, empregos e outros serviços, em mais territórios e por modo de deslocamento, para identificar desigualdades territoriais.",
+        componentes: ["Catálogo de fontes", "Processamento documentado", "Protótipo", "Relatório metodológico"],
+        dependencias: ["Dados atualizados sobre a localização e a oferta dos serviços.", "Bases de deslocamento por modo, com permissão de uso."],
+      },
+      {
+        nome: "Mobilidade ativa e caminhabilidade",
+        problema: "Onde caminhar até os serviços é difícil ou inseguro, e o que precisaria mudar no trajeto?",
+        capacidade: "Levar a pesquisa de campo sobre caminhabilidade a novos territórios, com o mesmo protocolo, incluindo calçadas, travessias e rotas acessíveis.",
+        componentes: ["Protocolo", "Registros de campo", "Comparação entre estimativas e observações"],
+        dependencias: ["Equipe e logística de campo nos novos territórios.", "Participação dos moradores na pesquisa."],
+      },
+      {
+        nome: "Transporte coletivo e integração modal",
+        problema: "Como o transporte coletivo se conecta aos caminhos a pé até os serviços, e onde a integração entre os modos falha?",
+        capacidade: "Analisar viagens, confiabilidade e atendimento do transporte coletivo e a integração entre os modos, para apoiar a melhoria do serviço.",
+        componentes: ["Catálogo de fontes", "Processamento documentado", "Protótipo"],
+        dependencias: ["Dados de itinerários, horários e operação do transporte coletivo.", "Cooperação com os responsáveis pela operação para o acesso aos dados."],
+      },
+      {
+        nome: "Segurança viária",
+        problema: "Onde os riscos no trânsito se concentram nos caminhos que as pessoas usam, e quais intervenções deveriam vir primeiro?",
+        capacidade: "Acompanhar sinistros e condições de risco nos trajetos, para fundamentar a priorização de intervenções.",
+        componentes: ["Catálogo de fontes", "Processamento documentado", "Registros de campo"],
+        dependencias: ["Registros de sinistros de trânsito, com permissão de uso e proteção dos dados pessoais.", "Critérios de priorização definidos com os órgãos responsáveis."],
+      },
+      {
+        nome: "Avaliação de intervenções e investimentos",
+        problema: "As intervenções e os investimentos em mobilidade melhoram o acesso das pessoas, e como comparar alternativas antes de decidir?",
+        capacidade: "Relacionar investimentos, entregas e indicadores aos efeitos no território, e comparar alternativas antes do investimento.",
+        componentes: ["Relatório metodológico", "Processamento documentado", "Comparação entre estimativas e observações"],
+        dependencias: ["Informações sobre intervenções e investimentos executados e previstos.", "Indicadores acompanhados ao longo do tempo."],
+      },
+      {
+        nome: "Mobilidade sustentável e resiliência urbana",
+        problema: "Como tornar os deslocamentos mais sustentáveis e a rede urbana mais preparada para interrupções e eventos extremos?",
+        capacidade: "Avaliar a participação dos modos sustentáveis e a vulnerabilidade da rede a interrupções, para orientar o planejamento.",
+        componentes: ["Catálogo de fontes", "Protótipo", "Plano de replicação"],
+        dependencias: ["Dados ambientais e de ocorrências que afetam a circulação.", "Integração com o planejamento urbano e ambiental do município."],
+      },
+    ],
+    // Só na página: a folha resume o primeiro investimento e não leva a carteira.
+    fonte:
+      "Projetos candidatos da carteira: elaborados pela PONTE a partir das frentes do programa discutidas nos materiais " +
+      "de trabalho da equipe, de 16/11/2026.",
+  },
+  // O encerramento: uma decisão possível, sem atribuir compromisso a ninguém. Os dois temas são redação do titular
+  // (16/11/2026): "potenciais fontes de financiamento" é menção, não recurso assegurado; "R$ 200 mil" é o valor
+  // da própria proposta.
+  proximaDecisao: {
+    texto:
+      "A próxima decisão possível é levar esta etapa inicial ao enquadramento e à composição financeira, e escolher " +
+      "quais projetos da carteira merecem estudo.",
+    temas: [
+      {
+        rotulo: "Demonstrador",
+        texto:
+          "Aprofundar o enquadramento, a composição financeira e as condições de execução da etapa inicial de " +
+          "R$ 200 mil.",
+      },
+      {
+        rotulo: "Programa maior",
+        texto:
+          "Selecionar os projetos prioritários da carteira, avaliar suas dependências e identificar instrumentos e " +
+          "potenciais fontes de financiamento, sem pressupor compromissos já assumidos.",
+      },
+    ],
+  },
   fontes: [
     "Objeto, produtos, evidências de conclusão, investimento e prazo: orientação de trabalho da equipe do Observatório " +
       "de Mobilidade Urbana, de 16/11/2026.",

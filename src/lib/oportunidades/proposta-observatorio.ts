@@ -299,6 +299,30 @@ export interface ProvaPreliminar {
   conferencia: string;
 }
 
+/** Uma camada do esquema metodológico: o que o núcleo relaciona. Conceitual, nunca geografia real. */
+export interface CamadaDoEsquema {
+  id: "territorio" | "caminhos" | "servicos" | "barreiras";
+  rotulo: string;
+  texto: string;
+  produtos: CodigoProduto[];
+}
+
+/**
+ * Um projeto candidato da carteira macro. É HIPÓTESE DE EXPANSÃO: sem orçamento, financiamento ou apoio institucional
+ * presumido. O problema público é a pergunta que a cidade precisa responder, não afirmação de fato sobre João Pessoa.
+ * Os componentes aproveitáveis só podem ser ativos que o demonstrador entrega (trava em `pendenciasDaApresentacao`).
+ */
+export interface ProjetoCandidato {
+  nome: string;
+  problema: string;
+  capacidade: string;
+  componentes: string[];
+  dependencias: string[];
+}
+
+export const AVISO_CARTEIRA =
+  "Os seis projetos são hipóteses de expansão: nenhum tem orçamento, financiamento ou apoio institucional definido.";
+
 /**
  * Os textos com que a sala se apresenta e que a orientação de 16/11/2026 não traz. São redação da PONTE, montada a
  * partir do objeto definido na orientação. Travas: os trechos das etapas são cópia literal do objeto; os ativos
@@ -319,9 +343,47 @@ export interface Apresentacao {
   novosProjetos: string;
   /** A expansão além desta etapa. É hipótese, sem compromisso nesta proposta. */
   expansao: string;
-  /** Os temas da próxima conversa: a sala termina num convite, não num formulário. */
-  conversa: string[];
+  /** O esquema metodológico conceitual: territórios, caminhos, serviços e barreiras. */
+  esquema: { camadas: CamadaDoEsquema[]; ressalva: string };
+  /** A carteira macro: um observatório, múltiplas capacidades. */
+  carteira: { abertura: string; projetos: ProjetoCandidato[]; fonte: string };
+  /** O encerramento: uma próxima decisão possível, nunca um compromisso já assumido por alguém. */
+  proximaDecisao: { texto: string; temas: TemaDaDecisao[] };
   fontes: string[];
+}
+
+/** Um tema da próxima decisão: a frente (o demonstrador ou o programa maior) e o que se decide nela. */
+export interface TemaDaDecisao {
+  rotulo: string;
+  texto: string;
+}
+
+/**
+ * Recurso dado como assegurado: um valor, ou dinheiro dito financiado, custeado, garantido, reservado, captado,
+ * disponível. Mencionar instrumentos ou potenciais fontes de financiamento é outra coisa e passa ("identificar
+ * potenciais fontes de financiamento"): a trava separa a menção da afirmação de que o recurso existe (orientação do
+ * titular, 16/11/2026). O único valor que um texto pode citar é o da própria proposta (`semOValorDaProposta`).
+ */
+const RECURSO_ASSEGURADO =
+  /(^|[^\p{L}])(R\$|financiad[oa]s?|custead[oa]s?|patrocinad[oa]s?|(?:recursos?|verbas?|orçamentos?|financiamentos?|dinheiro)\s+(?:já\s+)?(?:garantid|assegurad|aprovad|reservad|captad|liberad|empenhad|contratad|comprometid|dispon[ií]ve)\p{L}*|com\s+(?:recursos?|financiamentos?|verbas?)\s+d[oae]s?)(?![\p{L}])/iu;
+
+/**
+ * Interlocutores da proposta. Identificá-los é legítimo: a trava não proíbe o nome, proíbe atribuir-lhe aprovação,
+ * apoio ou compromisso que nenhum fato documenta (orientação do titular, 16/11/2026). Que os nomes fiquem fora do
+ * conteúdo desta versão é decisão de conteúdo, conferida em teste, e não desta regra.
+ */
+const INTERLOCUTORES = /(^|[^\p{L}])(Ruy|Thiago|Lucena|Dantas)(?![\p{L}])/u;
+
+/** Atribuir a alguém: aprovou, apoia, endossou, autorizou, assumiu, comprometeu-se, garantiu, vai levar adiante… */
+const ATRIBUICAO =
+  /(^|[^\p{L}])(aprov\p{L}*|apoi\p{L}*|endoss\p{L}*|chancel\p{L}*|autoriz\p{L}*|assum\p{L}*|compromet\p{L}*|compromisso\p{L}*|garant\p{L}*|patrocin\p{L}*|acolheu|aceitou|concordou|decidiu|vai|vão|irá|irão)(?![\p{L}])/iu;
+
+/**
+ * A frase nomeia um interlocutor e lhe atribui aprovação, apoio ou compromisso. Na dúvida, acusa: até a negação
+ * ("sem compromisso de Fulano") acusa, para a frase ser reescrita sem pôr palavra na boca de ninguém.
+ */
+function atribuiAInterlocutor(texto: string): boolean {
+  return texto.split(/(?<=[.!?;:])\s+/u).some((frase) => INTERLOCUTORES.test(frase) && ATRIBUICAO.test(frase));
 }
 
 /** Endosso emprestado: a sala não diz que alguém aprovou, autorizou ou endossou a proposta. */
@@ -333,6 +395,9 @@ const JA_FEITO = /(^|[^\p{L}])(foi|foram|demonstrou|demonstrado|comprovou|compro
 /** O que impede os textos de apresentação de valer, em linguagem da página. Lista vazia = em ordem. */
 export function pendenciasDaApresentacao(p: Proposta, a: Apresentacao): string[] {
   const pendencias: string[] = [];
+  // O valor da própria proposta ("R$ 200 mil") pode ser citado; qualquer outro número ou valor continua barrado.
+  const valorDaProposta = centavosResumidos(p.investimentoPretendidoCentavos);
+  const semOValorDaProposta = (t: string) => t.split(valorDaProposta).join("");
   const codigos = a.etapas.map((e) => e.produto).join(",");
   if (codigos !== CODIGOS_PRODUTO.join(",")) pendencias.push("As etapas precisam seguir P1 a P4, uma por produto.");
   for (const e of a.etapas) {
@@ -380,16 +445,60 @@ export function pendenciasDaApresentacao(p: Proposta, a: Apresentacao): string[]
     pendencias.push("Nenhum resultado técnico verificado foi recebido nesta sala: nada aparece como comprovado.");
   }
 
+  // Esquema: as quatro camadas, nessa ordem, e a ressalva de que é conceitual.
+  const camadas = a.esquema.camadas.map((c) => c.id).join(",");
+  if (camadas !== "territorio,caminhos,servicos,barreiras") {
+    pendencias.push("O esquema precisa das camadas território, caminhos, serviços e barreiras, nessa ordem.");
+  }
+  if (!/conceitual/i.test(a.esquema.ressalva) || !/não representa/i.test(a.esquema.ressalva)) {
+    pendencias.push("O esquema precisa dizer que é conceitual e que não representa o território real.");
+  }
+
+  // Carteira: seis projetos completos, componentes que o demonstrador entrega, nada de dinheiro presumido.
+  const ativos = new Set(a.reuso.map((r) => r.ativo));
+  if (a.carteira.projetos.length !== 6) pendencias.push("A carteira precisa dos seis projetos candidatos.");
+  if (!a.carteira.fonte.trim()) pendencias.push("A carteira precisa dizer de onde vêm os projetos.");
+  for (const pr of a.carteira.projetos) {
+    if (!pr.nome.trim() || !pr.problema.trim() || !pr.capacidade.trim()) pendencias.push(`"${pr.nome}" está incompleto.`);
+    if (pr.componentes.length === 0) pendencias.push(`"${pr.nome}" não aproveita nenhum componente do demonstrador.`);
+    if (pr.dependencias.length === 0) pendencias.push(`"${pr.nome}" está sem dependências.`);
+    for (const c of pr.componentes) {
+      if (!ativos.has(c)) pendencias.push(`"${pr.nome}" aproveita "${c}", que o demonstrador não entrega.`);
+    }
+    const doProjeto = [pr.nome, pr.problema, pr.capacidade, ...pr.dependencias];
+    if (doProjeto.some((t) => RECURSO_ASSEGURADO.test(t))) {
+      pendencias.push(`"${pr.nome}" presume valor ou recurso assegurado: é hipótese de expansão.`);
+    }
+    if (doProjeto.some((t) => JA_FEITO.test(t))) pendencias.push(`"${pr.nome}" fala como se já estivesse feito.`);
+  }
+
   const textos = [
-    a.problema.pergunta, a.problema.necessidade, a.solucao, a.expansao, a.novosProjetos, ...a.conversa,
+    a.problema.pergunta, a.problema.necessidade, a.solucao, a.expansao, a.novosProjetos,
+    a.proximaDecisao.texto, ...a.proximaDecisao.temas.flatMap((t) => [t.rotulo, t.texto]), a.esquema.ressalva,
+    a.carteira.abertura,
+    ...a.esquema.camadas.flatMap((c) => [c.rotulo, c.texto]),
+    ...a.carteira.projetos.flatMap((pr) => [pr.nome, pr.problema, pr.capacidade, ...pr.dependencias]),
     ...a.sintese.map((x) => `${x.verbo} ${x.texto}`), ...a.etapas.map((e) => e.entrega), ...a.reuso.map((r) => r.uso),
   ];
-  if ([...textos, ...a.fontes, a.provaPreliminar.descricao, a.provaPreliminar.conferencia].some((t) => ENDOSSO.test(t))) {
+  const todos = [...textos, ...a.fontes, a.carteira.fonte, a.provaPreliminar.descricao, a.provaPreliminar.conferencia];
+  if (todos.some((t) => ENDOSSO.test(t))) {
     pendencias.push("Texto de apresentação atribui aprovação, autorização ou endosso: a proposta é da PONTE, para apreciação.");
   }
-  if (a.conversa.length === 0) pendencias.push("Faltam os temas da próxima conversa.");
+  if (a.proximaDecisao.temas.length === 0) pendencias.push("Faltam os temas da próxima decisão.");
+  if (todos.some(atribuiAInterlocutor)) {
+    pendencias.push(
+      "Texto de apresentação atribui aprovação, apoio ou compromisso a interlocutor: citar é permitido; atribuir sem " +
+        "fato documentado, não.",
+    );
+  }
+  if (textos.some((t) => RECURSO_ASSEGURADO.test(semOValorDaProposta(t)))) {
+    pendencias.push(
+      "Texto de apresentação dá recurso como assegurado: mencionar fontes potenciais é permitido; afirmar que o " +
+        "recurso existe, não.",
+    );
+  }
   if (textos.some((t) => !t.trim())) pendencias.push("Falta texto de apresentação.");
-  if (textos.some((t) => /\d/.test(t))) {
+  if (textos.some((t) => /\d/.test(semOValorDaProposta(t)))) {
     pendencias.push("Texto de apresentação com número: indicador, estatística ou meta só entra com fonte conferida.");
   }
   if (a.fontes.length === 0) pendencias.push("Faltam as fontes documentais.");
@@ -397,6 +506,14 @@ export function pendenciasDaApresentacao(p: Proposta, a: Apresentacao): string[]
     pendencias.push("Os textos de apresentação estão em redação provisória.");
   }
   return pendencias;
+}
+
+/** Parte o texto em volta do valor da proposta, para a página manter "R$ 200 mil" inteiro numa linha. */
+export function emVoltaDoValor(texto: string, valor: string): { trecho: string; valor: boolean }[] {
+  return texto
+    .split(valor)
+    .flatMap((trecho, i) => (i === 0 ? [{ trecho, valor: false }] : [{ trecho: valor, valor: true }, { trecho, valor: false }]))
+    .filter((x) => x.trecho !== "");
 }
 
 /** "R$ 200 mil" quando o valor é múltiplo exato de mil reais; senão, o valor exato. Nunca arredonda. */

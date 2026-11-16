@@ -43,6 +43,10 @@
 /* ----------------------------------------------------------------- estrutura */
 
 .pa-root .ob-secao { padding-block: clamp(3rem, 2rem + 4vw, 6rem); }
+/* Âncoras: o cabeçalho da sala é fixo (60 px) e não tem a linha de abas do Mapa. O `mapa.css` põe 121 px de
+   `scroll-padding` em toda página do Mapa e das salas; nesta, o recuo é só o do cabeçalho. Seletor mais específico
+   que o do Mapa, e só onde existe a sala do Observatório. */
+html:has(.pa-root.mp-root .ob-raiz) { scroll-padding-top: calc(var(--pa-top, 60px) + 0.5rem); }
 .pa-root .ob-dentro { width: min(76rem, calc(100% - 2.5rem)); margin-inline: auto; }
 .pa-root .ob-preta { background: var(--ob-preto); color: var(--ob-branco); }
 .pa-root .ob-grafite { background: var(--ob-grafite); color: var(--ob-branco); }
@@ -77,7 +81,7 @@
 /* Links e foco: sublinhado discreto; foco sempre visível, em laranja (≥ 3:1 nos três fundos). */
 .pa-root .ob-tela a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.22em; }
 .pa-root .ob-tela a:hover { text-decoration-color: var(--ob-laranja); text-decoration-thickness: 2px; }
-.pa-root .ob-tela a:focus-visible, .pa-root .ob-tela button:focus-visible {
+.pa-root .ob-tela a:focus-visible, .pa-root .ob-tela button:focus-visible, .pa-root .ob-tela summary:focus-visible {
   outline: 3px solid var(--ob-laranja); outline-offset: 3px; box-shadow: none;
 }
 
@@ -139,13 +143,10 @@
   display: grid; grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr)); gap: 1rem;
 }
 .pa-root .ob-nota-estado {
-  margin-top: clamp(1.5rem, 1rem + 1.5vw, 2.25rem); max-width: 62ch;
-  border-left: 4px solid var(--ob-preto); padding: 0.2rem 0 0.2rem 0.9rem;
-  font-weight: 700; font-size: 1.02rem; line-height: 1.5;
+  margin-top: 1.25rem; max-width: 70ch; border-left: 2px solid var(--ob-cinza); padding: 0.1rem 0 0.1rem 0.75rem;
+  font-size: 0.9rem; font-weight: 500; line-height: 1.5; color: var(--ob-cinza);
 }
 .pa-root .ob-estados-dois { grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
-.pa-root .ob-estado-lista { display: flex; flex-direction: column; gap: 0.45rem; }
-.pa-root .ob-estado-lista strong { color: var(--ob-laranja-profundo); margin-right: 0.15rem; }
 .pa-root .ob-estado-fonte { font-size: 0.86rem; color: var(--ob-cinza); }
 .pa-root .ob-estado {
   display: flex; flex-direction: column; gap: 0.65rem; min-width: 0;
@@ -244,9 +245,6 @@
 /* 1. o demonstrador: borda preta, os quatro produtos em etiquetas */
 .pa-root .ob-camada-demonstrador { border: 2px solid var(--ob-preto); }
 .pa-root .ob-camada-demonstrador .ob-camada-quando { color: var(--ob-cinza); }
-.pa-root .ob-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.pa-root .ob-chip { border: 1px solid var(--ob-preto); padding: 0.35rem 0.65rem; font-size: 0.9rem; }
-.pa-root .ob-chip strong { color: var(--ob-laranja-profundo); margin-right: 0.2rem; }
 /* 2. a infraestrutura que fica: o bloco forte, em preto */
 .pa-root .ob-camada-infra { background: var(--ob-preto); color: var(--ob-branco); border: 2px solid var(--ob-preto); }
 .pa-root .ob-camada-infra .ob-camada-quando { color: var(--ob-laranja); } /* sobre preto: 5,36 */
@@ -267,21 +265,12 @@
 }
 .pa-root .ob-ativos-grupo li span { color: var(--ob-branco-suave); }
 .pa-root .ob-ativos-grupo li .ob-ativo-codigo { color: var(--ob-preto); } /* preto sobre laranja: 5,36 */
-/* A conversa: a seção termina num convite. */
-.pa-root .ob-conversa {
-  margin-top: 2.5rem; border-left: 4px solid var(--ob-laranja); padding: 0.3rem 0 0.3rem 1rem; max-width: 62ch;
-}
-.pa-root .ob-conversa h3 { font-family: var(--ob-titulo); font-weight: 600; font-size: 1.15rem; margin-bottom: 0.5rem; }
-.pa-root .ob-conversa ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.pa-root .ob-conversa li { font-size: 0.98rem; line-height: 1.5; }
-
 /* 3. o programa maior: tracejado, sem preenchimento — hipótese não pode parecer compromisso */
 .pa-root .ob-camada-hipotese { border: 2px dashed var(--ob-cinza); }
 .pa-root .ob-camada-hipotese .ob-camada-quando { color: var(--ob-cinza); }
 
 /* ----------------------------------------------------------------- 06 fontes e ressalvas */
 
-.pa-root .ob-fontes { scroll-margin-top: 4.5rem; }
 .pa-root .ob-fontes .ob-h2 { font-size: clamp(1.2rem, 1rem + 1vw, 1.7rem); }
 .pa-root .ob-fontes-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2rem; }
 .pa-root .ob-fontes-grade > div { display: flex; flex-direction: column; gap: 0.65rem; min-width: 0; border-top: 1px solid var(--ob-linha-escura); padding-top: 1rem; }
@@ -302,6 +291,126 @@
 }
 .pa-root .ob-tela .pa-btn:hover { background: transparent; color: var(--ob-branco); }
 
+/* ----------------------------------------------------------------- abertura: os dois acessos */
+
+.pa-root .ob-acessos { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.4rem; }
+.pa-root .ob-tela .ob-acesso {
+  display: inline-block; min-height: 44px; padding: 0.65rem 1.1rem;
+  border: 2px solid var(--ob-branco); color: var(--ob-branco); text-decoration: none;
+  font-weight: 700; font-size: 0.95rem; line-height: 1.25;
+}
+.pa-root .ob-tela .ob-acesso:hover { background: var(--ob-branco); color: var(--ob-preto); }
+/* O valor não se parte no celular ("R$ 200" numa linha e "mil" na outra). O botão é bloco, e não flex, para o
+   valor seguir na mesma linha do texto. */
+.pa-root .ob-sem-quebra { white-space: nowrap; }
+/* Texto preto sobre o laranja (5,36). */
+.pa-root .ob-tela .ob-acesso-primario { background: var(--ob-laranja); border-color: var(--ob-laranja); color: var(--ob-preto); }
+.pa-root .ob-tela .ob-acesso-primario:hover { background: transparent; color: var(--ob-branco); }
+
+/* ----------------------------------------------------------------- 02: o esquema conceitual */
+
+.pa-root .ob-esq-titulo {
+  font-family: var(--ob-titulo); font-weight: 600; font-size: clamp(1.1rem, 1rem + 0.5vw, 1.35rem); line-height: 1.3;
+  margin: clamp(2.5rem, 2rem + 2vw, 3.5rem) 0 1.1rem;
+}
+.pa-root .ob-esquema { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.pa-root .ob-esq-figura { margin: 0; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.pa-root .ob-esq-svg { display: block; width: 100%; height: auto; max-width: 100%; background: var(--ob-preto); border: 1px solid var(--ob-linha-escura); }
+.pa-root .ob-esq-area { fill: url(#ob-esq-hachura); stroke: var(--ob-branco-suave); stroke-width: 1.5; }
+.pa-root .ob-esq-hachura-linha { stroke: rgba(255, 255, 255, 0.2); stroke-width: 3; }
+.pa-root .ob-esq-origem { fill: var(--ob-branco); }
+.pa-root .ob-esq-caminho { fill: none; stroke: var(--ob-branco); stroke-width: 2.5; stroke-linejoin: round; }
+.pa-root .ob-esq-caminho-alternativo { stroke: var(--ob-branco-suave); stroke-dasharray: 6 6; }
+.pa-root .ob-esq-servico { fill: var(--ob-preto); stroke: var(--ob-laranja); stroke-width: 3; }
+.pa-root .ob-esq-barreira { stroke: var(--ob-laranja); stroke-width: 5; stroke-linecap: square; }
+.pa-root .ob-esq-marca { fill: var(--ob-laranja); }
+.pa-root .ob-esq-marca-num { fill: var(--ob-preto); font-family: var(--ob-titulo); font-weight: 700; font-size: 15px; }
+.pa-root .ob-esq-ressalva { font-size: 0.86rem; font-style: italic; line-height: 1.45; color: var(--ob-branco-suave); }
+/* Destacar uma camada esmaece as outras; a informação continua toda na legenda. */
+.pa-root .ob-esquema[data-foco] .ob-esq-g { opacity: 0.16; }
+.pa-root .ob-esquema[data-foco="territorio"] .ob-esq-territorio,
+.pa-root .ob-esquema[data-foco="caminhos"] .ob-esq-caminhos,
+.pa-root .ob-esquema[data-foco="servicos"] .ob-esq-servicos,
+.pa-root .ob-esquema[data-foco="barreiras"] .ob-esq-barreiras { opacity: 1; }
+.pa-root .ob-esq-legenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.pa-root .ob-tela .ob-esq-botao {
+  display: flex; gap: 0.85rem; align-items: flex-start; width: 100%; text-align: left; cursor: pointer;
+  background: transparent; color: var(--ob-branco); border: 1px solid var(--ob-linha-escura); border-radius: 0;
+  padding: 0.8rem 0.9rem; font: inherit;
+}
+.pa-root .ob-tela .ob-esq-botao[aria-pressed="true"] { border-color: var(--ob-laranja); box-shadow: inset 4px 0 0 var(--ob-laranja); }
+.pa-root .ob-esq-num {
+  flex: none; display: grid; place-items: center; width: 1.7rem; height: 1.7rem;
+  background: var(--ob-laranja); color: var(--ob-preto); font-family: var(--ob-titulo); font-weight: 700; font-size: 0.9rem;
+}
+.pa-root .ob-esq-texto { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.pa-root .ob-esq-texto strong { font-size: 0.98rem; color: var(--ob-branco); }
+.pa-root .ob-esq-texto span { font-size: 0.9rem; line-height: 1.45; color: var(--ob-branco-suave); }
+.pa-root .ob-esq-texto .ob-esq-produtos { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--ob-branco); }
+
+/* ----------------------------------------------------------------- 06: a carteira macro */
+
+.pa-root .ob-carteira .ob-h2 { text-transform: uppercase; max-width: none; font-size: clamp(1.45rem, 0.95rem + 2.4vw, 2.9rem); }
+.pa-root .ob-carteira-abertura {
+  max-width: 42ch; margin-bottom: clamp(1.75rem, 1.25rem + 2vw, 2.75rem);
+  border-left: 4px solid var(--ob-laranja); padding-left: 1rem;
+  font-family: var(--ob-titulo); font-weight: 500; font-size: clamp(1.1rem, 0.95rem + 0.8vw, 1.55rem); line-height: 1.38;
+}
+.pa-root .ob-carteira-base {
+  display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1.5rem;
+  border: 1px solid var(--ob-linha-escura); padding: 1rem 1.2rem;
+}
+.pa-root .ob-carteira-base .ob-camada-quando {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ob-laranja);
+}
+.pa-root .ob-carteira-base p:not(.ob-camada-quando) { font-size: 0.95rem; line-height: 1.55; color: var(--ob-branco-suave); }
+.pa-root .ob-carteira-grade {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem;
+}
+/* Hipótese de expansão: borda tracejada, como em toda a sala. */
+.pa-root .ob-projeto {
+  display: flex; flex-direction: column; gap: 0.8rem; min-width: 0;
+  border: 1.5px dashed var(--ob-branco-suave); padding: 1.3rem 1.25rem 1.35rem;
+}
+.pa-root .ob-projeto-topo { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.pa-root .ob-projeto-num { font-family: var(--ob-titulo); font-weight: 700; font-size: 1.5rem; line-height: 1; color: var(--ob-laranja); }
+.pa-root .ob-projeto-tag {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px dashed var(--ob-branco-suave); padding: 0.18rem 0.45rem; color: var(--ob-branco-suave);
+}
+.pa-root .ob-projeto h3 { font-family: var(--ob-titulo); font-weight: 600; font-size: 1.1rem; line-height: 1.3; }
+.pa-root .ob-projeto dl { margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.pa-root .ob-projeto dt { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ob-branco-suave); margin-bottom: 0.2rem; }
+.pa-root .ob-projeto dd { font-size: 0.93rem; line-height: 1.5; }
+.pa-root .ob-projeto-componentes { list-style: none; margin: 0.15rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.pa-root .ob-projeto-componentes li { border: 1px solid var(--ob-laranja); padding: 0.15rem 0.5rem; font-size: 0.8rem; line-height: 1.35; }
+.pa-root .ob-projeto-detalhe { border-top: 1px solid var(--ob-linha-escura); padding-top: 0.7rem; margin-top: auto; }
+.pa-root .ob-projeto-detalhe summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; min-height: 24px; }
+.pa-root .ob-projeto-detalhe ul { margin: 0.5rem 0 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.pa-root .ob-projeto-detalhe li { font-size: 0.88rem; line-height: 1.45; color: var(--ob-branco-suave); }
+.pa-root .ob-carteira-aviso {
+  margin-top: 1.5rem; padding-top: 0.9rem; border-top: 1px solid var(--ob-linha-escura);
+  font-size: 0.9rem; color: var(--ob-branco-suave);
+}
+
+/* ----------------------------------------------------------------- 07: a próxima decisão */
+
+.pa-root .ob-decisao-temas { list-style: none; margin: 1.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; max-width: 62ch; }
+.pa-root .ob-decisao-temas li { border-left: 4px solid var(--ob-laranja); padding: 0.3rem 0 0.3rem 0.9rem; font-size: 1.02rem; font-weight: 600; line-height: 1.5; }
+.pa-root .ob-decisao-rotulo { display: block; margin-bottom: 0.2rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* ----------------------------------------------------------------- movimento: discreto, e só para quem não pediu menos */
+
+@media (prefers-reduced-motion: no-preference) {
+  .pa-root .ob-tela .ob-acesso { transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease; }
+  .pa-root .ob-tela .pa-btn { transition: background-color 200ms ease, color 200ms ease; }
+  .pa-root .ob-esq-g { transition: opacity 200ms ease; }
+  .pa-root .ob-tela .ob-esq-botao { transition: border-color 150ms ease, box-shadow 150ms ease; }
+  .pa-root .ob-projeto-detalhe[open] > ul { animation: ob-surgir 200ms ease-out; }
+}
+@keyframes ob-surgir { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
 /* ----------------------------------------------------------------- larguras */
 
 @media (max-width: 1180px) {
@@ -311,6 +420,7 @@
 }
 @media (max-width: 1100px) {
   .pa-root .ob-produtos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pa-root .ob-carteira-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
   .pa-root .ob-abertura-grade { grid-template-columns: minmax(0, 1fr); align-items: start; }
@@ -321,11 +431,13 @@
   .pa-root .ob-passo-seta { right: auto; left: 1.2rem; top: auto; bottom: -2.35rem; transform: rotate(90deg); }
   .pa-root .ob-fontes-grade { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
   .pa-root .ob-sintese { grid-template-columns: minmax(0, 1fr); }
+  .pa-root .ob-esquema { grid-template-columns: minmax(0, 1fr); }
   .pa-root .ob-ativos-grade { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .pa-root .ob-dentro { width: calc(100% - 2rem); }
   .pa-root .ob-produtos { grid-template-columns: minmax(0, 1fr); }
+  .pa-root .ob-carteira-grade { grid-template-columns: minmax(0, 1fr); }
   .pa-root .ob-camada { padding: 1.15rem 1.1rem 1.25rem; }
   .pa-root .ob-identificacao { gap: 0.6rem 1.5rem; }
 }
