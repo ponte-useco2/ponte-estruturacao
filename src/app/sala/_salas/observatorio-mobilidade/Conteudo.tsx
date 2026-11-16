@@ -42,6 +42,7 @@ import {
   DEFINICAO_AUTONOMIA,
   ROTULO_AUTONOMIA,
   ROTULO_NATUREZA,
+  avisoDaEntrada,
   condicoesDeReaproveitamento,
   emSequencia,
   entradaDaCarteira,
@@ -567,11 +568,16 @@ export function ConteudoObservatorio() {
                     <span className="ob-cn-prefixo">a partir de</span>{" "}
                     <span className="ob-sem-quebra">{centavosResumidos(entrada.aPartirDeCentavos)}</span>
                   </dd>
-                  <dd className="ob-cn-nota">estimativa interna, por módulo potencialmente autônomo</dd>
+                  <dd className="ob-cn-nota">estimativa interna, para a expansão modular sobre a base técnica do demonstrador</dd>
                 </div>
               )}
             </dl>
             <p className="ob-cn-definicao">{DEFINICAO_AUTONOMIA}</p>
+            <p className="ob-cn-definicao">
+              {emVoltaDoValor(avisoDaEntrada(investimento), investimento).map((x, i) =>
+                x.valor ? <span key={i} className="ob-sem-quebra">{x.trecho}</span> : x.trecho,
+              )}
+            </p>
             <dl className="ob-programa-totais">
               <div>
                 <dt>O demonstrador</dt>

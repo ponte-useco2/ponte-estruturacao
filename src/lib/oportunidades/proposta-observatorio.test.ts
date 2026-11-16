@@ -19,6 +19,7 @@ import {
   DEFINICAO_AUTONOMIA,
   NATUREZAS_DO_VALOR,
   ROTULO_AUTONOMIA,
+  avisoDaEntrada,
   centavosEmEscala,
   condicoesDeReaproveitamento,
   emSequencia,
@@ -643,7 +644,7 @@ test("a folha continua sendo o resumo do primeiro investimento: a carteira não 
   // Nem as estimativas novas: a folha continua dedicada aos R$ 200 mil (coordenação, 16/11/2026).
   assert.doesNotMatch(
     folha,
-    /envelopes|modulos|totalIndicativo|programaIndicativo|lerValoresDoPrograma|fontesDosValores|lerEnvelopes|AVISO_VALORES|autonomia|dependeDe|entradaDaCarteira|lerModulos|DEFINICAO_AUTONOMIA/,
+    /envelopes|modulos|totalIndicativo|programaIndicativo|lerValoresDoPrograma|fontesDosValores|lerEnvelopes|AVISO_VALORES|autonomia|dependeDe|entradaDaCarteira|lerModulos|DEFINICAO_AUTONOMIA|avisoDaEntrada/,
   );
 });
 
@@ -918,14 +919,31 @@ test("a abertura da carteira: seis projetos, dezoito módulos e a partir de R$ 6
   const conteudo = fonte("Conteudo.tsx");
   assert.match(conteudo, /entradaDaCarteira\(apresentacao\)/);
   assert.match(conteudo, /<dt>Investimento modular<\/dt>/);
-  assert.match(conteudo, /estimativa interna, por módulo potencialmente autônomo/);
+  assert.match(conteudo, /estimativa interna, para a expansão modular sobre a base técnica do demonstrador/);
   assert.match(conteudo, /\{DEFINICAO_AUTONOMIA\}/);
   assert.match(conteudo, /estimativa interna, em \{quantidadePorExtenso/);
   assert.match(conteudo, /estimativa interna, com o demonstrador/);
-  assert.match(DEFINICAO_AUTONOMIA, /não exige outro módulo da carteira, só a base do demonstrador/);
+  assert.match(DEFINICAO_AUTONOMIA, /autônomo em relação aos demais módulos da carteira, mas pressupõe a infraestrutura necessária do demonstrador/);
   // Independência só para os autônomos (coordenação, 16/11/2026).
   assert.match(AVISO_MODULOS, /^Os módulos potencialmente autônomos poderão ser estruturados como projetos independentes/);
   assert.match(AVISO_MODULOS, /Os dependentes exigem, antes, a entrega do módulo indicado\./);
+  assert.match(AVISO_MODULOS, /desde que a infraestrutura necessária do demonstrador esteja disponível/);
+});
+
+test("o 'a partir de' é expansão sobre a base do demonstrador, não alternativa ao investimento inaugural", () => {
+  const investimento = centavosResumidos(PROPOSTA.investimentoPretendidoCentavos);
+  const aviso = avisoDaEntrada(investimento);
+  assert.match(aviso, /expansão modular, condicionada à base técnica do demonstrador/);
+  assert.match(aviso, /não é alternativa ao investimento inaugural de R\$ 200 mil\./);
+  // A versão reduzida fica como possibilidade, sem custo: o único valor da frase é o do investimento inaugural.
+  assert.match(aviso, /Uma versão inaugural reduzida poderá ser estruturada no futuro; o custo dela só será definido depois do dimensionamento\./);
+  assert.equal((aviso.match(/R\$/g) ?? []).length, 1);
+  assert.doesNotMatch(aviso.split(investimento).join(""), /\d/);
+  const conteudo = fonte("Conteudo.tsx");
+  assert.match(conteudo, /emVoltaDoValor\(avisoDaEntrada\(investimento\), investimento\)/);
+  // Fica na abertura da carteira, junto da definição, e não na folha.
+  const abertura = conteudo.slice(conteudo.indexOf('<dl className="ob-carteira-numeros">'), conteudo.indexOf('<dl className="ob-programa-totais">'));
+  assert.ok(abertura.includes("avisoDaEntrada") && abertura.includes("{DEFINICAO_AUTONOMIA}"));
 });
 
 test("os cards mostram só o essencial; módulos, componentes e dependências ficam fechados, com o conteúdo inteiro", () => {

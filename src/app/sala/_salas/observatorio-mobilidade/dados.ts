@@ -19,7 +19,9 @@ import type { Apresentacao, Estimativa, Proposta } from "@/lib/oportunidades/pro
  *     .4 = ativos por natureza; .5 = proposta da PONTE para apreciação; .6 = esquema e carteira macro;
  *     .7 = temas da próxima decisão (demonstrador e programa maior), redação do titular;
  *     .8 = valores indicativos: envelopes do demonstrador e valores e módulos da carteira (estimativa interna);
- *     .9 = módulos pela matriz da coordenação, com entregas mensuráveis e autonomia; cards da carteira enxutos.
+ *     .9 = módulos pela matriz da coordenação, com entregas mensuráveis e autonomia; cards da carteira enxutos;
+ *     .10 = autonomia em relação aos demais módulos, sobre a base do demonstrador; o "a partir de" não é alternativa
+ *     ao investimento inaugural.
  *     Todas de 16/11/2026.
  *   · `envelopes`: a distribuição inicial dos R$ 200 mil, da coordenação. Referência para a pesquisa de preços; não
  *     substitui a composição, que continua em elaboração.
@@ -34,7 +36,7 @@ const ESTIMATIVA_DA_COORDENACAO: Estimativa = {
 };
 
 export const PROPOSTA: Proposta = {
-  versao: "2026-11-16.9",
+  versao: "2026-11-16.10",
   preparadaEm: "2026-11-16",
   titulo: "Observatório de Mobilidade Urbana de João Pessoa",
   autoria: "PONTE Estruturação de Projetos de Impacto",

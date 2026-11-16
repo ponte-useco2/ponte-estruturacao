@@ -160,7 +160,8 @@ export const AVISO_VALORES =
  */
 export const AVISO_MODULOS =
   "Os módulos potencialmente autônomos poderão ser estruturados como projetos independentes, quando tecnicamente e " +
-  "juridicamente cabível. Os dependentes exigem, antes, a entrega do módulo indicado.";
+  "juridicamente cabível, desde que a infraestrutura necessária do demonstrador esteja disponível. Os dependentes " +
+  "exigem, antes, a entrega do módulo indicado.";
 
 /** O que impede a estimativa de valer: natureza fora da lista, origem vazia, ou falta do documento que ela exige. */
 export function pendenciasDaEstimativa(e: Estimativa, onde: string): string[] {
@@ -417,10 +418,26 @@ export const ROTULO_AUTONOMIA: Record<AutonomiaDoModulo, string> = {
   dependente: "Dependente",
 };
 
-/** O que as duas classes querem dizer, dito na página, junto dos números da carteira. */
+/**
+ * O que as duas classes querem dizer, dito na página, junto dos números da carteira. A autonomia é em relação aos
+ * demais módulos da carteira, nunca em relação ao demonstrador (coordenação, 16/11/2026).
+ */
 export const DEFINICAO_AUTONOMIA =
-  "Potencialmente autônomo: a entrega não exige outro módulo da carteira, só a base do demonstrador. Dependente: " +
-  "começa depois da entrega do módulo indicado.";
+  "Potencialmente autônomo: autônomo em relação aos demais módulos da carteira, mas pressupõe a infraestrutura " +
+  "necessária do demonstrador. Dependente: começa depois da entrega do módulo indicado.";
+
+/**
+ * O que o "a partir de" NÃO é (coordenação, 16/11/2026): o valor de entrada vale para a expansão modular sobre a base
+ * técnica do demonstrador e não é alternativa ao investimento inaugural. A versão inaugural reduzida fica como
+ * possibilidade futura, sem custo atribuído antes do dimensionamento: a frase não pode levar outro valor.
+ */
+export function avisoDaEntrada(investimentoInaugural: string): string {
+  return (
+    "O valor de entrada se refere à expansão modular, condicionada à base técnica do demonstrador: não é alternativa " +
+    `ao investimento inaugural de ${investimentoInaugural}. Uma versão inaugural reduzida poderá ser estruturada no ` +
+    "futuro; o custo dela só será definido depois do dimensionamento."
+  );
+}
 
 /** Uma parte de um projeto da carteira: título, entregas mensuráveis, valor indicativo e de que módulo depende. */
 export interface ModuloDoProjeto {
