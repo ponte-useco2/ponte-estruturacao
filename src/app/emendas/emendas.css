@@ -274,6 +274,8 @@
 .ef .pa-root.em-apoio .em-cartao-numero { font-family: var(--fonte-disp), "Bricolage Grotesque", var(--font-inter), sans-serif; font-weight: 760; font-variation-settings: "wdth" 82; }
 .ef .pa-root.em-apoio .em-codigo { font-family: var(--fonte-mono), "IBM Plex Mono", ui-monospace, monospace; }
 .ef .pa-root.em-apoio .em-cabeca .titulo-tela { margin: 0; }
+/* A seta de ordenar das tabelas (o Mapa a deixa a 45% de opacidade: 2,97:1 no claro) em tinta secundária, inteira. */
+.ef .pa-root.em-apoio .mp-ordenar-seta:not(.mp-ordenar-ativa) { opacity: 1; color: var(--tinta-2); }
 /* Endereços e citações longas (o "Como citar" leva a URL inteira) quebram dentro da coluna em 375 px. */
 .ef .pa-root.em-apoio :is(p, li, dd, td) { overflow-wrap: break-word; }
 .ef[data-titulos="simples"] .pa-root.em-apoio :is(h2, .em-cartao-numero) { font-family: var(--font-inter), Inter, system-ui, sans-serif; font-variation-settings: normal; }
