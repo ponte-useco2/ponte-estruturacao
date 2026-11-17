@@ -7,6 +7,10 @@ import type { MetadataRoute } from "next";
  * (`/finep-subvencao` e as arquivadas em next.config.ts), as marcadas com
  * `noindex` (`/carteira`, `/perfil-institucional`) e as áreas bloqueadas no
  * robots.ts. Página pública nova entra aqui.
+ *
+ * Portal das emendas federais na PB (17/11/2026): as páginas fixas. As fichas
+ * (emenda, autor, município) são achadas pelos links das listas; o sitemap
+ * continua estático, sem ler o banco no build.
  */
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ponteprojetos.com.br";
 
@@ -21,6 +25,15 @@ const PAGINAS = [
   "/diagnostico-sbce",
   "/termos",
   "/privacidade",
+  "/emendas",
+  "/emendas/registros",
+  "/emendas/parlamentares",
+  "/emendas/municipios",
+  "/emendas/dados",
+  "/emendas/metodo",
+  "/emendas/perguntas",
+  "/emendas/acessibilidade",
+  "/emendas/mapa-do-site",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

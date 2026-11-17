@@ -1,0 +1,188 @@
+/* =====================================================================
+   Portal público das emendas federais na Paraíba (`/emendas`, 17/11/2026).
+
+   O portal usa o design system do Mapa (`../_design/` e `../mapa/mapa.css`,
+   com `.pa-root.mp-root` na raiz do conteúdo): a mesma tabela com filtro em
+   cada coluna, os mesmos cartões e a mesma trilha. Aqui fica só o que é do
+   portal (prefixo `em-`):
+     · a barra do portal (marca, menu, busca e acessibilidade);
+     · o tamanho do texto (A−, A, A+): `zoom` no conteúdo do portal, pelo
+       `data-fonte` da raiz;
+     · o alto contraste (`data-contraste="alto"`): fundo preto, texto
+       branco, links e botões amarelos, foco ciano (o padrão dos portais
+       públicos), por cima de qualquer cor do design system;
+     · as barras da série, o aviso fixo e a impressão limpa.
+   As duas preferências vêm de cookie (o layout lê no servidor): funcionam
+   sem JavaScript.
+   ===================================================================== */
+
+/* Versão 2 (17/11/2026): as páginas de apoio (dados, método, perguntas, parlamentares…) ficam no design system do Mapa,
+   dentro de `.pa-root.mp-root.em-apoio`, no meio da identidade nova (`percurso.css`). O tamanho do texto da v2
+   (`--escala`, 0,8 a 1,6) vira `zoom` aqui, que refaz o desenho na largura que sobra (nada passa da tela no celular). */
+.pa-root.em-apoio {
+  /* O 15px do design system vira rem: acompanha o tamanho de letra que a pessoa escolheu no navegador. */
+  font-size: 0.9375rem;
+  min-height: 0;
+  display: block;
+  zoom: var(--escala, 1);
+  padding-bottom: 2rem;
+}
+
+/* ------------------------------------------------ pular para o conteúdo */
+.em-pular {
+  position: absolute;
+  left: 0.75rem;
+  top: -10rem;
+  z-index: 100;
+  padding: 0.6rem 0.9rem;
+  background: #0b3445;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+}
+.em-pular:focus { top: 0.75rem; outline: 3px solid #14607a; outline-offset: 2px; }
+
+/* ------------------------------------------------ a barra do portal */
+.pa-root .em-barra {
+  background: var(--pa-surface);
+  border-bottom: 1px solid var(--pa-border);
+}
+.pa-root .em-barra-dentro {
+  width: min(var(--pa-max), calc(100% - 1.6rem));
+  margin-inline: auto;
+  padding: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.pa-root .em-barra-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.1rem; }
+.pa-root .em-marca { font-family: var(--pa-display); font-weight: 700; font-size: 1.05rem; color: var(--pa-brand); }
+.pa-root .em-marca:hover, .pa-root .em-marca:focus-visible { text-decoration: underline; }
+.pa-root .em-nav ul { display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem; }
+.pa-root .em-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.88rem;
+  color: var(--pa-text);
+  border-bottom: 2px solid transparent;
+}
+.pa-root .em-nav a:hover { border-bottom-color: var(--pa-border); }
+.pa-root .em-nav a[aria-current="page"] { font-weight: 700; border-bottom-color: var(--pa-brand-2); }
+
+.pa-root .em-busca { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; flex: 1 1 18rem; min-width: 0; }
+.pa-root .em-busca label { font-size: 0.82rem; font-weight: 600; color: var(--pa-text); }
+.pa-root .em-busca input { flex: 1 1 12rem; min-width: 0; min-height: 44px; }
+.pa-root .em-busca button { min-height: 44px; }
+
+.pa-root .em-acess { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.pa-root .em-acess-rotulo { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; font-size: 0.85rem; color: var(--pa-brand); }
+.pa-root .em-acess-rotulo svg { width: 1.4em; height: 1.4em; }
+.pa-root .em-acess a.pa-btn { min-height: 44px; min-width: 44px; padding-inline: 0.65rem; font-size: 0.85rem; }
+
+/* ------------------------------------------------ o conteúdo */
+.pa-root .em-main:focus { outline: none; }
+.pa-root .em-cabeca { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.4rem; }
+.pa-root .em-cabeca .pa-sub { max-width: 52rem; font-size: 0.95rem; }
+.pa-root .em-data { font-size: 0.85rem; color: var(--pa-muted); }
+.pa-root .em-secao { margin-top: 2rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.pa-root .em-secao > h2 { font-size: 1.2rem; }
+.pa-root .em-secao > h3, .pa-root .em-sub-h { font-size: 1rem; }
+.pa-root .em-texto { max-width: 52rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.pa-root .em-texto p, .pa-root .em-texto li { color: var(--pa-text); line-height: 1.6; }
+.pa-root .em-texto ul, .pa-root .em-lista { list-style: disc; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.pa-root .em-texto ol { list-style: decimal; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.pa-root .em-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 0.8rem; }
+.pa-root .em-cartao { display: flex; flex-direction: column; gap: 0.25rem; }
+.pa-root .em-cartao-titulo { font-size: 0.8rem; font-weight: 600; color: var(--pa-muted); }
+.pa-root .em-cartao-numero { font-family: var(--pa-display); font-size: 1.45rem; font-weight: 700; line-height: 1.15; color: var(--pa-text); overflow-wrap: anywhere; }
+.pa-root .em-cartao-nota { font-size: 0.78rem; color: var(--pa-muted); }
+.pa-root .em-atalhos { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pa-root .em-atalhos a { min-height: 44px; }
+.pa-root .em-dl { display: grid; grid-template-columns: minmax(9rem, max-content) 1fr; gap: 0.35rem 1rem; }
+.pa-root .em-dl dt { font-weight: 600; color: var(--pa-muted); font-size: 0.85rem; }
+.pa-root .em-dl dd { margin: 0; color: var(--pa-text); overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .pa-root .em-dl { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
+  .pa-root .em-dl dd { margin-bottom: 0.5rem; }
+}
+.pa-root .em-codigo { font-family: var(--pa-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pa-root .em-secundario { display: block; font-size: 0.8rem; color: var(--pa-muted); font-weight: 400; }
+.pa-root .em-paginacao { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+.pa-root .em-paginacao a, .pa-root .em-paginacao span.pa-btn { min-height: 44px; }
+.pa-root .em-baixar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.pa-root .em-baixar a { min-height: 44px; }
+
+/* As larguras da tabela das linhas fora do celular (no celular cada linha vira um bloco): sem elas, o destino e o objeto
+   espremiam até quebrar a palavra no meio. A tabela rola de lado dentro da própria caixa. */
+@media screen and (min-width: 641px) {
+  .pa-root .em-tabela-linhas .mp-tabela :is(th, td) { min-width: 8.5rem; }
+  .pa-root .em-tabela-linhas .mp-tabela tbody th { min-width: 4.5rem; }
+  .pa-root .em-tabela-linhas .mp-tabela thead th:first-child { min-width: 4.5rem; }
+  .pa-root .em-tabela-linhas .mp-tabela :is(th, td):nth-child(2) { min-width: 9.5rem; }
+  .pa-root .em-tabela-linhas .mp-tabela :is(th, td):nth-child(6) { min-width: 13rem; }
+  .pa-root .em-tabela-linhas .mp-tabela :is(th, td):nth-child(8) { min-width: 17rem; }
+  .pa-root .em-tabela-linhas .mp-tabela-principal { overflow-wrap: normal; }
+}
+
+/* O texto só para leitor de tela (`.pa-sr`, posição absoluta) dentro de uma tabela que rola de lado ficava preso à
+   página, e não à caixa: com o texto maior, ele passava da largura da tela e a página inteira rolava de lado. */
+.pa-root.em-apoio .mp-tabela-rolagem { position: relative; }
+
+/* A série: a barra é desenho; o número está sempre escrito ao lado (e na tabela). */
+.pa-root .em-serie td.em-serie-barra { min-width: 8rem; width: 30%; }
+.pa-root .em-barra-fundo { display: block; height: 0.7rem; border-radius: 0.35rem; background: var(--pa-surface-2); overflow: hidden; }
+.pa-root .em-barra-valor { display: block; height: 100%; border-radius: 0.35rem; background: var(--pa-brand-2); }
+
+/* O aviso fixo (especificação): em toda página, depois do conteúdo. */
+.pa-root .em-aviso {
+  width: min(var(--pa-max), calc(100% - 1.6rem));
+  margin: 0 auto 2.5rem;
+}
+.pa-root .em-aviso p { color: var(--pa-text); font-size: 0.85rem; }
+
+/* Foco sempre visível. */
+.pa-root.em-apoio :focus-visible { outline: 3px solid var(--pa-brand-2); outline-offset: 2px; }
+
+/* ------------------------------------------------ alto contraste */
+.ef[data-tema="contraste"] .pa-root.em-apoio {
+  --pa-bg: #000;
+  --pa-surface: #000;
+  --pa-surface-2: #000;
+  --pa-text: #fff;
+  --pa-muted: #fff;
+  --pa-border: #fff;
+  --pa-brand: #ff0;
+  --pa-brand-2: #ff0;
+  --pa-brand-soft: #000;
+  --mp-borda-campo: #fff;
+  --mp-borda-soft: #fff;
+  --mp-tracejado: #fff;
+  --mp-sombra-borda: transparent;
+  background: #000 !important;
+  color: #fff !important;
+}
+.ef[data-tema="contraste"] .pa-root.em-apoio :where(*) {
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #fff !important;
+  border-color: #fff !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+.ef[data-tema="contraste"] .pa-root.em-apoio :where(input, select, textarea, option) { background-color: #000 !important; color: #fff !important; }
+.ef[data-tema="contraste"] .pa-root.em-apoio :where(a, a *, button, button *, summary, .pa-btn, .pa-btn *) { color: #ff0 !important; }
+.ef[data-tema="contraste"] .pa-root.em-apoio a { text-decoration: underline !important; }
+.ef[data-tema="contraste"] .pa-root.em-apoio :where(button, .pa-btn, .pa-chip) { border: 2px solid #ff0 !important; }
+.ef[data-tema="contraste"] .pa-root.em-apoio .em-barra-fundo { border: 1px solid #fff !important; }
+.ef[data-tema="contraste"] .pa-root.em-apoio .em-barra-valor { background-color: #fff !important; }
+.ef[data-tema="contraste"] .pa-root.em-apoio :focus-visible { outline: 3px solid #0ff !important; outline-offset: 2px; }
+.ef[data-tema="contraste"] .pa-root.em-apoio .mp-tabela :where(th, td) { border-bottom: 1px solid #fff !important; }
+
+/* ------------------------------------------------ impressão: só o conteúdo, com o aviso */
+@media print {
+  .em-site-cabecalho, .em-site-rodape, .pa-root .em-barra, .em-pular { display: none !important; }
+  .pa-root.em-apoio { background: #fff !important; }
+  .pa-root .em-aviso { margin-bottom: 0; }
+  .pa-root .em-paginacao, .pa-root .em-baixar, .pa-root .em-atalhos { display: none !important; }
+}

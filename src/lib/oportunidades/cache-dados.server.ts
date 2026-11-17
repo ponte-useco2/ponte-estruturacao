@@ -24,12 +24,16 @@ import type { CamadaCompartilhada } from "./memoria";
 /** Uma por módulo, e o módulo é um por instância: o aviso da publicação "local" sai uma vez, e não uma por leitor. */
 const publicacaoDaInstancia = criarPublicacao();
 
-/** A camada de um leitor. `guardavel` é a regra do que vai ao cache comum; o resto, como em `criarCamadaCompartilhada`. */
+/**
+ * A camada de um leitor. `guardavel` é a regra do que vai ao cache comum; o resto, como em `criarCamadaCompartilhada`
+ * (`validadeS`, desde o portal das emendas de 17/11/2026: o padrão continua 10 minutos).
+ */
 export function camadaDoCacheDeDados<T>(o: {
   leitor: string;
   guardavel: (valor: T) => boolean;
   paraGuardar?: (valor: T) => unknown;
   doGuardado?: (guardado: unknown) => T;
+  validadeS?: number;
 }): CamadaCompartilhada<T> {
   return criarCamadaCompartilhada<T>({
     ...o,

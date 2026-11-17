@@ -50,6 +50,14 @@ export default function Home() {
                 Conhecer serviços
               </Link>
             </FadeIn>
+            {/* Portal público das emendas federais na PB (17/11/2026): na capa, fora da animação, para aparecer sem JavaScript. */}
+            <p className="mt-10 max-w-2xl text-base leading-relaxed text-slate-600">
+              Transparência:{" "}
+              <Link href="/emendas" className="font-semibold text-slate-900 underline underline-offset-4 hover:text-slate-700">
+                emendas parlamentares federais com destino à Paraíba
+              </Link>{" "}
+              — quem indicou, para onde foi, quanto foi pago, com dados abertos.
+            </p>
           </div>
         </Section>
 

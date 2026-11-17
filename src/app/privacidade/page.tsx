@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  * carteira, registro de uso do Mapa, cookies e medição da Vercel, retenção e
  * direitos). O lote 2 (Mapa aberto ao público) só entra com `MAPA_PUBLICO`.
  */
-const ATUALIZADO = "9 de outubro de 2026";
+const ATUALIZADO = "17 de novembro de 2026";
 
 export default function PrivacidadePage() {
   return (
@@ -217,6 +217,20 @@ export default function PrivacidadePage() {
           sai. Quem declara uma organização no Mapa recebe também um cookie que
           guarda qual organização está ativa: ele traz só um código interno, dura
           até um ano e, sem a sua sessão, não dá acesso a nada.
+        </p>
+        <p>
+          No portal Emendas federais na Paraíba (os endereços que começam com
+          /emendas), o painel de acessibilidade pode gravar no seu navegador três
+          cookies de preferência, e só quando você muda uma opção: um guarda o
+          tema escolhido (automático, claro, escuro ou alto contraste), outro o
+          tamanho do texto e o terceiro, o movimento (normal ou reduzido). Os
+          dois cookies da primeira versão do portal (contraste e tamanho do
+          texto), se existirem, são apagados na primeira escolha. Eles não
+          identificam você, não registram o que você consulta, não são lidos por
+          nenhuma outra parte do site nem por terceiros, valem só para os
+          endereços /emendas e expiram em um ano. Para voltar ao padrão, use o
+          próprio painel; para apagá-los, limpe os cookies do site nas
+          configurações do navegador. O portal funciona normalmente sem eles.
         </p>
         {/* [CONFERIR NO PAINEL DA VERCEL: Analytics ativo?] O texto abaixo diz "pode medir" para continuar
              verdadeiro nos dois casos: o componente `<Medicao />` está no layout raiz, mas só há medição se o

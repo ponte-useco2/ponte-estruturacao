@@ -239,9 +239,16 @@ export function criarCamadaCompartilhada<T>(o: {
   doGuardado?: (guardado: unknown) => T;
   agora?: () => number;
   avisar?: (mensagem: string) => void;
+  /**
+   * A validade do item, em segundos (portal das emendas, 17/11/2026). Padrão: `VALIDADE_DADOS_S` (10 minutos). O leitor
+   * cuja chave já leva a execução (o dado daquela chave nunca muda) pode guardar por horas; quem diz qual é a execução
+   * de agora continua nos 10 minutos.
+   */
+  validadeS?: number;
 }): CamadaCompartilhada<T> {
   const agora = o.agora ?? Date.now;
   const avisar = o.avisar ?? ((m: string) => console.warn(m));
+  const validadeS = o.validadeS !== undefined && Number.isFinite(o.validadeS) && o.validadeS > 0 ? o.validadeS : VALIDADE_DADOS_S;
   return {
     async obter(chave, carregar) {
       const leitura: { carga: Promise<T> | null; desde: number } = { carga: null, desde: 0 };
@@ -269,7 +276,7 @@ export function criarCamadaCompartilhada<T>(o: {
           return g.envelope;
         },
         [chaveDoCache(o.leitor, chave, o.publicacao)],
-        { revalidate: VALIDADE_DADOS_S, tags: etiquetasDoLeitor(o.leitor) },
+        { revalidate: validadeS, tags: etiquetasDoLeitor(o.leitor) },
       );
 
       let guardado: unknown;

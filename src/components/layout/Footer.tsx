@@ -21,6 +21,7 @@ export function Footer() {
                             <li><Link href="#servicos" className="hover:text-white transition-colors">Serviços</Link></li>
                             <li><Link href="#metodo" className="hover:text-white transition-colors">Como trabalhamos</Link></li>
                             <li><Link href="#experiencia" className="hover:text-white transition-colors">Experiência e setores</Link></li>
+                            <li><Link href="/emendas" className="hover:text-white transition-colors">Emendas federais na Paraíba</Link></li>
                         </ul>
                     </div>
 

@@ -220,6 +220,21 @@ test("camada: a falta lê do banco e guarda; a outra instância lê do cache, co
   assert.equal(b.conta.leituras, 1, "a segunda instância não foi ao banco");
 });
 
+test("camada: a validade própria do leitor (portal das emendas, 17/11/2026) vai ao revalidate; sem ela, os 10 minutos", async () => {
+  const r = relogio();
+  const pedidas: number[] = [];
+  const cachear: Cachear = (ler, _partes, opcoes) => {
+    pedidas.push(opcoes.revalidate);
+    return ler;
+  };
+  const b = banco([{ estado: "ok" }]);
+  const base = { leitor: "emendas-publico", cachear, publicacao: PRODUCAO("dpl_teste"), guardavel: () => true, agora: r.agora, avisar: () => undefined };
+  await criarCamadaCompartilhada<{ estado: string }>({ ...base, validadeS: 6 * 3600 }).obter("chave", b.carregar);
+  await criarCamadaCompartilhada<{ estado: string }>(base).obter("chave", b.carregar);
+  await criarCamadaCompartilhada<{ estado: string }>({ ...base, validadeS: -5 }).obter("chave", b.carregar);
+  assert.deepEqual(pedidas, [21_600, VALIDADE_DADOS_S, VALIDADE_DADOS_S], "a validade inválida volta ao padrão");
+});
+
 test("camada: o que não se guarda volta ao chamador por fora e não fica (falha não se guarda)", async () => {
   const r = relogio();
   const c = cacheFalso(r);
