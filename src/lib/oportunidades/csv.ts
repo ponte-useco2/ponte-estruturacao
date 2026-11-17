@@ -12,6 +12,11 @@ export interface ColunaCsv<T> {
    * 13 dígitos vira 2,63E+12. Sai como ="…", que o Excel abre como texto intacto.
    */
   texto?: boolean;
+  /**
+   * Casas decimais fixas (opção; o padrão segue "até duas casas, sem zeros à direita"): o portal das emendas pede 2, para
+   * o zero sair "0,00" e o valor em reais sempre com centavos, como diz o dicionário dele.
+   */
+  decimais?: number;
 }
 
 /** Só dígito, ponto, barra e hífen entram no ="…": nada ali pode fechar a aspa e virar fórmula. */
@@ -24,13 +29,18 @@ const IDENTIFICADOR_SEGURO = /^\d[\d./-]*$/;
  * `notas` (fonte, data de corte, aviso) vão antes do cabeçalho, uma por linha.
  */
 export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[], notas: readonly string[] = []): string {
-  const celula = (v: string | number | boolean | null | undefined, texto = false): string => {
+  const celula = (v: string | number | boolean | null | undefined, texto = false, decimais?: number): string => {
     if (v === null || v === undefined) return "";
     if (texto && typeof v === "string" && IDENTIFICADOR_SEGURO.test(v)) return `"=""${v}"""`;
     let s: string;
     if (typeof v === "boolean") s = v ? "sim" : "não";
     // Duas casas no máximo: conta de ponto flutuante gerava "395,80999999999995" no rendimento.
-    else if (typeof v === "number") s = Number.isFinite(v) ? String(Math.round(v * 100) / 100 || 0).replace(".", ",") : "";
+    else if (typeof v === "number")
+      s = !Number.isFinite(v)
+        ? ""
+        : decimais === undefined
+          ? String(Math.round(v * 100) / 100 || 0).replace(".", ",")
+          : (Math.round(v * 100) / 100 || 0).toFixed(decimais).replace(".", ",");
     else s = /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : v;
     // Texto começando com sinal ganha um espaço na frente: o Excel deixa de ler fórmula
     // ("- Aquisição…" dava #NOME?) e, ao contrário do apóstrofo, o espaço não aparece.
@@ -44,7 +54,7 @@ export function paraCsv<T>(colunas: ColunaCsv<T>[], linhas: T[], notas: readonly
     return precisaAspas ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const cabecalho = colunas.map((c) => celula(c.titulo)).join(";");
-  const corpo = linhas.map((l) => colunas.map((c) => celula(c.valor(l), c.texto)).join(";"));
+  const corpo = linhas.map((l) => colunas.map((c) => celula(c.valor(l), c.texto, c.decimais)).join(";"));
   // A5-15 (29/10/2026): fonte, data de corte e aviso viajam com o arquivo, que circula sem a página. Uma nota por linha,
   // na primeira coluna, e uma linha em branco antes do cabeçalho.
   const topo = notas.length > 0 ? [...notas.map((n) => celula(n)), ""] : [];

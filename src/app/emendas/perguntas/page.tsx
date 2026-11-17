@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { AVISO_DE_DOMINIO } from "@/lib/oportunidades/emendas-publico";
 import { Cabeca } from "../_componentes/Pecas";
+import { CaminhoDoRecurso } from "./CaminhoDoRecurso";
 
 export const metadata: Metadata = {
   title: "Perguntas frequentes",
@@ -138,6 +139,7 @@ export default function Perguntas() {
             {p.resposta}
           </section>
         ))}
+        <CaminhoDoRecurso />
       </div>
     </div>
   );

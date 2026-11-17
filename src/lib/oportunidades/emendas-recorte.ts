@@ -856,6 +856,7 @@ export function csvDoRecorte(regs: readonly RegistroExportado[]): string {
         return d.identificador && typeof v === "number" ? String(v) : v;
       },
       texto: d.identificador,
+      decimais: d.tipo === "número (reais)" ? 2 : undefined,
     })),
     [...regs],
   );
@@ -1251,4 +1252,47 @@ export function gruposDoFiltro(
     { nome: "autoria" as const, titulo: "Autoria", opcoes: autorias.filter(visivel) },
     { nome: "ano" as const, titulo: "Ano da emenda", opcoes: anos.map((a) => ({ valor: String(a), rotulo: String(a), registros: n(ano, String(a)), marcada: r.ano.includes(a) })) },
   ];
+}
+
+// ================================================================ o item do menu marcado (aria-current)
+
+/**
+ * A seção do menu de uma tela: o que veio de um município é "Municípios" (a tela do município, os registros com
+ * `municipio=` e a ficha aberta com `de=` de um recorte de município); "Emendas" é a lista geral, a ficha sem município e
+ * a busca. O início não marca nenhum. Devolve o `href` do item, ou null.
+ */
+export function secaoDoMenu(caminho: string, sp: URLSearchParams): string | null {
+  const MUN = `${BASE_PORTAL}/municipios`;
+  const EMENDAS = URL_REGISTROS;
+  if (caminho === BASE_PORTAL) return null;
+  if (caminho === MUN || caminho.startsWith(`${MUN}/`)) return MUN;
+  if (caminho === EMENDAS) return ibgeValido(sp.get("municipio")) ? MUN : EMENDAS;
+  if (caminho.startsWith(`${BASE_PORTAL}/emenda/`)) {
+    const o = lerOrigem(sp.get("de"), anoAtualBrasilia());
+    const mun = o?.tela === "registros" ? o.recorte.municipio : o?.tela === "municipio" ? o.ibge : null;
+    return mun ? MUN : EMENDAS;
+  }
+  if (caminho === `${BASE_PORTAL}/emenda` || caminho === `${BASE_PORTAL}/buscar`) return EMENDAS;
+  for (const h of ["parlamentares", "dados", "metodo", "perguntas"]) {
+    const href = `${BASE_PORTAL}/${h}`;
+    if (caminho === href || caminho.startsWith(`${href}/`)) return href;
+  }
+  return null;
+}
+
+// ================================================================ "O caminho do recurso" (Ajuda)
+
+/** As âncoras dos passos do caminho do recurso, na página de perguntas; os "?" das medidas apontam para elas. */
+export const ANCORA_DO_CAMINHO = Object.freeze({
+  previsto: "caminho-indicacao",
+  empenhado: "caminho-empenho",
+  instrumento: "caminho-instrumento",
+  realizado: "caminho-pagamento",
+  fisico: "caminho-fisico",
+  contas: "caminho-contas",
+});
+/** O link "ver no caminho do recurso" de uma definição (só das medidas que têm passo). */
+export function linkDoCaminho(chave: ChaveDefinicao): string | null {
+  const id = (ANCORA_DO_CAMINHO as Readonly<Record<string, string>>)[chave];
+  return id ? `${BASE_PORTAL}/perguntas#${id}` : null;
 }

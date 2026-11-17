@@ -186,3 +186,94 @@
   .pa-root .em-aviso { margin-bottom: 0; }
   .pa-root .em-paginacao, .pa-root .em-baixar, .pa-root .em-atalhos { display: none !important; }
 }
+
+/* ------------------------------------------------ "O caminho do recurso" (Ajuda): passos numerados, sem barra nem nota */
+.pa-root .em-caminho nav ol { list-style: decimal; padding-left: 1.3rem; display: flex; flex-wrap: wrap; gap: 0.25rem 1.6rem; }
+.pa-root .em-passos { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1.4rem; }
+.pa-root .em-passos > li { display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px solid var(--pa-border); padding-top: 0.9rem; }
+.pa-root .em-passos h3 { font-size: 1.05rem; scroll-margin-top: 1rem; }
+.pa-root .em-passos .em-medida { font-weight: 400; color: var(--pa-muted); }
+.pa-root .em-tabela-caminho { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.pa-root .em-tabela-caminho th, .pa-root .em-tabela-caminho td { text-align: left; vertical-align: top; padding: 0.45rem 0.6rem 0.45rem 0; border-bottom: 1px solid var(--pa-border); }
+.pa-root .em-tabela-caminho th { width: 34%; font-weight: 600; }
+@media (max-width: 600px) {
+  .pa-root .em-tabela-caminho, .pa-root .em-tabela-caminho tbody, .pa-root .em-tabela-caminho tr, .pa-root .em-tabela-caminho th, .pa-root .em-tabela-caminho td { display: block; width: auto; }
+  .pa-root .em-tabela-caminho th { border-bottom: 0; padding-bottom: 0; }
+}
+
+/* ------------------------------------------------ as páginas de apoio seguem o tema do portal (v2, 17/11/2026)
+   O design system do Mapa tem cores próprias (claras); aqui as variáveis dele passam a vir dos tokens da v2 (`.ef`,
+   em `percurso.css`), que mudam com o tema (claro, escuro pelo sistema ou pela escolha, alto contraste). `--pa-brand` é
+   cor de texto e de traço; onde ela é FUNDO de botão ou etiqueta com texto branco, o texto passa a ser a cor do fundo da
+   página (claro no tema claro, escuro no escuro), que contrasta com ela nos três temas. */
+.ef .pa-root.mp-root.em-apoio {
+  --pa-bg: var(--fundo);
+  --pa-surface: var(--superficie);
+  --pa-surface-2: var(--superficie-2);
+  --pa-text: var(--tinta);
+  --pa-muted: var(--tinta-2);
+  --pa-border: var(--linha-fina);
+  --pa-brand: var(--mar);
+  --pa-brand-2: var(--mar);
+  --pa-brand-soft: var(--mar-claro);
+  --pa-dark: var(--tinta);
+  --pa-dark-surface: var(--superficie-2);
+  --mp-borda-campo: var(--tinta-3);
+  --mp-borda-soft: var(--linha-fina);
+  --mp-tracejado: var(--tinta-3);
+  --mp-sobre-marca: var(--fundo);
+  --mp-sombra-borda: transparent;
+  --mp-concedente: var(--mar);
+  background: var(--fundo);
+  color: var(--tinta);
+}
+.ef .pa-root.em-apoio :is(.pa-btn-primario, .pa-tag-forte, .pa-icone-botao.pa-ativo, .pa-tipo-opcao.pa-ativo, .mp-org-botao[aria-current="true"]) {
+  color: var(--fundo);
+}
+.ef .pa-root.em-apoio .pa-btn-primario { background: var(--sol); border-color: var(--linha); color: var(--sol-tinta); }
+.ef .pa-root.em-apoio :is(.pa-tag-aderente, .pa-aba[aria-selected="true"]) { border-color: var(--linha-fina); color: var(--tinta); }
+.ef .pa-root.em-apoio .pa-escuro { background: var(--superficie-2); color: var(--tinta); }
+.ef .pa-root.em-apoio .pa-escuro :is(h2, h3, p, .pa-mono) { color: var(--tinta); }
+.ef .pa-root.em-apoio :is(.pa-input, .pa-select, .pa-textarea) { background: var(--superficie); color: var(--tinta); }
+.ef .pa-root.em-apoio { width: 100%; max-width: 1320px; margin-inline: auto; padding: 1.2rem 32px 2.5rem; }
+@media (max-width: 960px) { .ef .pa-root.em-apoio { padding-inline: 16px; } }
+.ef .pa-root.em-apoio .pa-nota { background: var(--superficie-2); border-left-color: var(--tinta-3); color: var(--tinta-2); }
+.ef .pa-root.em-apoio .pa-nota strong { color: var(--tinta); }
+.ef .pa-root.em-apoio :is(.pa-ressalva, .pa-tracejado, .pa-origem) { background: transparent; border-color: var(--tinta-3); }
+.ef .pa-root.em-apoio :is(.pa-tag-urgente, .pa-tag-nova, .pa-tag-proto, .pa-tag-ambiental, .pa-tag-economico, .pa-tag-social) {
+  background: var(--superficie-2); border-color: var(--linha-fina); color: var(--tinta);
+}
+.ef .pa-root.em-apoio .pa-chip[aria-pressed="true"], .ef .pa-root.em-apoio .pa-chip.pa-ativo { background: var(--tinta); border-color: var(--tinta); color: var(--fundo); }
+.ef .pa-root.em-apoio .pa-chip[aria-pressed="true"] .pa-mono { color: var(--fundo); }
+.ef .pa-root.em-apoio .pa-barra { background: var(--superficie-2); }
+.ef .pa-root.em-apoio .pa-barra > span { background: var(--tinta-2); }
+
+/* ------------------------------------------------ as páginas de apoio no desenho da v2 (uniformização, 17/11/2026)
+   As peças do design system do Mapa (`pa-*`, `mp-*`) que as páginas de apoio usam ganham a aparência do percurso:
+   Inter no texto, Bricolage nos títulos, painéis de borda 2px, botões de 44px, tabelas com cabeçalho e régua da v2.
+   O tamanho do texto: as peças do Mapa usam rem, então a escala vira `zoom` aqui, e as classes da v2 dentro delas
+   (trilha, título) usam escala 1 para não crescer duas vezes. */
+.ef { --zoom-apoio: var(--escala, 1); }
+.ef .pa-root.em-apoio { zoom: var(--zoom-apoio); --escala: 1; font-family: var(--font-inter), Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.5; }
+.ef .pa-root.em-apoio :is(h2, .em-secao > h2) { font-family: var(--fonte-disp), "Bricolage Grotesque", var(--font-inter), sans-serif; font-weight: 720; font-size: 28px; line-height: 1.1; font-variation-settings: "wdth" 86; color: var(--tinta); }
+.ef .pa-root.em-apoio h3 { font-size: 18px; font-weight: 700; color: var(--tinta); }
+.ef .pa-root.em-apoio .pa-sub { color: var(--tinta-2); font-size: 18px; max-width: 70ch; }
+.ef .pa-root.em-apoio .em-secao { margin-top: 2.2rem; }
+.ef .pa-root.em-apoio :is(.em-texto p, .em-texto li) { font-size: 16px; color: var(--tinta); }
+.ef .pa-root.em-apoio a:where(:not(.pa-btn):not(.btn)) { color: var(--mar); text-decoration: underline; text-underline-offset: 3px; }
+.ef .pa-root.em-apoio .pa-cartao { border: 2px solid var(--linha); border-radius: 2px; background: var(--superficie); box-shadow: none; }
+.ef .pa-root.em-apoio :is(.pa-btn, .mp-tf-abrir) { min-height: 44px; border: 2px solid var(--linha); border-radius: 2px; background: var(--superficie); color: var(--tinta); font-weight: 600; box-shadow: none; text-decoration: none; }
+.ef .pa-root.em-apoio .pa-btn-pequeno { padding: 0 12px; font-size: 14px; }
+.ef .pa-root.em-apoio :is(.pa-input, .pa-select, .pa-textarea) { border: 2px solid var(--linha); border-radius: 2px; min-height: 44px; }
+.ef .pa-root.em-apoio .pa-nota { border-left: 4px solid var(--linha); border-radius: 0; font-size: 14px; }
+.ef .pa-root.em-apoio .mp-tabela-rolagem { border: 2px solid var(--linha); border-radius: 0; background: var(--superficie); }
+.ef .pa-root.em-apoio .mp-tabela { font-size: 14px; }
+.ef .pa-root.em-apoio .mp-tabela thead th { background: var(--superficie); color: var(--tinta); border-bottom: 2px solid var(--linha); font-family: inherit; font-weight: 700; letter-spacing: 0; text-transform: none; font-size: 14px; }
+.ef .pa-root.em-apoio .mp-tabela :is(td, tbody th) { border-bottom: 1px solid var(--linha-fina); }
+.ef .pa-root.em-apoio .mp-tabela tbody tr:hover > * { background: var(--superficie-2); }
+.ef .pa-root.em-apoio .em-cartao-numero { font-family: var(--fonte-disp), "Bricolage Grotesque", var(--font-inter), sans-serif; font-weight: 760; font-variation-settings: "wdth" 82; }
+.ef .pa-root.em-apoio .em-codigo { font-family: var(--fonte-mono), "IBM Plex Mono", ui-monospace, monospace; }
+.ef .pa-root.em-apoio .em-cabeca .titulo-tela { margin: 0; }
+/* Endereços e citações longas (o "Como citar" leva a URL inteira) quebram dentro da coluna em 375 px. */
+.ef .pa-root.em-apoio :is(p, li, dd, td) { overflow-wrap: break-word; }
+.ef[data-titulos="simples"] .pa-root.em-apoio :is(h2, .em-cartao-numero) { font-family: var(--font-inter), Inter, system-ui, sans-serif; font-variation-settings: normal; }

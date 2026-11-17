@@ -10,7 +10,6 @@ import {
   anoDeBrasilia,
   anosDosArquivos,
   comoCitar,
-  data,
   inteiro,
   urlDoArquivoDoAno,
   type CampoDicionario,
@@ -195,8 +194,9 @@ export default async function DadosAbertos() {
         <div className="em-texto">
           <ul>
             <li>
-              <strong>Data do dado:</strong> arquivo de emendas do Portal da Transparência de {data(dadoAte)}. A base é atualizada toda
-              semana; o nome de cada arquivo leva a data do dado.
+              <strong>Datas:</strong> a do arquivo de emendas do Portal da Transparência está no topo desta página e no nome de cada
+              arquivo (<span className="em-codigo">-dado-AAAA-MM-DD</span>); no JSON, os metadados trazem também quando a PONTE leu as
+              fontes e a data de cada fonte. A base é atualizada toda semana.
             </li>
             <li>
               <strong>Fontes:</strong> {FONTES_DO_PORTAL.join("; ")}.
@@ -211,7 +211,7 @@ export default async function DadosAbertos() {
               traz o nome da pessoa). Não use o dado para identificar pessoas.
             </li>
             <li>
-              <strong>Como citar:</strong> {comoCitar(dadoAte, SITE_URL, hoje)}
+              <strong>Como citar:</strong> {comoCitar(dadoAte, SITE_URL, hoje, execucao?.concluidaEm ?? null)}
             </li>
           </ul>
         </div>

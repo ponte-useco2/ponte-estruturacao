@@ -133,7 +133,7 @@ export default async function Registros({ searchParams }: Props) {
     const ativa = r.ordem.campo === campo;
     return urlRegistros(mudar(r, { ordem: { campo, desc: ativa ? !r.ordem.desc : colunaNumerica(campo) } }));
   };
-  const legenda = `${plural(s.registros, "registro", "registros")} · ordem: ${nomeDaColuna(r.ordem.campo)}${r.ordem.desc ? ", do maior para o menor" : ""} · página ${pagina} de ${paginas}. Ano = ano da emenda; realizado até ${ate || "a data de referência"}.`;
+  const legenda = `${plural(s.registros, "registro", "registros")} · ordem: ${nomeDaColuna(r.ordem.campo)}${r.ordem.desc ? ", do maior para o menor" : ""} · página ${pagina} de ${paginas}. Ano = ano da emenda; realizado até a data de referência.`;
 
   return (
     <>

@@ -6,11 +6,13 @@ import {
   arquivoDoEndereco,
   csvDe,
   descreverConsulta,
+  jsonComReais,
   jsonDe,
   lerConsulta,
   lerRecorteFixo,
   metadados,
   nomeDoArquivo,
+  reais,
   type CampoDicionario,
   type ExecucaoPublica,
 } from "@/lib/oportunidades/emendas-publico";
@@ -155,11 +157,13 @@ async function recorteV2(sp: URLSearchParams, formato: "csv" | "json"): Promise<
       total: linhas.length,
     }),
     periodo: notaDoPeriodo(r.periodo, l.execucao.dadoAte),
-    totais: totaisDoArquivo(l.soma),
+    totais: Object.fromEntries(Object.entries(totaisDoArquivo(l.soma)).map(([k, v]) => [k, /^registros|^emendas/.test(k) ? v : reais(v)])),
     ausencias: "A coluna `ausencias` diz, em cada registro, os campos sem dado e o motivo (\"campo: motivo | campo: motivo\"). Zero é valor e não aparece ali.",
   };
   const campos = DICIONARIO_RECORTE.map((d) => d.campo);
-  const corpo = JSON.stringify({ metadados: meta, campos, linhas: linhas.map((x) => campos.map((c) => x[c] ?? null)) });
+  const emReais = DICIONARIO_RECORTE.map((d) => d.tipo === "número (reais)");
+  // Os reais com duas casas (0.00), como no dicionário: `jsonComReais`.
+  const corpo = jsonComReais({ metadados: meta, campos, linhas: linhas.map((x) => campos.map((c, i) => (emReais[i] ? reais(x[c]) : x[c]) ?? null)) });
   return new Response(emPartes(corpo), {
     headers: { ...cabecalhos, "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `inline; filename="${nome}"` },
   });

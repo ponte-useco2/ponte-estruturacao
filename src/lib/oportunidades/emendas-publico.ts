@@ -479,11 +479,29 @@ export function data(iso: string | null | undefined): string {
 }
 
 /** A frase da data do dado: "dado do Portal da Transparência de 30/10/2026; atualizado toda semana". */
-export function fraseDaData(e: Pick<ExecucaoPublica, "dadoAte">): string {
-  const d = dataBrasilia(e.dadoAte);
-  return d === "—"
-    ? "Data do dado do Portal da Transparência não informada; o portal é atualizado toda semana."
-    : `Dado do Portal da Transparência de ${d}; atualizado toda semana.`;
+/**
+ * As datas do portal, sempre dizendo de quê (decisão do titular, 17/11/2026): a REFERÊNCIA é a data do arquivo de
+ * emendas do Portal da Transparência (Last-Modified do zip; é o "até DD/MM" da frase do período) e a COLETA é quando a
+ * PONTE terminou de ler as fontes. "Dados do Portal da Transparência de 13/11/2026, lidos pela PONTE em 17/11/2026."
+ */
+export function fraseDasDatas(e: Pick<ExecucaoPublica, "dadoAte" | "concluidaEm">): string {
+  const d = dataBrasilia(e.dadoAte, "");
+  const c = dataBrasilia(e.concluidaEm, "");
+  return `Dados do Portal da Transparência ${d ? `de ${d}` : "com data não informada"}${c ? `, lidos pela PONTE em ${c}` : ""}.`;
+}
+
+/** A data de cada fonte (a dos instrumentos importa na ficha e no método): de quando é o dado, ou quando a PONTE leu. */
+export function datasDasFontes(
+  e: Pick<ExecucaoPublica, "dadoAte" | "concluidaEm" | "painelDadoAte" | "pixDadoAte">,
+): { chave: "portal" | "convenio" | "especial" | "fns"; fonte: string; texto: string }[] {
+  const de = (iso: string | null) => (dataBrasilia(iso, "") ? `dados de ${dataBrasilia(iso, "")}` : "data não informada");
+  const lido = dataBrasilia(e.concluidaEm, "");
+  return [
+    { chave: "portal", fonte: "Portal da Transparência (arquivo de emendas e pagamentos a favorecidos)", texto: de(e.dadoAte) },
+    { chave: "convenio", fonte: "Transferegov (convênios e contratos de repasse)", texto: de(e.painelDadoAte) },
+    { chave: "especial", fonte: "Transferegov (transferências especiais)", texto: de(e.pixDadoAte) },
+    { chave: "fns", fonte: "Fundo Nacional de Saúde (propostas e pagamentos)", texto: lido ? `lido pela PONTE em ${lido}` : "data não informada" },
+  ];
 }
 
 // ================================================================ a tabela das linhas (17.1): colunas, filtros, ordem
@@ -882,7 +900,17 @@ export function colunasCsv<T>(dicionario: readonly CampoDicionario<T>[]): Coluna
       return String(v);
     },
     texto: d.identificador,
+    decimais: d.tipo === "número (reais)" ? 2 : undefined,
   }));
+}
+
+/**
+ * Os valores em reais com duas casas também no JSON (`0.00`, `1761109.30`), como no dicionário: o `JSON.stringify`
+ * escreve `0`, então o valor vai marcado (`reais`) e a marca vira o número literal com duas casas no texto final.
+ */
+export const reais = (v: unknown): unknown => (typeof v === "number" && Number.isFinite(v) ? `\u0001reais:${(Math.round(v * 100) / 100 || 0).toFixed(2)}` : v);
+export function jsonComReais(valor: unknown): string {
+  return JSON.stringify(valor).replace(/"\\u0001reais:(-?\d+\.\d{2})"/g, "$1");
 }
 
 /** O CSV (`;`, BOM, vírgula decimal, DD/MM/AAAA, proteção de fórmula): o cabeçalho na primeira linha, sem notas em cima. */
@@ -895,7 +923,13 @@ export interface Metadados {
   titulo: string;
   descricao: string;
   fontes: string[];
-  dado_ate: string | null;
+  /** A referência: a data do arquivo de emendas do Portal da Transparência (AAAA-MM-DD). */
+  dados_do_portal_de: string | null;
+  /** A coleta: quando a PONTE terminou de ler as fontes (AAAA-MM-DD). */
+  lidos_pela_ponte_em: string | null;
+  /** A data de cada fonte, dizendo de quê. */
+  datas_das_fontes: { fonte: string; data: string }[];
+  /** Quando este arquivo foi gerado (AAAA-MM-DD). */
   gerado_em: string;
   licenca: string;
   licenca_url: string;
@@ -921,19 +955,21 @@ export const FONTES_DO_PORTAL: readonly string[] = Object.freeze([
 ]);
 
 /** "PONTE … Emendas parlamentares federais com destino à Paraíba (dados abertos). Dado de 30/10/2026. …" */
-export function comoCitar(dadoAte: string | null, site: string, acesso: string): string {
-  const d = dataBrasilia(dadoAte);
+export function comoCitar(dadoAte: string | null, site: string, acesso: string, lidoEm: string | null = null): string {
+  const d = dataBrasilia(dadoAte, "");
+  const l = dataBrasilia(lidoEm, "");
   return (
     "PONTE Estruturação de Projetos de Impacto. Emendas parlamentares federais com destino à Paraíba: dados abertos, " +
     "a partir do Portal da Transparência (CGU), do Transferegov e do Fundo Nacional de Saúde. " +
-    `${d === "—" ? "" : `Dado de ${d}. `}Disponível em ${site.replace(/\/$/, "")}${BASE_PORTAL}/dados. Acesso em ${dataBrasilia(acesso)}.`
+    `${d ? `Dados do Portal da Transparência de ${d}${l ? `, lidos pela PONTE em ${l}` : ""}. ` : ""}` +
+    `Disponível em ${site.replace(/\/$/, "")}${BASE_PORTAL}/dados. Acesso em ${dataBrasilia(acesso)}.`
   );
 }
 
 export function metadados(o: {
   titulo: string;
   descricao: string;
-  execucao: Pick<ExecucaoPublica, "dadoAte">;
+  execucao: Pick<ExecucaoPublica, "dadoAte"> & Partial<Pick<ExecucaoPublica, "concluidaEm" | "painelDadoAte" | "pixDadoAte">>;
   geradoEm: string;
   site: string;
   recorte?: string[];
@@ -943,11 +979,18 @@ export function metadados(o: {
     titulo: o.titulo,
     descricao: o.descricao,
     fontes: [...FONTES_DO_PORTAL],
-    dado_ate: o.execucao.dadoAte ? diaBrasilia(o.execucao.dadoAte) : null,
+    dados_do_portal_de: o.execucao.dadoAte ? diaBrasilia(o.execucao.dadoAte) : null,
+    lidos_pela_ponte_em: o.execucao.concluidaEm ? diaBrasilia(o.execucao.concluidaEm) : null,
+    datas_das_fontes: datasDasFontes({
+      dadoAte: o.execucao.dadoAte,
+      concluidaEm: o.execucao.concluidaEm ?? null,
+      painelDadoAte: o.execucao.painelDadoAte ?? null,
+      pixDadoAte: o.execucao.pixDadoAte ?? null,
+    }).map((x) => ({ fonte: x.fonte, data: x.texto })),
     gerado_em: diaBrasilia(o.geradoEm),
     licenca: LICENCA,
     licenca_url: LICENCA_URL,
-    como_citar: comoCitar(o.execucao.dadoAte, o.site, o.geradoEm),
+    como_citar: comoCitar(o.execucao.dadoAte, o.site, o.geradoEm, o.execucao.concluidaEm ?? null),
     dicionario: `${o.site.replace(/\/$/, "")}${BASE_PORTAL}/dados#dicionario`,
     aviso: AVISO_FIXO,
     recorte: o.recorte ?? [],
@@ -963,8 +1006,9 @@ export function metadados(o: {
  */
 export function jsonDe<T>(dicionario: readonly CampoDicionario<T>[], linhas: readonly T[], meta: Metadados): string {
   const campos = dicionario.map((d) => d.campo);
-  const listas = linhas.map((l) => campos.map((c) => (l as Record<string, unknown>)[c] ?? null));
-  return JSON.stringify({ metadados: meta, campos, linhas: listas });
+  const emReais = dicionario.map((d) => d.tipo === "número (reais)");
+  const listas = linhas.map((l) => campos.map((c, i) => (emReais[i] ? reais((l as Record<string, unknown>)[c]) : (l as Record<string, unknown>)[c]) ?? null));
+  return jsonComReais({ metadados: meta, campos, linhas: listas });
 }
 
 /** O nome do arquivo com a data do dado: "emendas-pb-linhas-dado-2026-10-30.csv". */
@@ -1384,14 +1428,18 @@ export function datasDaLinha(l: LinhaPublica): { rotulo: string; valor: string }
 
 /**
  * Versão 2 do desenho (17/11/2026): o painel de acessibilidade tem tema (automático, claro, escuro, alto contraste),
- * tamanho do texto (80% a 160%, de 10 em 10) e movimento (normal ou reduzido). Três cookies, só em `/emendas`, por um
- * ano, gravados só quando a pessoa muda uma opção. Os dois da versão 1 (`emendas_contraste`, `emendas_fonte`) ainda são
+ * tamanho do texto (80% a 160%, de 10 em 10), movimento (normal ou reduzido) e títulos em fonte simples (a Inter no lugar
+ * da Bricolage, para baixa visão e dislexia). Quatro cookies, só em `/emendas`, por um ano, gravados só quando a pessoa
+ * muda uma opção; "Restaurar padrão" apaga todos. Os dois da versão 1 (`emendas_contraste`, `emendas_fonte`) ainda são
  * lidos (o alto contraste e o tamanho escolhidos continuam) e são apagados na próxima escolha.
  */
 export const COOKIE_TEMA = "emendas_tema";
 export const COOKIE_TEXTO = "emendas_texto";
 export const COOKIE_MOVIMENTO = "emendas_movimento";
+export const COOKIE_TITULOS = "emendas_titulos";
 export const COOKIES_ANTIGOS = Object.freeze(["emendas_contraste", "emendas_fonte"] as const);
+/** Todos os cookies de preferência do portal (o "Restaurar padrão" apaga estes). */
+export const COOKIES_DO_PORTAL = Object.freeze([COOKIE_TEMA, COOKIE_TEXTO, COOKIE_MOVIMENTO, COOKIE_TITULOS, ...COOKIES_ANTIGOS]);
 /** Um ano: a escolha fica para a próxima visita, só neste navegador e só para isto. */
 export const VALIDADE_COOKIE_S = 365 * 24 * 3600;
 export type Tema = "sistema" | "claro" | "escuro" | "contraste";
@@ -1410,13 +1458,17 @@ export interface Preferencias {
   /** O tamanho do texto, em porcentagem do padrão (80 a 160). */
   texto: number;
   movimento: "normal" | "reduzido";
+  /** Títulos na fonte do texto (Inter) em vez da Bricolage. */
+  titulos: "padrao" | "simples";
 }
+export const PREFERENCIAS_PADRAO: Preferencias = Object.freeze({ tema: "sistema", texto: 100, movimento: "normal", titulos: "padrao" }) as Preferencias;
 
 /** As preferências guardadas (cookies); lixo vira o padrão. Sem os cookies novos, os da versão 1 valem. */
 export function lerPreferencias(c: {
   tema?: string | null;
   texto?: string | null;
   movimento?: string | null;
+  titulos?: string | null;
   contrasteAntigo?: string | null;
   fonteAntiga?: string | null;
 }): Preferencias {
@@ -1425,18 +1477,26 @@ export function lerPreferencias(c: {
   const antigo: Record<string, number> = { "-1": 90, "0": 100, "1": 110, "2": 130, "3": 150 };
   const texto =
     Number.isInteger(n) && n >= TEXTO_MIN && n <= TEXTO_MAX && n % TEXTO_PASSO === 0 ? n : (antigo[String(c.fonteAntiga ?? "")] ?? 100);
-  return { tema, texto, movimento: c.movimento === "reduzido" ? "reduzido" : "normal" };
+  return { tema, texto, movimento: c.movimento === "reduzido" ? "reduzido" : "normal", titulos: c.titulos === "simples" ? "simples" : "padrao" };
 }
 
-/** O pedido do painel (`?tema=escuro`, `?texto=mais|menos|normal`, `?movimento=reduzido|normal`) aplicado ao de agora. */
-export function aplicarPedido(atual: Preferencias, pedido: { tema?: string | null; texto?: string | null; movimento?: string | null }): Preferencias {
+/**
+ * O pedido do painel (`?tema=escuro`, `?texto=mais|menos|normal`, `?movimento=reduzido|normal`,
+ * `?titulos=simples|padrao`) aplicado ao de agora. O "Restaurar padrão" (`?restaurar=1`) não passa por aqui: a rota
+ * apaga os cookies.
+ */
+export function aplicarPedido(
+  atual: Preferencias,
+  pedido: { tema?: string | null; texto?: string | null; movimento?: string | null; titulos?: string | null },
+): Preferencias {
   const tema = TEMAS.some((t) => t.id === pedido.tema) ? (pedido.tema as Tema) : atual.tema;
   let texto = atual.texto;
   if (pedido.texto === "mais") texto = Math.min(TEXTO_MAX, texto + TEXTO_PASSO);
   else if (pedido.texto === "menos") texto = Math.max(TEXTO_MIN, texto - TEXTO_PASSO);
   else if (pedido.texto === "normal") texto = 100;
   const movimento = pedido.movimento === "reduzido" ? "reduzido" : pedido.movimento === "normal" ? "normal" : atual.movimento;
-  return { tema, texto, movimento };
+  const titulos = pedido.titulos === "simples" ? "simples" : pedido.titulos === "padrao" ? "padrao" : atual.titulos;
+  return { tema, texto, movimento, titulos };
 }
 
 /**

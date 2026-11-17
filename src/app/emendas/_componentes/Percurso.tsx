@@ -5,12 +5,12 @@
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { dataBrasilia } from "@/lib/oportunidades/datas";
-import type { ExecucaoPublica } from "@/lib/oportunidades/emendas-publico";
+import { fraseDasDatas, type ExecucaoPublica } from "@/lib/oportunidades/emendas-publico";
 import {
   CANAL,
   DEFINICOES,
   largura,
+  linkDoCaminho,
   metaDaDefinicao,
   paginasVisiveis,
   type CanalPublico,
@@ -72,6 +72,7 @@ export function EtiquetaCanal({ canal, className = "t14", children }: { canal: C
 /** O "?" ao lado de um número: a definição única do glossário, com território, período, atualização e fonte. */
 export function Ajuda({ chave, territorio, periodo, pequena = false }: { chave: ChaveDefinicao; territorio: string; periodo: string; pequena?: boolean }) {
   const d = DEFINICOES[chave];
+  const caminho = linkDoCaminho(chave);
   return (
     <details className={`ajuda${pequena ? " pequena" : ""}`}>
       <summary aria-label={`O que significa: ${d.titulo}`}>?</summary>
@@ -80,6 +81,13 @@ export function Ajuda({ chave, territorio, periodo, pequena = false }: { chave: 
         <span className="sub t12" style={{ marginTop: 6 }}>
           {metaDaDefinicao(chave, territorio, periodo)}
         </span>
+        {caminho ? (
+          <span className="sub t12" style={{ marginTop: 6 }}>
+            <Link prefetch={false} href={caminho}>
+              Ver no caminho do recurso
+            </Link>
+          </span>
+        ) : null}
       </div>
     </details>
   );
@@ -214,14 +222,12 @@ export function Paginacao({ pagina, paginas, url, rotulo, faixa }: { pagina: num
   );
 }
 
-const hojeBrasilia = () => dataBrasilia(new Date().toISOString());
 
 /** As três datas, uma vez por tela, no rodapé da área de conteúdo (V2-ESPEC). */
 export function Datas({ execucao }: { execucao: Pick<ExecucaoPublica, "dadoAte" | "concluidaEm"> }) {
   return (
     <p className="envolve datas t14 num">
-      Referência dos dados: <strong style={{ color: "var(--tinta)" }}>{dataBrasilia(execucao.dadoAte)}</strong> · coleta concluída:{" "}
-      {dataBrasilia(execucao.concluidaEm)} · consulta: {hojeBrasilia()} · atualização semanal, às terças ·{" "}
+      {fraseDasDatas(execucao)} Atualização semanal, às terças ·{" "}
       <Link prefetch={false} href="/emendas/metodo">
         método
       </Link>

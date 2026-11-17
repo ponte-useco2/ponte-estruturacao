@@ -9,6 +9,7 @@ import {
   COOKIE_MOVIMENTO,
   COOKIE_TEMA,
   COOKIE_TEXTO,
+  COOKIE_TITULOS,
   TEMAS,
   TEXTO_MAX,
   TEXTO_MIN,
@@ -70,6 +71,7 @@ export default async function EmendasLayout({ children }: { children: React.Reac
     tema: jar.get(COOKIE_TEMA)?.value,
     texto: jar.get(COOKIE_TEXTO)?.value,
     movimento: jar.get(COOKIE_MOVIMENTO)?.value,
+    titulos: jar.get(COOKIE_TITULOS)?.value,
     contrasteAntigo: jar.get(COOKIES_ANTIGOS[0])?.value,
     fonteAntiga: jar.get(COOKIES_ANTIGOS[1])?.value,
   });
@@ -79,6 +81,7 @@ export default async function EmendasLayout({ children }: { children: React.Reac
       className={`ef ${bricolage.variable} ${plexMono.variable}`}
       data-tema={pref.tema}
       data-movimento={pref.movimento}
+      data-titulos={pref.titulos}
       style={{ ["--escala" as string]: String(pref.texto / 100) }}
     >
       <a className="pular" href="#conteudo">
@@ -164,6 +167,22 @@ export default async function EmendasLayout({ children }: { children: React.Reac
                     </a>
                   </div>
                 </div>
+                <div role="group" aria-label="Títulos" className="grupo-a11y">
+                  <span className="t14" style={{ fontWeight: 600 }}>
+                    Títulos
+                  </span>
+                  <div className="segs">
+                    <a className="seg t14" href={pedir("titulos=padrao")} rel="nofollow" aria-current={pref.titulos === "padrao" ? "true" : undefined}>
+                      Fonte do portal
+                    </a>
+                    <a className="seg t14" href={pedir("titulos=simples")} rel="nofollow" aria-current={pref.titulos === "simples" ? "true" : undefined}>
+                      Títulos em fonte simples
+                    </a>
+                  </div>
+                </div>
+                <a className="btn t14" href={pedir("restaurar=1")} rel="nofollow">
+                  Restaurar padrão
+                </a>
                 <Link prefetch={false} className="t14" href="/emendas/acessibilidade">
                   Guia de acessibilidade
                 </Link>

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import {
   codigoEmendaDaUrl,
   codigoLegivel,
+  datasDasFontes,
   identificacaoDaEmenda,
   parametrosDoEndereco,
   urlPortalEmenda,
@@ -137,6 +138,10 @@ export default async function FichaDaEmenda({ params, searchParams }: Props) {
   const somaRecorte = somar(doRecorte);
   const escalaOk = !!(nac && nac.degraus[0].valor && nac.degraus[0].valor > 0 && pb.comPrevisto > 0);
   const fisicoConv = l.linhas.filter((x) => x.canal === "convenio");
+  // As fontes dos instrumentos desta emenda (o pagamento direto vem do Portal da Transparência).
+  const canaisDaEmenda = new Set<string>(
+    l.linhas.map((x) => ({ convenio: "convenio", pix: "especial", fns: "fns", favorecido: "portal" })[x.canal]),
+  );
   const comFisico = fisicoConv.filter((x) => x.fisico !== null).length;
 
   // A PB por município (o do recorte em destaque e no topo).
@@ -477,6 +482,14 @@ export default async function FichaDaEmenda({ params, searchParams }: Props) {
           <p className="t14" role="status">
             {inst.filtrados === inst.total ? plural(inst.total, "instrumento", "instrumentos") : `${plural(inst.filtrados, "instrumento encontrado", "instrumentos encontrados")} de ${inteiroPt(inst.total)}`}
             {fisicoConv.length ? ` · execução física ${coberturaDoFisico(comFisico, fisicoConv.length)}` : ""}
+          </p>
+          <p className="t14 tinta-2">
+            Datas das fontes dos instrumentos:{" "}
+            {datasDasFontes(l.execucao)
+              .filter((d) => canaisDaEmenda.has(d.chave))
+              .map((d) => `${d.fonte}, ${d.texto}`)
+              .join("; ")}
+            .
           </p>
           <div className="painel">
             <div className="instr-linha instr-cab t12 rotulo" aria-hidden="true">

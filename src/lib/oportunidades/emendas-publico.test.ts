@@ -11,6 +11,7 @@ import { ROTULO_ETAPA_LAUDO } from "./diagnostico.ts";
 import {
   ARQUIVOS,
   AUTOAVALIACAO_PNTP,
+  COOKIES_DO_PORTAL,
   CAMPOS_PROIBIDOS,
   CATALOGO_BRUTO,
   COLUNAS_AGREGADO,
@@ -40,6 +41,7 @@ import {
   codigoEmendaDaUrl,
   codigoLegivel,
   comoCitar,
+  fraseDasDatas,
   consultaDoAno,
   csvDe,
   descreverConsulta,
@@ -381,29 +383,33 @@ test("CSV: cabeçalho na primeira linha (os nomes dos campos), BOM, ponto e vír
   const em = (campo: string) => celulas[DICIONARIO_LINHAS.findIndex((d) => d.campo === campo)];
   assert.equal(em("codigo"), '"=""202412770001"""', "o código não vira 2,02E+11");
   assert.equal(em("ibge"), '"=""2507507"""');
-  assert.equal(em("pago"), "600,5");
+  assert.equal(em("pago"), "600,50", "reais com duas casas");
   assert.equal(em("caducou_em"), "31/12/2025");
   assert.equal(em("no_catalogo"), "sim");
   assert.equal(em("ente_nome"), '" =SOMA(A1)"', "fórmula neutralizada");
-  assert.equal(em("previsto"), "1000");
+  assert.equal(em("previsto"), "1000,00");
 });
 
 test("JSON: metadados (fonte, data, licença, como citar, recorte), os campos do dicionário em ordem e cada linha uma lista", () => {
   const meta = metadados({
     titulo: "t",
     descricao: "d",
-    execucao: { dadoAte: "2026-10-30T04:48:48+00:00" },
+    execucao: { dadoAte: "2026-10-30T04:48:48+00:00", concluidaEm: "2026-11-04T12:00:00Z", painelDadoAte: "2026-11-03T12:00:00Z", pixDadoAte: null },
     geradoEm: "2026-11-17T15:00:00Z",
     site: "https://ponteprojetos.com.br/",
     recorte: ["busca “patos”"],
     total: 1,
   });
   const j = JSON.parse(jsonDe(DICIONARIO_LINHAS, [linha()], meta));
-  assert.equal(j.metadados.dado_ate, "2026-10-30");
+  assert.equal(j.metadados.dados_do_portal_de, "2026-10-30");
+  assert.equal(j.metadados.lidos_pela_ponte_em, "2026-11-04");
+  assert.deepEqual(j.metadados.datas_das_fontes.map((d: { data: string }) => d.data), ["dados de 30/10/2026", "dados de 03/11/2026", "data não informada", "lido pela PONTE em 04/11/2026"]);
+  assert.ok(!("dado_ate" in j.metadados), "nenhuma data sem dizer de quê");
   assert.equal(j.metadados.gerado_em, "2026-11-17");
   assert.match(j.metadados.licenca, /CC BY 4\.0/);
   assert.equal(j.metadados.dicionario, "https://ponteprojetos.com.br/emendas/dados#dicionario");
-  assert.match(j.metadados.como_citar, /PONTE Estruturação de Projetos de Impacto.*Dado de 30\/10\/2026.*Acesso em 17\/11\/2026/);
+  assert.match(j.metadados.como_citar, /PONTE Estruturação de Projetos de Impacto.*Dados do Portal da Transparência de 30\/10\/2026, lidos pela PONTE em 04\/11\/2026.*Acesso em 17\/11\/2026/);
+  assert.equal(fraseDasDatas({ dadoAte: "2026-11-13T19:24:48+00:00", concluidaEm: "2026-11-17T18:49:10Z" }), "Dados do Portal da Transparência de 13/11/2026, lidos pela PONTE em 17/11/2026.");
   assert.deepEqual(Object.keys(j), ["metadados", "campos", "linhas"]);
   assert.deepEqual(j.campos, DICIONARIO_LINHAS.map((d) => d.campo));
   assert.ok(Array.isArray(j.linhas[0]) && j.linhas[0].length === j.campos.length, "a linha é uma lista na ordem de `campos`");
@@ -648,19 +654,22 @@ test("ficha: a execução do catálogo soma só a PB e lista as localidades de f
 // ================================================================ acessibilidade
 
 test("preferências (v2): tema, texto de 80% a 160% e movimento; lixo vira o padrão; os cookies da v1 ainda valem", () => {
-  assert.deepEqual(lerPreferencias({}), { tema: "sistema", texto: 100, movimento: "normal" });
-  assert.deepEqual(lerPreferencias({ tema: "escuro", texto: "160", movimento: "reduzido" }), { tema: "escuro", texto: 160, movimento: "reduzido" });
-  assert.deepEqual(lerPreferencias({ tema: "rosa", texto: "170", movimento: "x" }), { tema: "sistema", texto: 100, movimento: "normal" });
+  assert.deepEqual(lerPreferencias({}), { tema: "sistema", texto: 100, movimento: "normal", titulos: "padrao" });
+  assert.deepEqual(lerPreferencias({ tema: "escuro", texto: "160", movimento: "reduzido", titulos: "simples" }), { tema: "escuro", texto: 160, movimento: "reduzido", titulos: "simples" });
+  assert.deepEqual(lerPreferencias({ tema: "rosa", texto: "170", movimento: "x", titulos: "y" }), { tema: "sistema", texto: 100, movimento: "normal", titulos: "padrao" });
   assert.deepEqual(lerPreferencias({ texto: "95" }).texto, 100, "fora do passo de 10");
-  assert.deepEqual(lerPreferencias({ contrasteAntigo: "alto", fonteAntiga: "3" }), { tema: "contraste", texto: 150, movimento: "normal" });
+  assert.deepEqual(lerPreferencias({ contrasteAntigo: "alto", fonteAntiga: "3" }), { tema: "contraste", texto: 150, movimento: "normal", titulos: "padrao" });
   assert.equal(lerPreferencias({ tema: "claro", contrasteAntigo: "alto" }).tema, "claro", "o cookie novo vence o velho");
-  const p = { tema: "sistema" as const, texto: 160, movimento: "normal" as const };
+  const p = { tema: "sistema" as const, texto: 160, movimento: "normal" as const, titulos: "padrao" as const };
   assert.equal(aplicarPedido(p, { texto: "mais" }).texto, 160, "teto");
   assert.equal(aplicarPedido({ ...p, texto: 80 }, { texto: "menos" }).texto, 80, "piso");
   assert.equal(aplicarPedido(p, { texto: "menos" }).texto, 150);
   assert.equal(aplicarPedido(p, { texto: "normal" }).texto, 100);
-  assert.deepEqual(aplicarPedido(p, { tema: "contraste", movimento: "reduzido" }), { tema: "contraste", texto: 160, movimento: "reduzido" });
-  assert.deepEqual(aplicarPedido(p, { tema: "x", texto: "y", movimento: "z" }), p);
+  assert.deepEqual(aplicarPedido(p, { tema: "contraste", movimento: "reduzido" }), { tema: "contraste", texto: 160, movimento: "reduzido", titulos: "padrao" });
+  assert.equal(aplicarPedido(p, { titulos: "simples" }).titulos, "simples");
+  assert.equal(aplicarPedido({ ...p, titulos: "simples" }, { titulos: "padrao" }).titulos, "padrao");
+  assert.deepEqual(aplicarPedido(p, { tema: "x", texto: "y", movimento: "z", titulos: "w" }), p);
+  assert.deepEqual([...COOKIES_DO_PORTAL].sort(), ["emendas_contraste", "emendas_fonte", "emendas_movimento", "emendas_tema", "emendas_texto", "emendas_titulos"], "o restaurar apaga todos");
 });
 
 test("volta da preferência: só para dentro de /emendas no mesmo site; o resto volta ao início do portal", () => {
@@ -700,4 +709,21 @@ test("tabela: as colunas do 17.1 estão na lista, cada uma com filtro, e as vis�
     if (!c.oculta) assert.notEqual(c.ordenavel, false, `${c.id} ordena`);
     assert.notEqual(c.id, "o", "nenhuma coluna pode se chamar 'o'");
   }
+});
+
+test("arquivos do portal: reais sempre com duas casas — zero é 0,00 no CSV e 0.00 no JSON (o dicionário)", () => {
+  const linhas = [linha({ pago: 0, previsto: 1000, convenio_desembolsado: 1761109.3 })];
+  const csv = csvDe(DICIONARIO_LINHAS, linhas);
+  const [cab, l1] = csv.replace(/^\uFEFF/, "").split("\r\n");
+  const col = (nome: string) => l1.split(";")[cab.split(";").indexOf(nome)];
+  assert.equal(col("pago"), "0,00");
+  assert.equal(col("previsto"), "1000,00");
+  assert.equal(col("convenio_desembolsado"), "1761109,30");
+  assert.equal(col("ano"), "2024", "inteiro continua sem casas");
+  const json = jsonDe(DICIONARIO_LINHAS, linhas, { titulo: "t" } as unknown as Parameters<typeof jsonDe>[2]);
+  assert.match(json, /,0\.00,|,0\.00\]/, "0.00 literal no JSON");
+  assert.match(json, /1761109\.30/);
+  const lido = JSON.parse(json) as { campos: string[]; linhas: unknown[][] };
+  assert.equal(lido.linhas[0][lido.campos.indexOf("pago")], 0, "continua número");
+  assert.ok(!json.includes("reais:"), "nenhuma marca sobra");
 });

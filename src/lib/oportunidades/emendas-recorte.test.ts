@@ -49,6 +49,7 @@ import {
   urlFicha,
   urlRegistros,
   gruposDoFiltro,
+  secaoDoMenu,
   type Soma,
 } from "./emendas-recorte.ts";
 
@@ -311,4 +312,20 @@ test("painel Filtrar: contagem ao lado de cada opção, ordem fixa ou alfabétic
   assert.deepEqual(grupo("autoria").opcoes.map((o) => [o.rotulo, o.registros, o.marcada]), [["Comissão de Turismo", 3, false], ["Damião Feliciano", 30, false], ["não localizado na fonte", 0, true]], "alfabética; a marcada sem registro continua, para desmarcar");
   assert.deepEqual(grupo("ano").opcoes.map((o) => [o.valor, o.registros]), [["2023", 0], ["2024", 10], ["2025", 0], ["2026", 0]]);
   assert.equal(gruposDoFiltro(null, r)[0].opcoes[0].registros, null, "sem as contagens, o painel sai sem números");
+});
+
+test("menu: o que veio de um município marca Municípios; Emendas só na lista geral, na ficha sem município e na busca", () => {
+  const s = (c: string, q = "") => secaoDoMenu(c, new URLSearchParams(q));
+  assert.equal(s("/emendas"), null);
+  assert.equal(s("/emendas/municipios/2510808", "periodo=2023-2026"), "/emendas/municipios");
+  assert.equal(s("/emendas/registros", "municipio=2510808&periodo=2023-2026"), "/emendas/municipios");
+  assert.equal(s("/emendas/registros", "periodo=2023-2026"), "/emendas/registros");
+  assert.equal(s("/emendas/emenda/202450070002", "de=%2Femendas%2Fregistros%3Fmunicipio%3D2510808%26periodo%3D2023-2026"), "/emendas/municipios");
+  assert.equal(s("/emendas/emenda/202450070002", "de=%2Femendas%2Fmunicipios%2F2510808%3Fperiodo%3D2023-2026"), "/emendas/municipios");
+  assert.equal(s("/emendas/emenda/202450070002", "de=%2Femendas%2Fregistros%3Fperiodo%3D2023-2026"), "/emendas/registros");
+  assert.equal(s("/emendas/emenda/202450070002"), "/emendas/registros");
+  assert.equal(s("/emendas/emenda/202450070002", "de=%2F%2Fexemplo.com"), "/emendas/registros", "origem inválida: sem município");
+  assert.equal(s("/emendas/buscar", "q=patos"), "/emendas/registros");
+  assert.equal(s("/emendas/parlamentares/2712"), "/emendas/parlamentares");
+  assert.equal(s("/emendas/perguntas"), "/emendas/perguntas");
 });

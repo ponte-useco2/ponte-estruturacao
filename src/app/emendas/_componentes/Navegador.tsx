@@ -6,24 +6,40 @@
  * foco na linha é só um conforto da volta da ficha.
  */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
-import { ITENS_DO_MENU, ehPercurso, itemAtual } from "./menu";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { secaoDoMenu } from "@/lib/oportunidades/emendas-recorte";
+import { ITENS_DO_MENU, ehPercurso } from "./menu";
 
-/** O menu principal, com `aria-current` na seção aberta. */
+function ListaDoMenu({ atual }: { atual: string | null }) {
+  return (
+    <ul>
+      {ITENS_DO_MENU.filter((i) => i.noMenu).map((i) => (
+        <li key={i.href}>
+          <Link prefetch={false} href={i.href} aria-current={atual === i.href ? "page" : undefined}>
+            {i.rotulo}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A marca do item atual depende também da consulta (`municipio=`, `de=`): `secaoDoMenu`. */
+function ListaComConsulta() {
+  const caminho = usePathname() ?? "";
+  const sp = useSearchParams();
+  return <ListaDoMenu atual={secaoDoMenu(caminho, new URLSearchParams(sp?.toString() ?? ""))} />;
+}
+
+/** O menu principal, com `aria-current` na seção aberta (Municípios para o que veio de um município). */
 export function NavPortal() {
   const caminho = usePathname() ?? "";
   return (
     <nav aria-label="Principal" className="nav-principal t16">
-      <ul>
-        {ITENS_DO_MENU.filter((i) => i.noMenu).map((i) => (
-          <li key={i.href}>
-            <Link prefetch={false} href={i.href} aria-current={itemAtual(caminho, i.href) ? "page" : undefined}>
-              {i.rotulo}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <Suspense fallback={<ListaDoMenu atual={secaoDoMenu(caminho, new URLSearchParams())} />}>
+        <ListaComConsulta />
+      </Suspense>
     </nav>
   );
 }

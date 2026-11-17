@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AUTOAVALIACAO_PNTP, FONTES_OFICIAIS, ROTULO_SITUACAO_PNTP, data } from "@/lib/oportunidades/emendas-publico";
+import { AUTOAVALIACAO_PNTP, FONTES_OFICIAIS, ROTULO_SITUACAO_PNTP, datasDasFontes } from "@/lib/oportunidades/emendas-publico";
 import { lerExecucaoPublica } from "@/lib/oportunidades/emendas-publico.server";
 import { LinkFora } from "../../mapa/_componentes/LinkFora";
 import { TabelaRolagem } from "../../mapa/_componentes/TabelaRolagem";
@@ -21,6 +21,8 @@ const ELOS = [{ rotulo: "Método e PNTP" }] as const;
 export default async function Metodo() {
   const l = await lerExecucaoPublica();
   const e = l.estado === "ok" ? l.execucao : null;
+  const datas = e ? datasDasFontes(e) : [];
+  const fonteDe = (k: string) => datas.find((d) => d.chave === k)?.texto ?? "data não informada";
   return (
     <div className="pa-pilha-larga">
       <Cabeca elos={ELOS} kicker="Emendas federais na Paraíba" titulo="Método e autoavaliação pelo PNTP" execucao={e}>
@@ -33,17 +35,17 @@ export default async function Metodo() {
           <ul>
             <li>
               <strong>Portal da Transparência (CGU)</strong> — o arquivo de emendas parlamentares (o catálogo: autor, tipo, número, localidade,
-              função, ação e a execução orçamentária) e os pagamentos a favorecidos. Data do arquivo em uso: {data(e?.dadoAte)}.{" "}
+              função, ação e a execução orçamentária) e os pagamentos a favorecidos ({fonteDe("portal")}).{" "}
               <LinkFora href={FONTES_OFICIAIS.portalDownload}>Arquivo oficial</LinkFora>.
             </li>
             <li>
               <strong>Transferegov</strong> — os convênios e contratos de repasse (SICONV) com emenda: número, concedente, objeto, vigência,
-              situação, repasse e desembolso (dado de {data(e?.painelDadoAte)}); e as transferências especiais: o plano de ação, a área e o
-              pago (dado de {data(e?.pixDadoAte)}).
+              situação, repasse e desembolso ({fonteDe("convenio")}); e as transferências especiais: o plano de ação, a área e o pago (
+              {fonteDe("especial")}).
             </li>
             <li>
               <strong>Fundo Nacional de Saúde</strong> — as propostas fundo a fundo com emenda: o tipo da proposta, o recurso, a situação e os
-              pagamentos.
+              pagamentos ({fonteDe("fns")}).
             </li>
             <li>
               <strong>Periodicidade:</strong> a PONTE relê as fontes toda semana. A data de cada fonte aparece nas páginas e nos arquivos.

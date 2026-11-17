@@ -6,8 +6,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
-  data,
-  fraseDaData,
+  fraseDasDatas,
   inteiro,
   largura,
   moedaCurta,
@@ -23,17 +22,21 @@ export interface Elo {
   href?: string;
 }
 
-/** A trilha "Onde você está" (13.2): lista ordenada num `nav` com nome; o último elo é a página aberta. */
+/**
+ * A trilha (13.2), no desenho da v2 (a mesma das telas do percurso): Início › … › a página aberta, com `aria-current`.
+ */
 export function Trilha({ elos }: { elos: readonly Elo[] }) {
-  const todos: Elo[] = [{ rotulo: "PONTE", href: "/" }, { rotulo: "Emendas federais na Paraíba", href: "/emendas" }, ...elos];
+  const todos: Elo[] = [{ rotulo: "Início", href: "/emendas" }, ...elos];
   const ultimo = todos.length - 1;
   return (
-    <nav aria-label="Onde você está" className="mp-trilha">
-      <ol className="mp-mun-trilha">
+    <nav aria-label="Trilha" className="trilha t14">
+      <ol>
         {todos.map((e, i) => (
           <li key={`${i}-${e.rotulo}`}>
             {i === ultimo ? (
-              <span aria-current="page">{e.rotulo}</span>
+              <span aria-current="page" style={{ fontWeight: 700 }}>
+                {e.rotulo}
+              </span>
             ) : e.href ? (
               <Link prefetch={false} href={e.href}>
                 {e.rotulo}
@@ -48,16 +51,12 @@ export function Trilha({ elos }: { elos: readonly Elo[] }) {
   );
 }
 
-/** A data do dado, sempre à vista (atualidade). */
+/** As datas, uma vez por tela e sempre dizendo de quê (referência e coleta). */
 export function DataDoDado({ execucao }: { execucao: Pick<ExecucaoPublica, "dadoAte" | "concluidaEm"> }) {
-  return (
-    <p className="em-data">
-      {fraseDaData(execucao)} Leitura da PONTE em {data(execucao.concluidaEm)}.
-    </p>
-  );
+  return <p className="em-data t14 tinta-2">{fraseDasDatas(execucao)} Atualização semanal, às terças.</p>;
 }
 
-/** O topo de cada página: a trilha, o rótulo, o título, o texto e (quando há) a data do dado. */
+/** O topo de cada página de apoio, no desenho da v2: a trilha, o rótulo, o título, o texto e as datas. */
 export function Cabeca({
   elos,
   kicker,
@@ -72,10 +71,10 @@ export function Cabeca({
   execucao?: Pick<ExecucaoPublica, "dadoAte" | "concluidaEm"> | null;
 }) {
   return (
-    <div className="em-cabeca">
+    <div className="em-cabeca pilha" style={{ gap: 12 }}>
       <Trilha elos={elos} />
-      <p className="pa-kicker">{kicker}</p>
-      <h1 className="pa-titulo">{titulo}</h1>
+      <p className="t14 rotulo tinta-2">{kicker}</p>
+      <h1 className="disp titulo-tela">{titulo}</h1>
       {children}
       {execucao && <DataDoDado execucao={execucao} />}
     </div>

@@ -346,7 +346,7 @@ export default async function MunicipioPage({ params, searchParams }: Props) {
               </div>
             </section>
             <p className="t14 nota">
-              Período: {textoPeriodo(periodo)}, pelo ano da emenda; o realizado é acumulado até {ate || "a data de referência"}.
+              Período: {textoPeriodo(periodo)}, pelo ano da emenda; o realizado é acumulado até a data de referência.
             </p>
           </>
         )}

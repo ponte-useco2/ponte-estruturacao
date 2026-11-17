@@ -75,6 +75,9 @@
 .ef .cinetico > span:nth-child(2) { animation-delay: .09s; } .ef .cinetico > span:nth-child(3) { animation-delay: .18s; }
 @keyframes ef-entra { from { opacity: 0; transform: translateY(.18em); font-variation-settings: "wdth" 100; font-weight: 300; } to { opacity: 1; transform: none; font-variation-settings: "wdth" 80; font-weight: 780; } }
 .ef[data-movimento="reduzido"] *, .ef[data-movimento="reduzido"] *::before { animation: none !important; transition: none !important; }
+/* "Menos movimento" também desliga a rolagem suave do site (o `scroll-smooth` mora no <html>, fora do portal): os links
+   para âncoras (índice da ficha, passos do caminho do recurso, "?") pulam direto. */
+:root:has(.ef[data-movimento="reduzido"]) { scroll-behavior: auto; }
 @media (prefers-reduced-motion: reduce) { .ef *, .ef *::before { animation: none !important; transition: none !important; } }
 .ef .marca { background: linear-gradient(transparent 60%, var(--sol) 60%, var(--sol) 94%, transparent 94%); padding: 0 .06em; }
 .ef[data-tema="contraste"] .marca { background: none; text-decoration: underline; text-decoration-color: var(--sol); text-decoration-thickness: .08em; }
@@ -373,7 +376,7 @@
   .ef .tabela-registros .gl-l > .num.direita { white-space: normal; }
 }
 .ef .pa-root.em-apoio .em-data, .ef .pa-root.em-apoio code { overflow-wrap: anywhere; }
-.ef .filtrar > summary { list-style: none; border: 0; width: 100%; justify-content: flex-start; flex-wrap: wrap; text-align: left; }
+.ef .filtrar > summary { list-style: none; border: 0; width: 100%; justify-content: flex-start; flex-wrap: wrap; text-align: left; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 .ef .filtrar > summary::-webkit-details-marker { display: none; }
 .ef .filtrar[open] > summary { border-bottom: 1px solid var(--linha-fina); }
 .ef .filtros-form fieldset.longo { max-height: 22em; overflow: auto; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; border: 1px solid var(--linha-fina); padding: 8px 12px; }
@@ -395,3 +398,16 @@
   /* No cartão o objeto aparece inteiro (nada cortado a 375 px, com o texto a 160%). */
   .ef .tabela-registros .clamp3 { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }
 }
+
+/* ------------------------------------------------ títulos em fonte simples (painel de acessibilidade) */
+.ef[data-titulos="simples"] .disp,
+.ef[data-titulos="simples"] .pa-root.em-apoio :is(h1, h2, h3) {
+  font-family: var(--font-inter), Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-variation-settings: normal;
+  letter-spacing: 0;
+}
+.ef[data-titulos="simples"] .titulo-abertura,
+.ef[data-titulos="simples"] .titulo-tela,
+.ef[data-titulos="simples"] .valor-heroi,
+.ef[data-titulos="simples"] .numero-grande { font-weight: 700; line-height: 1.1; }
+.ef[data-titulos="simples"] .cinetico > span { animation: none; }

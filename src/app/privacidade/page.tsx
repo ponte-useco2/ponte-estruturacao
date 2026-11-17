@@ -220,17 +220,19 @@ export default function PrivacidadePage() {
         </p>
         <p>
           No portal Emendas federais na Paraíba (os endereços que começam com
-          /emendas), o painel de acessibilidade pode gravar no seu navegador três
-          cookies de preferência, e só quando você muda uma opção: um guarda o
-          tema escolhido (automático, claro, escuro ou alto contraste), outro o
-          tamanho do texto e o terceiro, o movimento (normal ou reduzido). Os
-          dois cookies da primeira versão do portal (contraste e tamanho do
-          texto), se existirem, são apagados na primeira escolha. Eles não
-          identificam você, não registram o que você consulta, não são lidos por
-          nenhuma outra parte do site nem por terceiros, valem só para os
-          endereços /emendas e expiram em um ano. Para voltar ao padrão, use o
-          próprio painel; para apagá-los, limpe os cookies do site nas
-          configurações do navegador. O portal funciona normalmente sem eles.
+          /emendas), o painel de acessibilidade pode gravar no seu navegador
+          quatro cookies de preferência, e só quando você muda uma opção:
+          emendas_tema guarda o tema escolhido (automático, claro, escuro ou alto
+          contraste), emendas_texto o tamanho do texto, emendas_movimento o
+          movimento (normal ou reduzido) e emendas_titulos se os títulos usam a
+          fonte simples. Os dois cookies da primeira versão do portal
+          (emendas_contraste e emendas_fonte), se existirem, são apagados na
+          primeira escolha. Eles não identificam você, não registram o que você
+          consulta, não são lidos por nenhuma outra parte do site nem por
+          terceiros, valem só para os endereços /emendas e expiram em um ano. O
+          botão Restaurar padrão, no mesmo painel, apaga todos eles; limpar os
+          cookies do site nas configurações do navegador também. O portal
+          funciona normalmente sem eles.
         </p>
         {/* [CONFERIR NO PAINEL DA VERCEL: Analytics ativo?] O texto abaixo diz "pode medir" para continuar
              verdadeiro nos dois casos: o componente `<Medicao />` está no layout raiz, mas só há medição se o
