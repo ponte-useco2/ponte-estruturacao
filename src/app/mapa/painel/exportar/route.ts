@@ -31,6 +31,8 @@ import {
 } from "@/lib/oportunidades/painel.server";
 import { TABELA_PAINEL_VENCIDOS, estadosDaVisao, valoresDoMunicipioPainel } from "@/lib/oportunidades/painel-tabelas";
 import { ehAdministrador, visitanteAtual } from "@/lib/supabase-auth";
+// Diagnóstico externo de 17/11/2026 (S1): nome de MEI pode trazer o CPF; a busca já mascarava, o CSV não.
+import { semCpf } from "@/lib/oportunidades/busca-unificada";
 
 /**
  * CSV do painel — só administradores, como a página.
@@ -51,7 +53,7 @@ const pct = (v: number | null) => (v === null ? null : Math.round(v * 1000) / 10
 
 const COLUNAS_CONVENIO: ColunaCsv<ConvenioPainel>[] = [
   { titulo: "Nº do convênio", valor: (c) => c.nr_convenio },
-  { titulo: "Proponente", valor: (c) => c.proponente },
+  { titulo: "Proponente", valor: (c) => semCpf(c.proponente ?? "") },
   { titulo: "Tipo de proponente", valor: (c) => agente(c.tipo_agente) },
   { titulo: "Município", valor: (c) => c.municipio },
   { titulo: "UF", valor: (c) => c.uf },
@@ -112,7 +114,7 @@ const COLUNAS_MUDANCA: ColunaCsv<MudancaPainel>[] = [
   { titulo: "Grupo", valor: (m) => ROTULO_GRUPO_MUDANCA[definicaoMudanca(m.tipo).grupo] },
   { titulo: "Convênio ou proposta", valor: (m) => (m.alvo === "proposta" ? "Proposta" : "Convênio") },
   { titulo: "Número", valor: (m) => m.numero ?? m.chave, texto: true },
-  { titulo: "Proponente", valor: (m) => m.proponente },
+  { titulo: "Proponente", valor: (m) => semCpf(m.proponente ?? "") },
   { titulo: "Tipo de proponente", valor: (m) => agente(m.tipo_agente) },
   { titulo: "Município", valor: (m) => m.municipio },
   { titulo: "UF", valor: (m) => m.uf },
@@ -129,7 +131,7 @@ type PropostaExportada = Awaited<ReturnType<typeof lerPropostasParaExportar>> ex
 
 const COLUNAS_PROPOSTA: ColunaCsv<PropostaExportada>[] = [
   { titulo: "Nº da proposta", valor: (p) => p.nr_proposta, texto: true },
-  { titulo: "Proponente", valor: (p) => p.proponente },
+  { titulo: "Proponente", valor: (p) => semCpf(p.proponente ?? "") },
   { titulo: "Tipo de proponente", valor: (p) => agente(p.tipo_agente) },
   { titulo: "Município", valor: (p) => p.municipio },
   { titulo: "UF", valor: (p) => p.uf },

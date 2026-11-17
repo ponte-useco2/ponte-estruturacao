@@ -13,7 +13,7 @@ import { avisoLeitura } from "@/lib/oportunidades/aviso-leitura";
 import type { ReactNode } from "react";
 import { formatarPublicacao } from "@/lib/oportunidades/central";
 import { UFS } from "@/lib/oportunidades/organizacao";
-import { urlBusca, urlProposta, type ParametrosBusca } from "@/lib/oportunidades/busca";
+import { urlProposta } from "@/lib/oportunidades/busca";
 import { urlFicha } from "@/lib/oportunidades/painel";
 import {
   CANAIS_RADAR,
@@ -32,6 +32,7 @@ import {
   janela24hTocaFimDeSemana,
   moedaCurta,
   rotuloTipo,
+  urlPorPrograma,
   urlRadar,
   valoresDaDisputa,
   valoresDoEnvio,
@@ -104,10 +105,20 @@ function VazioRadar({
   );
 }
 
-const BUSCA_VAZIA: ParametrosBusca = { aba: "instrumentos", q: "", uf: null, municipio: null, tema: null, grupo: null, pagina: 1 };
-
-/** O programa na busca: as propostas que o citam, na mesma UF do recorte. */
-const urlPorPrograma = (programa: string, uf: string | null) => urlBusca(BUSCA_VAZIA, { aba: "propostas", q: programa, uf });
+/**
+ * O nome do programa com o link para as propostas dele na busca, pelo código (`urlPorPrograma`, em `radar.ts`;
+ * Diagnóstico externo de 17/11/2026, A04/A15). Sem código, o nome sem link.
+ */
+function LinkPrograma({ codigo, nome, uf, className }: { codigo: string | null; nome: string; uf: string | null; className?: string }) {
+  const href = urlPorPrograma(codigo, nome, uf);
+  return href ? (
+    <LinkMapa href={href} className={className}>
+      {nome}
+    </LinkMapa>
+  ) : (
+    <span className={className}>{nome}</span>
+  );
+}
 
 /** O recorte no nome do CSV: "brasil-30d-nova", "pb-7d-revisada". */
 const recorteNoNome = (p: ParametrosRadar) => `${(p.uf ?? "brasil").toLowerCase()}-${p.dias}d-${p.categoria.replace("_", "-")}`;
@@ -234,9 +245,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
                 celulas: {
                   programa: (
                     <>
-                      <LinkMapa href={urlPorPrograma(d.programa, p.uf)} className="mp-tabela-principal">
-                        {d.programa}
-                      </LinkMapa>
+                      <LinkPrograma codigo={d.cod_programa} nome={d.programa} uf={p.uf} className="mp-tabela-principal" />
                       <span className="mp-tabela-secundario">{d.orgao}</span>
                     </>
                   ),
@@ -283,7 +292,7 @@ export function RadarConteudo({ p, leitura }: { p: ParametrosRadar; leitura: Lei
                   ) : (
                     ROTULO_CATEGORIA[e.categoria]
                   ),
-                  programa: e.programa ? <LinkMapa href={urlPorPrograma(e.programa, "PB")}>{e.programa}</LinkMapa> : "—",
+                  programa: e.programa ? <LinkPrograma codigo={e.cod_programa} nome={e.programa} uf="PB" /> : "—",
                   valor: moedaCurta(e.valor_repasse),
                 },
               }),
@@ -495,7 +504,7 @@ function RecortePrograma({ p, linhas, semSaidas }: { p: ParametrosRadar; linhas:
               chave: l.chave ?? "sem-programa",
               valores: valoresDoRecorte(l),
               celulas: {
-                programa: l.rotulo ? <LinkMapa href={urlPorPrograma(l.rotulo, p.uf)}>{l.rotulo}</LinkMapa> : (l.chave ?? "—"),
+                programa: l.rotulo ? <LinkPrograma codigo={l.chave} nome={l.rotulo} uf={p.uf} /> : (l.chave ?? "—"),
                 variacao: <span className={`mp-radar-${v.sentido}`}>{v.texto}</span>,
                 valor: moedaCurta(l.valor_atual),
               },

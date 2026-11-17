@@ -26,17 +26,22 @@ import {
   COLUNAS_PADROES_DOCUMENTOS,
   COLUNAS_PADROES_ORGAOS,
   COLUNAS_SUSPENSIVAS,
+  COLUNAS_SUSPENSIVAS_SAIDAS,
   MINIMO_PADRAO,
+  ROTULO_DESTINO_SAIDA,
   ROTULO_URGENCIA_PRAZO,
   TABELA_PADROES_ANALISTAS,
   TABELA_PADROES_CONDICOES,
   TABELA_PADROES_DOCUMENTOS,
   TABELA_PADROES_ORGAOS,
   TABELA_SUSPENSIVAS,
+  TABELA_SUSPENSIVAS_SAIDAS,
   perfilDecisao,
+  separarSuspensivas,
   tituloOrgao,
   urlSuspensivasDoFiltroAntigo,
   valoresDaCondicao,
+  valoresDaSaida,
   valoresDaSuspensiva,
   valoresDoAnalista,
   valoresDoOrgaoHistorico,
@@ -83,6 +88,7 @@ const TABELAS: [string, ColunaTabela[]][] = [
   [TABELA_PADROES_ANALISTAS, COLUNAS_PADROES_ANALISTAS],
   [TABELA_PADROES_DOCUMENTOS, COLUNAS_PADROES_DOCUMENTOS],
   [TABELA_SUSPENSIVAS, COLUNAS_SUSPENSIVAS],
+  [TABELA_SUSPENSIVAS_SAIDAS, COLUNAS_SUSPENSIVAS_SAIDAS],
 ];
 
 test("lote C: ids de tabela e de coluna válidos e únicos; tela de administrador, toda coluna filtra e ordena", () => {
@@ -99,6 +105,8 @@ test("lote C: ids de tabela e de coluna válidos e únicos; tela de administrado
   assert.equal(new Set([TABELA_PADROES_ORGAOS, TABELA_PADROES_CONDICOES, TABELA_PADROES_ANALISTAS, TABELA_PADROES_DOCUMENTOS]).size, 4);
   assert.notEqual(TABELA_TCE_PIX, TABELA_TCE_CONCILIACAO);
   assert.notEqual(TABELA_TCE_EMPRESAS_PIX, TABELA_TCE_PARES);
+  // A06 (17/11/2026): a lista e as saídas ficam na mesma página.
+  assert.notEqual(TABELA_SUSPENSIVAS, TABELA_SUSPENSIVAS_SAIDAS);
 });
 
 /** Os valores de uma linha têm exatamente as colunas da tabela, nem mais nem menos. */
@@ -342,4 +350,33 @@ test("suspensivas: os chips antigos redirecionam para o filtro da tabela, que ac
   // Valor desconhecido não filtra, como antes ("todos"), e o destino não leva os parâmetros antigos.
   assert.equal(urlSuspensivasDoFiltroAntigo({ prazo: "180", orgao: "ORGAO QUE NAO ESTA" }, orgaos), "/mapa/suspensivas");
   assert.equal(urlSuspensivasDoFiltroAntigo({ prazo: null, orgao: null }, orgaos), null);
+});
+
+// Diagnóstico externo de 17/11/2026 (A06): quem o painel já dá como fora sai da lista, do CSV e da mediana.
+test("A06: a fila fica com quem segue (também com o prazo vencido); as saídas levam a retirada ou a situação, sem tempo parado", () => {
+  const comSituacao = (l: ItemListaSuspensiva, situacao: string | null) => ({ ...l, contexto: l.contexto ? { ...l.contexto, situacao } : null });
+  const linhasDaColeta = [
+    comSituacao(susp("900001", "MINISTERIO DA SAUDE", "2026-10-01"), "Em execução"), // vencido, segue
+    comSituacao(susp("900005", "MINISTERIO DA SAUDE", null, "2026-09-18"), "Em execução"), // retirada antes da coleta
+    comSituacao(susp("900007", "MINISTERIO DAS CIDADES", "2026-08-01"), "Aguardando Prestação de Contas"),
+    { ...susp("900006", null, null), contexto: null }, // sem painel
+  ];
+  const { fila, saidas } = separarSuspensivas(linhasDaColeta);
+  assert.deepEqual(fila.map((l) => l.numero), ["900001", "900006"]);
+  assert.equal(valoresDaSuspensiva(fila[0], HOJE, "2026-09-21").urgencia, ROTULO_URGENCIA_PRAZO.critico);
+  // O CSV da lista sai só com a fila.
+  const csv = csvDaTabela(COLUNAS_SUSPENSIVAS, linhas(fila.map((l) => valoresDaSuspensiva(l, HOJE, "2026-09-21"))));
+  assert.match(csv, /900001/);
+  assert.doesNotMatch(csv, /900005|900007/);
+
+  const v = saidas.map(valoresDaSaida);
+  confereChaves(COLUNAS_SUSPENSIVAS_SAIDAS, v[0], "saídas");
+  assert.deepEqual(
+    v.map((x) => [x.convenio, x.saida, x.retirada, x.situacao]),
+    [
+      ["900005", ROTULO_DESTINO_SAIDA.saiu, "2026-09-18", "Em execução"],
+      ["900007", ROTULO_DESTINO_SAIDA.encerrou, null, "Aguardando Prestação de Contas"],
+    ],
+  );
+  assert.ok(v.every((x) => !("parado" in x)), "as saídas não têm tempo parado");
 });

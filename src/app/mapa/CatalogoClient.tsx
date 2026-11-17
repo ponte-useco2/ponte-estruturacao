@@ -16,7 +16,11 @@ import {
   SEM_FILTRO,
   contarPorAssunto,
   contarPorCanal,
-  filtrarJanelas,
+  documentosSecundarios,
+  filtrarVista,
+  frasesDaReconciliacao,
+  paginaDoItem,
+  reconciliar,
   type CatalogoVista,
   type FiltrosCatalogo,
   type JanelaVista,
@@ -68,6 +72,11 @@ function alternar<T extends string>(lista: T[], valor: T): T[] {
   return lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor];
 }
 
+/** A11: com filtro, o título da seção diz quantas sobraram de quantas. */
+function contagemDaSecao(visiveis: number, total: number, filtrando: boolean): string {
+  return filtrando ? `${visiveis} de ${total}` : `${total}`;
+}
+
 export function CatalogoClient({
   vista,
   entidade,
@@ -89,7 +98,11 @@ export function CatalogoClient({
   const buscaRef = useRef<HTMLInputElement>(null);
   const seguidas = useMemo(() => (janelasSeguidas ? new Set(janelasSeguidas) : null), [janelasSeguidas]);
 
-  const visiveis = useMemo(() => filtrarJanelas(vista.janelas, filtros), [vista.janelas, filtros]);
+  // A11 (diagnóstico externo de 17/11/2026): os filtros valem para a parceira, o vínculo e as portas também.
+  const filtradas = useMemo(() => filtrarVista(vista, filtros), [vista, filtros]);
+  const visiveis = filtradas.janelas;
+  const reconciliacao = useMemo(() => reconciliar(vista), [vista]);
+  const frases = entidade && reconciliacao ? frasesDaReconciliacao(reconciliacao, tipoNaFrase(entidade.tipo), entidade.uf) : null;
 
   // Contagens sobre as janelas da ENTIDADE, não sobre as já filtradas: se a
   // contagem encolhesse a cada clique, o número deixaria de dizer o que a opção
@@ -153,13 +166,12 @@ export function CatalogoClient({
           <p className="pa-kicker">Janelas abertas</p>
           <h1 className="pa-titulo">{titulo}</h1>
           <p className="pa-sub">
-            {entidade && vista.paraEntidade ? (
+            {entidade && vista.paraEntidade && frases ? (
               <>
-                {vista.paraEntidade.elegiveis} {vista.paraEntidade.elegiveis === 1 ? "janela aceita" : "janelas aceitam"}{" "}
-                {tipoNaFrase(entidade.tipo)}
-                {vista.paraEntidade.urgentes > 0 && <> · {vista.paraEntidade.urgentes} fecham em até 15 dias</>}
-                {/* Regra 2 do contrato: o universo é dito como universo. */}
-                {" "}· de {vista.universo.abertasHoje} abertas hoje em todo o catálogo
+                {/* A05 (diagnóstico externo de 17/11/2026): o universo vai junto do número — tipo, UF, todas as
+                    fontes e o aviso do beneficiário específico. A conta com as abertas de hoje fica recolhida abaixo. */}
+                {frases.universo}
+                {vista.paraEntidade.urgentes > 0 && <> · {vista.paraEntidade.urgentes} {vista.paraEntidade.urgentes === 1 ? "fecha" : "fecham"} em até 15 dias</>}
               </>
             ) : (
               <>
@@ -168,6 +180,13 @@ export function CatalogoClient({
               </>
             )}
           </p>
+          {/* Regra 2 do contrato: o universo é dito como universo. Só quando as partes somam o todo. */}
+          {frases && reconciliacao?.fecha && (
+            <details className="mp-fiscal-detalhe">
+              <summary>De onde sai esse número</summary>
+              <p className="pa-nota">{frases.conta}</p>
+            </details>
+          )}
           {/* Uma vez, e não em cada cartão: repetida dezenas de vezes, a mesma
               frase deixa de ser lida. */}
           {entidade && !seguindoTemas && (
@@ -389,44 +408,41 @@ export function CatalogoClient({
       {vista.comoParceira.length > 0 && (
         <section aria-labelledby="catalogo-parceira" className="mp-radar-secao">
           <h2 id="catalogo-parceira" className="mp-radar-h2">
-            Onde a sua entidade entra como parceira ({vista.comoParceira.length})
+            Onde a sua entidade entra como parceira ({contagemDaSecao(filtradas.comoParceira.length, vista.comoParceira.length, filtrando)})
           </h2>
           <p className="pa-nota">
             Nestas, quem propõe e recebe o recurso é outro tipo de instituição (em geral uma universidade, ICT ou entidade sem fins
             lucrativos). A sua entidade participa junto, com termo de compromisso e, quase sempre, contrapartida. As regras de cada
             edital dizem como.
           </p>
-          <ul className="pa-pilha mp-janelas">
-            {vista.comoParceira.map((j) => (
-              <li key={j.id} id={`janela-${j.id}`}>
-                <JanelaCartao janela={j} mostrarMotivos anunciar={setAnuncio} seguindo={seguidas ? seguidas.has(j.id) : null} nivel={3} />
-              </li>
-            ))}
-          </ul>
+          <ListaDaSecao janelas={filtradas.comoParceira} mostrarMotivos anunciar={setAnuncio} seguidas={seguidas} />
+        </section>
+      )}
+
+      {/* A01 (diagnóstico externo de 17/11/2026): na bolsa, a entidade é a instituição de vínculo, não a proponente. */}
+      {vista.comoVinculo.length > 0 && (
+        <section aria-labelledby="catalogo-vinculo" className="mp-radar-secao">
+          <h2 id="catalogo-vinculo" className="mp-radar-h2">
+            {`Bolsas em que a sua entidade é a instituição de vínculo (${contagemDaSecao(filtradas.comoVinculo.length, vista.comoVinculo.length, filtrando)})`}
+          </h2>
+          <p className="pa-nota">
+            A bolsa é da pessoa que se candidata (pesquisador ou estudante), não da entidade. A sua entidade aparece como a instituição
+            a que essa pessoa está vinculada. As regras de cada chamada dizem o que se exige do vínculo.
+          </p>
+          <ListaDaSecao janelas={filtradas.comoVinculo} mostrarMotivos anunciar={setAnuncio} seguidas={seguidas} />
         </section>
       )}
 
       {vista.portas.length > 0 && (
         <section aria-labelledby="catalogo-portas" className="mp-radar-secao">
           <h2 id="catalogo-portas" className="mp-radar-h2">
-            Portas permanentes, sem prazo ({vista.portas.length})
+            Portas permanentes, sem prazo ({contagemDaSecao(filtradas.portas.length, vista.portas.length, filtrando)})
           </h2>
           <p className="pa-nota">
             Produtos que não dependem de edital: a qualquer tempo, pelas regras de cada um. Não entram na contagem das janelas acima.
+            {filtros.canais.length > 0 && " O filtro de canal não vale aqui; a busca, a fonte e o assunto valem."}
           </p>
-          <ul className="pa-pilha mp-janelas">
-            {vista.portas.map((j) => (
-              <li key={j.id} id={`janela-${j.id}`}>
-                <JanelaCartao
-                  janela={j}
-                  mostrarMotivos={entidade !== null}
-                  anunciar={setAnuncio}
-                  seguindo={seguidas ? seguidas.has(j.id) : null}
-                  nivel={3}
-                />
-              </li>
-            ))}
-          </ul>
+          <ListaDaSecao janelas={filtradas.portas} mostrarMotivos={entidade !== null} anunciar={setAnuncio} seguidas={seguidas} />
         </section>
       )}
 
@@ -437,8 +453,11 @@ export function CatalogoClient({
           </h2>
           <p className="pa-nota">
             O que já houve, para preparar a próxima edição: muitas chamadas voltam todo ano ou a cada ciclo.
-            {entidade !== null && " Só as que serviam à sua entidade, como proponente ou como parceira."} A mais recente primeiro.
+            {entidade !== null && " Só as que serviam à sua entidade, como proponente, parceira ou instituição de vínculo."} A mais
+            recente primeiro.
           </p>
+          {/* A11: a tabela tem filtros próprios, em cada coluna; a busca e os chips de cima não chegam a ela. */}
+          {filtrando && <p className="pa-nota">A busca e os filtros acima não filtram esta tabela: use os filtros das colunas.</p>}
           <TabelaFiltravel
             id="encerradas"
             rotulo="Oportunidades encerradas nos últimos 24 meses"
@@ -463,6 +482,39 @@ export function CatalogoClient({
         ({formatarPublicacao(vista.geradoEm)}). Prazos contados a partir de {formatarData(vista.hoje)}, no horário da Paraíba.
       </p>
     </div>
+  );
+}
+
+/**
+ * A lista de uma seção de baixo (parceira, vínculo, portas), já filtrada. Com a seção inteira escondida pelos filtros,
+ * fica uma linha dizendo isso, em vez de a seção sumir e parecer que não existe (A11).
+ */
+function ListaDaSecao({
+  janelas,
+  mostrarMotivos,
+  anunciar,
+  seguidas,
+}: {
+  janelas: JanelaVista[];
+  mostrarMotivos: boolean;
+  anunciar: (mensagem: string) => void;
+  seguidas: Set<string> | null;
+}) {
+  if (janelas.length === 0) return <p className="pa-nota">Nenhuma com os filtros acima.</p>;
+  return (
+    <ul className="pa-pilha mp-janelas">
+      {janelas.map((j) => (
+        <li key={j.id} id={`janela-${j.id}`}>
+          <JanelaCartao
+            janela={j}
+            mostrarMotivos={mostrarMotivos}
+            anunciar={anunciar}
+            seguindo={seguidas ? seguidas.has(j.id) : null}
+            nivel={3}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -594,7 +646,11 @@ function JanelaCartao({
   nivel?: 2 | 3;
 }) {
   const Titulo = nivel === 3 ? "h3" : "h2";
-  const edital = j.documentos[0];
+  // A11 (diagnóstico externo de 17/11/2026): fora do Transferegov, o link principal é a página do próprio item; os
+  // documentos vão como links secundários. O primeiro documento era genérico na Finep.
+  const pagina = paginaDoItem(j);
+  const edital = pagina === null ? j.documentos[0] : undefined;
+  const outrosDocumentos = documentosSecundarios(j);
   const combinaTema = j.aderencia?.motivos.some((m) => m.startsWith("combina")) ?? false;
   const [copia, setCopia] = useState<"copiado" | "falhou" | null>(null);
   const codigoRef = useRef<HTMLElement>(null);
@@ -638,6 +694,7 @@ function JanelaCartao({
           <Tag>{j.fonteNome}</Tag>
           {j.canal !== null ? <Tag tom="forte">{ROTULO_CANAL[j.canal]}</Tag> : <Tag>{j.instrumento}</Tag>}
           {j.papel === "parceira" && <Tag tom="forte">Entra como parceira</Tag>}
+          {j.papel === "vinculo" && <Tag tom="forte">Instituição de vínculo</Tag>}
           {combinaTema && <Tag tom="aderente">Combina com o que você acompanha</Tag>}
         </div>
         <p className="mp-janela-financiador">
@@ -668,15 +725,36 @@ function JanelaCartao({
           </p>
         )}
 
-        {j.fonteDefasada && (
-          <p className="pa-ressalva">Dado da última leitura boa da fonte, que está fora do ar.</p>
+        {/* A03 (diagnóstico externo de 17/11/2026): com a data da última leitura boa, e não só "fora do ar". */}
+        {j.avisoFonte && <p className="pa-ressalva">{j.avisoFonte.frase}</p>}
+
+        {outrosDocumentos.length > 0 && (
+          <details className="mp-fiscal-detalhe">
+            <summary>Documentos ({outrosDocumentos.length})</summary>
+            <ul className="pa-lista-numerada">
+              {outrosDocumentos.map((d, i) => (
+                <li key={`${i}-${d.url}`}>
+                  <a href={d.url} target="_blank" rel="noopener noreferrer">
+                    {d.titulo}
+                    <span className="pa-sr"> (abre em nova aba)</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </div>
 
       <div className="mp-janela-lado">
         <p className={j.urgente ? "mp-prazo mp-prazo-urgente" : "mp-prazo"}>{prazoPorExtenso(j)}</p>
         {seguindo !== null && <EstrelaSeguir tipo="janela" chave={j.id} nome={`a janela ${j.titulo}`} seguindo={seguindo} />}
-        {edital ? (
+        {pagina !== null ? (
+          // A porta permanente (produto do BNDES, modelo da EMBRAPII) não tem edital: a página é a do produto.
+          <a className="pa-btn pa-btn-pequeno" href={pagina} target="_blank" rel="noopener noreferrer">
+            {j.canal === "fluxo_continuo" ? "Ver na fonte" : "Ver edital"}
+            <span className="pa-sr"> — {j.titulo}, em {j.fonteNome} (abre em nova aba)</span>
+          </a>
+        ) : edital ? (
           <a
             className="pa-btn pa-btn-pequeno"
             href={edital.url}
@@ -727,8 +805,7 @@ function JanelaCartao({
             <span className="pa-sr"> — módulo {j.fonteNome.replace(/^TransfereGov · /, "")}, programa {j.titulo} (abre em nova aba)</span>
           </a>
         ) : j.fonteUrl.startsWith("https://") ? (
-          // Contrato 2.2: a porta permanente (produto do BNDES, modelo da EMBRAPII) não tem edital. O endereço da fonte
-          // é o da página do próprio produto, que o adaptador grava em `source.url`.
+          // Sem página própria nem documento: sobra a página geral da fonte.
           <a className="pa-btn pa-btn-pequeno" href={j.fonteUrl} target="_blank" rel="noopener noreferrer">
             Ver na fonte
             <span className="pa-sr"> — {j.titulo}, em {j.fonteNome} (abre em nova aba)</span>
@@ -756,10 +833,19 @@ function colunasEncerradas(comEntidade: boolean): ColunaTabela[] {
   return colunas;
 }
 
+const ROTULO_PAPEL: Record<NonNullable<JanelaVista["papel"]>, string> = {
+  proponente: "Proponente",
+  parceira: "Parceira",
+  vinculo: "Instituição de vínculo",
+};
+
 function linhasEncerradas(encerradas: JanelaVista[]): LinhaTabela[] {
   return encerradas.map((j) => {
-    const edital = j.documentos[0];
+    // A11: a página do próprio item primeiro, como no cartão; no Transferegov, o primeiro documento, como antes.
+    const edital = paginaDoItem(j) ?? j.documentos[0]?.url ?? null;
     const financiador = j.parceiros.length > 0 ? `${j.financiador} · com ${j.parceiros.join(", ")}` : j.financiador;
+    // A03: o selo só para fonte em falha; o filtro da coluna continua pelo nome da fonte.
+    const emFalha = j.avisoFonte !== null && j.fonteStatus !== null && j.fonteStatus !== "healthy";
     return {
       chave: j.id,
       valores: {
@@ -768,12 +854,21 @@ function linhasEncerradas(encerradas: JanelaVista[]): LinhaTabela[] {
         financiador,
         canal: j.canal !== null ? ROTULO_CANAL[j.canal] : j.instrumento,
         encerrada: j.encerradaEm,
-        papel: j.papel === "parceira" ? "Parceira" : j.papel === "proponente" ? "Proponente" : null,
-        edital: edital ? edital.url : null,
+        papel: j.papel !== null ? ROTULO_PAPEL[j.papel] : null,
+        edital,
       },
       celulas: {
+        ...(emFalha && j.avisoFonte
+          ? {
+              fonte: (
+                <>
+                  {j.fonteNome} <Tag tom="urgente">{j.avisoFonte.selo}</Tag>
+                </>
+              ),
+            }
+          : {}),
         edital: edital ? (
-          <a href={edital.url} target="_blank" rel="noopener noreferrer">
+          <a href={edital} target="_blank" rel="noopener noreferrer">
             Ver edital<span className="pa-sr"> de {j.titulo} (abre em nova aba)</span>
           </a>
         ) : (

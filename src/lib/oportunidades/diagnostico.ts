@@ -885,7 +885,11 @@ function lerRiscos(b: Base): Risco[] {
       r.push({
         nivel: "alto",
         titulo: "Sem movimento financeiro há mais de um ano",
-        fato: `O último pagamento ou desembolso registrado é de ${data(ultimo)}, há ${dias(parado)}.` + (i.vl_saldo_conta ? ` Há ${moedaCurta(i.vl_saldo_conta)} em conta.` : ""),
+        fato:
+          (i.dt_ultimo_pagamento
+            ? `O último pagamento ou desembolso registrado é de ${data(ultimo)}, há ${dias(parado)}.`
+            : `Nenhum pagamento a fornecedor registrado; o último desembolso é de ${data(ultimo)}, há ${dias(parado)}.`) +
+          (i.vl_saldo_conta ? ` Há ${moedaCurta(i.vl_saldo_conta)} em conta.` : ""),
       });
     }
     const pct = b.dinheiro.pctDesembolsado;
@@ -920,11 +924,22 @@ function lerRiscos(b: Base): Risco[] {
   const conclusao = b.fiscal?.conclusao;
   if (conclusao && (conclusao.estado === "nao_atendido" || conclusao.estado === "atencao") && viva(etapa)) {
     const pend = b.fiscal?.caucPendencias.length ? ` O CAUC registra pendência nos itens ${lista(b.fiscal.caucPendencias)}.` : "";
-    r.push({
-      nivel: conclusao.estado === "nao_atendido" ? "alto" : "moderado",
-      titulo: conclusao.estado === "nao_atendido" ? "Município bloqueado para receber transferência voluntária" : "Município com alertas para receber transferência voluntária",
-      fato: `No painel fiscal (decisão B), ${b.fiscal?.municipio} aparece como «${ROTULO_DECISAO_B[conclusao.estado]}»${conclusao.bloqueantes.length ? ` por ${lista(conclusao.bloqueantes)}` : ""}.${pend}`,
-    });
+    const fato = `No painel fiscal (decisão B), ${b.fiscal?.municipio} aparece como «${ROTULO_DECISAO_B[conclusao.estado]}»${conclusao.bloqueantes.length ? ` por ${lista(conclusao.bloqueantes)}` : ""}.${pend}`;
+    // Diagnóstico externo de 17/11/2026 (A14): com o repasse todo desembolsado não há parcela a liberar, e a
+    // regularidade fiscal não trava este instrumento. Fica como contexto, abaixo dos riscos da execução.
+    if (b.dinheiro.semDesembolso === 0) {
+      r.push({
+        nivel: "informativo",
+        titulo: "Pendência fiscal do município (não trava este instrumento)",
+        fato: `${fato} O repasse deste instrumento já foi todo desembolsado: a regularidade pesa nas próximas transferências, não nesta.`,
+      });
+    } else {
+      r.push({
+        nivel: conclusao.estado === "nao_atendido" ? "alto" : "moderado",
+        titulo: conclusao.estado === "nao_atendido" ? "Município bloqueado para receber transferência voluntária" : "Município com alertas para receber transferência voluntária",
+        fato,
+      });
+    }
   }
 
   // O programa: este instrumento parado onde os outros andaram.
@@ -1030,6 +1045,42 @@ function lerEstrategia(b: Base): Passo[] {
         if (v.dias !== null && v.dias >= 0 && v.dias <= DIAS_VIGENCIA_CURTA) {
           p.push({ titulo: "Pedir a prorrogação da vigência", porque: `Sobram ${dias(v.dias)} até ${data(v.data)}; o pedido precisa de justificativa e antecedência.` });
         }
+        // Diagnóstico externo de 17/11/2026 (A14): repasse todo desembolsado. O que falta é executar, pagar e
+        // comprovar; a ordem segue a fase, e não a regularidade fiscal do município.
+        if (b.dinheiro.semDesembolso === 0 && i.dt_primeiro_desembolso) {
+          if (i.pct_fisico !== null && i.pct_fisico < PCT_FISICO_BAIXO) {
+            p.push({
+              titulo: "Comprovar a execução física",
+              porque:
+                `O repasse foi todo desembolsado${i.dt_ultimo_desembolso ? ` (o último em ${data(i.dt_ultimo_desembolso)})` : ""} e o resumo ` +
+                `físico-financeiro registra ${percentual(i.pct_fisico)} de execução física. Atualizar as medições no Transferegov, ou explicar o atraso.`,
+            });
+          }
+          if (!i.dt_ultimo_pagamento && !i.vl_pago) {
+            p.push({
+              titulo: "Pagar os fornecedores pela conta do convênio",
+              porque: "Nenhum pagamento a fornecedor está registrado no Transferegov. O pagamento sai da conta do convênio e fica registrado lá.",
+            });
+          }
+          const repasse = b.dinheiro.repasse;
+          if (i.vl_saldo_conta && i.vl_saldo_conta > 0) {
+            p.push({
+              titulo: "Conferir o saldo e os rendimentos da conta",
+              porque:
+                `Há ${moedaCurta(i.vl_saldo_conta)} em conta` +
+                `${repasse && i.vl_saldo_conta > repasse ? `, mais que o repasse de ${moedaCurta(repasse)}: a diferença são rendimentos` : ""}. ` +
+                "O saldo e os rendimentos que não forem usados no objeto voltam ao concedente no fim.",
+            });
+          }
+          if (v.data && v.dias !== null && v.dias > DIAS_VIGENCIA_CURTA) {
+            p.push({
+              titulo: "Planejar a conclusão até o fim da vigência",
+              porque:
+                `A vigência vai até ${data(v.data)}${i.dt_limite_contas ? `, e a prestação de contas, até ${data(i.dt_limite_contas)}` : ""}. ` +
+                "Não há parcela a liberar: o que falta é executar, pagar e comprovar.",
+            });
+          }
+        }
         break;
       case "contas":
         if (b.diligencia) {
@@ -1058,7 +1109,7 @@ function lerEstrategia(b: Base): Passo[] {
     p.push({ titulo: "Levantar o processo judicial", porque: `A contratação está registrada como «${b.liminar}»: o número do processo e a decisão vigente dizem o que pode andar.` });
   }
   const conclusao = b.fiscal?.conclusao;
-  if (conclusao && conclusao.estado === "nao_atendido" && viva(etapa)) {
+  if (conclusao && conclusao.estado === "nao_atendido" && viva(etapa) && b.dinheiro.semDesembolso !== 0) {
     p.push({
       titulo: "Resolver as pendências fiscais do município",
       porque:

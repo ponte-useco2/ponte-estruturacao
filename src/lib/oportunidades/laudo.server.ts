@@ -55,11 +55,18 @@ function falha(onde: string, erro: { message: string; code?: string }): Falha {
   return { estado: "erro" };
 }
 
-async function execucaoPainel(db: Banco): Promise<number | Falha> {
+/** A execução do painel e o dia do dado dela (`referencia`, "AAAA-MM-DD"). */
+interface ExecucaoPainel {
+  id: number;
+  referencia: string | null;
+}
+
+// Diagnóstico externo de 17/11/2026 (A06): a data do painel não chegava à tela; agora vem junto com o id.
+async function execucaoPainel(db: Banco): Promise<ExecucaoPainel | Falha> {
   const r = await db.rpc("painel_ultima_execucao");
   if (r.error) return falha("laudo (painel)", r.error);
-  const id = (r.data as { id: number }[] | null)?.[0]?.id;
-  return id ?? { estado: "sem_execucao" };
+  const ex = (r.data as { id: number; referencia: string | null }[] | null)?.[0];
+  return ex ? { id: ex.id, referencia: ex.referencia ?? null } : { estado: "sem_execucao" };
 }
 
 /** O dossiê de um convênio e o contexto do painel, para montar o laudo. */
@@ -69,9 +76,9 @@ export async function lerLaudoInstrumento(numero: string): Promise<LeituraLaudo>
 
   const [dossie, painel] = await Promise.all([db.rpc("exigencia_dossie", { p_numero: numero }), execucaoPainel(db)]);
   if (dossie.error) return falha("lerLaudoInstrumento (dossiê)", dossie.error);
-  if (typeof painel !== "number") return painel;
+  if ("estado" in painel) return painel;
 
-  const linha = await comMotivo((colunas) => db.from("painel_instrumento").select(colunas).eq("execucao_id", painel).eq("nr_convenio", numero).limit(1));
+  const linha = await comMotivo((colunas) => db.from("painel_instrumento").select(colunas).eq("execucao_id", painel.id).eq("nr_convenio", numero).limit(1));
   if (linha.error) return falha("lerLaudoInstrumento (contexto)", linha.error);
   const contexto = ((linha.data ?? []) as unknown as ContextoPainel[])[0] ?? null;
 
@@ -89,7 +96,7 @@ export async function lerLaudoInstrumento(numero: string): Promise<LeituraLaudo>
       db
         .from("painel_instrumento")
         .select(COLUNAS_HISTORICO)
-        .eq("execucao_id", painel)
+        .eq("execucao_id", painel.id)
         .eq("uf", "PB")
         .eq("orgao_sup", orgao)
         .gte("dt_assinatura", COORTE_DESDE)
@@ -117,7 +124,15 @@ export interface LinhaSuspensiva {
 }
 
 export type LeituraSuspensivas =
-  | { estado: "ok"; linhas: LinhaSuspensiva[]; coletadoEm: string | null; referencia: string | null }
+  | {
+      estado: "ok";
+      linhas: LinhaSuspensiva[];
+      coletadoEm: string | null;
+      /** O dia da coleta do Acesso Livre: o andamento, a vez e o "parado desde" são desse dia. */
+      referencia: string | null;
+      /** O dia do dado do painel diário: o prazo, a retirada, o repasse e a situação são desse dia (A06, 17/11/2026). */
+      painelReferencia: string | null;
+    }
   | Falha;
 
 /** Os instrumentos da última coleta, cada um com o contexto do painel. */
@@ -140,13 +155,13 @@ export async function lerSuspensivas(): Promise<LeituraSuspensivas> {
   const linhas = (inst.data ?? []) as Omit<LinhaSuspensiva, "contexto">[];
 
   const painel = await execucaoPainel(db);
-  if (typeof painel !== "number") return painel;
+  if ("estado" in painel) return painel;
 
   // Em lotes: 288 números cabem numa chamada, mas o filtro `in` vai na URL e ela tem limite.
   const contextos = new Map<string, ContextoPainel>();
   for (let i = 0; i < linhas.length; i += 200) {
     const lote = linhas.slice(i, i + 200).map((l) => l.numero);
-    const r = await comMotivo((colunas) => db.from("painel_instrumento").select(colunas).eq("execucao_id", painel).in("nr_convenio", lote));
+    const r = await comMotivo((colunas) => db.from("painel_instrumento").select(colunas).eq("execucao_id", painel.id).in("nr_convenio", lote));
     if (r.error) return falha("lerSuspensivas (contexto)", r.error);
     for (const c of (r.data ?? []) as unknown as ContextoPainel[]) contextos.set(c.nr_convenio, c);
   }
@@ -156,5 +171,6 @@ export async function lerSuspensivas(): Promise<LeituraSuspensivas> {
     linhas: linhas.map((l) => ({ ...l, contexto: contextos.get(l.numero) ?? null })),
     coletadoEm: execucao.concluida_em,
     referencia: execucao.referencia,
+    painelReferencia: painel.referencia,
   };
 }

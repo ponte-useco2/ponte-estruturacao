@@ -151,7 +151,10 @@ export function ContaMenu({
             precisa saber, de relance, em qual está trabalhando. O rótulo separa a
             organização da conta do município que a página está mostrando (revisão
             de 02/10/2026: lendo outro município, o cabeçalho parecia falar dele). */}
-        <span className="pa-esconde-mobile mp-conta-nome">
+        {/* Diagnóstico externo de 17/11/2026 (A08): com `pa-esconde-mobile` o nome sumia até 860 px e sobrava a inicial;
+            quem atende várias organizações precisa ver em qual está antes de agir. No celular some só o rótulo
+            (`mapa.css`). */}
+        <span className="mp-conta-nome">
           {ativa && <span className="mp-conta-rotulo">Sua organização</span>}
           <span className="mp-conta-entidade">{ativa?.nome ?? nome ?? email}</span>
         </span>

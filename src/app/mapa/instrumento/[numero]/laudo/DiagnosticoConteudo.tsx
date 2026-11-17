@@ -43,6 +43,7 @@ import { DIAS_JANELA_TEMPO, percentual } from "@/lib/oportunidades/painel";
 import { tituloOrgao } from "@/lib/oportunidades/padroes";
 import { rotuloDemaisPc33, secaoPc33 } from "@/lib/oportunidades/portaria33";
 import { moedaCurta } from "@/lib/oportunidades/radar";
+import { pagoRegistrado } from "@/lib/oportunidades/pagina-instrumento";
 import { descreverTce, tituloDebito, type SecaoTceTcu } from "@/lib/oportunidades/tce-tcu";
 import { moedaContas, type SecaoContasObras } from "@/lib/oportunidades/contas-obras";
 import { rotuloTipoParlamentar } from "@/lib/oportunidades/relatorio-municipio";
@@ -966,7 +967,8 @@ function DestinoDoDinheiro({ d, numero }: { d: Diagnostico; numero: string }) {
       <ul className="pa-cartao pa-cartao-plano mp-laudo-inacao">
         {f && (
           <li>
-            Pago a empresas: {moedaCurta(f.pagoPj ?? 0)}
+            {/* A12 (17/11/2026): o nulo do job é "nenhum pagamento registrado", e não um R$ 0 sem explicação. */}
+            Pago a empresas: {pagoRegistrado(f.pagoPj, true, "a empresas")}
             {recebedores ? ` (${n(recebedores)} ${recebedores === 1 ? "fornecedor" : "fornecedores"})` : ""}
             {f.pagoPf ? ` · a pessoas físicas ou sem CNPJ: ${moedaCurta(f.pagoPf)} em ${n(f.nPagamentosPf ?? 0)} pagamentos, sem nome` : ""}
             {f.pagoConvenente ? ` · à conta do próprio convenente ou do executor: ${moedaCurta(f.pagoConvenente)}` : ""}.

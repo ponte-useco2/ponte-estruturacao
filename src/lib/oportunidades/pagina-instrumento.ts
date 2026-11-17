@@ -9,6 +9,7 @@
  * - administrador (3): a lista das empresas com nome. Pessoa física sempre somada, para todos.
  */
 import type { EventoInstrumento } from "./busca.ts";
+import { moedaCurta } from "./radar.ts";
 
 export type AbaInstrumento = "geral" | "fase" | "execucao";
 
@@ -191,4 +192,34 @@ export function janelaDoPagamento(
   const pos = (x: number) => Math.max(0, Math.min(1, (x - i) / (f - i)));
   const [p, q] = [pos(Math.min(a, b)), pos(Math.max(a, b))];
   return [Math.round(p * 1000) / 1000, Math.round(q * 1000) / 1000];
+}
+
+/** O que um pago nulo quer dizer no SICONV (A12): o job junta os pagamentos por LEFT JOIN, e sem pagamento sobra nulo. */
+export const SEM_PAGAMENTO_SICONV = "nenhum pagamento registrado no SICONV";
+
+export interface PagoDoInstrumento {
+  /** O número curto, para o cartão: "R$ 1,2 mi", "R$ 0" ou "—". */
+  valor: string;
+  /** Por que é zero; null quando há valor ou quando a leitura falhou. */
+  nota: string | null;
+}
+
+/**
+ * Diagnóstico externo de 17/11/2026 (A12): no instrumento 899676 a página mostrava "—" e o laudo "R$ 0" para o mesmo
+ * nulo. `vl_pago`, `pago_pj` e `dt_ultimo_pagamento` nulos, com a linha do instrumento lida, querem dizer que o SICONV
+ * não tem pagamento registrado, e não que o dado não foi coletado. "—" fica só para a leitura que falhou (`lido` falso).
+ * `aQuem` qualifica o pagamento quando o valor é de uma parte só ("a empresas": pode haver pagamento a pessoa física).
+ */
+export function partesDoPago(valor: number | null | undefined, lido: boolean, aQuem?: string): PagoDoInstrumento {
+  if (!lido) return { valor: "—", nota: null };
+  if (valor === null || valor === undefined || valor === 0) {
+    return { valor: moedaCurta(0), nota: aQuem ? `nenhum pagamento ${aQuem} registrado no SICONV` : SEM_PAGAMENTO_SICONV };
+  }
+  return { valor: moedaCurta(valor), nota: null };
+}
+
+/** O pago numa linha só: "R$ 0 · nenhum pagamento registrado no SICONV", o valor, ou "—" se a leitura falhou. */
+export function pagoRegistrado(valor: number | null | undefined, lido: boolean, aQuem?: string): string {
+  const p = partesDoPago(valor, lido, aQuem);
+  return p.nota ? `${p.valor} · ${p.nota}` : p.valor;
 }

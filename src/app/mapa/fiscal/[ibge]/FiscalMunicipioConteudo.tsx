@@ -6,6 +6,7 @@ import { formatarData, formatarPublicacao } from "@/lib/oportunidades/central";
 import {
   AVISO_FIXO,
   DECISOES,
+  FONTE_POPULACAO_FISCAL,
   MARCA_ESTADO,
   NOME_CURTO,
   ROTULO_ESTADO,
@@ -72,7 +73,8 @@ export function FiscalMunicipioConteudo({ leitura }: { leitura: LeituraOk }) {
         <h1 className="pa-titulo">{m.nome}/PB</h1>
         <p className="pa-sub">
           IBGE {m.ibge}
-          {m.populacao ? ` · ${n(m.populacao)} habitantes` : ""} · lido em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>
+          {/* A12 (17/11/2026): a estimativa do Siconfi, e não a do IBGE de 2026 que a página do município mostra. */}
+          {m.populacao ? ` · ${n(m.populacao)} hab. (${FONTE_POPULACAO_FISCAL})` : ""} · lido em <strong>{formatarPublicacao(leitura.execucao.concluida_em)}</strong>
         </p>
         <p className="pa-chips">
           <LinkMapa href={urlSimularFiscal(m.ibge)} className="pa-chip">

@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { MUNICIPIOS_PB_POR_NOME, campoDoErro, municipioPeloNome, type CampoDaEntidade } from "@/lib/oportunidades/formulario-entidade";
-import { UFS, agentesPorGrupo, type TipoAgente } from "@/lib/oportunidades/organizacao";
-import { cadastrarOrganizacao, type ResultadoConta } from "./acoes";
+import { UFS, agentesPorGrupo, type Organizacao, type TipoAgente } from "@/lib/oportunidades/organizacao";
+import { cadastrarOrganizacao, editarOrganizacao, type ResultadoConta } from "./acoes";
 
 const INICIAL: ResultadoConta = { ok: true };
 const ID_ERRO = "org-erro";
@@ -27,13 +27,14 @@ const ID_ERRO = "org-erro";
  * - os campos guardam o que foi digitado: a ação do formulário do React limpa os campos não controlados ao terminar,
  *   também quando volta com erro, e o "CNPJ inválido" apontaria para um campo já vazio.
  */
-export function OrganizacaoForm() {
-  const [estado, acao, pendente] = useActionState(cadastrarOrganizacao, INICIAL);
-  const [tipo, setTipo] = useState<TipoAgente | "">("");
-  const [nome, setNome] = useState("");
-  const [uf, setUf] = useState("");
-  const [municipio, setMunicipio] = useState("");
-  const [cnpj, setCnpj] = useState("");
+export function OrganizacaoForm({ inicial }: { inicial?: Organizacao } = {}) {
+  // Com `inicial`, o mesmo formulário corrige o cadastro existente (diagnóstico externo de 17/11/2026, A09).
+  const [estado, acao, pendente] = useActionState(inicial ? editarOrganizacao : cadastrarOrganizacao, INICIAL);
+  const [tipo, setTipo] = useState<TipoAgente | "">(inicial?.tipo ?? "");
+  const [nome, setNome] = useState(inicial?.nome ?? "");
+  const [uf, setUf] = useState(inicial?.uf ?? "");
+  const [municipio, setMunicipio] = useState(inicial?.municipioIbge ?? "");
+  const [cnpj, setCnpj] = useState(inicial?.cnpj ?? "");
 
   // Município só faz sentido para ente municipal. Para os demais, pedir código
   // do IBGE é pedir dado que a pessoa não tem e que não vamos usar.
@@ -56,6 +57,7 @@ export function OrganizacaoForm() {
 
   return (
     <form action={acao} className="pa-pilha-larga">
+      {inicial && <input type="hidden" name="organizacao_id" value={inicial.id} />}
       <fieldset className="pa-fieldset" aria-describedby={campoComErro === "tipo" ? ID_ERRO : undefined}>
         <legend className="pa-mono">Que tipo de agente é a entidade</legend>
         <p className="pa-sub">
@@ -193,6 +195,13 @@ export function OrganizacaoForm() {
           </div>
         ))}
 
+      {inicial && (inicial.tipo === "municipio" || inicial.cnpj) && (
+        <p className="pa-nota">
+          Trocar o município ou o CNPJ desfaz a confirmação do vínculo: a PONTE confere de novo antes de liberar a página
+          própria.
+        </p>
+      )}
+
       {estado.erro && (
         <p id={ID_ERRO} className="mp-form-erro" role="alert">
           {estado.erro}
@@ -201,7 +210,7 @@ export function OrganizacaoForm() {
 
       <div className="pa-linha">
         <button type="submit" className="pa-btn" disabled={pendente}>
-          {pendente ? "Salvando…" : "Salvar e voltar ao Mapa"}
+          {pendente ? "Salvando…" : inicial ? "Salvar alterações" : "Salvar e voltar ao Mapa"}
         </button>
       </div>
 

@@ -7,12 +7,20 @@
  */
 import { authConfigurada, clienteServidor, clienteSessao } from "@/lib/supabase-auth";
 import type { TipoMudanca } from "./diff";
-import type { ItemCentral } from "./central";
+import { diaDe, type ItemCentral } from "./central";
 import { ehEsquemaAusente } from "./esquema";
 import { PREFERENCIAS_VAZIAS, type Preferencias } from "./aderencia.ts";
 
 /** Acima disto a tela avisa que não está mostrando tudo, em vez de cortar calada. */
 export const LIMITE_ITENS = 500;
+
+/**
+ * Diagnóstico externo de 17/11/2026 (A10): o cabeçalho somava 1.131 avisos, 1.040 deles de prazo já vencido, e a
+ * lista cortava em 500. A fila e o número da aba ficam com os prazos em aberto (`fecha` do dia de hoje em diante;
+ * `oport_mudanca.fecha` é texto AAAA-MM-DD e nunca nulo); os vencidos ficam à parte, em `?prazos=vencidos`.
+ * O dia é o de UTC, o mesmo que a tela usa para separar o histórico (`diaDe`).
+ */
+export type Prazos = "vigentes" | "vencidos";
 
 export type LeituraCentral =
   | { status: "ok"; itens: ItemCentral[]; truncada: boolean; ultimaProcessada: string | null }
@@ -23,7 +31,7 @@ interface LinhaNotificacao {
   id: number;
   lida_em: string | null;
   arquivada_em: string | null;
-  mudanca: {
+  oport_mudanca: {
     tipo: TipoMudanca;
     chave: string;
     programa: string;
@@ -116,17 +124,20 @@ export async function lerTentativasFalhas(): Promise<TentativaFalha[]> {
   return linhas.map((l) => ({ quando: l.iniciada_em, mensagem: l.mensagem }));
 }
 
-export async function lerCentral(): Promise<LeituraCentral> {
+export async function lerCentral(prazos: Prazos = "vigentes", agora: Date = new Date()): Promise<LeituraCentral> {
   // Sem Supabase configurado não há central. Criar o cliente assim lançaria
   // exceção em vez de responder.
   if (!authConfigurada()) return { status: "nao_ativada" };
   const db = await clienteSessao();
+  // `!inner`: o filtro no prazo da mudança corta a notificação, e não só esvazia o campo embutido (A10).
+  const consulta = db
+    .from("oport_notificacao")
+    .select(
+      "id, lida_em, arquivada_em, oport_mudanca!inner(tipo, chave, programa, orgao, fecha, limiar, antes, depois, temas, natureza, canal, publicacao:oport_publicacao(gerado_em))",
+    );
+  const hoje = diaDe(agora);
   const [notificacoes, publicacao] = await Promise.all([
-    db
-      .from("oport_notificacao")
-      .select(
-        "id, lida_em, arquivada_em, mudanca:oport_mudanca(tipo, chave, programa, orgao, fecha, limiar, antes, depois, temas, natureza, canal, publicacao:oport_publicacao(gerado_em))",
-      )
+    (prazos === "vencidos" ? consulta.lt("oport_mudanca.fecha", hoje) : consulta.gte("oport_mudanca.fecha", hoje))
       .order("criado_em", { ascending: false })
       .limit(LIMITE_ITENS + 1),
     db.from("oport_publicacao").select("gerado_em").order("gerado_em", { ascending: false }).limit(1).maybeSingle(),
@@ -144,8 +155,8 @@ export async function lerCentral(): Promise<LeituraCentral> {
   for (const l of linhas.slice(0, LIMITE_ITENS)) {
     // Sem a mudança não há o que mostrar. Com a RLS, isso só acontece se a pessoa
     // perdeu a aprovação entre as duas leituras.
-    if (!l.mudanca) continue;
-    const m = l.mudanca;
+    if (!l.oport_mudanca) continue;
+    const m = l.oport_mudanca;
     itens.push({
       id: String(l.id),
       tipo: m.tipo,
@@ -176,7 +187,8 @@ export async function lerCentral(): Promise<LeituraCentral> {
 }
 
 /**
- * Quantos avisos não lidos e não arquivados a pessoa tem — o número da aba.
+ * Quantos avisos não lidos e não arquivados a pessoa tem — o número da aba. Por padrão, só os de prazo em aberto
+ * (A10, 17/11/2026); `vencidos` conta os de prazo que já passou, para o link do histórico.
  *
  * `head: true` com `count: "exact"`: pede só a contagem, sem trazer linha
  * nenhuma. A moldura chama isto em toda tela do `/mapa`, então precisa ser
@@ -185,15 +197,19 @@ export async function lerCentral(): Promise<LeituraCentral> {
  * Falha devolve null, não zero: "0 não lidas" afirmaria que está tudo lido, e
  * a verdade é que não foi possível contar. A aba mostra o nome sem número.
  */
-export async function contarNaoLidas(): Promise<number | null> {
+export async function contarNaoLidas(prazos: Prazos = "vigentes", agora: Date = new Date()): Promise<number | null> {
   if (!authConfigurada()) return null;
 
   const db = await clienteSessao();
-  const { count, error } = await db
+  const hoje = diaDe(agora);
+  const consulta = db
     .from("oport_notificacao")
-    .select("id", { count: "exact", head: true })
+    .select("id, oport_mudanca!inner(fecha)", { count: "exact", head: true })
     .is("lida_em", null)
     .is("arquivada_em", null);
+  const { count, error } = await (prazos === "vencidos"
+    ? consulta.lt("oport_mudanca.fecha", hoje)
+    : consulta.gte("oport_mudanca.fecha", hoje));
 
   if (error) {
     if (!ehEsquemaAusente(error.code)) console.error("contarNaoLidas:", error.message);

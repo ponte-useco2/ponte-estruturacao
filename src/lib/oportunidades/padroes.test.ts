@@ -10,6 +10,7 @@ import {
   porCondicao,
   porRequisito,
   quantil,
+  separarSuspensivas,
   tempoNoOrgao,
   tituloOrgao,
   venceNaNatureza,
@@ -67,6 +68,35 @@ test("destino: saiu pela retirada; morreu anulado ou rescindido; segue em execu�
   assert.equal(destino(h({ dt_suspensiva: "2027-01-01", situacao: "Em execução" })), "segue");
   assert.equal(destino(h({ dt_suspensiva: "2023-01-01", situacao: "Aguardando Prestação de Contas" })), "encerrou");
   assert.equal(destino(h({})), null); // nunca teve suspensiva
+});
+
+// Diagnóstico externo de 17/11/2026 (A06): a coleta é de 21/09; o painel diário diz quem já saiu.
+test("A06: separarSuspensivas põe na fila quem segue ou não tem painel; quem saiu, encerrou ou morreu vai para as saídas", () => {
+  const item = (numero: string, contexto: { situacao: string | null; dt_suspensiva: string | null; dt_retirada_suspensiva: string | null } | null) => ({
+    numero,
+    contexto,
+  });
+  const linhas = [
+    item("963081", { situacao: "Aguardando Prestação de Contas", dt_suspensiva: "2026-08-01", dt_retirada_suspensiva: null }),
+    item("986527", { situacao: "Em execução", dt_suspensiva: null, dt_retirada_suspensiva: "2026-09-18" }),
+    item("900001", { situacao: "Em execução", dt_suspensiva: "2026-10-01", dt_retirada_suspensiva: null }), // prazo vencido, segue
+    item("900002", null), // sem contexto do painel
+    item("900003", { situacao: "Convênio Anulado", dt_suspensiva: "2026-05-01", dt_retirada_suspensiva: null }),
+    item("900004", { situacao: "Em execução", dt_suspensiva: "2027-03-01", dt_retirada_suspensiva: null }),
+  ];
+  const { fila, saidas } = separarSuspensivas(linhas);
+  assert.deepEqual(fila.map((l) => l.numero), ["900001", "900002", "900004"]);
+  assert.deepEqual(
+    saidas.map((s) => [s.linha.numero, s.destino]),
+    [
+      ["963081", "encerrou"],
+      ["986527", "saiu"],
+      ["900003", "morreu"],
+    ],
+  );
+  // A mesma linha, sem cópia: a tela usa o contexto dela.
+  assert.equal(saidas[1].linha, linhas[1]);
+  assert.deepEqual(separarSuspensivas([]), { fila: [], saidas: [] });
 });
 
 test("lerHistorico conta a coorte, mede o tempo só de quem saiu e a fatia perdida", () => {

@@ -736,6 +736,76 @@ export function valoresDaSuspensiva(l: ItemListaSuspensiva, hoje: string, refere
   };
 }
 
+// ---------------------------------------------------------------- quem já saiu (Diagnóstico externo de 17/11/2026, A06)
+
+/** O que `destino` diz de quem o painel diário já dá como fora da suspensiva. */
+export type DestinoSaida = Exclude<Destino, "segue">;
+
+/** O que a separação lê do contexto do painel: os três campos de `destino`. */
+export interface ComContextoDoPainel {
+  contexto: Pick<HistoricoSuspensiva, "situacao" | "dt_suspensiva" | "dt_retirada_suspensiva"> | null;
+}
+
+export interface SaidaSuspensiva<T> {
+  linha: T;
+  destino: DestinoSaida;
+}
+
+/**
+ * Diagnóstico externo de 17/11/2026 (A06): a coleta do Acesso Livre é de um dia (21/09/2026) e o painel é diário. Quem
+ * o painel já dá como fora da suspensiva (a retirada registrada, a prestação de contas, o anulado) seguia na lista, nos
+ * cartões, na mediana e no CSV. `fila`: o painel diz que segue em suspensiva, ou não tem a linha do convênio (sem
+ * contexto não há como dizer que saiu). `saidas`: o `destino` do painel é "saiu", "encerrou" ou "morreu". A ordem de
+ * entrada se mantém nas duas listas.
+ */
+export function separarSuspensivas<T extends ComContextoDoPainel>(linhas: readonly T[]): { fila: T[]; saidas: SaidaSuspensiva<T>[] } {
+  const fila: T[] = [];
+  const saidas: SaidaSuspensiva<T>[] = [];
+  for (const l of linhas) {
+    const d = l.contexto ? destino(l.contexto) : null;
+    if (d === "saiu" || d === "encerrou" || d === "morreu") saidas.push({ linha: l, destino: d });
+    else fila.push(l);
+  }
+  return { fila, saidas };
+}
+
+/** A tabela de quem já saiu, na mesma página da lista (id próprio). */
+export const TABELA_SUSPENSIVAS_SAIDAS = "susp-saidas";
+
+export const ROTULO_DESTINO_SAIDA: Record<DestinoSaida, string> = {
+  saiu: "Suspensiva retirada",
+  encerrou: "Encerrado sem a retirada",
+  morreu: "Anulado ou rescindido",
+};
+
+export const COLUNAS_SUSPENSIVAS_SAIDAS: ColunaTabela[] = [
+  { id: "convenio", titulo: "Convênio", tipo: "texto", textoNoCsv: true },
+  { id: "municipio", titulo: "Município", tipo: "texto", oculta: true },
+  { id: "programa", titulo: "Programa", tipo: "texto", oculta: true },
+  { id: "orgao", titulo: "Órgão", tipo: "categoria" },
+  { id: "repasse", titulo: "Repasse", tipo: "numero", alinhar: "direita" },
+  { id: "saida", titulo: "Segundo o painel diário", tipo: "categoria" },
+  { id: "retirada", titulo: "Retirada em", tipo: "data", oculta: true },
+  { id: "situacao", titulo: "Situação no painel", tipo: "categoria", oculta: true },
+];
+
+/** Os valores crus de quem já saiu: sem tempo parado nem prazo (o tempo da coleta não vale mais para eles). */
+export function valoresDaSaida(
+  s: SaidaSuspensiva<ItemListaSuspensiva & { contexto: (NonNullable<ItemListaSuspensiva["contexto"]> & { situacao: string | null }) | null }>,
+): Record<string, ValorCelula> {
+  const c = s.linha.contexto;
+  return {
+    convenio: s.linha.numero,
+    municipio: c?.municipio ?? null,
+    programa: c?.programa ?? null,
+    orgao: c?.orgao_sup ? tituloOrgao(c.orgao_sup) : null,
+    repasse: c?.vl_repasse ?? null,
+    saida: ROTULO_DESTINO_SAIDA[s.destino],
+    retirada: c?.dt_retirada_suspensiva ?? null,
+    situacao: c?.situacao ?? null,
+  };
+}
+
 /**
  * O endereço novo de um link antigo (`?prazo=` e `?orgao=`), ou null quando ele não tem filtro antigo. Como antes,
  * valor desconhecido não filtra (o órgão só vale se estiver na coleta, `orgaosDaColeta`, no nome como o banco grava):

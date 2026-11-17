@@ -13,6 +13,7 @@ import {
   AVISO_FIXO,
   COLUNAS_FISCAL,
   DECISOES,
+  FONTE_POPULACAO_FISCAL,
   MARCA_ESTADO,
   NOME_CURTO,
   ROTULO_DECISAO,
@@ -132,7 +133,8 @@ function linhaMunicipio(m: MunicipioFiscal): LinhaTabela {
         </LinkMapa>
         <span className="mp-tabela-secundario">
           IBGE {m.ibge}
-          {m.populacao ? ` · ${n(m.populacao)} hab.` : ""}
+          {/* A12 (17/11/2026): a população do fiscal é outra estimativa que a da página do município; diz qual. */}
+          {m.populacao ? ` · ${n(m.populacao)} hab. (${FONTE_POPULACAO_FISCAL})` : ""}
         </span>
       </>
     ),

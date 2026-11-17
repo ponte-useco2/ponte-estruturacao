@@ -22,9 +22,11 @@ import type { TipoMudanca } from "@/lib/oportunidades/diff";
 import {
   HORAS_DADO_VELHO,
   ROTULO_TIPO,
+  agruparPorJanela,
+  contarJanelasPorTipo,
   contarNaoLidas,
-  contarPorTipo,
   descrever,
+  diaMesDaPublicacao,
   filtrar,
   formatarData,
   formatarPublicacao,
@@ -32,9 +34,10 @@ import {
   mensagemVazio,
   ordenarPorUrgencia,
   type Aba,
+  type CartaoJanela,
   type ItemCentral,
 } from "@/lib/oportunidades/central";
-import type { LeituraCentral, TentativaFalha } from "@/lib/oportunidades/notificacoes.server";
+import type { LeituraCentral, Prazos, TentativaFalha } from "@/lib/oportunidades/notificacoes.server";
 import { Tag } from "../../_design/primitivos";
 import { TRANSFEREGOV_CONSULTA } from "@/lib/oportunidades/transferegov";
 import { copiarTexto } from "@/lib/area-de-transferencia";
@@ -86,16 +89,20 @@ const AFETA: Record<Acao, (i: ItemCentral) => boolean> = {
   desarquivar: (i) => Boolean(i.arquivada_em),
 };
 
-function textoFeito(acao: Acao, n: number): string {
+/** Com `janelas` diferente de `n`, diz em quantas janelas caíram os avisos (cartão por janela, A10). */
+function textoFeito(acao: Acao, n: number, janelas?: number): string {
   const s = n === 1 ? "" : "s";
   const textos: Record<Acao, string> = {
-    lida: `${n} marcada${s} como lida${s}.`,
-    naoLida: `${n} marcada${s} como não lida${s}.`,
-    arquivar: `${n} arquivada${s}.`,
-    desarquivar: `${n} desarquivada${s}.`,
+    lida: `${n} marcada${s} como lida${s}`,
+    naoLida: `${n} marcada${s} como não lida${s}`,
+    arquivar: `${n} arquivada${s}`,
+    desarquivar: `${n} desarquivada${s}`,
   };
-  return textos[acao];
+  const onde = janelas !== undefined && janelas !== n ? `, em ${janelas} ${janelas === 1 ? "janela" : "janelas"}` : "";
+  return `${textos[acao]}${onde}.`;
 }
+
+const numero = (v: number) => v.toLocaleString("pt-BR");
 
 const ABAS: { id: Aba; rotulo: string }[] = [
   { id: "nao_lidas", rotulo: "Não lidas" },
@@ -138,6 +145,8 @@ export function MapaClient({
   resumoCatalogo,
   visitaAnterior,
   tentativas,
+  prazos = "vigentes",
+  naoLidasPorPrazo = { vigentes: null, vencidos: null },
 }: {
   central: LeituraCentral;
   pendente: boolean;
@@ -147,11 +156,17 @@ export function MapaClient({
   resumoCatalogo: ResumoCatalogo | null;
   visitaAnterior: string | null;
   tentativas: TentativaFalha[];
+  /** A10 (17/11/2026): a fila dos prazos em aberto ou o histórico dos vencidos. */
+  prazos?: Prazos;
+  /** As não lidas contadas no banco, sem o corte da lista; null quando a contagem falhou. */
+  naoLidasPorPrazo?: Record<Prazos, number | null>;
 }) {
   if (central.status === "nao_ativada") return <NaoAtivada />;
   if (central.status === "erro") return <ErroLeitura />;
   return (
+    // `key`: a fila e o histórico dos vencidos (A10) não dividem estado — aba, seleção e grupos abertos recomeçam.
     <Central
+      key={prazos}
       itens={central.itens}
       truncada={central.truncada}
       ultimaProcessada={central.ultimaProcessada}
@@ -162,6 +177,8 @@ export function MapaClient({
       resumoCatalogo={resumoCatalogo}
       visitaAnterior={visitaAnterior}
       tentativas={tentativas}
+      prazos={prazos}
+      naoLidasPorPrazo={naoLidasPorPrazo}
     />
   );
 }
@@ -217,6 +234,8 @@ function Central({
   resumoCatalogo,
   visitaAnterior,
   tentativas,
+  prazos,
+  naoLidasPorPrazo,
 }: {
   itens: ItemCentral[];
   truncada: boolean;
@@ -228,6 +247,8 @@ function Central({
   resumoCatalogo: ResumoCatalogo | null;
   visitaAnterior: string | null;
   tentativas: TentativaFalha[];
+  prazos: Prazos;
+  naoLidasPorPrazo: Record<Prazos, number | null>;
 }) {
   const [aba, setAba] = useState<Aba>("nao_lidas");
   const [tipos, setTipos] = useState<TipoMudanca[]>([]);
@@ -242,7 +263,8 @@ function Central({
   // Detalhe abre no lugar, um por vez: abrir em página nova tiraria a pessoa da
   // fila que ela veio ver.
   const [detalhe, setDetalhe] = useState<string | null>(null);
-  const [gruposAbertos, setGruposAbertos] = useState<ReadonlySet<string>>(() => new Set());
+  // No histórico dos vencidos, o único grupo é o "Já fechou": nasce aberto.
+  const [gruposAbertos, setGruposAbertos] = useState<ReadonlySet<string>>(() => new Set(prazos === "vencidos" ? ["fechou"] : []));
   // "Ver só essas" do destaque de prazo: recorte, não alarme novo.
   const [soCurto, setSoCurto] = useState(false);
   const [salvando, iniciarTransicao] = useTransition();
@@ -311,20 +333,25 @@ function Central({
     return d.toISOString().slice(0, 10);
   }, [agoraIso]);
 
+  // Diagnóstico externo de 17/11/2026 (A10): um cartão por janela, e não um por aviso (até 18 na mesma janela).
   const visiveis = useMemo(() => {
     const hoje = diaDe(new Date(agoraIso));
-    const base = ordenarPorUrgencia(filtrar(itens, aba, tipos), hoje);
+    const base = ordenarPorUrgencia(agruparPorJanela(filtrar(itens, aba, tipos)), hoje);
     // "Ver só essas" é o que fecha nesta semana: o que já fechou não entra.
     return soCurto ? base.filter((i) => i.fecha >= hoje && i.fecha <= limiteCurto) : base;
   }, [itens, aba, tipos, soCurto, limiteCurto, agoraIso]);
 
   const grupos = useMemo(() => agruparPorPrazo(visiveis, new Date(agoraIso)), [visiveis, agoraIso]);
-  const porTipo = useMemo(() => contarPorTipo(itens, aba), [itens, aba]);
-  const porAba: Record<Aba, number> = {
-    nao_lidas: contarNaoLidas(itens),
-    todas: filtrar(itens, "todas", []).length,
-    arquivadas: filtrar(itens, "arquivadas", []).length,
-  };
+  // Os chips contam janelas (cartões), como a lista mostra.
+  const porTipo = useMemo(() => contarJanelasPorTipo(itens, aba), [itens, aba]);
+  const porAba: Record<Aba, number> = useMemo(
+    () => ({
+      nao_lidas: agruparPorJanela(filtrar(itens, "nao_lidas", [])).length,
+      todas: agruparPorJanela(filtrar(itens, "todas", [])).length,
+      arquivadas: agruparPorJanela(filtrar(itens, "arquivadas", [])).length,
+    }),
+    [itens],
+  );
 
   // A seleção vale só para o que está na tela: o que saiu dela, por ação ou por
   // filtro, deixa de contar — sem precisar de efeito que sincronize estado.
@@ -389,7 +416,7 @@ function Central({
     setSelecionadas(todas ? new Set() : new Set(visiveis.map((i) => i.id)));
   }
 
-  function aplicar(acao: Acao, ids: string[], desfazendo: boolean) {
+  function aplicar(acao: Acao, ids: string[], desfazendo: boolean, janelas?: number) {
     setErro(null);
     iniciarTransicao(async () => {
       const r = await EXECUTAR[acao](ids);
@@ -400,7 +427,7 @@ function Central({
         return;
       }
       setSelecionadas(new Set());
-      const texto = textoFeito(acao, ids.length);
+      const texto = textoFeito(acao, ids.length, janelas);
       if (desfazendo) {
         setDesfazer(null);
         setAnuncio(`Desfeito. ${texto}`);
@@ -414,14 +441,15 @@ function Central({
     });
   }
 
-  function agir(acao: Acao, alvo: ItemCentral[]) {
+  /** A ação no cartão vale para todos os avisos da janela que ela muda; o desfazer reverte exatamente esses (A10). */
+  function agir(acao: Acao, alvo: CartaoJanela[]) {
     if (salvando) return;
-    const ids = alvo.filter(AFETA[acao]).map((i) => i.id);
+    const ids = alvo.flatMap((c) => c.membros).filter(AFETA[acao]).map((i) => i.id);
     if (ids.length === 0) {
       setAnuncio("Nada a alterar nessa seleção.");
       return;
     }
-    aplicar(acao, ids, false);
+    aplicar(acao, ids, false, alvo.filter((c) => c.membros.some(AFETA[acao])).length);
   }
 
   function fecharDesfazer() {
@@ -432,7 +460,7 @@ function Central({
   function botaoLote(acao: Acao, rotulo: string) {
     // `aria-disabled`, e não `disabled`: o botão continua na ordem de tabulação e
     // o leitor de tela diz por que não pode ser usado, em vez de ele sumir.
-    const inativo = nenhuma || salvando || !selecionadasVisiveis.some(AFETA[acao]);
+    const inativo = nenhuma || salvando || !selecionadasVisiveis.some((c) => c.membros.some(AFETA[acao]));
     return (
       <button
         type="button"
@@ -448,6 +476,23 @@ function Central({
   }
 
   const vazio = mensagemVazio({ aba, filtrando: tipos.length > 0, frescor, publicadoEm: ultimaProcessada });
+
+  // A10 (17/11/2026): o subtítulo diz a contagem do banco, sem o corte da lista, e de que prazos ela é. As janelas
+  // só entram quando a lista veio inteira.
+  const naoLidasAvisos = naoLidasPorPrazo[prazos] ?? contarNaoLidas(itens);
+  const linhaAvisos =
+    `${prazos === "vencidos" ? "Histórico: " : ""}${numero(naoLidasAvisos)} ${naoLidasAvisos === 1 ? "aviso não lido" : "avisos não lidos"} ` +
+    `${prazos === "vencidos" ? "de prazos já vencidos" : "de prazos em aberto"}` +
+    (truncada || naoLidasAvisos === 0 ? "" : `, em ${numero(porAba.nao_lidas)} ${porAba.nao_lidas === 1 ? "janela" : "janelas"}`);
+  // A05 (17/11/2026): o 231 é o catálogo v1 inteiro, no instante da geração; a tela diz o universo e a data.
+  const diaCatalogo = diaMesDaPublicacao(resumoCatalogo?.geradoEm);
+  const linhaCatalogo = resumoCatalogo
+    ? `${numero(resumoCatalogo.total)} janelas do Transferegov no catálogo${diaCatalogo ? ` de ${diaCatalogo}` : ""}, ` +
+      "todo o Brasil e todo tipo de proponente" +
+      (resumoCatalogo.fecham7 > 0 ? ` · ${numero(resumoCatalogo.fecham7)} ${resumoCatalogo.fecham7 === 1 ? "fecha" : "fecham"} em 7 dias` : "")
+    : null;
+  const outro: Prazos = prazos === "vencidos" ? "vigentes" : "vencidos";
+  const naoLidasOutro = naoLidasPorPrazo[outro];
   const tiposNaAba = TIPOS_EM_ORDEM.filter((t) => (porTipo[t] ?? 0) > 0 || tipos.includes(t));
 
   const rotuloSelecionar =
@@ -475,18 +520,30 @@ function Central({
         <div className="pa-pilha">
           <p className="pa-kicker">Mapa de Oportunidades</p>
           <h1 className="pa-titulo" ref={refTitulo} tabIndex={-1}>
-            O que mudou no catálogo
+            {prazos === "vencidos" ? "Avisos de prazos já vencidos" : "O que mudou no catálogo"}
           </h1>
           <p className="pa-sub">
-            {porAba.nao_lidas === 1 ? "1 notificação não lida" : `${porAba.nao_lidas} notificações não lidas`}
+            {linhaAvisos}
             {ultimaProcessada ? ` · catálogo atualizado em ${formatarPublicacao(ultimaProcessada)}` : ""}
-            {resumoCatalogo ? ` · ${resumoCatalogo.total} janelas abertas` : ""}
+          </p>
+          {linhaCatalogo && <p className="pa-sub">{linhaCatalogo}</p>}
+          <p className="pa-nota">
+            {prazos === "vencidos" ? (
+              <LinkMapa href="/mapa/avisos">
+                Voltar aos avisos de prazos em aberto{naoLidasOutro ? ` (${numero(naoLidasOutro)} não lidos)` : ""}
+              </LinkMapa>
+            ) : (
+              <LinkMapa href="/mapa/avisos?prazos=vencidos">
+                Ver os avisos de prazos já vencidos{naoLidasOutro ? ` (${numero(naoLidasOutro)} não lidos)` : ""}
+              </LinkMapa>
+            )}
           </p>
         </div>
 
         {/* Único destaque em cor de perigo na tela: o resumo do primeiro grupo de
-            prazo. Não é alarme novo — é o mesmo dado, dito uma vez. */}
-        {resumoCatalogo && resumoCatalogo.fecham7 > 0 && (
+            prazo. Não é alarme novo — é o mesmo dado, dito uma vez. No histórico
+            dos vencidos não há prazo correndo. */}
+        {prazos === "vigentes" && resumoCatalogo && resumoCatalogo.fecham7 > 0 && (
           <aside className="pa-cartao pa-mapa-urgente">
             <span className="pa-mono">Prazo correndo</span>
             <strong>
@@ -537,7 +594,10 @@ function Central({
       )}
 
       {truncada && (
-        <p className="pa-nota">Mostrando as 500 notificações mais recentes. As anteriores continuam guardadas.</p>
+        <p className="pa-nota">
+          Mostrando as 500 notificações mais recentes{prazos === "vencidos" ? " de prazos já vencidos" : ""}. As anteriores
+          continuam guardadas.
+        </p>
       )}
 
       {erro && (
@@ -664,11 +724,12 @@ function Central({
               oferece as saídas que existem. */}
           {resumoCatalogo && (
             <p className="pa-mono">
-              As {resumoCatalogo.total} janelas abertas continuam na aba Janelas; o que acabou foi a fila de avisos.
+              {/* A05: o total do catálogo v1 não é o que a aba Janelas mostra; a frase fica sem o número. */}
+              As janelas abertas continuam na aba Janelas; o que acabou foi a fila de avisos.
             </p>
           )}
           <div className="pa-linha">
-            {resumoCatalogo && resumoCatalogo.fecham7 > 0 && !soCurto && (
+            {prazos === "vigentes" && resumoCatalogo && resumoCatalogo.fecham7 > 0 && !soCurto && (
               <button type="button" className="pa-btn pa-btn-pequeno" onClick={() => setSoCurto(true)}>
                 Ver as {resumoCatalogo.fecham7} que fecham até {formatarData(resumoCatalogo.ate)}
               </button>
@@ -697,7 +758,7 @@ function Central({
               <div key={g.id} className="pa-tracejado pa-linha pa-mapa-grupo-recolhido">
                 <h2 className="pa-mapa-grupo-titulo">{g.titulo}</h2>
                 <span className="pa-mono">
-                  {g.itens.length} {g.itens.length === 1 ? "aviso" : "avisos"} · {g.naoLidas} não lidas
+                  {g.itens.length} {g.itens.length === 1 ? "janela" : "janelas"} · {g.naoLidas} não lidas
                 </span>
                 <span className="pa-espaco" />
                 <button
@@ -716,7 +777,7 @@ function Central({
               <div className="pa-linha pa-mapa-grupo-cabeca">
                 <h2 className="pa-mapa-grupo-titulo">{g.titulo}</h2>
                 <span className="pa-mono">
-                  {g.itens.length} {g.itens.length === 1 ? "aviso" : "avisos"}
+                  {g.itens.length} {g.itens.length === 1 ? "janela" : "janelas"}
                 </span>
                 <span className="pa-espaco" />
                 <span className="pa-mono">{g.naoLidas} não lidas</span>
@@ -774,6 +835,12 @@ function Central({
                             <span className="pa-mono">{i.orgao}</span>
                             {i.publicado_em && (
                               <span className="pa-mono">publicado {formatarPublicacao(i.publicado_em)}</span>
+                            )}
+                            {/* A10: os avisos anteriores da mesma janela ficam no cartão; marcar e arquivar valem para todos. */}
+                            {i.anteriores > 0 && (
+                              <span className="pa-mono">
+                                +{i.anteriores} {i.anteriores === 1 ? "aviso anterior" : "avisos anteriores"}
+                              </span>
                             )}
                             {combinacao && (
                               <span className="pa-tag pa-tag-aderente pa-mapa-combina">Combina: {combinacao}</span>

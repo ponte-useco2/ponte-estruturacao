@@ -60,6 +60,7 @@ import {
   type RecorteConvenios,
   type Relatorio,
 } from "@/lib/oportunidades/relatorio-municipio";
+import { DIAS_URGENTE } from "@/lib/oportunidades/contrato-v2";
 import type { LinhaTabela } from "@/lib/oportunidades/tabela-filtro";
 import { trilha } from "@/lib/oportunidades/trilha";
 import { EstrelaSeguir } from "../../../_componentes/EstrelaSeguir";
@@ -949,10 +950,23 @@ export function BlocoTramita() {
 
 export function BlocoJanelas({ r }: { r: Relatorio }) {
   if (!r.janelas) return null;
+  // Diagnóstico externo de 17/11/2026 (A05): a contagem das que fecham é a inteira (`nUrgentes`), e não o tamanho da
+  // lista cortada em 8; o universo é dito (as janelas em que este município pode entrar).
+  const { elegiveis, urgentes } = r.janelas;
+  const nUrgentes = r.janelas.nUrgentes ?? urgentes.length;
+  const fecham =
+    nUrgentes === 0
+      ? "."
+      : `; ${n(nUrgentes)} ${nUrgentes === 1 ? "fecha" : "fecham"} em até ${DIAS_URGENTE} dias` +
+        (nUrgentes > urgentes.length ? `; as ${n(urgentes.length)} mais próximas:` : ":");
   return (
-    <Secao id="rel-janelas" titulo="Janelas abertas hoje" nota="Programas abertos em que um município da PB pode entrar, pelo catálogo do Mapa.">
+    <Secao
+      id="rel-janelas"
+      titulo="Janelas abertas hoje"
+      nota="Programas abertos em que um município da PB pode entrar, pelo catálogo do Mapa; os de beneficiário específico, só quando nomeiam o município."
+    >
       <p>
-        {n(r.janelas.elegiveis)} janelas abertas{r.janelas.urgentes.length ? `; ${n(r.janelas.urgentes.length)} fecham em breve:` : "."}
+        {n(elegiveis)} {elegiveis === 1 ? "janela" : "janelas"} em que {r.nome} pode entrar{fecham}
       </p>
       {r.janelas.urgentes.length > 0 && (
         <ul>

@@ -154,8 +154,11 @@ export function CarteiraConteudo({ c, hoje, truncada }: { c: Carteira; hoje: str
   return (
     <div className="pa-pagina mp-radar mp-cart">
       <div className="pa-pilha mp-radar-cabeca">
-        <p className="pa-kicker">Carteira · acompanhar, entender o que mudou, agir</p>
+        <p className="pa-kicker">Carteira pessoal · acompanhar, entender o que mudou, agir</p>
         <h1 className="pa-titulo">Sua carteira</h1>
+        {/* Diagnóstico externo de 17/11/2026 (A08): a lista é da conta (`oport_favorito` não tem organização), e
+            aparecia sob o cabeçalho da organização ativa sem dizer isso. */}
+        <p className="pa-nota">É sua, não da organização ativa: trocar de organização não muda a carteira.</p>
         <p className="pa-sub">
           {c.vazia ? (
             "Nenhum item seguido ainda"

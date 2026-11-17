@@ -12,8 +12,10 @@ import {
   acimaDoLimite,
   filaDoMunicipio,
   leituraGuardavel,
+  MAX_URGENTES_RELATORIO,
   montarRelatorio,
   relatorioSemNomes,
+  resumirJanelas,
   rotuloPeriodo,
   type EntradaRelatorio,
   type InstrumentoRelatorio,
@@ -589,4 +591,30 @@ test("primeira infância (P2b, 23/10/2026): creche com parcela em conta e nenhum
   assert.ok(a, JSON.stringify(r.achados.map((x) => x.titulo)));
   assert.deepEqual([a.nivel, a.classe, a.quem, a.numeros], ["alto", "cobranca", "municipio", ["957750"]], "o liberado há pouco, o que já paga e o que não é creche ficam fora");
   assert.match(a.fato, /R\$ 856 mil em conta/);
+});
+
+test("janelas (diagnóstico externo de 17/11/2026, A05): com mais de 8 urgentes, a contagem é a inteira e a lista, as 8 mais próximas", () => {
+  // Na ordem do catálogo: prazo mais próximo primeiro. 10 urgentes e 30 que não fecham em 15 dias.
+  const urgentes = Array.from({ length: 10 }, (_, i) => ({
+    titulo: `Urgente ${i + 1}`, financiador: "MDS", prazo: `2026-10-${String(2 + i).padStart(2, "0")}`, urgente: true,
+  }));
+  const demais = Array.from({ length: 30 }, (_, i) => ({ titulo: `Depois ${i + 1}`, financiador: null, prazo: null, urgente: false }));
+  const j = resumirJanelas([...urgentes, ...demais]);
+  assert.equal(j.elegiveis, 40);
+  assert.equal(j.nUrgentes, 10);
+  assert.equal(j.urgentes.length, MAX_URGENTES_RELATORIO);
+  assert.deepEqual(j.urgentes.map((x) => x.titulo), urgentes.slice(0, 8).map((x) => x.titulo));
+  assert.deepEqual(j.urgentes[0], { titulo: "Urgente 1", orgao: "MDS", fim: "2026-10-02" });
+  // O relatório leva a contagem adiante, sem recortar.
+  const r = montarRelatorio(patos({ janelas: j }), HOJE);
+  assert.equal(r.janelas?.nUrgentes, 10);
+  assert.equal(r.janelas?.urgentes.length, 8);
+});
+
+test("janelas (A05): com menos de 8 urgentes, a lista é a contagem", () => {
+  const j = resumirJanelas([
+    { titulo: "A", financiador: "MEC", prazo: "2026-10-05", urgente: true },
+    { titulo: "B", financiador: "MEC", prazo: null, urgente: false },
+  ]);
+  assert.deepEqual([j.elegiveis, j.nUrgentes, j.urgentes.length], [2, 1, 1]);
 });

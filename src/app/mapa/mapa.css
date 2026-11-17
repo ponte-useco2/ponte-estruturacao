@@ -152,6 +152,25 @@
   letter-spacing: 0;
   font-weight: 600;
 }
+/* Diagnóstico externo de 17/11/2026 (A08): no celular fica o nome da organização ativa, curto; sai só o rótulo. */
+@media (max-width: 860px) {
+  .mp-conta-rotulo { display: none; }
+  /* Quem encolhe é o nome da marca (o selo "P" fica), e não o da organização: a 390 px o chip era espremido até
+     "Prefeitur…". Mesma regra que a de 22,5rem abaixo, agora para todo o celular. */
+  .pa-root.mp-root .pa-marca { min-width: 0; flex: 0 1 auto; }
+  .pa-root.mp-root .pa-marca-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .pa-root.mp-root .pa-perfil-wrap { flex: none; }
+  /* Em até duas linhas, e não cortado numa: "Prefeitur…" não dizia em qual organização se estava. */
+  .mp-conta-entidade {
+    max-width: 15ch;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.15;
+    font-size: 0.72rem;
+  }
+}
 
 /* O e-mail é texto, não item clicável: informa com qual conta se está dentro.
    Quebra por caractere porque endereço não tem espaço onde quebrar. */

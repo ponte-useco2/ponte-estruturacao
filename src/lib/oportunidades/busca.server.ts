@@ -10,8 +10,12 @@ import {
   LIMITE_POR_PAGINA,
   buscaSemFiltro,
   desfechosDoGrupo,
+  ehProgramaSemBanco,
+  ehTempoEsgotado,
   situacoesDoGrupo,
   termosDaBusca,
+  termosNaOrdemDoIndice,
+  type AvisoBusca,
   type EventoInstrumento,
   type Instrumento,
   type InstrumentoBusca,
@@ -115,6 +119,11 @@ export type LeituraBusca =
       maisMunicipios: boolean;
       /** Convênios ou propostas sem termo nem filtro: nada foi consultado (`buscaSemFiltro`). */
       semFiltro?: boolean;
+      /**
+       * A lista não veio, mas a página segue de pé (com o formulário) e diz o porquê (A04/A15, 17/11/2026): o tempo da
+       * consulta acabou, ou o filtro por programa pede a oport_66.
+       */
+      aviso?: AvisoBusca;
     };
 
 /** Quantos nomes de fora da PB a peneira do banco traz; `casarMunicipios` escolhe os melhores entre eles. */
@@ -208,25 +217,38 @@ export async function lerBusca(p: ParametrosBusca, estado: EstadoTabela = ESTADO
     };
   }
   const comuns = {
-    p_termos: termos.length ? termos : null,
+    // A04/A15 (17/11/2026): o termo mais longo primeiro, que é o que usa o índice de trigramas.
+    p_termos: termos.length ? termosNaOrdemDoIndice(termos) : null,
     p_uf: p.uf,
     p_ibge: p.municipio,
     p_tema: p.tema,
     p_limite: LIMITE_POR_PAGINA,
     p_offset: (p.pagina - 1) * LIMITE_POR_PAGINA,
   };
+  // A04/A15: o código do programa só vai quando há (oport_66); sem ele, a chamada é a de antes e não depende da migração.
+  const programa = p.aba === "propostas" && p.programa ? { p_cod_programa: p.programa } : {};
   const [lista, municipios, deFora] = await Promise.all([
     p.aba === "instrumentos"
       ? rpcDaBusca(db, ex.id, "painel_busca_instrumentos_v2", { ...comuns, ...parametrosDaTabela("instrumentos", estado), p_situacoes: situacoesDoGrupo(p.grupo) })
-      : rpcDaBusca(db, ex.id, "painel_busca_propostas_v2", { ...comuns, ...parametrosDaTabela("propostas", estado), p_desfechos: desfechosDoGrupo(p.grupo) }),
+      : rpcDaBusca(db, ex.id, "painel_busca_propostas_v2", { ...comuns, ...parametrosDaTabela("propostas", estado), p_desfechos: desfechosDoGrupo(p.grupo), ...programa }),
     p.uf ? db.rpc("painel_municipios", { p_uf: p.uf }) : Promise.resolve({ data: [], error: null }),
     fora,
   ]);
-  if (lista.error) return falhaDe("lerBusca", lista.error);
+  // Diagnóstico externo de 17/11/2026 (A04/A15): o tempo esgotado (57014) e a função sem `p_cod_programa` (PGRST202)
+  // não são "indisponível": a página fica de pé, com o formulário, e diz o que fazer. O resto continua falha comum.
+  const aviso: AvisoBusca | null = !lista.error
+    ? null
+    : "p_cod_programa" in programa && ehProgramaSemBanco(lista.error)
+      ? "programa_sem_banco"
+      : ehTempoEsgotado(lista.error)
+        ? "busca_ampla"
+        : null;
+  if (lista.error && !aviso) return falhaDe("lerBusca", lista.error);
+  if (lista.error) console.error(`lerBusca (${aviso}):`, lista.error.message);
   // O seletor de município é conveniência: sem ele a busca continua.
   if (municipios.error) console.error("lerBusca (municípios):", municipios.error.message);
 
-  const linhas = (lista.data ?? []) as (InstrumentoBusca | PropostaBusca)[];
+  const linhas = (lista.error ? [] : (lista.data ?? [])) as (InstrumentoBusca | PropostaBusca)[];
   const daUf = ((municipios.data ?? []) as OpcaoMunicipioBusca[]).map((m) => ({ cod_ibge: m.cod_ibge, municipio: m.municipio }));
   return {
     estado: "ok",
@@ -238,6 +260,7 @@ export async function lerBusca(p: ParametrosBusca, estado: EstadoTabela = ESTADO
     total: Number(linhas[0]?.total ?? 0),
     municipios: daUf,
     ...grupoDeMunicipios(daUf, deFora),
+    ...(aviso ? { aviso } : {}),
   };
 }
 
@@ -362,7 +385,8 @@ export async function lerBuscaUnificada(p: ParametrosBusca, entrada: Entrada, di
   }
 
   const escopo = escopoUnificado(p);
-  const rpcComuns = { p_termos: termos, p_uf: escopo.uf, p_ibge: null, p_tema: null, p_limite: LIMITE_GRUPO, p_offset: 0 };
+  // A04/A15 (17/11/2026): o termo mais longo primeiro, que é o que usa o índice de trigramas.
+  const rpcComuns = { p_termos: termosNaOrdemDoIndice(termos), p_uf: escopo.uf, p_ibge: null, p_tema: null, p_limite: LIMITE_GRUPO, p_offset: 0 };
   const grupos: GruposUnificados = {
     municipios: sozinho("municípios", async () => {
       if (!pareceMunicipio(p.q)) return { estado: "fora", motivo: MOTIVO_MUNICIPIO_FORA };

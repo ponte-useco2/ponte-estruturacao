@@ -36,6 +36,7 @@ import {
   fasesDoInstrumento,
   janelaDoPagamento,
   pagamentosPorMes,
+  partesDoPago,
   resumoFornecedores,
   urlInstrumentoNaAba,
   type AbaInstrumento,
@@ -101,6 +102,8 @@ export function InstrumentoConteudo({
   const viz = abasVizinhas(aba);
   const anterior = viz.anterior ? urlInstrumentoNaAba(i.nr_convenio, viz.anterior) : null;
   const proxima = viz.proxima ? urlInstrumentoNaAba(i.nr_convenio, viz.proxima) : null;
+  // A12 (17/11/2026): a linha do instrumento foi lida; o pago nulo é "nenhum pagamento registrado no SICONV", não "—".
+  const pago = partesDoPago(i.vl_pago, true);
 
   return (
     <div className="pa-pagina mp-radar mp-instrumento">
@@ -200,8 +203,9 @@ export function InstrumentoConteudo({
                 <h2 className="pa-mono">
                   Pago pelo <Termo slug="convenente">convenente</Termo>
                 </h2>
-                <p className="pa-numero">{moedaCurta(i.vl_pago)}</p>
+                <p className="pa-numero">{pago.valor}</p>
                 <p className="pa-nota">
+                  {pago.nota && `${pago.nota.charAt(0).toUpperCase()}${pago.nota.slice(1)}. `}
                   Saldo em conta {moedaCurta(i.vl_saldo_conta)}
                   {i.pct_fisico !== null ? ` · execução física aferida ${percentual(i.pct_fisico)}` : ""}
                 </p>

@@ -128,6 +128,26 @@ export interface JanelaRelatorio {
   fim: string | null;
 }
 
+/** Quantas das janelas urgentes a página lista (as de prazo mais próximo). */
+export const MAX_URGENTES_RELATORIO = 8;
+
+/**
+ * As janelas em que o município pode entrar, já na ordem do catálogo (prazo mais próximo primeiro).
+ *
+ * Diagnóstico externo de 17/11/2026 (A05): a tela usava o tamanho da lista cortada em 8 como a contagem das que
+ * fecham em até 15 dias; no município 2513802 eram 10. `nUrgentes` é a contagem inteira; `urgentes`, as 8 mais próximas.
+ */
+export function resumirJanelas(
+  janelas: readonly { titulo: string; financiador: string | null; prazo: string | null; urgente: boolean }[],
+): NonNullable<EntradaRelatorio["janelas"]> {
+  const urgentes = janelas.filter((j) => j.urgente);
+  return {
+    elegiveis: janelas.length,
+    nUrgentes: urgentes.length,
+    urgentes: urgentes.slice(0, MAX_URGENTES_RELATORIO).map((j) => ({ titulo: j.titulo, orgao: j.financiador, fim: j.prazo })),
+  };
+}
+
 /**
  * Tudo o que o relatório lê. `null` quer dizer que a leitura falhou (o nome vai em `faltas`); lista vazia,
  * que a fonte não tem nada do município.
@@ -155,7 +175,11 @@ export interface EntradaRelatorio {
   fundo: PlanoFundo[] | null;
   conciliacao: TceFederalMunicipio[] | null;
   fornecedores: { concentracao: ConcentracaoMunicipio | null; inidoneos: { cnpj: string; nome: string | null; pago: number }[] } | null;
-  janelas: { elegiveis: number; urgentes: JanelaRelatorio[] } | null;
+  /**
+   * `nUrgentes`: todas as que fecham em até 15 dias; `urgentes` traz só as `MAX_URGENTES_RELATORIO` mais próximas
+   * (A05, 17/11/2026). Ausente no relatório guardado antes disso: vale o tamanho da lista.
+   */
+  janelas: { elegiveis: number; urgentes: JanelaRelatorio[]; nUrgentes?: number } | null;
   /** Camada 2: a última execução do job `municipios/`; null sem a migração ou sem execução. */
   indicadores?: EntradaIndicadores | null;
   /** Obras do Pacto de Retomada (oport_63, R2 de 05/11/2026): as do município ou do CNPJ; null sem leitura. */

@@ -78,10 +78,27 @@ export interface ParametrosBusca {
   /** Um id de GRUPOS_SITUACAO (instrumentos) ou de GRUPOS_DESFECHO (propostas). */
   grupo: string | null;
   pagina: number;
+  /**
+   * O código do programa no Transferegov (`?programa=`, só dígitos), só na aba das propostas. Diagnóstico externo de
+   * 17/11/2026 (A04/A15): o Radar abria a busca pelo NOME do programa, e "fomento" casava ~50 mil de 139 mil propostas
+   * até estourar o tempo da API. Opcional no tipo: quem monta os parâmetros à mão não precisa dele.
+   */
+  programa?: string | null;
+  /** O nome do programa, só para o rótulo do recorte (`?rotulo=`); quem filtra é o código. */
+  rotulo?: string | null;
 }
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const preenchido = (v: string | string[] | undefined) => Boolean(um(v)?.trim());
+
+/** Código de programa do Transferegov: hoje são 13 dígitos (2200020260004); aceita de 10 a 13. */
+const CODIGO_PROGRAMA = /^\d{10,13}$/;
+
+/** O código do programa, se for um; senão null (não chega ao banco). */
+export function codigoDePrograma(v: string | string[] | undefined | null): string | null {
+  const s = (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
+  return CODIGO_PROGRAMA.test(s) ? s : null;
+}
 
 /**
  * A aba quando a URL não diz (C2, 08/10/2026). Antes da C2, sem `aba` era a lista dos convênios, e as páginas que
@@ -90,6 +107,8 @@ const preenchido = (v: string | string[] | undefined) => Boolean(um(v)?.trim());
  * só a UF, sem termo → convênios (sem termo não há o que unificar); nada → unificada, a entrada.
  */
 function abaSemParametro(sp: Record<string, string | string[] | undefined>): AbaBusca {
+  // A04/A15 (17/11/2026): o filtro por programa é da lista das propostas.
+  if (codigoDePrograma(sp.programa)) return "propostas";
   if (preenchido(sp.tema) || preenchido(sp.grupo) || preenchido(sp.municipio) || Number(um(sp.pagina)) > 1) return "instrumentos";
   if (preenchido(sp.q)) return "tudo";
   return preenchido(sp.uf) ? "instrumentos" : "tudo";
@@ -110,6 +129,8 @@ export function parametrosBusca(sp: Record<string, string | string[] | undefined
       tema: null,
       grupo: null,
       pagina: 1,
+      programa: null,
+      rotulo: null,
     };
   }
   // O cadastro das OSC é só da PB: a UF fica fixa, e tema e grupo não se aplicam.
@@ -123,6 +144,9 @@ export function parametrosBusca(sp: Record<string, string | string[] | undefined
   const grupo = um(sp.grupo) ?? "";
   const grupos = aba === "instrumentos" ? GRUPOS_SITUACAO : aba === "propostas" ? GRUPOS_DESFECHO : [];
   const pagina = Number(um(sp.pagina));
+  // A04/A15: o código vale só nas propostas (a função dos convênios não o recebe); o rótulo só com o código.
+  const programa = aba === "propostas" ? codigoDePrograma(sp.programa) : null;
+  const rotulo = programa ? (um(sp.rotulo) ?? "").trim().slice(0, 200) || null : null;
   return {
     aba,
     q: (um(sp.q) ?? "").trim().slice(0, 200),
@@ -131,6 +155,8 @@ export function parametrosBusca(sp: Record<string, string | string[] | undefined
     tema: aba !== "organizacoes" && ehTemaConhecido(tema) ? tema : null,
     grupo: grupos.some((g) => g.id === grupo) ? grupo : null,
     pagina: Number.isInteger(pagina) && pagina >= 1 ? Math.min(pagina, PAGINA_MAXIMA) : 1,
+    programa,
+    rotulo,
   };
 }
 
@@ -139,7 +165,12 @@ export function urlBusca(atual: ParametrosBusca, muda: Partial<ParametrosBusca>)
   // Mudar qualquer filtro volta à primeira página; trocar de aba solta o grupo, que é de outra lista.
   // Para as organizações a UF é sempre a PB; de volta delas, a PB só fica se houver município escolhido.
   const ufTroca = muda.aba === "organizacoes" ? { tema: null, uf: "PB" } : atual.aba === "organizacoes" && !atual.municipio ? { uf: null } : {};
-  const p = { ...atual, pagina: 1, ...(trocouAba ? { grupo: null, ...ufTroca } : {}), ...muda };
+  const p = { ...atual, pagina: 1, ...(trocouAba ? { grupo: null, programa: null, rotulo: null, ...ufTroca } : {}), ...muda };
+  // A04/A15 (17/11/2026): o programa é filtro só das propostas, e só com um código válido; o rótulo vai junto com ele.
+  if (p.aba !== "propostas" || !codigoDePrograma(p.programa)) {
+    p.programa = null;
+    p.rotulo = null;
+  }
   // C2 (08/10/2026): `parametrosBusca({})` virou a unificada. Quem parte dela e pede tema, situação, município ou só a
   // UF quer a lista dos convênios, como antes (as etiquetas do convênio, os investimentos do município).
   if (p.aba === "tudo" && muda.aba === undefined && (p.tema || p.grupo || p.municipio || (!p.q && p.uf))) p.aba = "instrumentos";
@@ -160,6 +191,8 @@ export function urlBusca(atual: ParametrosBusca, muda: Partial<ParametrosBusca>)
   if (p.municipio) q.set("municipio", p.municipio);
   if (p.tema) q.set("tema", p.tema);
   if (p.grupo) q.set("grupo", p.grupo);
+  if (p.programa) q.set("programa", p.programa);
+  if (p.programa && p.rotulo) q.set("rotulo", p.rotulo);
   if (p.pagina > 1) q.set("pagina", String(p.pagina));
   const s = q.toString();
   return s ? `/mapa/busca?${s}` : "/mapa/busca";
@@ -188,12 +221,61 @@ export function termosDaBusca(q: string): string[] {
 }
 
 /**
+ * Os termos na ordem em que vão às funções da busca: do mais longo para o mais curto (no empate, a ordem digitada).
+ * Diagnóstico externo de 17/11/2026 (A04/A15): só o PRIMEIRO termo usa o índice de trigramas (oport_54); os outros
+ * são conferidos linha a linha. Na ordem digitada, "fomento ao esporte" punha "fomento" (~50 mil de 139 mil propostas)
+ * na frente, e um termo de 2 letras ("ao") podia ser o primeiro. O mais longo costuma ser o mais seletivo.
+ * `termosDaBusca` continua na ordem digitada: a busca unificada casa a frase das entidades nessa ordem.
+ */
+export function termosNaOrdemDoIndice(termos: readonly string[]): string[] {
+  return [...termos].sort((a, b) => b.length - a.length);
+}
+
+/**
  * Convênios ou propostas sem termo e sem filtro: a lista seria o painel inteiro (79 mil convênios, 137 mil
  * propostas), a consulta mais pesada da busca (2,5 s com o banco aquecido; passou dos 8 s da API logo depois da
- * rodada diária de 08/10/2026). A tela pede um termo ou um filtro em vez de consultar.
+ * rodada diária de 08/10/2026). A tela pede um termo ou um filtro em vez de consultar. O código do programa (A04/A15)
+ * é filtro.
  */
 export function buscaSemFiltro(p: ParametrosBusca): boolean {
-  return p.aba !== "organizacoes" && termosDaBusca(p.q).length === 0 && !p.uf && !p.municipio && !p.tema && !p.grupo;
+  return p.aba !== "organizacoes" && termosDaBusca(p.q).length === 0 && !p.uf && !p.municipio && !p.tema && !p.grupo && !p.programa;
+}
+
+// ============================ QUANDO O BANCO NÃO RESPONDE (A04/A15) ============================
+
+/** Por que a lista não veio, quando não é falha comum: a tela diz o que fazer em vez de "indisponível". */
+export type AvisoBusca = "busca_ampla" | "programa_sem_banco";
+
+export const TITULO_AVISO_BUSCA: Record<AvisoBusca, string> = {
+  busca_ampla: "A busca não respondeu a tempo",
+  programa_sem_banco: "Filtro por programa indisponível",
+};
+
+export const TEXTO_AVISO_BUSCA: Record<AvisoBusca, string> = {
+  busca_ampla: "A busca ficou ampla demais para responder a tempo: escolha uma UF, um ano ou um termo mais específico.",
+  programa_sem_banco: "O filtro por programa depende de uma atualização do banco que ainda não foi aplicada.",
+};
+
+/** O erro do PostgREST como chega ao site (`rpc-guardada.server.ts`): a mensagem e o código. */
+interface ErroBanco {
+  message: string;
+  code?: string;
+}
+
+/**
+ * O tempo da consulta acabou (57014, `statement_timeout` de 8 s da API). Diagnóstico externo de 17/11/2026 (A04/A15):
+ * nos logs de 17/11, às 10:19 e 10:27 UTC, a busca das propostas por "fomento" virou "A busca está indisponível agora".
+ */
+export function ehTempoEsgotado(erro: ErroBanco | null | undefined): boolean {
+  return Boolean(erro && (erro.code === "57014" || /statement timeout/i.test(erro.message)));
+}
+
+/**
+ * A função do banco ainda não aceita `p_cod_programa` (a oport_66 não foi aplicada): o PostgREST responde PGRST202
+ * ("Could not find the function … in the schema cache"), ou o Postgres, 42883. Só vale quando o pedido levou o código.
+ */
+export function ehProgramaSemBanco(erro: ErroBanco | null | undefined): boolean {
+  return Boolean(erro && (erro.code === "PGRST202" || erro.code === "42883" || /p_cod_programa/.test(erro.message)));
 }
 
 export function situacoesDoGrupo(grupo: string | null): string[] | null {

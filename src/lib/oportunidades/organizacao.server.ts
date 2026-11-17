@@ -7,7 +7,7 @@
  * que confere a aprovação por dentro, sem confiar na tela.
  */
 import { cookies } from "next/headers";
-import { authConfigurada, clienteSessao } from "@/lib/supabase-auth";
+import { authConfigurada, clienteSessao, visitanteAtual } from "@/lib/supabase-auth";
 import { ehEsquemaAusente } from "./esquema";
 import { ehTipoAgente, type Organizacao, type TipoAgente } from "./organizacao";
 
@@ -47,9 +47,15 @@ export async function lerOrganizacoes(): Promise<Organizacao[]> {
   if (!authConfigurada()) return [];
 
   const db = await clienteSessao();
+  // Diagnóstico externo de 17/11/2026 (S3): a política "membro: vê os colegas" devolve também as linhas dos colegas
+  // de cada organização, e sem este filtro a mesma organização viria repetida, com o papel do colega. Hoje não há
+  // convite, então não acontecia; a edição (A09) passou a depender do papel.
+  const visitante = await visitanteAtual();
+  if (!visitante) return [];
   const { data, error } = await db
     .from("oport_membro")
-    .select("papel, organizacao:oport_organizacao (id, nome, tipo, uf, municipio_ibge, cnpj)");
+    .select("papel, organizacao:oport_organizacao (id, nome, tipo, uf, municipio_ibge, cnpj)")
+    .eq("user_id", visitante.id);
 
   if (error) {
     if (!ehEsquemaAusente(error.code)) console.error("lerOrganizacoes:", error.message);
@@ -134,4 +140,35 @@ export async function criarOrganizacao(campos: {
   }
 
   return { ok: true, id: String(data) };
+}
+
+/**
+ * Corrige o cadastro de uma organização (diagnóstico externo de 17/11/2026, A09: só havia como acrescentar).
+ *
+ * A barreira é a RLS da `oport_6` ("dono ou editor muda") e a permissão de coluna da `oport_38`; quem chama já
+ * conferiu o papel na lista da própria pessoa. Atualização que a RLS barra não dá erro: volta sem linha, e isso é
+ * dito como falta de permissão. Trocar o município ou o CNPJ desfaz a confirmação do vínculo pelo próprio cadastro
+ * (`cliente.ts`: "municipio_mudou" e "cnpj_mudou").
+ */
+export async function atualizarOrganizacao(
+  id: string,
+  campos: { nome: string; tipo: TipoAgente; uf: string | null; municipioIbge: string | null; cnpj: string | null },
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  if (!authConfigurada()) return { ok: false, erro: "Cadastro indisponível no momento." };
+
+  const db = await clienteSessao();
+  const { data, error } = await db
+    .from("oport_organizacao")
+    .update({ nome: campos.nome, tipo: campos.tipo, uf: campos.uf, municipio_ibge: campos.municipioIbge, cnpj: campos.cnpj })
+    .eq("id", id)
+    .select("id");
+
+  if (error) {
+    console.error("atualizarOrganizacao:", error.message);
+    if (ehEsquemaAusente(error.code)) return { ok: false, erro: "O cadastro de organizações ainda não foi ativado no banco." };
+    if (error.code === "42501") return { ok: false, erro: "Sem permissão para editar esta organização." };
+    return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
+  }
+  if (!data || data.length === 0) return { ok: false, erro: "Sem permissão para editar esta organização." };
+  return { ok: true };
 }

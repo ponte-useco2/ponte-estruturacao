@@ -5,6 +5,7 @@
  * dizer: a variação sobre o período anterior, os rótulos, os parâmetros da URL e
  * o aviso de fim de semana.
  */
+import { codigoDePrograma, parametrosBusca, urlBusca } from "./busca.ts";
 import { ROTULO_AGENTE, UFS } from "./organizacao.ts";
 import type { ColunaTabela, ValorCelula } from "./tabela-filtro.ts";
 
@@ -168,6 +169,17 @@ export function enderecoDaOrdemAntiga(p: ParametrosRadar): string {
   const q = new URLSearchParams(base.includes("?") ? base.slice(base.indexOf("?") + 1) : "");
   q.set(`t.${o.tabela}.o`, `${coluna}.${o.sentido}`);
   return `/mapa/radar?${q.toString()}`;
+}
+
+/**
+ * O programa na busca das propostas, pelo CÓDIGO, na UF do recorte. Diagnóstico externo de 17/11/2026 (A04/A15): pelo
+ * nome (`q=`), o primeiro termo ("fomento") casava ~50 mil de 139 mil propostas e a busca estourava o tempo da API. O
+ * nome vai só como rótulo (`rotulo=`). Sem código válido, null: a tela mostra o nome sem link.
+ */
+export function urlPorPrograma(codigo: string | null | undefined, nome: string | null | undefined, uf: string | null): string | null {
+  const programa = codigoDePrograma(codigo);
+  if (!programa) return null;
+  return urlBusca(parametrosBusca({}), { aba: "propostas", programa, rotulo: nome?.trim() || null, uf });
 }
 
 // ============================ PROCEDÊNCIA ============================

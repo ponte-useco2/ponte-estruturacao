@@ -7,6 +7,8 @@ import {
   barrasDaExecucao,
   fasesDoInstrumento,
   pagamentosPorMes,
+  pagoRegistrado,
+  partesDoPago,
   resumoFornecedores,
   urlInstrumentoNaAba,
 } from "./pagina-instrumento.ts";
@@ -119,4 +121,17 @@ test("M2: a faixa da empresa cai dentro da janela do convênio", async () => {
   assert.deepEqual(janelaDoPagamento("2024-05-05", "2024-05-05", "2024-05-05", "2024-05-05"), [0, 1]);
   assert.equal(janelaDoPagamento(null, "2024-01-01", "2024-01-01", "2024-02-01"), null);
   assert.equal(janelaDoPagamento("ontem", "2024-01-01", "2024-01-01", "2024-02-01"), null);
+});
+
+test("pago (diagnóstico externo de 17/11/2026, A12): nulo com o instrumento lido é 'nenhum pagamento registrado', e '—' só sem leitura", () => {
+  // O 899676: vl_pago, pago_pj e dt_ultimo_pagamento nulos pelo LEFT JOIN do job.
+  assert.equal(pagoRegistrado(null, true), "R$ 0 · nenhum pagamento registrado no SICONV");
+  assert.equal(pagoRegistrado(undefined, true), "R$ 0 · nenhum pagamento registrado no SICONV");
+  assert.equal(pagoRegistrado(0, true), "R$ 0 · nenhum pagamento registrado no SICONV");
+  assert.equal(pagoRegistrado(null, false), "—");
+  assert.equal(pagoRegistrado(1_250_000, false), "—");
+  assert.equal(pagoRegistrado(1_250_000, true), "R$ 1,3 mi");
+  assert.equal(pagoRegistrado(null, true, "a empresas"), "R$ 0 · nenhum pagamento a empresas registrado no SICONV");
+  assert.deepEqual(partesDoPago(null, true), { valor: "R$ 0", nota: "nenhum pagamento registrado no SICONV" });
+  assert.deepEqual(partesDoPago(500, true), { valor: "R$ 500", nota: null });
 });

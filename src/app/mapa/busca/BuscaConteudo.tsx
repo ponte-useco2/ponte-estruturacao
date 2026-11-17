@@ -19,6 +19,8 @@ import {
   GRUPOS_SITUACAO,
   LIMITE_POR_PAGINA,
   PAGINA_MAXIMA,
+  TEXTO_AVISO_BUSCA,
+  TITULO_AVISO_BUSCA,
   contagem,
   totalDePaginas,
   urlBusca,
@@ -91,6 +93,8 @@ export function BuscaConteudo({
   const paginaDa = (pagina: number) => urlComTabela(urlBusca(p, { pagina }), p.aba === "tudo" ? "instrumentos" : p.aba, estado);
   const vazio = leitura.instrumentos.length === 0 && leitura.propostas.length === 0 && leitura.organizacoes.length === 0;
   const org = p.aba === "organizacoes";
+  // A04/A15 (17/11/2026): todas as linhas do recorte são do mesmo programa; o rótulo do endereço só vale sem elas.
+  const nomePrograma = p.programa ? (leitura.propostas[0]?.programa ?? p.rotulo ?? null) : null;
 
   return (
     <div className="pa-pagina mp-radar">
@@ -117,6 +121,9 @@ export function BuscaConteudo({
       <form method="get" action="/mapa/busca" className="mp-filtros mp-busca-form" role="search">
         {/* C2: sem `aba` é a unificada; a lista manda a dela sempre, também a dos convênios. */}
         <input type="hidden" name="aba" value={p.aba} />
+        {/* A04/A15 (17/11/2026): o recorte do programa fica quando se troca a UF, o tema ou o desfecho. */}
+        {p.programa && <input type="hidden" name="programa" value={p.programa} />}
+        {p.programa && p.rotulo && <input type="hidden" name="rotulo" value={p.rotulo} />}
         {/* O rótulo diz o que se pode buscar e fica à vista: no placeholder (2,66:1), sumia ao digitar (A06). */}
         <div className="mp-busca-termo">
           <label htmlFor="busca-q" className="mp-busca-rotulo">
@@ -201,6 +208,8 @@ export function BuscaConteudo({
         <h2 id="busca-resultado" className="mp-radar-h2" aria-live="polite">
           {leitura.semFiltro
             ? "Digite um termo ou escolha um filtro"
+            : leitura.aviso
+            ? TITULO_AVISO_BUSCA[leitura.aviso]
             : vazio
             ? tituloBuscaVazia(p)
             : p.aba === "instrumentos"
@@ -218,11 +227,21 @@ export function BuscaConteudo({
             </LinkMapa>
           </p>
         ) : null}
+        {/* A04/A15 (17/11/2026): o recorte pelo código do programa; o nome vem da própria lista e, sem ela, do rótulo. */}
+        {p.programa ? (
+          <p className="mp-busca-ajuda">
+            Propostas do programa <strong>{p.programa}</strong>
+            {nomePrograma ? ` ${nomePrograma}` : ""}.{" "}
+            <LinkMapa href={urlBusca(p, { programa: null, rotulo: null })}>Tirar o filtro do programa</LinkMapa>
+          </p>
+        ) : null}
         {leitura.semFiltro ? (
           <p className="pa-cartao pa-cartao-plano">
             A busca procura em toda a base do Mapa: digite um número, uma palavra do programa ou do objeto, o nome do proponente ou o CNPJ, ou
             escolha a UF, o tema ou a situação.
           </p>
+        ) : leitura.aviso ? (
+          <p className="pa-cartao pa-cartao-plano">{TEXTO_AVISO_BUSCA[leitura.aviso]}</p>
         ) : vazio && !comFiltroNaTabela ? (
           <BuscaVazia p={p} temMunicipio={leitura.municipiosAchados.length > 0} />
         ) : (

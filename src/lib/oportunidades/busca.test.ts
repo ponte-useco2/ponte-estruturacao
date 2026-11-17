@@ -3,9 +3,13 @@ import assert from "node:assert/strict";
 import {
   GRUPOS_SITUACAO,
   PAGINA_MAXIMA,
+  TEXTO_AVISO_BUSCA,
   buscaSemFiltro,
+  codigoDePrograma,
   contagem,
   desfechosDoGrupo,
+  ehProgramaSemBanco,
+  ehTempoEsgotado,
   fracoesDaMaior,
   grupoDaSituacao,
   linhasDe,
@@ -19,6 +23,7 @@ import {
   saidasIndisponivel,
   situacoesDoGrupo,
   termosDaBusca,
+  termosNaOrdemDoIndice,
   totalDePaginas,
   urlBusca,
   type EventoInstrumento,
@@ -52,7 +57,7 @@ test("termos: sem acento, minúsculas, CNPJ só dígitos, sem curinga do LIKE e 
 test("parâmetros: valores fora da lista caem no padrão; município só vale na UF dele", () => {
   const p = parametrosBusca({});
   // C2 (08/10/2026): a entrada da busca é a unificada.
-  assert.deepEqual(p, { aba: "tudo", q: "", uf: null, municipio: null, tema: null, grupo: null, pagina: 1 });
+  assert.deepEqual(p, { aba: "tudo", q: "", uf: null, municipio: null, tema: null, grupo: null, pagina: 1, programa: null, rotulo: null });
   assert.equal(parametrosBusca({ aba: "x", tema: "nao_existe", grupo: "nao", pagina: "-3" }).tema, null);
   const mun = parametrosBusca({ municipio: "2507507" });
   assert.equal(mun.uf, "PB");
@@ -160,7 +165,7 @@ test("B12: indisponível — sem endereço, busca e janelas; com endereço, 'Ten
 
 test("E3: a aba das organizações é só da PB, sem tema nem grupo", () => {
   const p = parametrosBusca({ aba: "organizacoes", uf: "SP", tema: "saude", grupo: "execucao", municipio: "2510808", q: "laureano" });
-  assert.deepEqual(p, { aba: "organizacoes", q: "laureano", uf: "PB", municipio: "2510808", tema: null, grupo: null, pagina: 1 });
+  assert.deepEqual(p, { aba: "organizacoes", q: "laureano", uf: "PB", municipio: "2510808", tema: null, grupo: null, pagina: 1, programa: null, rotulo: null });
   assert.equal(parametrosBusca({ aba: "organizacoes", municipio: "3550308" }).municipio, null, "município de fora da PB não vale");
   assert.equal(urlBusca(p, { pagina: 2 }), "/mapa/busca?aba=organizacoes&q=laureano&municipio=2510808&pagina=2");
   const conv = parametrosBusca({ q: "creche", uf: "SP", tema: "saude" });
@@ -186,6 +191,8 @@ test("C2: sem aba na URL — termo vai à unificada; tema, situação, municípi
     tema: null,
     grupo: null,
     pagina: 1,
+    programa: null,
+    rotulo: null,
   });
   assert.equal(parametrosBusca({ q: "patos", uf: "XX" }).uf, null);
 });
@@ -210,4 +217,78 @@ test("C2: endereços — a unificada sem aba; as listas com aba; de fora, tema e
     const sp = Object.fromEntries(new URLSearchParams(u.split("?")[1]));
     assert.equal(parametrosBusca(sp).aba, "tudo", u);
   }
+});
+
+// ============================ Diagnóstico externo de 17/11/2026 (A04/A15): o programa pelo código ============================
+
+const PROGRAMA = "2200020260004";
+
+test("A04/A15: o programa só vale com 10 a 13 dígitos, só nas propostas; o rótulo só vai junto com o código", () => {
+  const p = parametrosBusca({ aba: "propostas", programa: ` ${PROGRAMA} `, rotulo: "  Fomento ao Esporte  ", uf: "pb" });
+  assert.deepEqual([p.aba, p.programa, p.rotulo, p.uf, p.q], ["propostas", PROGRAMA, "Fomento ao Esporte", "PB", ""]);
+  for (const ruim of ["abc", "123456789", "22000202600041", "2200020260004x", "2200020260004;drop", ""]) {
+    assert.equal(codigoDePrograma(ruim), null, ruim);
+    assert.equal(parametrosBusca({ aba: "propostas", programa: ruim, rotulo: "X" }).programa, null, ruim);
+    assert.equal(parametrosBusca({ aba: "propostas", programa: ruim, rotulo: "X" }).rotulo, null, `${ruim}: sem código, sem rótulo`);
+  }
+  assert.equal(codigoDePrograma(["2200020260", "x"]), "2200020260");
+  // A função dos convênios não recebe o código: em outra aba ele não vale.
+  assert.equal(parametrosBusca({ aba: "instrumentos", programa: PROGRAMA }).programa, null);
+  assert.equal(parametrosBusca({ aba: "tudo", q: "fomento", programa: PROGRAMA }).programa, null);
+  // Sem aba, o código leva à lista das propostas.
+  assert.equal(parametrosBusca({ programa: PROGRAMA }).aba, "propostas");
+  assert.equal(parametrosBusca({ programa: "abc" }).aba, "tudo");
+});
+
+test("A04/A15: o endereço leva o código e o rótulo, sem `q`; trocar de aba solta o programa; ida e volta", () => {
+  const vazia = parametrosBusca({});
+  const url = urlBusca(vazia, { aba: "propostas", programa: PROGRAMA, rotulo: "Fomento ao Esporte", uf: "PB" });
+  assert.equal(url, `/mapa/busca?aba=propostas&uf=PB&programa=${PROGRAMA}&rotulo=Fomento+ao+Esporte`);
+  const p = parametrosBusca(Object.fromEntries(new URLSearchParams(url.split("?")[1])));
+  assert.deepEqual([p.aba, p.programa, p.rotulo, p.uf, p.q], ["propostas", PROGRAMA, "Fomento ao Esporte", "PB", ""]);
+  // A página seguinte e o filtro de desfecho mantêm o programa; tirar o programa solta o rótulo junto.
+  assert.equal(urlBusca(p, { pagina: 2 }), `/mapa/busca?aba=propostas&uf=PB&programa=${PROGRAMA}&rotulo=Fomento+ao+Esporte&pagina=2`);
+  assert.equal(urlBusca(p, { grupo: "negada" }), `/mapa/busca?aba=propostas&uf=PB&grupo=negada&programa=${PROGRAMA}&rotulo=Fomento+ao+Esporte`);
+  assert.equal(urlBusca(p, { programa: null }), "/mapa/busca?aba=propostas&uf=PB");
+  assert.equal(urlBusca(p, { aba: "instrumentos" }), "/mapa/busca?aba=instrumentos&uf=PB");
+  assert.equal(urlBusca(p, { aba: "tudo" }), "/mapa/busca", "a unificada não leva o programa (e a PB é o padrão)");
+  // Código inválido não entra no endereço.
+  assert.equal(urlBusca(vazia, { aba: "propostas", programa: "fomento", rotulo: "x", uf: "PB" }), "/mapa/busca?aba=propostas&uf=PB");
+  // Sem programa, os endereços de antes não mudam.
+  assert.equal(urlBusca(parametrosBusca({ aba: "propostas", q: "creche" }), {}), "/mapa/busca?aba=propostas&q=creche");
+});
+
+test("A04/A15: o código do programa é filtro (a busca consulta); sem ele e sem nada, não", () => {
+  assert.equal(buscaSemFiltro(parametrosBusca({ aba: "propostas", programa: PROGRAMA })), false);
+  assert.equal(buscaSemFiltro(parametrosBusca({ aba: "propostas", programa: "fomento" })), true);
+  assert.equal(buscaSemFiltro(parametrosBusca({ aba: "instrumentos", programa: PROGRAMA })), true, "nos convênios o código não vale");
+});
+
+test("A04/A15: os termos vão ao banco do mais longo para o mais curto, sem '-' e sem o de 2 letras na frente", () => {
+  const digitados = termosDaBusca("Fomento ao Esporte - Desenvolvimento");
+  // A ordem digitada fica (a busca unificada casa a frase das entidades nela).
+  assert.deepEqual(digitados, ["fomento", "ao", "esporte", "desenvolvimento"]);
+  const noBanco = termosNaOrdemDoIndice(digitados);
+  assert.deepEqual(noBanco, ["desenvolvimento", "fomento", "esporte", "ao"]);
+  assert.ok(!noBanco.includes("-"));
+  assert.notEqual(noBanco[0], "ao");
+  // No empate, a ordem digitada; a lista de entrada não muda.
+  assert.deepEqual(termosNaOrdemDoIndice(["ab", "cd", "efg"]), ["efg", "ab", "cd"]);
+  assert.deepEqual(digitados, ["fomento", "ao", "esporte", "desenvolvimento"]);
+  assert.deepEqual(termosNaOrdemDoIndice([]), []);
+});
+
+test("A04/A15: o tempo esgotado (57014) e a função sem o parâmetro do programa (PGRST202) se distinguem do resto", () => {
+  assert.equal(ehTempoEsgotado({ code: "57014", message: "canceling statement due to statement timeout" }), true);
+  assert.equal(ehTempoEsgotado({ message: "canceling statement due to statement timeout" }), true);
+  assert.equal(ehTempoEsgotado({ code: "PGRST202", message: "Could not find the function" }), false);
+  assert.equal(ehTempoEsgotado(null), false);
+  assert.equal(
+    ehProgramaSemBanco({ code: "PGRST202", message: "Could not find the function public.painel_busca_propostas_v2(p_cod_programa, p_desfechos) in the schema cache" }),
+    true,
+  );
+  assert.equal(ehProgramaSemBanco({ code: "57014", message: "canceling statement due to statement timeout" }), false);
+  assert.equal(ehProgramaSemBanco(undefined), false);
+  assert.match(TEXTO_AVISO_BUSCA.busca_ampla, /escolha uma UF, um ano ou um termo mais específico/);
+  assert.match(TEXTO_AVISO_BUSCA.programa_sem_banco, /atualização do banco que ainda não foi aplicada/);
 });

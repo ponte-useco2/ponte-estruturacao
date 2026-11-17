@@ -440,6 +440,60 @@ test("assinatura de município bloqueado: o risco e o passo fiscal aparecem, com
   assert.equal(d.estrategia[0].titulo, "Cobrar a assinatura do concedente");
 });
 
+test("899676 (A14, 17/11/2026): repasse todo desembolsado, o fiscal não trava e os passos seguem a fase", () => {
+  const fiscal = {
+    ibge: "2513802",
+    municipio: "Santa Teresinha",
+    conclusao: { decisao: "B" as const, nome: "Receber transferência voluntária", estado: "nao_atendido" as const, bloqueantes: ["G7"], alertas: [], sem_dado: [], documentais: [], versao: "x" },
+    caucPendencias: ["1.1", "1.5", "3.2.3"],
+    referencia: "2026-11-11",
+  };
+  const i = base({
+    nr_convenio: "899676",
+    proponente: "MUNICIPIO DE SANTA TERESINHA",
+    cod_ibge: "2513802",
+    vl_repasse: 238_856,
+    vl_desembolsado: 238_856,
+    vl_pago: null,
+    vl_saldo_conta: 350_755,
+    pct_fisico: 0,
+    dt_primeiro_desembolso: "2022-12-02",
+    dt_ultimo_desembolso: "2024-05-15",
+    dt_ultimo_pagamento: null,
+    dt_fim_vigencia: "2027-09-30",
+    dt_limite_contas: "2027-11-29",
+  });
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [], fiscal }, HOJE);
+  assert.equal(d.etapa, "execucao");
+  assert.ok(!d.estrategia.some((p) => p.titulo === "Resolver as pendências fiscais do município"), "sem parcela a liberar, o fiscal não é passo");
+  assert.deepEqual(
+    d.estrategia.slice(0, 4).map((p) => p.titulo),
+    ["Comprovar a execução física", "Pagar os fornecedores pela conta do convênio", "Conferir o saldo e os rendimentos da conta", "Planejar a conclusão até o fim da vigência"],
+  );
+  assert.match(d.estrategia[2].porque, /mais que o repasse de R\$ .+: a diferença são rendimentos/);
+  const fisc = d.riscos.find((r) => r.titulo === "Pendência fiscal do município (não trava este instrumento)");
+  assert.ok(fisc && fisc.nivel === "informativo");
+  assert.match(fisc.fato, /já foi todo desembolsado: a regularidade pesa nas próximas transferências/);
+  assert.ok(!d.riscos.some((r) => r.titulo === "Município bloqueado para receber transferência voluntária"));
+  assert.equal(d.riscos[0].titulo, "Sem movimento financeiro há mais de um ano");
+  assert.match(d.riscos[0].fato, /Nenhum pagamento a fornecedor registrado; o último desembolso é de 15\/05\/2024/);
+});
+
+test("execução com parcela a liberar e município bloqueado: o fiscal continua risco alto e passo (A14)", () => {
+  const fiscal = {
+    ibge: "2516201",
+    municipio: "Sousa",
+    conclusao: { decisao: "B" as const, nome: "Receber transferência voluntária", estado: "nao_atendido" as const, bloqueantes: ["G7"], alertas: [], sem_dado: [], documentais: [], versao: "x" },
+    caucPendencias: ["1.1"],
+    referencia: "2026-09-28",
+  };
+  const i = base({ vl_repasse: 1_000_000, vl_desembolsado: 400_000, pct_fisico: 0.1, dt_primeiro_desembolso: "2026-01-10", dt_ultimo_desembolso: "2026-01-10" });
+  const d = lerDiagnostico({ ...entrada962210(), instrumento: i, etapas: [], pares: [], carteira: [], fiscal }, HOJE);
+  assert.ok(d.riscos.some((r) => r.titulo === "Município bloqueado para receber transferência voluntária" && r.nivel === "alto"));
+  assert.ok(d.estrategia.some((p) => p.titulo === "Resolver as pendências fiscais do município"));
+  assert.ok(!d.estrategia.some((p) => p.titulo === "Comprovar a execução física"), "com parcela a liberar, os passos da fase final não entram");
+});
+
 test("liminar judicial e extinto com suspensiva pendente", () => {
   const lim = lerDiagnostico({ ...entrada962210(), instrumento: base({ situacao_contratacao: "Sob Liminar Judicial e Cláusula Suspensiva" }), carteira: [] }, HOJE);
   assert.ok(lim.riscos.some((r) => r.titulo === "Contratação sob liminar judicial" && r.nivel === "alto"));

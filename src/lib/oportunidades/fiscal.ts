@@ -157,6 +157,13 @@ export interface ProjecaoFiscal {
   liberacoes: number;
 }
 
+/**
+ * De onde vem `fiscal_municipio.populacao` (diagnóstico externo de 17/11/2026, A12): o seed `fiscal/seeds/entes_pb.csv`,
+ * copiado dos `entes` do Siconfi, que no exercício de 2026 trazem a estimativa do IBGE de 2025. A página do município
+ * mostra a de 2026 (`mun_indicador`), por isso os números diferem. Só exibição: nenhuma regra fiscal usa a população.
+ */
+export const FONTE_POPULACAO_FISCAL = "estimativa IBGE de 2025, pelo Siconfi";
+
 export interface MunicipioFiscal {
   ibge: string;
   nome: string;

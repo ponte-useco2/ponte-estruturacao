@@ -80,7 +80,7 @@ function comparar(a: string, b: string): number {
  * Urgência; depois o prazo mais próximo; depois a publicação mais recente. Com `hoje`, o que já fechou vai para o
  * fim, qualquer que tenha sido o aviso (o "faltam 3 dias" de uma janela que fechou ontem não é mais urgente).
  */
-export function ordenarPorUrgencia(itens: readonly ItemCentral[], hoje?: string): ItemCentral[] {
+export function ordenarPorUrgencia<T extends ItemCentral>(itens: readonly T[], hoje?: string): T[] {
   return [...itens].sort(
     (a, b) =>
       urgencia(a, hoje) - urgencia(b, hoje) ||
@@ -90,7 +90,7 @@ export function ordenarPorUrgencia(itens: readonly ItemCentral[], hoje?: string)
   );
 }
 
-export function filtrar(itens: readonly ItemCentral[], aba: Aba, tipos: readonly TipoMudanca[]): ItemCentral[] {
+export function filtrar<T extends ItemCentral>(itens: readonly T[], aba: Aba, tipos: readonly TipoMudanca[]): T[] {
   return itens.filter((i) => {
     if (aba === "arquivadas") {
       if (!i.arquivada_em) return false;
@@ -107,6 +107,75 @@ export function contarPorTipo(itens: readonly ItemCentral[], aba: Aba): Partial<
   const contagem: Partial<Record<TipoMudanca, number>> = {};
   for (const i of filtrar(itens, aba, [])) contagem[i.tipo] = (contagem[i.tipo] ?? 0) + 1;
   return contagem;
+}
+
+/**
+ * Diagnóstico externo de 17/11/2026 (A10): a contagem por tipo em JANELAS, como a lista mostra depois de
+ * `agruparPorJanela` — o chip "Prazo se aproximando" contava 807 avisos para 198 janelas.
+ */
+export function contarJanelasPorTipo(itens: readonly ItemCentral[], aba: Aba): Partial<Record<TipoMudanca, number>> {
+  const chaves: Partial<Record<TipoMudanca, Set<string>>> = {};
+  for (const i of filtrar(itens, aba, [])) (chaves[i.tipo] ??= new Set()).add(i.chave);
+  const contagem: Partial<Record<TipoMudanca, number>> = {};
+  for (const [tipo, conjunto] of Object.entries(chaves) as [TipoMudanca, Set<string>][]) contagem[tipo] = conjunto.size;
+  return contagem;
+}
+
+/**
+ * Um cartão por janela (diagnóstico externo de 17/11/2026, A10): o aviso que representa a janela, com os demais
+ * avisos dela. `lida_em` do cartão é nulo enquanto houver aviso da janela por ler.
+ */
+export interface CartaoJanela extends ItemCentral {
+  /** Todos os avisos da janela no recorte, do mais recente ao mais antigo: as ações do cartão agem sobre eles. */
+  membros: ItemCentral[];
+  ids: string[];
+  /** Os avisos anteriores ao que o cartão mostra, com os limiares de um mesmo prazo contados uma vez. */
+  anteriores: number;
+}
+
+/** Mais recente primeiro; na mesma publicação, o mais urgente; depois o id maior (o gravado por último). */
+function maisRecente(a: ItemCentral, b: ItemCentral): number {
+  const na = Number(a.id);
+  const nb = Number(b.id);
+  const porId = Number.isFinite(na) && Number.isFinite(nb) ? nb - na : comparar(b.id, a.id);
+  return comparar(b.publicado_em, a.publicado_em) || urgencia(a) - urgencia(b) || porId;
+}
+
+/**
+ * Agrupa os avisos pela chave da janela (`canal|natureza|códigos`). O cartão mostra o evento mais recente; os
+ * avisos de 7, 3 e 1 dia de um mesmo prazo contam como um só, no menor limiar. A ordem dos cartões é a da primeira
+ * aparição de cada janela na entrada: quem chama ordena depois (`ordenarPorUrgencia`).
+ */
+export function agruparPorJanela(itens: readonly ItemCentral[]): CartaoJanela[] {
+  const porChave = new Map<string, ItemCentral[]>();
+  for (const i of itens) {
+    const grupo = porChave.get(i.chave);
+    if (grupo) grupo.push(i);
+    else porChave.set(i.chave, [i]);
+  }
+
+  const cartoes: CartaoJanela[] = [];
+  for (const grupo of porChave.values()) {
+    const membros = [...grupo].sort(maisRecente);
+    // Um evento por limiar colapsado: os `fechando` de um mesmo prazo ficam no de menor limiar.
+    const eventos = new Map<string, ItemCentral>();
+    for (const m of membros) {
+      const k = m.tipo === "fechando" ? `fechando|${m.fecha}` : `id|${m.id}`;
+      const atual = eventos.get(k);
+      if (!atual || (m.limiar ?? Number.POSITIVE_INFINITY) < (atual.limiar ?? Number.POSITIVE_INFINITY)) eventos.set(k, m);
+    }
+    const recente = membros[0];
+    const base = recente.tipo === "fechando" ? (eventos.get(`fechando|${recente.fecha}`) ?? recente) : recente;
+    const porLer = membros.some((m) => !m.lida_em);
+    cartoes.push({
+      ...base,
+      lida_em: porLer ? null : base.lida_em,
+      membros,
+      ids: membros.map((m) => m.id),
+      anteriores: eventos.size - 1,
+    });
+  }
+  return cartoes;
 }
 
 export function contarNaoLidas(itens: readonly ItemCentral[]): number {
@@ -159,6 +228,14 @@ export function formatarPublicacao(geradoEm: string): string {
   if (!d) return "data desconhecida";
   const p = Object.fromEntries(FORMATO_PUBLICACAO.formatToParts(d).map((x) => [x.type, x.value]));
   return `${p.day}/${p.month}/${p.year} às ${p.hour}:${p.minute}`;
+}
+
+/** "17/11" da publicação, no horário da PB; null se a data não for legível (A05, 17/11/2026). */
+export function diaMesDaPublicacao(geradoEm: string | null | undefined): string | null {
+  const d = geradoEm ? paraInstante(geradoEm) : null;
+  if (!d) return null;
+  const p = Object.fromEntries(FORMATO_PUBLICACAO.formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.day}/${p.month}`;
 }
 
 const DESCRICAO: Record<TipoMudanca, (i: ItemCentral) => string> = {
@@ -240,12 +317,17 @@ export interface ResumoCatalogo {
   ate: string;
   /** Janelas sem tema declarado na fonte — explica os zeros do seletor. */
   semTema: number;
+  /**
+   * `gerado_em` do catálogo contado (diagnóstico externo de 17/11/2026, A05): o total é o do Transferegov naquele
+   * instante, todo o Brasil e todo tipo de proponente, e a tela diz de quando é.
+   */
+  geradoEm?: string | null;
 }
 
-export interface GrupoPrazo {
+export interface GrupoPrazo<T extends ItemCentral = ItemCentral> {
   id: string;
   titulo: string;
-  itens: ItemCentral[];
+  itens: T[];
   naoLidas: number;
   /** O grupo mais longo nasce recolhido: é o maior e o menos urgente. */
   recolhido: boolean;
@@ -269,11 +351,11 @@ function somaDias(agora: Date, dias: number): string {
  * e misturava urgência com passado (achado da revisão de 02/10/2026).
  * Grupo vazio não aparece: cabeçalho sem item é ruído.
  */
-export function agruparPorPrazo(itens: ItemCentral[], agora: Date): GrupoPrazo[] {
+export function agruparPorPrazo<T extends ItemCentral>(itens: T[], agora: Date): GrupoPrazo<T>[] {
   const hoje = diaDe(agora);
   const [c7, c30, c90] = CORTES_PRAZO.map((d) => somaDias(agora, d));
-  const historico: GrupoPrazo = { id: "fechou", titulo: `Já fechou · histórico dos avisos, antes de ${formatarData(hoje)}`, itens: [], naoLidas: 0, recolhido: true };
-  const grupos: GrupoPrazo[] = [
+  const historico: GrupoPrazo<T> = { id: "fechou", titulo: `Já fechou · histórico dos avisos, antes de ${formatarData(hoje)}`, itens: [], naoLidas: 0, recolhido: true };
+  const grupos: GrupoPrazo<T>[] = [
     { id: "ate7", titulo: `Fecha em até 7 dias · até ${formatarData(c7)}`, itens: [], naoLidas: 0, recolhido: false },
     { id: "ate30", titulo: `Fecha em 8 a 30 dias · até ${formatarData(c30)}`, itens: [], naoLidas: 0, recolhido: false },
     { id: "ate90", titulo: `Fecha em 31 a 90 dias · até ${formatarData(c90)}`, itens: [], naoLidas: 0, recolhido: false },

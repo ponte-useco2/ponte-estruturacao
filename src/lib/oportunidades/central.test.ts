@@ -11,7 +11,10 @@ import {
   mensagemVazio,
   ordenarPorUrgencia,
   agruparPorPrazo,
+  agruparPorJanela,
   codigosDaChave,
+  contarJanelasPorTipo,
+  diaMesDaPublicacao,
   indiceDivisor,
   type ItemCentral,
 } from "./central.ts";
@@ -213,4 +216,68 @@ test("o que já fechou vai para o histórico, no fim da fila, e a frase diz que 
   assert.deepEqual(ids(ordenarPorUrgencia(xs, "2026-10-02")), ["semana", "mes", "passou"]);
   assert.match(descrever(xs[0], "2026-10-02"), /^Fechou em 28\/09\/2026 · histórico: faltam 1 dia/);
   assert.equal(descrever(xs[1], "2026-10-02"), "Faltam 3 dias ou menos · fecha em 05/10/2026");
+});
+
+// Diagnóstico externo de 17/11/2026 (A10): 807 avisos "fechando" para 198 janelas, até 18 avisos na mesma.
+const JANELA = "proposta|Convênio|36000";
+
+test("um cartão por janela: os limiares de um mesmo prazo colapsam no menor, e o resto vira +N", () => {
+  const xs = [
+    item("10", { chave: JANELA, tipo: "nova", fecha: "2026-11-20", publicado_em: "2026-11-01T10:00:00" }),
+    item("11", { chave: JANELA, tipo: "fechando", limiar: 7, fecha: "2026-11-20", publicado_em: "2026-11-13T10:00:00" }),
+    item("12", { chave: JANELA, tipo: "fechando", limiar: 3, fecha: "2026-11-20", publicado_em: "2026-11-17T10:00:00" }),
+    item("13", { chave: JANELA, tipo: "fechando", limiar: 1, fecha: "2026-11-20", publicado_em: "2026-11-19T10:00:00" }),
+    item("20", { chave: "emenda|Convênio|99", tipo: "nova", fecha: "2026-12-01" }),
+  ];
+  const c = agruparPorJanela(xs);
+  assert.equal(c.length, 2);
+  assert.equal(c[0].id, "13");
+  assert.equal(c[0].limiar, 1);
+  // 7, 3 e 1 dia contam um evento só; sobra a "nova": +1.
+  assert.equal(c[0].anteriores, 1);
+  assert.deepEqual(c[0].ids, ["13", "12", "11", "10"]);
+  assert.deepEqual(c[1].ids, ["20"]);
+  assert.equal(c[1].anteriores, 0);
+});
+
+test("o cartão mostra o evento mais recente, e na mesma publicação o mais urgente", () => {
+  const c = agruparPorJanela([
+    item("1", { chave: JANELA, tipo: "nova", fecha: "2026-11-30", publicado_em: "2026-11-10T10:00:00" }),
+    item("2", { chave: JANELA, tipo: "prazo_alterado", antes: "2026-11-30", depois: "2026-12-15", fecha: "2026-12-15", publicado_em: "2026-11-12T10:00:00" }),
+    item("3", { chave: JANELA, tipo: "situacao_mudou", fecha: "2026-12-15", publicado_em: "2026-11-12T10:00:00" }),
+  ]);
+  assert.equal(c.length, 1);
+  assert.equal(c[0].id, "2");
+  assert.deepEqual(c[0].ids, ["2", "3", "1"]);
+  assert.equal(c[0].anteriores, 2);
+});
+
+test("o cartão segue por ler enquanto houver aviso da janela sem ler, e a ordem é a da primeira aparição", () => {
+  const c = agruparPorJanela([
+    item("b1", { chave: "b", publicado_em: "2026-11-12T10:00:00", lida_em: "2026-11-13T10:00:00Z" }),
+    item("a1", { chave: "a", fecha: "2026-10-01" }),
+    item("b0", { chave: "b", publicado_em: "2026-11-01T10:00:00" }),
+  ]);
+  assert.deepEqual(c.map((x) => x.chave), ["b", "a"]);
+  assert.equal(c[0].id, "b1");
+  assert.equal(c[0].lida_em, null);
+  assert.deepEqual(c[0].membros.map((m) => m.id), ["b1", "b0"]);
+  // Ordenar depois de agrupar mantém o cartão inteiro; a janela que fecha antes sobe.
+  assert.deepEqual(ordenarPorUrgencia(c).map((x) => x.ids), [["a1"], ["b1", "b0"]]);
+});
+
+test("o chip de tipo conta janelas, não avisos", () => {
+  const xs = [
+    item("1", { chave: JANELA, tipo: "fechando", limiar: 7, fecha: "2026-11-20" }),
+    item("2", { chave: JANELA, tipo: "fechando", limiar: 3, fecha: "2026-11-20" }),
+    item("3", { chave: "outra", tipo: "fechando", limiar: 1, fecha: "2026-11-20" }),
+  ];
+  assert.equal(contarJanelasPorTipo(xs, "nao_lidas").fechando, 2);
+  assert.equal(contarPorTipo(xs, "nao_lidas").fechando, 3);
+});
+
+test("dia e mês do catálogo no horário da PB", () => {
+  assert.equal(diaMesDaPublicacao("2026-11-17T02:30:00"), "16/11");
+  assert.equal(diaMesDaPublicacao(null), null);
+  assert.equal(diaMesDaPublicacao("ontem"), null);
 });

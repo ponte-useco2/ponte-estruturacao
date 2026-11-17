@@ -83,6 +83,7 @@ import {
   leituraGuardavel,
   leituraGuardavelNoCacheComum,
   montarRelatorio,
+  resumirJanelas,
   type EmendaRelatorio,
   type EntradaRelatorio,
   type FonteRelatorio,
@@ -258,14 +259,8 @@ async function lerJanelas(nome: string, hoje: string, faltas: string[]): Promise
     }
     const codigos = v1 ? codigosPorJanela(v2.payload, v1) : new Map<string, string[]>();
     const c = montarCatalogo(v2.payload, { tipo: "municipio", uf: "PB", temas: [] }, hoje, codigos);
-    const servem = c.janelas.filter((j) => portaServe(j, nome));
-    return {
-      elegiveis: servem.length,
-      urgentes: servem
-        .filter((j) => j.urgente)
-        .slice(0, 8)
-        .map((j) => ({ titulo: j.titulo, orgao: j.financiador, fim: j.prazo })),
-    };
+    // A05 (17/11/2026): a contagem das urgentes é a inteira; a lista, as 8 mais próximas (`resumirJanelas`).
+    return resumirJanelas(c.janelas.filter((j) => portaServe(j, nome)));
   } catch (e) {
     console.error("relatório do município (janelas abertas):", e instanceof Error ? e.message : e);
     faltas.push("janelas abertas");

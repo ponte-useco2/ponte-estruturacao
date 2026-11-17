@@ -18,6 +18,7 @@ import {
   lerPreferencias,
   lerTentativasFalhas,
   registrarVisita,
+  type Prazos,
 } from "@/lib/oportunidades/notificacoes.server";
 import { opcoesDePreferencia } from "@/lib/oportunidades/opcoes";
 import { sincronizarCentral } from "@/lib/oportunidades/sincronizar.server";
@@ -50,20 +51,30 @@ export default async function MapaDeOportunidadesPage({
   if (!visitante || visitante.status !== "aprovado") return null;
 
   // Onda 7: o mural tem três partes. O catálogo continua sendo a de entrada.
-  const mural = muralDe((await searchParams).mural);
+  const parametros = await searchParams;
+  const mural = muralDe(parametros.mural);
   if (mural === "itens") return <MuralItens />;
   if (mural === "normas") return <MuralNormas />;
 
+  // Diagnóstico externo de 17/11/2026 (A10): a fila é dos prazos em aberto; os vencidos ficam em `?prazos=vencidos`.
+  // As duas contagens vêm do banco, sem o corte de 500 da lista.
+  const prazos: Prazos = parametros.prazos === "vencidos" ? "vencidos" : "vigentes";
+  const agora = new Date();
+
   // `registrarVisita` devolve a marca ANTERIOR e só então carimba a de agora: é a
-  // anterior que posiciona a divisória na lista.
-  const [catalogo, central, preferencias, visitaAnterior, tentativas, naoLidasItens] = await Promise.all([
-    lerCatalogo(),
-    lerCentral(),
-    lerPreferencias(),
-    registrarVisita(visitante.id),
-    lerTentativasFalhas(),
-    contarAvisosItensNaoLidos(),
-  ]);
+  // anterior que posiciona a divisória na lista. O histórico não carimba: abrir os
+  // vencidos não pode esconder a divisória da fila.
+  const [catalogo, central, preferencias, visitaAnterior, tentativas, naoLidasItens, naoLidasVigentes, naoLidasVencidas] =
+    await Promise.all([
+      lerCatalogo(),
+      lerCentral(prazos, agora),
+      lerPreferencias(),
+      prazos === "vigentes" ? registrarVisita(visitante.id) : Promise.resolve(null),
+      lerTentativasFalhas(),
+      contarAvisosItensNaoLidos(),
+      contarNaoLidas("vigentes", agora),
+      contarNaoLidas("vencidos", agora),
+    ]);
 
   // Publicação nova no disco que a central ainda não processou. Sincroniza DEPOIS
   // de responder, para não prender quem abriu a aba — e a tela avisa que há
@@ -82,16 +93,20 @@ export default async function MapaDeOportunidadesPage({
   // O universo do catálogo: quantas janelas existem, quantas fecham na semana e
   // quantas não têm tema. Sem isso a tela não consegue dizer que as janelas
   // continuam lá quando a fila de avisos está vazia.
-  const agora = new Date();
+  // A05 (diagnóstico externo de 17/11/2026): o total é o do catálogo v1 — só Transferegov, todo o Brasil, todo tipo
+  // de proponente, no instante da geração —, e a tela diz isso com a data. O corte de 7 dias deixa de contar a janela
+  // que já fechou, como o "Ver só essas".
   const ate = new Date(agora.getTime());
   ate.setUTCDate(ate.getUTCDate() + 7);
   const ateIso = ate.toISOString().slice(0, 10);
+  const hojeIso = agora.toISOString().slice(0, 10);
   const resumoCatalogo = catalogo
     ? {
         total: catalogo.oportunidades.length,
-        fecham7: catalogo.oportunidades.filter((o) => o.fecha <= ateIso).length,
+        fecham7: catalogo.oportunidades.filter((o) => o.fecha >= hojeIso && o.fecha <= ateIso).length,
         ate: ateIso,
         semTema: catalogo.oportunidades.filter((o) => (o.temas ?? []).length === 0).length,
+        geradoEm: catalogo.gerado_em,
       }
     : null;
 
@@ -112,6 +127,8 @@ export default async function MapaDeOportunidadesPage({
         tentativas={tentativas}
         preferencias={preferencias}
         opcoes={opcoesDePreferencia(catalogo?.oportunidades ?? [])}
+        prazos={prazos}
+        naoLidasPorPrazo={{ vigentes: naoLidasVigentes, vencidos: naoLidasVencidas }}
       />
     </>
   );

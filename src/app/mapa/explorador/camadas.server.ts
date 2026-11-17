@@ -3,7 +3,9 @@
  * que a página completa do nível já faz, com a memória de 10 minutos dela (a mesma chave, então abrir a camada aquece a
  * página e vice-versa):
  *   · Brasil: `lerBrasil` (as somas por UF);
- *   · UF e município: `lerUf(sigla, true)` — a do administrador, que a rota exige. O resumo do município sai da lista
+ *   · UF e município: `lerUf(sigla, false)` — a leitura comum. A rota está aberta ao nível 1 desde a A43 (10/11/2026), e
+ *     a versão do administrador traz a decisão B do fiscal e os sinais do painel (diagnóstico externo de 17/11/2026, S2).
+ *     O resumo do município sai da lista
  *     dos 223 que ela já traz, e não do relatório do município (`lerRelatorioMunicipio`, ~3 s e muito mais do que a
  *     camada mostra);
  *   · entidades do município: `lerEntidadesDoMunicipio` (o "Quem recebe");
@@ -41,7 +43,7 @@ async function lerFaltantes(p: PilhaExplorador, hoje: string, ja: Lidas): Promis
   const desenhados = niveisDesenhados(p);
   const [brasil, uf, entidades, entidade] = await Promise.all([
     ja.brasil ?? (desenhados.includes("brasil") ? lerBrasil() : undefined),
-    ja.uf ?? (p.uf && (desenhados.includes("uf") || desenhados.includes("municipio")) ? lerUf(p.uf, true) : undefined),
+    ja.uf ?? (p.uf && (desenhados.includes("uf") || desenhados.includes("municipio")) ? lerUf(p.uf, false) : undefined),
     ja.entidades !== undefined ? ja.entidades : p.ibge ? lerEntidadesDoMunicipio(p.ibge) : undefined,
     ja.entidade ?? (p.cnpj ? lerRelatorioEntidade(p.cnpj, hoje) : undefined),
   ]);

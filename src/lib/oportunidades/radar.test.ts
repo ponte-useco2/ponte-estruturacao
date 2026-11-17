@@ -12,6 +12,7 @@ import {
   moedaCurta,
   parametrosRadar,
   rotuloTipo,
+  urlPorPrograma,
   urlRadar,
   valoresDaDisputa,
   valoresDoEnvio,
@@ -234,4 +235,26 @@ test("o ?ordem= antigo redireciona para a ordem da tabela nova, com o mesmo reco
       assert.ok(ordem && ordem.sentido === "desc", `${tabela}.${antiga} → ${url}`);
     }
   }
+});
+
+// Diagnóstico externo de 17/11/2026 (A04/A15): o Radar abria a busca pelo nome do programa e a busca estourava o tempo.
+test("A04/A15: o link do programa abre as propostas pelo código, sem `q`, na UF do recorte; sem código, sem link", () => {
+  const nome = "Fomento ao Esporte Educacional";
+  const pb = urlPorPrograma("2200020260004", nome, "PB");
+  assert.ok(pb);
+  const q = new URLSearchParams(pb.split("?")[1]);
+  assert.ok(pb.startsWith("/mapa/busca?"));
+  assert.equal(q.get("aba"), "propostas");
+  assert.equal(q.get("programa"), "2200020260004");
+  assert.equal(q.get("uf"), "PB");
+  assert.equal(q.get("rotulo"), nome);
+  assert.equal(q.has("q"), false, "o nome não vira termo de busca");
+  // No Brasil, sem UF.
+  const br = urlPorPrograma("2200020260004", nome, null);
+  assert.equal(new URLSearchParams(br?.split("?")[1]).has("uf"), false);
+  assert.equal(new URLSearchParams(br?.split("?")[1]).get("aba"), "propostas");
+  // Sem nome, só o código; sem código válido, nada.
+  assert.equal(urlPorPrograma("2200020260004", null, "PB"), "/mapa/busca?aba=propostas&uf=PB&programa=2200020260004");
+  assert.equal(urlPorPrograma(null, nome, "PB"), null);
+  assert.equal(urlPorPrograma("fomento", nome, "PB"), null);
 });
