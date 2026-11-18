@@ -1604,13 +1604,13 @@ export const AUTOAVALIACAO_PNTP: readonly ItemPntp[] = Object.freeze([
   {
     criterio: "13.3 — Alto contraste",
     exige: "Alternativa de alto contraste.",
-    faz: "Botão de alto contraste, guardado para a próxima visita; funciona sem JavaScript.",
+    faz: "Tema Alto contraste no painel de acessibilidade (além de Automático, Claro e Escuro), guardado para a próxima visita; funciona sem JavaScript.",
     situacao: "atende",
   },
   {
     criterio: "13.4 — Redimensionamento de texto",
     exige: "Aumentar e diminuir o texto.",
-    faz: "Botões A−, A e A+, guardados para a próxima visita; o zoom do navegador também funciona sem quebrar a página.",
+    faz: "Botões A− e A+ no painel de acessibilidade, de 80% a 160%, guardados para a próxima visita; o zoom do navegador também funciona sem quebrar a página.",
     situacao: "atende",
   },
   {
@@ -1622,7 +1622,7 @@ export const AUTOAVALIACAO_PNTP: readonly ItemPntp[] = Object.freeze([
   {
     criterio: "15.2 — Política de privacidade",
     exige: "Política de privacidade publicada.",
-    faz: "A política de privacidade do site vale para o portal; o portal não pede cadastro nem guarda dado de quem visita, só a preferência de acessibilidade escolhida (num cookie deste navegador).",
+    faz: "A política de privacidade do site vale para o portal; o portal não pede cadastro nem guarda dado de quem visita, só as preferências de acessibilidade escolhidas (em cookies deste navegador).",
     situacao: "parcial",
   },
   {
@@ -1634,7 +1634,7 @@ export const AUTOAVALIACAO_PNTP: readonly ItemPntp[] = Object.freeze([
   {
     criterio: "5.1 — Convênios recebidos (no canal convênio)",
     exige: "Número e ano, valor previsto, valor recebido, objeto, vigência, concedente e inteiro teor.",
-    faz: "A ficha da emenda traz o número, a assinatura, o previsto da emenda, o repasse e o desembolsado do convênio, o objeto, a vigência e o concedente. O Transferegov não tem endereço público por convênio: o portal leva à consulta pública e ao Portal da Transparência com o número.",
+    faz: "A ficha da emenda traz o número, a assinatura, o previsto da emenda, o repasse e o desembolsado do convênio, o objeto, a vigência e o concedente. Cada convênio abre direto na consulta pública do Transferegov, e a emenda no Portal da Transparência.",
     situacao: "parcial",
   },
 ]);
