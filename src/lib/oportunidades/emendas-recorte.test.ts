@@ -231,15 +231,29 @@ test("instrumentos: todos os da emenda na PB; o município do recorte no topo; b
   assert.equal(c.itens[0].instrumento, "960003");
 });
 
-test("fontes oficiais: convênio e emenda com endereço direto; especial e FNS com o número escrito (sem link direto)", () => {
+test("fontes oficiais: convênio, plano de ação, proposta do FNS e emenda abrem direto; sem número válido, consulta e número escrito", () => {
   assert.equal(
     fonteDoInstrumento(linha()).href,
     "https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=960337&Usr=guest&Pwd=guest",
   );
-  const pix = fonteDoInstrumento(linha({ canal: "pix", instrumento: "65837" }));
-  assert.deepEqual([pix.texto, pix.href, pix.numero], ["Consulte o plano de ação nº 65837", "https://especiais.transferegov.sistema.gov.br/", "65837"]);
-  const fns = fonteDoInstrumento(linha({ canal: "fns", instrumento: "36000717056202500" }));
-  assert.deepEqual([fns.texto, fns.href, fns.numero], ["Consulte a proposta nº 36000717056202500", "https://consultafns.saude.gov.br/", "36000717056202500"]);
+  const pix = fonteDoInstrumento(linha({ canal: "pix", instrumento: "38830" }));
+  assert.deepEqual(
+    [pix.texto, pix.href, pix.numero],
+    ["Transferegov: plano de ação nº 38830", "https://especiais.transferegov.sistema.gov.br/transferencia-especial/plano-acao/detalhe/38830/dados-basicos", null],
+  );
+  const pixSem = fonteDoInstrumento(linha({ canal: "pix", instrumento: "0903-003192" }));
+  assert.deepEqual(
+    [pixSem.texto, pixSem.href, pixSem.numero],
+    ["Consulte o plano de ação nº 0903-003192", "https://especiais.transferegov.sistema.gov.br/transferencia-especial/plano-acao/consulta", "0903-003192"],
+  );
+  const fns = fonteDoInstrumento(linha({ canal: "fns", instrumento: "36000741197202600" }));
+  assert.deepEqual(
+    [fns.texto, fns.href, fns.numero],
+    ["Fundo Nacional de Saúde: proposta nº 36000741197202600", "https://consultafns.saude.gov.br/#/proposta/36000741197202600/detalhe", null],
+  );
+  // 8 propostas antigas têm 16 dígitos e não abrem na consulta do FNS: link geral e número ao lado.
+  const fnsCurta = fonteDoInstrumento(linha({ canal: "fns", instrumento: "3600031211201400" }));
+  assert.deepEqual([fnsCurta.texto, fnsCurta.href, fnsCurta.numero], ["Consulte a proposta nº 3600031211201400", "https://consultafns.saude.gov.br/", "3600031211201400"]);
   assert.equal(fonteDoInstrumento(linha({ canal: "favorecido", codigo: "202650490001" })).href, "https://portaldatransparencia.gov.br/emendas/detalhe?codigoEmenda=202650490001");
 });
 

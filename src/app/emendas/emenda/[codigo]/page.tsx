@@ -193,7 +193,16 @@ export default async function FichaDaEmenda({ params, searchParams }: Props) {
     fontes.push({
       texto: f.texto,
       href: f.href,
-      det: c === "convenio" ? "Valores, desembolsos, situação e execução física." : c === "especial" ? "Transferências especiais: procure pelo número do plano de ação." : "Fundo Nacional de Saúde: procure pelo número da proposta.",
+      det:
+        c === "convenio"
+          ? "Valores, desembolsos, situação e execução física."
+          : c === "especial"
+            ? f.numero
+              ? "Transferências especiais: procure pelo número do plano de ação."
+              : "Plano de ação: dados básicos, valores, plano de trabalho, relatório de gestão e extrato."
+            : f.numero
+              ? "Fundo Nacional de Saúde: procure pelo número da proposta."
+              : "Proposta no Fundo Nacional de Saúde: situação, empenho, parlamentar e pagamento.",
       numero: f.numero,
     });
   }

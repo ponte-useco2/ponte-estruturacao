@@ -640,22 +640,36 @@ export function rotuloDoInstrumento(l: Pick<LinhaPublica, "canal" | "instrumento
 export const cnpjLegivel = (c: string | null | undefined): string =>
   c && /^\d{14}$/.test(c) ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : (c ?? "");
 
-/** A fonte oficial de cada instrumento (conferidos pelo titular em 17/11/2026: os dois primeiros abrem direto). */
+/**
+ * A fonte oficial de cada instrumento. Abrem direto, sem login (conferidos em 18/11/2026): o convênio no Transferegov, o
+ * plano de ação da transferência especial (pelo id do plano, o número que a base guarda) e a proposta do FNS (17 dígitos).
+ * Quando o número não abre direto, o link leva à consulta pública e o número fica escrito ao lado.
+ */
 export interface FonteOficial {
   texto: string;
   href: string;
-  /** O número a consultar, escrito ao lado (a fonte não tem endereço direto para ele). */
+  /** O número a consultar, escrito ao lado (só quando a fonte não abre direto nele). */
   numero: string | null;
 }
 export const urlTransferegovConvenio = (n: string): string =>
   `https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=${encodeURIComponent(n)}&Usr=guest&Pwd=guest`;
-export const URL_ESPECIAIS = "https://especiais.transferegov.sistema.gov.br/";
+export const urlPlanoDeAcao = (id: string): string =>
+  `https://especiais.transferegov.sistema.gov.br/transferencia-especial/plano-acao/detalhe/${encodeURIComponent(id)}/dados-basicos`;
+export const urlPropostaFns = (n: string): string => `https://consultafns.saude.gov.br/#/proposta/${encodeURIComponent(n)}/detalhe`;
+/** Consulta pública dos planos de ação (a raiz do módulo abre a lista de programas, não a de planos). */
+export const URL_ESPECIAIS = "https://especiais.transferegov.sistema.gov.br/transferencia-especial/plano-acao/consulta";
 export const URL_FNS = "https://consultafns.saude.gov.br/";
 export function fonteDoInstrumento(l: Pick<LinhaPublica, "canal" | "instrumento" | "codigo">): FonteOficial {
   const c = CANAL_DA_FONTE[l.canal];
   if (c === "convenio") return { texto: `Transferegov: convênio nº ${l.instrumento}`, href: urlTransferegovConvenio(l.instrumento), numero: null };
-  if (c === "especial") return { texto: `Consulte o plano de ação nº ${l.instrumento}`, href: URL_ESPECIAIS, numero: l.instrumento };
-  if (c === "saude") return { texto: `Consulte a proposta nº ${l.instrumento}`, href: URL_FNS, numero: l.instrumento };
+  if (c === "especial")
+    return /^\d{1,18}$/.test(l.instrumento)
+      ? { texto: `Transferegov: plano de ação nº ${l.instrumento}`, href: urlPlanoDeAcao(l.instrumento), numero: null }
+      : { texto: `Consulte o plano de ação nº ${l.instrumento}`, href: URL_ESPECIAIS, numero: l.instrumento };
+  if (c === "saude")
+    return /^\d{17}$/.test(l.instrumento)
+      ? { texto: `Fundo Nacional de Saúde: proposta nº ${l.instrumento}`, href: urlPropostaFns(l.instrumento), numero: null }
+      : { texto: `Consulte a proposta nº ${l.instrumento}`, href: URL_FNS, numero: l.instrumento };
   return l.codigo
     ? { texto: "Portal da Transparência: favorecidos da emenda", href: urlPortalEmenda(l.codigo), numero: null }
     : { texto: "Portal da Transparência", href: "https://portaldatransparencia.gov.br/emendas", numero: null };

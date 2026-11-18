@@ -124,8 +124,9 @@ export default async function Metodo() {
               {e && e.fnsPendentes > 0 ? ` (${e.fnsPendentes.toLocaleString("pt-BR")} na leitura atual)` : ""}.
             </li>
             <li>
-              O Transferegov não tem endereço público por convênio: o portal leva à consulta pública (procure pelo número) e ao Portal da
-              Transparência.
+              O convênio e o plano de ação da transferência especial abrem direto no Transferegov, e a proposta do FNS na consulta do
+              Fundo Nacional de Saúde. Quando o número não abre direto, o portal leva à consulta pública e escreve o número ao lado. A
+              emenda abre no Portal da Transparência.
             </li>
             <li>
               Pessoa física aparece só somada, por emenda e ano. O nome do microempreendedor individual é omitido (a razão social traz o nome
